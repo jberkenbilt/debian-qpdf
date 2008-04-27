@@ -1,0 +1,5 @@
+qpdf (2.0-1) unstable; urgency=low
+
+  * New upstream release
+
+ -- Jay Berkenbilt <qjb@debian.org>  Sat, 26 Apr 2008 19:41:26 -0400

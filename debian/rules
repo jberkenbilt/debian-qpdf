@@ -1,0 +1,40 @@
+#!/usr/bin/make -f
+
+# To distinguish variables that are truly local to this file (rather
+# than for use by cdbs), we adopt the convention of starting local
+# variables' names with l_.
+
+l_PWD := $(shell pwd)
+l_STAMPS = debian/l_stamps
+
+# Variables used by cdbs
+
+VERSION := $(shell dpkg-parsechangelog | \
+             awk '/Version:/ {print $$2}' | cut -d- -f 1)
+
+DEB_TAR_SRCDIR = qpdf-$(VERSION)
+DEB_COMPRESS_EXCLUDE = \
+	qpdf-manual.html \
+	qpdf-manual.pdf \
+	stylesheets.css
+
+DEB_CONFIGURE_USER_FLAGS = --docdir=/usr/share/doc/libqpdf-tools
+DEB_MAKE_CHECK_TARGET = check
+
+# Include cdbs rules files.
+include /usr/share/cdbs/1/rules/tarball.mk
+include /usr/share/cdbs/1/rules/debhelper.mk
+include /usr/share/cdbs/1/class/autotools.mk
+
+cleanbuilddir::
+	$(RM) -r $(l_STAMPS)
+
+# As 0.4.21, cdbs creates but doesn't remove debian/compat.  It
+# creates it conditionally, so this doesn't have a trivial fix.
+clean::
+	$(RM) debian/compat *.cdbs-config_list
+
+install/libqpdf-dev::
+	mkdir -p debian/tmp/usr/share/doc/libqpdf-dev/examples
+	cp -p $(DEB_SRCDIR)/examples/*.cc \
+		debian/tmp/usr/share/doc/libqpdf-dev/examples

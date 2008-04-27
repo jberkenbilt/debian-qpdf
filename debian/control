@@ -1,0 +1,42 @@
+Source: qpdf
+Section: libs
+Priority: optional
+Build-Depends: cdbs, debhelper (>= 5.0.38), libpcre3-dev, zlib1g-dev, imagemagick, ghostscript (>= 8.61), libtiff-tools
+Maintainer: Jay Berkenbilt <qjb@debian.org>
+Standards-Version: 3.7.3
+
+Package: libqpdf1
+Section: libs
+Architecture: any
+Depends: ${shlibs:Depends}
+Recommends: libqpdf-tools
+Description: tools and library for transforming PDF files
+ Fill this in....
+ .
+ Paragraph 2
+
+Package: libqpdf-dev
+Section: libdevel
+Architecture: any
+Depends: libqpdf1 (= ${binary:Version}), libpcre3-dev, zlib1g-dev
+Recommends: libqpdf-tools
+Description: tools and library for transforming PDF files (dev)
+ Fill this in....
+ .
+ Paragraph 2
+ .
+ This package includes all development files needed to compile
+ applications that use the qpdf library.
+
+Package: libqpdf-tools
+Section: text
+Architecture: any
+Depends: ${shlibs:Depends}
+Description: tools and library for transforming PDF files (tools)
+ Fill this in....
+ .
+ Paragraph 2
+ .
+ This package includes several command-line utilities that make it
+ possible to use some vips functionality from shell scripts or the
+ command line.  It also contains the documentation.
