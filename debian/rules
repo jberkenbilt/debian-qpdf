@@ -19,7 +19,7 @@ DEB_COMPRESS_EXCLUDE = \
 	stylesheets.css
 
 DEB_CONFIGURE_USER_FLAGS = --docdir=/usr/share/doc/libqpdf-tools
-DEB_MAKE_CHECK_TARGET = check
+override DEB_MAKE_CHECK_TARGET = check
 
 # Include cdbs rules files.
 include /usr/share/cdbs/1/rules/tarball.mk
