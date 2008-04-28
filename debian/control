@@ -10,20 +10,40 @@ Section: libs
 Architecture: any
 Depends: ${shlibs:Depends}
 Recommends: libqpdf-tools
-Description: tools and library for transforming PDF files
- Fill this in....
+Description: command-line PDF transformation software (runtime)
+ QPDF is a program that does structural, content-preserving
+ transformations on PDF files.  It could have been called something
+ like pdf-to-pdf.  It also provides many useful capabilities to
+ developers of PDF-producing software or for people who just want to
+ look at the innards of a PDF file to learn more about how they work.
  .
- Paragraph 2
+ QPDF offers many capabilities such as linearization (web
+ optimization), encrypt, and decription of PDF files.  Note that QPDF
+ does not have the capability to create PDF files from scratch; it is
+ only used to create PDF files with special characteristics starting
+ from other PDF files or to inspect or extract information from
+ existing PDF files.
+ .
+ This package contains the qpdf runtime libraries required to run programs that link with the qpdf library.
 
 Package: libqpdf-dev
 Section: libdevel
 Architecture: any
 Depends: libqpdf1 (= ${binary:Version}), libpcre3-dev, zlib1g-dev
 Recommends: libqpdf-tools
-Description: tools and library for transforming PDF files (dev)
- Fill this in....
+Description: command-line PDF transformation software (development)
+ QPDF is a program that does structural, content-preserving
+ transformations on PDF files.  It could have been called something
+ like pdf-to-pdf.  It also provides many useful capabilities to
+ developers of PDF-producing software or for people who just want to
+ look at the innards of a PDF file to learn more about how they work.
  .
- Paragraph 2
+ QPDF offers many capabilities such as linearization (web
+ optimization), encrypt, and decription of PDF files.  Note that QPDF
+ does not have the capability to create PDF files from scratch; it is
+ only used to create PDF files with special characteristics starting
+ from other PDF files or to inspect or extract information from
+ existing PDF files.
  .
  This package includes all development files needed to compile
  applications that use the qpdf library.
@@ -33,10 +53,18 @@ Section: text
 Architecture: any
 Depends: ${shlibs:Depends}
 Description: tools and library for transforming PDF files (tools)
- Fill this in....
+ QPDF is a program that does structural, content-preserving
+ transformations on PDF files.  It could have been called something
+ like pdf-to-pdf.  It also provides many useful capabilities to
+ developers of PDF-producing software or for people who just want to
+ look at the innards of a PDF file to learn more about how they work.
  .
- Paragraph 2
+ QPDF offers many capabilities such as linearization (web
+ optimization), encrypt, and decription of PDF files.  Note that QPDF
+ does not have the capability to create PDF files from scratch; it is
+ only used to create PDF files with special characteristics starting
+ from other PDF files or to inspect or extract information from
+ existing PDF files.
  .
- This package includes several command-line utilities that make it
- possible to use some vips functionality from shell scripts or the
- command line.  It also contains the documentation.
+ This package includes the command-line qpdf tools.  It also contains
+ the documentation.
