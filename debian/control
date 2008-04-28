@@ -24,7 +24,8 @@ Description: command-line PDF transformation software (runtime)
  from other PDF files or to inspect or extract information from
  existing PDF files.
  .
- This package contains the qpdf runtime libraries required to run programs that link with the qpdf library.
+ This package contains the qpdf runtime libraries required to run
+ programs that link with the qpdf library.
 
 Package: libqpdf-dev
 Section: libdevel
