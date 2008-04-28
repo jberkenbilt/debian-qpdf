@@ -18,7 +18,9 @@ DEB_COMPRESS_EXCLUDE = \
 	qpdf-manual.pdf \
 	stylesheets.css
 
-DEB_CONFIGURE_USER_FLAGS = --docdir=/usr/share/doc/libqpdf-tools
+DEB_CONFIGURE_USER_FLAGS = \
+	--docdir=/usr/share/doc/libqpdf-tools \
+	--disable-test-compare-images
 override DEB_MAKE_CHECK_TARGET = check
 
 # Include cdbs rules files.
