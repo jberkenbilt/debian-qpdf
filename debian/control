@@ -18,11 +18,13 @@ Description: command-line PDF transformation software (runtime)
  look at the innards of a PDF file to learn more about how they work.
  .
  QPDF offers many capabilities such as linearization (web
- optimization), encrypt, and decription of PDF files.  Note that QPDF
- does not have the capability to create PDF files from scratch; it is
- only used to create PDF files with special characteristics starting
- from other PDF files or to inspect or extract information from
- existing PDF files.
+ optimization), encryption (password protection), and decryption of
+ PDF files as well as changing whether or not PDF files use object
+ streams (compressed objects).  It also has facilities for checking
+ PDF files for structural errors, inspecting stream contents, or
+ extracting objects from PDF files.  QPDF is not PDF content creation
+ software -- it does not have the capability to create PDF files from
+ scratch.
  .
  This package contains the qpdf runtime libraries required to run
  programs that link with the qpdf library.
@@ -40,11 +42,13 @@ Description: command-line PDF transformation software (development)
  look at the innards of a PDF file to learn more about how they work.
  .
  QPDF offers many capabilities such as linearization (web
- optimization), encrypt, and decription of PDF files.  Note that QPDF
- does not have the capability to create PDF files from scratch; it is
- only used to create PDF files with special characteristics starting
- from other PDF files or to inspect or extract information from
- existing PDF files.
+ optimization), encryption (password protection), and decryption of
+ PDF files as well as changing whether or not PDF files use object
+ streams (compressed objects).  It also has facilities for checking
+ PDF files for structural errors, inspecting stream contents, or
+ extracting objects from PDF files.  QPDF is not PDF content creation
+ software -- it does not have the capability to create PDF files from
+ scratch.
  .
  This package includes all development files needed to compile
  applications that use the qpdf library.
@@ -61,11 +65,13 @@ Description: tools and library for transforming PDF files (tools)
  look at the innards of a PDF file to learn more about how they work.
  .
  QPDF offers many capabilities such as linearization (web
- optimization), encrypt, and decription of PDF files.  Note that QPDF
- does not have the capability to create PDF files from scratch; it is
- only used to create PDF files with special characteristics starting
- from other PDF files or to inspect or extract information from
- existing PDF files.
+ optimization), encryption (password protection), and decryption of
+ PDF files as well as changing whether or not PDF files use object
+ streams (compressed objects).  It also has facilities for checking
+ PDF files for structural errors, inspecting stream contents, or
+ extracting objects from PDF files.  QPDF is not PDF content creation
+ software -- it does not have the capability to create PDF files from
+ scratch.
  .
  This package includes the command-line qpdf tools.  It also contains
  the documentation.
