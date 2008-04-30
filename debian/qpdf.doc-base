@@ -6,7 +6,7 @@ Section: Text
 
 Format: HTML
 Index: /usr/share/doc/qpdf/qpdf-manual.html
-Files: /usr/share/doc/qpdf/qpdf-manual.html /usr/share/doc/libqpdf-tools/stylesheet.css
+Files: /usr/share/doc/qpdf/qpdf-manual.html /usr/share/doc/qpdf/stylesheet.css
 
 Format: PDF
 Files: /usr/share/doc/qpdf/qpdf-manual.pdf
