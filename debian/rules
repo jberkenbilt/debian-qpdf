@@ -19,7 +19,6 @@ DEB_COMPRESS_EXCLUDE = \
 	stylesheets.css
 
 DEB_CONFIGURE_USER_FLAGS = \
-	--docdir=/usr/share/doc/libqpdf-tools \
 	--disable-test-compare-images
 override DEB_MAKE_CHECK_TARGET = check
 

@@ -9,7 +9,7 @@ Package: libqpdf1
 Section: libs
 Architecture: any
 Depends: ${shlibs:Depends}
-Recommends: libqpdf-tools
+Recommends: qpdf
 Description: command-line PDF transformation software (runtime)
  QPDF is a program that does structural, content-preserving
  transformations on PDF files.  It could have been called something
@@ -33,7 +33,7 @@ Package: libqpdf-dev
 Section: libdevel
 Architecture: any
 Depends: libqpdf1 (= ${binary:Version}), libpcre3-dev, zlib1g-dev
-Recommends: libqpdf-tools
+Recommends: qpdf
 Description: command-line PDF transformation software (development)
  QPDF is a program that does structural, content-preserving
  transformations on PDF files.  It could have been called something
@@ -53,7 +53,7 @@ Description: command-line PDF transformation software (development)
  This package includes all development files needed to compile
  applications that use the qpdf library.
 
-Package: libqpdf-tools
+Package: qpdf
 Section: text
 Architecture: any
 Depends: ${shlibs:Depends}
