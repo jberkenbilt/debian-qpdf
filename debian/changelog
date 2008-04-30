@@ -2,4 +2,4 @@ qpdf (2.0-1) unstable; urgency=low
 
   * Initial public release.  (Closes: #478585)
 
- -- Jay Berkenbilt <qjb@debian.org>  Tue, 29 Apr 2008 19:54:13 -0400
+ -- Jay Berkenbilt <qjb@debian.org>  Wed, 30 Apr 2008 12:00:29 -0400
