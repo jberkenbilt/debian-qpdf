@@ -10,7 +10,7 @@ Section: libs
 Architecture: any
 Depends: ${shlibs:Depends}
 Recommends: qpdf
-Description: command-line PDF transformation software (runtime)
+Description: runtime library for PDF transformation/inspection software
  QPDF is a program that does structural, content-preserving
  transformations on PDF files.  It could have been called something
  like pdf-to-pdf.  It also provides many useful capabilities to
@@ -34,7 +34,7 @@ Section: libdevel
 Architecture: any
 Depends: libqpdf1 (= ${binary:Version}), libpcre3-dev, zlib1g-dev
 Recommends: qpdf
-Description: command-line PDF transformation software (development)
+Description: development files for PDF transformation/inspection library
  QPDF is a program that does structural, content-preserving
  transformations on PDF files.  It could have been called something
  like pdf-to-pdf.  It also provides many useful capabilities to
@@ -57,7 +57,7 @@ Package: qpdf
 Section: text
 Architecture: any
 Depends: ${shlibs:Depends}
-Description: tools and library for transforming PDF files (tools)
+Description: tools for and transforming and inspecting PDF files
  QPDF is a program that does structural, content-preserving
  transformations on PDF files.  It could have been called something
  like pdf-to-pdf.  It also provides many useful capabilities to
