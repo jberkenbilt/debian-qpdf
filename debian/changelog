@@ -1,3 +1,10 @@
+qpdf (2.0-3) unstable; urgency=low
+
+  * Added missing header files needed for g++-4.3.  (Closes: #479301).
+    (Now figuring out why my sid chroot doesn't have gcc 4.3.)
+
+ -- Jay Berkenbilt <qjb@debian.org>  Sun, 04 May 2008 12:01:31 -0400
+
 qpdf (2.0-2) unstable; urgency=low
 
   * Added missing strlen.h to correct build failure.
