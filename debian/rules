@@ -24,6 +24,7 @@ override DEB_MAKE_CHECK_TARGET = check
 
 # Include cdbs rules files.
 include /usr/share/cdbs/1/rules/tarball.mk
+include /usr/share/cdbs/1/rules/simple-patchsys.mk
 include /usr/share/cdbs/1/rules/debhelper.mk
 include /usr/share/cdbs/1/class/autotools.mk
 

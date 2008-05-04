@@ -1,3 +1,9 @@
+qpdf (2.0-2) unstable; urgency=low
+
+  * Added missing strlen.h to correct build failure.
+
+ -- Jay Berkenbilt <qjb@debian.org>  Sat, 03 May 2008 22:04:26 -0400
+
 qpdf (2.0-1) unstable; urgency=low
 
   * Initial public release.  (Closes: #478585)
