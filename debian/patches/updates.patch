@@ -1,0 +1,421 @@
+Index: libqpdf/QPDFObjectHandle.cc
+===================================================================
+--- libqpdf/QPDFObjectHandle.cc	(.../releases/qpdf/2.0)	(revision 612)
++++ libqpdf/QPDFObjectHandle.cc	(.../trunk/qpdf)	(revision 612)
+@@ -16,6 +16,8 @@
+ #include <qpdf/QEXC.hh>
+ #include <qpdf/QUtil.hh>
+ 
++#include <stdlib.h>
++
+ QPDFObjectHandle::QPDFObjectHandle() :
+     initialized(false),
+     objid(0),
+Index: libqpdf/Pl_Buffer.cc
+===================================================================
+--- libqpdf/Pl_Buffer.cc	(.../releases/qpdf/2.0)	(revision 612)
++++ libqpdf/Pl_Buffer.cc	(.../trunk/qpdf)	(revision 612)
+@@ -2,6 +2,7 @@
+ #include <qpdf/Pl_Buffer.hh>
+ #include <qpdf/QEXC.hh>
+ #include <assert.h>
++#include <string.h>
+ 
+ Pl_Buffer::Pl_Buffer(char const* identifier, Pipeline* next) :
+     Pipeline(identifier, next),
+Index: libqpdf/QPDF_encryption.cc
+===================================================================
+--- libqpdf/QPDF_encryption.cc	(.../releases/qpdf/2.0)	(revision 612)
++++ libqpdf/QPDF_encryption.cc	(.../trunk/qpdf)	(revision 612)
+@@ -10,6 +10,8 @@
+ #include <qpdf/RC4.hh>
+ #include <qpdf/MD5.hh>
+ 
++#include <string.h>
++
+ static char const padding_string[] = {
+     0x28, 0xbf, 0x4e, 0x5e, 0x4e, 0x75, 0x8a, 0x41,
+     0x64, 0x00, 0x4e, 0x56, 0xff, 0xfa, 0x01, 0x08,
+@@ -24,7 +26,7 @@
+ void
+ pad_or_truncate_password(std::string const& password, char k1[key_bytes])
+ {
+-    int password_bytes = std::min(key_bytes, password.length());
++    int password_bytes = std::min((size_t) key_bytes, password.length());
+     int pad_bytes = key_bytes - password_bytes;
+     memcpy(k1, password.c_str(), password_bytes);
+     memcpy(k1 + password_bytes, padding_string, pad_bytes);
+Index: libqpdf/Pl_QPDFTokenizer.cc
+===================================================================
+--- libqpdf/Pl_QPDFTokenizer.cc	(.../releases/qpdf/2.0)	(revision 612)
++++ libqpdf/Pl_QPDFTokenizer.cc	(.../trunk/qpdf)	(revision 612)
+@@ -2,6 +2,7 @@
+ #include <qpdf/Pl_QPDFTokenizer.hh>
+ #include <qpdf/QPDF_String.hh>
+ #include <qpdf/QPDF_Name.hh>
++#include <string.h>
+ 
+ Pl_QPDFTokenizer::Pl_QPDFTokenizer(char const* identifier, Pipeline* next) :
+     Pipeline(identifier, next),
+Index: libqpdf/QPDF_linearization.cc
+===================================================================
+--- libqpdf/QPDF_linearization.cc	(.../releases/qpdf/2.0)	(revision 612)
++++ libqpdf/QPDF_linearization.cc	(.../trunk/qpdf)	(revision 612)
+@@ -16,6 +16,7 @@
+ #include <algorithm>
+ #include <assert.h>
+ #include <math.h>
++#include <string.h>
+ 
+ template <class T>
+ static void
+Index: libqpdf/QPDF_Name.cc
+===================================================================
+--- libqpdf/QPDF_Name.cc	(.../releases/qpdf/2.0)	(revision 612)
++++ libqpdf/QPDF_Name.cc	(.../trunk/qpdf)	(revision 612)
+@@ -1,6 +1,8 @@
+ 
+ #include <qpdf/QPDF_Name.hh>
+ 
++#include <string.h>
++
+ QPDF_Name::QPDF_Name(std::string const& name) :
+     name(name)
+ {
+Index: libqpdf/QUtil.cc
+===================================================================
+--- libqpdf/QUtil.cc	(.../releases/qpdf/2.0)	(revision 612)
++++ libqpdf/QUtil.cc	(.../trunk/qpdf)	(revision 612)
+@@ -4,6 +4,7 @@
+ #include <errno.h>
+ #include <ctype.h>
+ #include <stdlib.h>
++#include <string.h>
+ #ifdef _WIN32
+ #include <Windows.h>
+ #include <direct.h>
+Index: libqpdf/QPDFTokenizer.cc
+===================================================================
+--- libqpdf/QPDFTokenizer.cc	(.../releases/qpdf/2.0)	(revision 612)
++++ libqpdf/QPDFTokenizer.cc	(.../trunk/qpdf)	(revision 612)
+@@ -9,6 +9,8 @@
+ #include <qpdf/QEXC.hh>
+ #include <qpdf/QTC.hh>
+ 
++#include <string.h>
++
+ // See note above about ctype.
+ static bool is_hex_digit(char ch)
+ {
+Index: libqpdf/QPDFWriter.cc
+===================================================================
+--- libqpdf/QPDFWriter.cc	(.../releases/qpdf/2.0)	(revision 612)
++++ libqpdf/QPDFWriter.cc	(.../trunk/qpdf)	(revision 612)
+@@ -19,6 +19,8 @@
+ #include <qpdf/QPDF_Name.hh>
+ #include <qpdf/QPDF_String.hh>
+ 
++#include <stdlib.h>
++
+ QPDFWriter::QPDFWriter(QPDF& pdf, char const* filename) :
+     pdf(pdf),
+     filename(filename),
+@@ -233,7 +235,7 @@
+     for (std::set<int>::iterator iter = bits_to_clear.begin();
+ 	 iter != bits_to_clear.end(); ++iter)
+     {
+-	P |= (1 << (*iter) - 1);
++	P |= (1 << ((*iter) - 1));
+     }
+     P = ~P;
+ 
+Index: libqpdf/PCRE.cc
+===================================================================
+--- libqpdf/PCRE.cc	(.../releases/qpdf/2.0)	(revision 612)
++++ libqpdf/PCRE.cc	(.../trunk/qpdf)	(revision 612)
+@@ -1,9 +1,9 @@
+ 
+-
+ #include <qpdf/PCRE.hh>
+ #include <qpdf/QUtil.hh>
+ 
+ #include <iostream>
++#include <string.h>
+ 
+ PCRE::Exception::Exception(std::string const& message)
+ {
+Index: ChangeLog
+===================================================================
+--- ChangeLog	(.../releases/qpdf/2.0)	(revision 612)
++++ ChangeLog	(.../trunk/qpdf)	(revision 612)
+@@ -1,3 +1,14 @@
++2008-05-04  Jay Berkenbilt  <ejb@ql.org>
++
++	* do not assume size_t is unsigned int
++
++	* removed locale-specific tests.  These were really to check bugs
++	in perl 5.8.0 and are obsolete now.  They also make the test suite
++	fail in some environments that don't have all the locales fully
++	configured.
++
++	* updated several files for gcc 4.3 (extra includes)
++
+ 2008-04-26  Jay Berkenbilt  <ejb@ql.org>
+ 
+ 	* 2.0: initial public release
+Index: libtests/flate.cc
+===================================================================
+--- libtests/flate.cc	(.../releases/qpdf/2.0)	(revision 612)
++++ libtests/flate.cc	(.../trunk/qpdf)	(revision 612)
+@@ -5,6 +5,8 @@
+ 
+ #include <iostream>
+ #include <errno.h>
++#include <string.h>
++#include <stdlib.h>
+ 
+ FILE* safe_fopen(char const* filename, char const* mode)
+ {
+Index: libtests/qutil.cc
+===================================================================
+--- libtests/qutil.cc	(.../releases/qpdf/2.0)	(revision 612)
++++ libtests/qutil.cc	(.../trunk/qpdf)	(revision 612)
+@@ -5,6 +5,7 @@
+ #include <sys/stat.h>
+ #include <fcntl.h>
+ #include <qpdf/QUtil.hh>
++#include <string.h>
+ 
+ #ifdef _WIN32
+ # include <io.h>
+Index: libtests/qexc.cc
+===================================================================
+--- libtests/qexc.cc	(.../releases/qpdf/2.0)	(revision 612)
++++ libtests/qexc.cc	(.../trunk/qpdf)	(revision 612)
+@@ -2,6 +2,7 @@
+ #include <qpdf/QEXC.hh>
+ #include <iostream>
+ #include <errno.h>
++#include <stdlib.h>
+ 
+ void do_terminate()
+ {
+Index: libtests/ascii85.cc
+===================================================================
+--- libtests/ascii85.cc	(.../releases/qpdf/2.0)	(revision 612)
++++ libtests/ascii85.cc	(.../trunk/qpdf)	(revision 612)
+@@ -2,6 +2,7 @@
+ 
+ #include <qpdf/Pl_StdioFile.hh>
+ #include <iostream>
++#include <stdlib.h>
+ 
+ int main()
+ {
+Index: libtests/buffer.cc
+===================================================================
+--- libtests/buffer.cc	(.../releases/qpdf/2.0)	(revision 612)
++++ libtests/buffer.cc	(.../trunk/qpdf)	(revision 612)
+@@ -2,6 +2,7 @@
+ #include <qpdf/Pl_Buffer.hh>
+ #include <qpdf/Pl_Count.hh>
+ #include <qpdf/Pl_Discard.hh>
++#include <stdlib.h>
+ 
+ typedef unsigned char* uc;
+ 
+Index: libtests/lzw.cc
+===================================================================
+--- libtests/lzw.cc	(.../releases/qpdf/2.0)	(revision 612)
++++ libtests/lzw.cc	(.../trunk/qpdf)	(revision 612)
+@@ -2,6 +2,7 @@
+ 
+ #include <qpdf/Pl_StdioFile.hh>
+ #include <iostream>
++#include <stdlib.h>
+ 
+ int main()
+ {
+Index: libtests/hex.cc
+===================================================================
+--- libtests/hex.cc	(.../releases/qpdf/2.0)	(revision 612)
++++ libtests/hex.cc	(.../trunk/qpdf)	(revision 612)
+@@ -2,6 +2,7 @@
+ 
+ #include <qpdf/Pl_StdioFile.hh>
+ #include <iostream>
++#include <stdlib.h>
+ 
+ int main()
+ {
+@@ -29,7 +30,7 @@
+     catch (std::exception& e)
+     {
+ 	std::cerr << e.what() << std::endl;
+-	exit(2);
++	 exit(2);
+     }
+ 
+     return 0;
+Index: libtests/png_filter.cc
+===================================================================
+--- libtests/png_filter.cc	(.../releases/qpdf/2.0)	(revision 612)
++++ libtests/png_filter.cc	(.../trunk/qpdf)	(revision 612)
+@@ -5,6 +5,8 @@
+ #include <iostream>
+ #include <errno.h>
+ #include <assert.h>
++#include <string.h>
++#include <stdlib.h>
+ 
+ FILE* safe_fopen(char const* filename, char const* mode)
+ {
+Index: libtests/pcre.cc
+===================================================================
+--- libtests/pcre.cc	(.../releases/qpdf/2.0)	(revision 612)
++++ libtests/pcre.cc	(.../trunk/qpdf)	(revision 612)
+@@ -1,6 +1,7 @@
+ 
+ #include <qpdf/PCRE.hh>
+ #include <iostream>
++#include <string.h>
+ 
+ int main(int argc, char* argv[])
+ {
+Index: qpdf/qtest/qpdf.test
+===================================================================
+--- qpdf/qtest/qpdf.test	(.../releases/qpdf/2.0)	(revision 612)
++++ qpdf/qtest/qpdf.test	(.../trunk/qpdf)	(revision 612)
+@@ -216,7 +216,7 @@
+ 		 "lots of compressible objects",	# 20
+ 		 );
+ 
+-$n_tests += (9 * @goodfiles) + 6;
++$n_tests += (3 * @goodfiles) + 6;
+ 
+ my %goodtest_overrides = ('14' => 3);
+ my %goodtest_flags =
+@@ -226,17 +226,14 @@
+ for (my $i = 1; $i <= scalar(@goodfiles); ++$i)
+ {
+     my $n = $goodtest_overrides{$i} || 1;
+-    foreach my $lang (qw(C en_US en_US.UTF-8))
+-    {
+-	$td->runtest("$goodfiles[$i-1], ($lang)",
+-		     {$td->COMMAND => "test_driver $n good$i.pdf"},
+-		     {$td->FILE => "good$i.out",
+-		      $td->EXIT_STATUS => 0});
+-	my $xflags = $goodtest_flags{$i} || '';
+-	check_pdf("create qdf",
+-		  "qpdf --static-id -qdf $xflags good$i.pdf",
+-		  "good$i.qdf", 0);
+-    }
++    $td->runtest("$goodfiles[$i-1]",
++		 {$td->COMMAND => "test_driver $n good$i.pdf"},
++		 {$td->FILE => "good$i.out",
++		  $td->EXIT_STATUS => 0});
++    my $xflags = $goodtest_flags{$i} || '';
++    check_pdf("create qdf",
++	      "qpdf --static-id -qdf $xflags good$i.pdf",
++	      "good$i.qdf", 0);
+ }
+ 
+ check_pdf("no normalization",
+@@ -798,17 +795,14 @@
+ show_ntests();
+ # ----------
+ $td->notify("--- fix-qdf Tests ---");
+-$n_tests += 6;
++$n_tests += 2;
+ 
+-foreach my $lang qw(C en_US en_US.UTF-8)
++for (my $n = 1; $n <= 2; ++$n)
+ {
+-    for (my $n = 1; $n <= 2; ++$n)
+-    {
+-	$td->runtest("fix-qdf $n (LANG=$lang)",
+-		     {$td->COMMAND => "LANG=$lang fix-qdf fix$n.qdf"},
+-		     {$td->FILE => "fix$n.qdf.out",
+-		      $td->EXIT_STATUS => 0});
+-    }
++    $td->runtest("fix-qdf $n",
++		 {$td->COMMAND => "fix-qdf fix$n.qdf"},
++		 {$td->FILE => "fix$n.qdf.out",
++		  $td->EXIT_STATUS => 0});
+ }
+ 
+ show_ntests();
+Index: qpdf/fix-qdf
+===================================================================
+--- qpdf/fix-qdf	(.../releases/qpdf/2.0)	(revision 612)
++++ qpdf/fix-qdf	(.../trunk/qpdf)	(revision 612)
+@@ -1,6 +1,6 @@
+ #!/usr/bin/env perl
+ 
+-require 5.008;
++require 5.008_001;
+ BEGIN { $^W = 1; }
+ use strict;
+ 
+Index: qpdf/qpdf.cc
+===================================================================
+--- qpdf/qpdf.cc	(.../releases/qpdf/2.0)	(revision 612)
++++ qpdf/qpdf.cc	(.../trunk/qpdf)	(revision 612)
+@@ -478,7 +478,7 @@
+     bool r2_extract = true;
+     bool r2_annotate = true;
+     bool r3_accessibility = true;
+-    bool r3_extract = true;;
++    bool r3_extract = true;
+     QPDFWriter::r3_print_e r3_print = QPDFWriter::r3p_full;
+     QPDFWriter::r3_modify_e r3_modify = QPDFWriter::r3m_all;
+ 
+Index: qpdf/test_driver.cc
+===================================================================
+--- qpdf/test_driver.cc	(.../releases/qpdf/2.0)	(revision 612)
++++ qpdf/test_driver.cc	(.../trunk/qpdf)	(revision 612)
+@@ -9,6 +9,7 @@
+ #include <qpdf/QPDFWriter.hh>
+ #include <iostream>
+ #include <string.h>
++#include <stdlib.h>
+ #include <map>
+ 
+ static char const* whoami = 0;
+Index: manual/qpdf-manual.xml
+===================================================================
+--- manual/qpdf-manual.xml	(.../releases/qpdf/2.0)	(revision 612)
++++ manual/qpdf-manual.xml	(.../trunk/qpdf)	(revision 612)
+@@ -6,7 +6,7 @@
+ <!ENTITY ndash "&#x2013;">
+ <!ENTITY nbsp "&#xA0;">
+ <!ENTITY swversion "2.0">
+-<!ENTITY lastreleased "April 26, 2008">
++<!ENTITY lastreleased "April 29, 2008">
+ ]>
+ <book>
+  <bookinfo>
+Index: examples/pdf-bookmarks.cc
+===================================================================
+--- examples/pdf-bookmarks.cc	(.../releases/qpdf/2.0)	(revision 612)
++++ examples/pdf-bookmarks.cc	(.../trunk/qpdf)	(revision 612)
+@@ -1,5 +1,6 @@
+ #include <iostream>
+ #include <string.h>
++#include <stdlib.h>
+ #include <qpdf/QPDF.hh>
+ #include <qpdf/QUtil.hh>
+ #include <qpdf/QTC.hh>
+Index: examples/pdf-npages.cc
+===================================================================
+--- examples/pdf-npages.cc	(.../releases/qpdf/2.0)	(revision 612)
++++ examples/pdf-npages.cc	(.../trunk/qpdf)	(revision 612)
+@@ -1,7 +1,6 @@
+-
+-
+ #include <iostream>
+ #include <string.h>
++#include <stdlib.h>
+ 
+ #include <qpdf/QPDF.hh>
+ 
