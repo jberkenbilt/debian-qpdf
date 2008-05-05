@@ -1,3 +1,10 @@
+qpdf (2.0-4) unstable; urgency=low
+
+  * Remove tests in specific locales.  These are obsolete and cause false
+    failures when locales aren't fully configured.
+
+ -- Jay Berkenbilt <qjb@debian.org>  Sun, 04 May 2008 22:02:56 -0400
+
 qpdf (2.0-3) unstable; urgency=low
 
   * Added missing header files needed for g++-4.3.  (Closes: #479301).
