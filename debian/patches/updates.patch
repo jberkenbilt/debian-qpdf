@@ -1,7 +1,7 @@
 Index: libqpdf/QPDFObjectHandle.cc
 ===================================================================
---- libqpdf/QPDFObjectHandle.cc	(.../releases/qpdf/2.0)	(revision 612)
-+++ libqpdf/QPDFObjectHandle.cc	(.../trunk/qpdf)	(revision 612)
+--- libqpdf/QPDFObjectHandle.cc	(.../releases/qpdf/2.0)	(revision 617)
++++ libqpdf/QPDFObjectHandle.cc	(.../trunk/qpdf)	(revision 617)
 @@ -16,6 +16,8 @@
  #include <qpdf/QEXC.hh>
  #include <qpdf/QUtil.hh>
@@ -13,8 +13,8 @@ Index: libqpdf/QPDFObjectHandle.cc
      objid(0),
 Index: libqpdf/Pl_Buffer.cc
 ===================================================================
---- libqpdf/Pl_Buffer.cc	(.../releases/qpdf/2.0)	(revision 612)
-+++ libqpdf/Pl_Buffer.cc	(.../trunk/qpdf)	(revision 612)
+--- libqpdf/Pl_Buffer.cc	(.../releases/qpdf/2.0)	(revision 617)
++++ libqpdf/Pl_Buffer.cc	(.../trunk/qpdf)	(revision 617)
 @@ -2,6 +2,7 @@
  #include <qpdf/Pl_Buffer.hh>
  #include <qpdf/QEXC.hh>
@@ -25,8 +25,8 @@ Index: libqpdf/Pl_Buffer.cc
      Pipeline(identifier, next),
 Index: libqpdf/QPDF_encryption.cc
 ===================================================================
---- libqpdf/QPDF_encryption.cc	(.../releases/qpdf/2.0)	(revision 612)
-+++ libqpdf/QPDF_encryption.cc	(.../trunk/qpdf)	(revision 612)
+--- libqpdf/QPDF_encryption.cc	(.../releases/qpdf/2.0)	(revision 617)
++++ libqpdf/QPDF_encryption.cc	(.../trunk/qpdf)	(revision 617)
 @@ -10,6 +10,8 @@
  #include <qpdf/RC4.hh>
  #include <qpdf/MD5.hh>
@@ -45,10 +45,19 @@ Index: libqpdf/QPDF_encryption.cc
      int pad_bytes = key_bytes - password_bytes;
      memcpy(k1, password.c_str(), password_bytes);
      memcpy(k1 + password_bytes, padding_string, pad_bytes);
+@@ -425,7 +427,7 @@
+ void
+ QPDF::compute_encryption_O_U(
+     char const* user_password, char const* owner_password,
+-    int V, int R, int key_len, unsigned long P,
++    int V, int R, int key_len, int P,
+     std::string const& id1, std::string& O, std::string& U)
+ {
+     EncryptionData data(V, R, key_len, P, "", "", id1);
 Index: libqpdf/Pl_QPDFTokenizer.cc
 ===================================================================
---- libqpdf/Pl_QPDFTokenizer.cc	(.../releases/qpdf/2.0)	(revision 612)
-+++ libqpdf/Pl_QPDFTokenizer.cc	(.../trunk/qpdf)	(revision 612)
+--- libqpdf/Pl_QPDFTokenizer.cc	(.../releases/qpdf/2.0)	(revision 617)
++++ libqpdf/Pl_QPDFTokenizer.cc	(.../trunk/qpdf)	(revision 617)
 @@ -2,6 +2,7 @@
  #include <qpdf/Pl_QPDFTokenizer.hh>
  #include <qpdf/QPDF_String.hh>
@@ -59,8 +68,8 @@ Index: libqpdf/Pl_QPDFTokenizer.cc
      Pipeline(identifier, next),
 Index: libqpdf/QPDF_linearization.cc
 ===================================================================
---- libqpdf/QPDF_linearization.cc	(.../releases/qpdf/2.0)	(revision 612)
-+++ libqpdf/QPDF_linearization.cc	(.../trunk/qpdf)	(revision 612)
+--- libqpdf/QPDF_linearization.cc	(.../releases/qpdf/2.0)	(revision 617)
++++ libqpdf/QPDF_linearization.cc	(.../trunk/qpdf)	(revision 617)
 @@ -16,6 +16,7 @@
  #include <algorithm>
  #include <assert.h>
@@ -71,8 +80,8 @@ Index: libqpdf/QPDF_linearization.cc
  static void
 Index: libqpdf/QPDF_Name.cc
 ===================================================================
---- libqpdf/QPDF_Name.cc	(.../releases/qpdf/2.0)	(revision 612)
-+++ libqpdf/QPDF_Name.cc	(.../trunk/qpdf)	(revision 612)
+--- libqpdf/QPDF_Name.cc	(.../releases/qpdf/2.0)	(revision 617)
++++ libqpdf/QPDF_Name.cc	(.../trunk/qpdf)	(revision 617)
 @@ -1,6 +1,8 @@
  
  #include <qpdf/QPDF_Name.hh>
@@ -84,8 +93,8 @@ Index: libqpdf/QPDF_Name.cc
  {
 Index: libqpdf/QUtil.cc
 ===================================================================
---- libqpdf/QUtil.cc	(.../releases/qpdf/2.0)	(revision 612)
-+++ libqpdf/QUtil.cc	(.../trunk/qpdf)	(revision 612)
+--- libqpdf/QUtil.cc	(.../releases/qpdf/2.0)	(revision 617)
++++ libqpdf/QUtil.cc	(.../trunk/qpdf)	(revision 617)
 @@ -4,6 +4,7 @@
  #include <errno.h>
  #include <ctype.h>
@@ -96,8 +105,8 @@ Index: libqpdf/QUtil.cc
  #include <direct.h>
 Index: libqpdf/QPDFTokenizer.cc
 ===================================================================
---- libqpdf/QPDFTokenizer.cc	(.../releases/qpdf/2.0)	(revision 612)
-+++ libqpdf/QPDFTokenizer.cc	(.../trunk/qpdf)	(revision 612)
+--- libqpdf/QPDFTokenizer.cc	(.../releases/qpdf/2.0)	(revision 617)
++++ libqpdf/QPDFTokenizer.cc	(.../trunk/qpdf)	(revision 617)
 @@ -9,6 +9,8 @@
  #include <qpdf/QEXC.hh>
  #include <qpdf/QTC.hh>
@@ -109,8 +118,8 @@ Index: libqpdf/QPDFTokenizer.cc
  {
 Index: libqpdf/QPDFWriter.cc
 ===================================================================
---- libqpdf/QPDFWriter.cc	(.../releases/qpdf/2.0)	(revision 612)
-+++ libqpdf/QPDFWriter.cc	(.../trunk/qpdf)	(revision 612)
+--- libqpdf/QPDFWriter.cc	(.../releases/qpdf/2.0)	(revision 617)
++++ libqpdf/QPDFWriter.cc	(.../trunk/qpdf)	(revision 617)
 @@ -19,6 +19,8 @@
  #include <qpdf/QPDF_Name.hh>
  #include <qpdf/QPDF_String.hh>
@@ -120,7 +129,13 @@ Index: libqpdf/QPDFWriter.cc
  QPDFWriter::QPDFWriter(QPDF& pdf, char const* filename) :
      pdf(pdf),
      filename(filename),
-@@ -233,7 +235,7 @@
+@@ -228,12 +230,12 @@
+     bits_to_clear.insert(1);
+     bits_to_clear.insert(2);
+ 
+-    unsigned long P = 0;
++    int P = 0;
+     // Create the complement of P, then invert.
      for (std::set<int>::iterator iter = bits_to_clear.begin();
  	 iter != bits_to_clear.end(); ++iter)
      {
@@ -131,8 +146,8 @@ Index: libqpdf/QPDFWriter.cc
  
 Index: libqpdf/PCRE.cc
 ===================================================================
---- libqpdf/PCRE.cc	(.../releases/qpdf/2.0)	(revision 612)
-+++ libqpdf/PCRE.cc	(.../trunk/qpdf)	(revision 612)
+--- libqpdf/PCRE.cc	(.../releases/qpdf/2.0)	(revision 617)
++++ libqpdf/PCRE.cc	(.../trunk/qpdf)	(revision 617)
 @@ -1,9 +1,9 @@
  
 -
@@ -144,10 +159,60 @@ Index: libqpdf/PCRE.cc
  
  PCRE::Exception::Exception(std::string const& message)
  {
+Index: include/qpdf/QPDF.hh
+===================================================================
+--- include/qpdf/QPDF.hh	(.../releases/qpdf/2.0)	(revision 617)
++++ include/qpdf/QPDF.hh	(.../trunk/qpdf)	(revision 617)
+@@ -85,7 +85,7 @@
+     struct EncryptionData
+     {
+ 	// This class holds data read from the encryption dictionary.
+-	EncryptionData(int V, int R, int Length_bytes, long P,
++	EncryptionData(int V, int R, int Length_bytes, int P,
+ 		       std::string const& O, std::string const& U,
+ 		       std::string const& id1) :
+ 	    V(V),
+@@ -101,7 +101,7 @@
+ 	int V;
+ 	int R;
+ 	int Length_bytes;
+-	long P;
++	int P;
+ 	std::string O;
+ 	std::string U;
+ 	std::string id1;
+@@ -115,7 +115,7 @@
+ 
+     static void compute_encryption_O_U(
+ 	char const* user_password, char const* owner_password,
+-	int V, int R, int key_len, unsigned long P,
++	int V, int R, int key_len, int P,
+ 	std::string const& id1,
+ 	std::string& O, std::string& U);
+     std::string const& getUserPassword() const;
+Index: ChangeLog
+===================================================================
+--- ChangeLog	(.../releases/qpdf/2.0)	(revision 617)
++++ ChangeLog	(.../trunk/qpdf)	(revision 617)
+@@ -1,3 +1,14 @@
++2008-05-04  Jay Berkenbilt  <ejb@ql.org>
++
++	* do not assume size_t is unsigned int
++
++	* removed locale-specific tests.  These were really to check bugs
++	in perl 5.8.0 and are obsolete now.  They also make the test suite
++	fail in some environments that don't have all the locales fully
++	configured.
++
++	* updated several files for gcc 4.3 (extra includes)
++
+ 2008-04-26  Jay Berkenbilt  <ejb@ql.org>
+ 
+ 	* 2.0: initial public release
 Index: libtests/flate.cc
 ===================================================================
---- libtests/flate.cc	(.../releases/qpdf/2.0)	(revision 612)
-+++ libtests/flate.cc	(.../trunk/qpdf)	(revision 612)
+--- libtests/flate.cc	(.../releases/qpdf/2.0)	(revision 617)
++++ libtests/flate.cc	(.../trunk/qpdf)	(revision 617)
 @@ -5,6 +5,8 @@
  
  #include <iostream>
@@ -159,8 +224,8 @@ Index: libtests/flate.cc
  {
 Index: libtests/qutil.cc
 ===================================================================
---- libtests/qutil.cc	(.../releases/qpdf/2.0)	(revision 612)
-+++ libtests/qutil.cc	(.../trunk/qpdf)	(revision 612)
+--- libtests/qutil.cc	(.../releases/qpdf/2.0)	(revision 617)
++++ libtests/qutil.cc	(.../trunk/qpdf)	(revision 617)
 @@ -5,6 +5,7 @@
  #include <sys/stat.h>
  #include <fcntl.h>
@@ -171,8 +236,8 @@ Index: libtests/qutil.cc
  # include <io.h>
 Index: libtests/qexc.cc
 ===================================================================
---- libtests/qexc.cc	(.../releases/qpdf/2.0)	(revision 612)
-+++ libtests/qexc.cc	(.../trunk/qpdf)	(revision 612)
+--- libtests/qexc.cc	(.../releases/qpdf/2.0)	(revision 617)
++++ libtests/qexc.cc	(.../trunk/qpdf)	(revision 617)
 @@ -2,6 +2,7 @@
  #include <qpdf/QEXC.hh>
  #include <iostream>
@@ -183,8 +248,8 @@ Index: libtests/qexc.cc
  {
 Index: libtests/ascii85.cc
 ===================================================================
---- libtests/ascii85.cc	(.../releases/qpdf/2.0)	(revision 612)
-+++ libtests/ascii85.cc	(.../trunk/qpdf)	(revision 612)
+--- libtests/ascii85.cc	(.../releases/qpdf/2.0)	(revision 617)
++++ libtests/ascii85.cc	(.../trunk/qpdf)	(revision 617)
 @@ -2,6 +2,7 @@
  
  #include <qpdf/Pl_StdioFile.hh>
@@ -195,8 +260,8 @@ Index: libtests/ascii85.cc
  {
 Index: libtests/buffer.cc
 ===================================================================
---- libtests/buffer.cc	(.../releases/qpdf/2.0)	(revision 612)
-+++ libtests/buffer.cc	(.../trunk/qpdf)	(revision 612)
+--- libtests/buffer.cc	(.../releases/qpdf/2.0)	(revision 617)
++++ libtests/buffer.cc	(.../trunk/qpdf)	(revision 617)
 @@ -2,6 +2,7 @@
  #include <qpdf/Pl_Buffer.hh>
  #include <qpdf/Pl_Count.hh>
@@ -207,8 +272,8 @@ Index: libtests/buffer.cc
  
 Index: libtests/lzw.cc
 ===================================================================
---- libtests/lzw.cc	(.../releases/qpdf/2.0)	(revision 612)
-+++ libtests/lzw.cc	(.../trunk/qpdf)	(revision 612)
+--- libtests/lzw.cc	(.../releases/qpdf/2.0)	(revision 617)
++++ libtests/lzw.cc	(.../trunk/qpdf)	(revision 617)
 @@ -2,6 +2,7 @@
  
  #include <qpdf/Pl_StdioFile.hh>
@@ -219,8 +284,8 @@ Index: libtests/lzw.cc
  {
 Index: libtests/hex.cc
 ===================================================================
---- libtests/hex.cc	(.../releases/qpdf/2.0)	(revision 612)
-+++ libtests/hex.cc	(.../trunk/qpdf)	(revision 612)
+--- libtests/hex.cc	(.../releases/qpdf/2.0)	(revision 617)
++++ libtests/hex.cc	(.../trunk/qpdf)	(revision 617)
 @@ -2,6 +2,7 @@
  
  #include <qpdf/Pl_StdioFile.hh>
@@ -240,8 +305,8 @@ Index: libtests/hex.cc
      return 0;
 Index: libtests/png_filter.cc
 ===================================================================
---- libtests/png_filter.cc	(.../releases/qpdf/2.0)	(revision 612)
-+++ libtests/png_filter.cc	(.../trunk/qpdf)	(revision 612)
+--- libtests/png_filter.cc	(.../releases/qpdf/2.0)	(revision 617)
++++ libtests/png_filter.cc	(.../trunk/qpdf)	(revision 617)
 @@ -5,6 +5,8 @@
  #include <iostream>
  #include <errno.h>
@@ -253,8 +318,8 @@ Index: libtests/png_filter.cc
  {
 Index: libtests/pcre.cc
 ===================================================================
---- libtests/pcre.cc	(.../releases/qpdf/2.0)	(revision 612)
-+++ libtests/pcre.cc	(.../trunk/qpdf)	(revision 612)
+--- libtests/pcre.cc	(.../releases/qpdf/2.0)	(revision 617)
++++ libtests/pcre.cc	(.../trunk/qpdf)	(revision 617)
 @@ -1,6 +1,7 @@
  
  #include <qpdf/PCRE.hh>
@@ -265,8 +330,8 @@ Index: libtests/pcre.cc
  {
 Index: qpdf/qtest/qpdf.test
 ===================================================================
---- qpdf/qtest/qpdf.test	(.../releases/qpdf/2.0)	(revision 612)
-+++ qpdf/qtest/qpdf.test	(.../trunk/qpdf)	(revision 612)
+--- qpdf/qtest/qpdf.test	(.../releases/qpdf/2.0)	(revision 617)
++++ qpdf/qtest/qpdf.test	(.../trunk/qpdf)	(revision 617)
 @@ -216,7 +216,7 @@
  		 "lots of compressible objects",	# 20
  		 );
@@ -328,8 +393,8 @@ Index: qpdf/qtest/qpdf.test
  show_ntests();
 Index: qpdf/fix-qdf
 ===================================================================
---- qpdf/fix-qdf	(.../releases/qpdf/2.0)	(revision 612)
-+++ qpdf/fix-qdf	(.../trunk/qpdf)	(revision 612)
+--- qpdf/fix-qdf	(.../releases/qpdf/2.0)	(revision 617)
++++ qpdf/fix-qdf	(.../trunk/qpdf)	(revision 617)
 @@ -1,6 +1,6 @@
  #!/usr/bin/env perl
  
@@ -340,8 +405,8 @@ Index: qpdf/fix-qdf
  
 Index: qpdf/qpdf.cc
 ===================================================================
---- qpdf/qpdf.cc	(.../releases/qpdf/2.0)	(revision 612)
-+++ qpdf/qpdf.cc	(.../trunk/qpdf)	(revision 612)
+--- qpdf/qpdf.cc	(.../releases/qpdf/2.0)	(revision 617)
++++ qpdf/qpdf.cc	(.../trunk/qpdf)	(revision 617)
 @@ -478,7 +478,7 @@
      bool r2_extract = true;
      bool r2_annotate = true;
@@ -353,8 +418,8 @@ Index: qpdf/qpdf.cc
  
 Index: qpdf/test_driver.cc
 ===================================================================
---- qpdf/test_driver.cc	(.../releases/qpdf/2.0)	(revision 612)
-+++ qpdf/test_driver.cc	(.../trunk/qpdf)	(revision 612)
+--- qpdf/test_driver.cc	(.../releases/qpdf/2.0)	(revision 617)
++++ qpdf/test_driver.cc	(.../trunk/qpdf)	(revision 617)
 @@ -9,6 +9,7 @@
  #include <qpdf/QPDFWriter.hh>
  #include <iostream>
@@ -365,8 +430,8 @@ Index: qpdf/test_driver.cc
  static char const* whoami = 0;
 Index: examples/pdf-bookmarks.cc
 ===================================================================
---- examples/pdf-bookmarks.cc	(.../releases/qpdf/2.0)	(revision 612)
-+++ examples/pdf-bookmarks.cc	(.../trunk/qpdf)	(revision 612)
+--- examples/pdf-bookmarks.cc	(.../releases/qpdf/2.0)	(revision 617)
++++ examples/pdf-bookmarks.cc	(.../trunk/qpdf)	(revision 617)
 @@ -1,5 +1,6 @@
  #include <iostream>
  #include <string.h>
@@ -376,8 +441,8 @@ Index: examples/pdf-bookmarks.cc
  #include <qpdf/QTC.hh>
 Index: examples/pdf-npages.cc
 ===================================================================
---- examples/pdf-npages.cc	(.../releases/qpdf/2.0)	(revision 612)
-+++ examples/pdf-npages.cc	(.../trunk/qpdf)	(revision 612)
+--- examples/pdf-npages.cc	(.../releases/qpdf/2.0)	(revision 617)
++++ examples/pdf-npages.cc	(.../trunk/qpdf)	(revision 617)
 @@ -1,7 +1,6 @@
 -
 -
