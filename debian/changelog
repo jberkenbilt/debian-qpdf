@@ -1,3 +1,10 @@
+qpdf (2.0.1-1) unstable; urgency=low
+
+  * New upstream release
+  * All debian patches incorporated.
+
+ -- Jay Berkenbilt <qjb@debian.org>  Tue, 06 May 2008 12:15:20 -0400
+
 qpdf (2.0-5) unstable; urgency=low
 
   * Fix 64-bit errors
