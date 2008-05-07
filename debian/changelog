@@ -1,3 +1,10 @@
+qpdf (2.0.1-2) unstable; urgency=low
+
+  * Increase timeout in test driver to be more tolerant of slow build
+    systems.
+
+ -- Jay Berkenbilt <qjb@debian.org>  Wed, 07 May 2008 11:44:56 -0400
+
 qpdf (2.0.1-1) unstable; urgency=low
 
   * New upstream release

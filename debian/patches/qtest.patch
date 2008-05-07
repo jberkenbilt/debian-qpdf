@@ -1,0 +1,13 @@
+Index: qtest/bin/qtest-driver
+===================================================================
+--- qtest/bin/qtest-driver	(.../releases/qpdf/2.0.1)	(revision 629)
++++ qtest/bin/qtest-driver	(.../trunk/qpdf)	(revision 629)
+@@ -421,7 +421,7 @@
+ 	    or die "--child--\n";
+ 	my $rin = '';
+ 	vec($rin, fileno($for_parent), 1) = 1;
+-	my $nfound = select($rin, '', '', 5);
++	my $nfound = select($rin, '', '', 60);
+ 	if ($nfound == 0)
+ 	{
+ 	    fatal("timed out waiting for input on $for_parent");
