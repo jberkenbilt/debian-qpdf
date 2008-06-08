@@ -1,0 +1,12 @@
+Index: qpdf/qtest/qpdf/diff-encrypted
+===================================================================
+--- qpdf/qtest/qpdf/diff-encrypted	(revision 631)
++++ qpdf/qtest/qpdf/diff-encrypted	(revision 632)
+@@ -1,6 +1,6 @@
+ #!/bin/sh
+ lines=$(expr + $(diff $1 $2 | egrep '^[<>]' | egrep -v 'Date' | wc -l))
+-if [ "$lines" == "0" ]; then
++if [ "$lines" = "0" ]; then
+    echo okay
+ else
+    diff -a -U 0 $1 $2

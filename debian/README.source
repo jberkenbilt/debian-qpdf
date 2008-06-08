@@ -1,0 +1,33 @@
+This package includes the original upstream source tarball inside its
+orig.tar.gz file.  It uses the "cdbs" package for its rules file and
+the "tarball.mk" and "simple-patchsys.mk" rule for managing the source
+and patches.  The rest of this file describes standard procedures for
+packages that use cdbs in this way (so you don't have to read it if
+you are already familiar with that technique).
+
+To produce the full source of the package in a form
+that is ready for editing, please run
+
+./debian/rules patch
+
+from the extracted package directory.  You can then find the original
+sources with debian patches applied in the "build-tree" directory.
+
+To remove patches that have already been applied, run
+
+./debian/rules reverse-patches
+
+If you need to make additional modifications, you will need to save
+the original file and create a patch.  Do this as follows:
+
+cd build-tree/package-name
+cp somedir/somefile.c somedir/somefile.c.orig
+(edit somedir/somefile.c)
+diff -u somedir/somefile.c.orig somedir/somefile.c > ../../debian/patches/patchname.patch
+
+You may include multiple changes in the same patch file, and you may
+create multiple patch files as needed.  Please ensure that your patch
+files are named in such a way that applying them in lexical order will
+work.  You should test your patches by starting with a clean extract
+of the source package (using dpkg-source -x package.dsc) and applying
+the patches with ./debian/rules patch.
