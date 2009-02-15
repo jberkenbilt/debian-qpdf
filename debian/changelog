@@ -1,3 +1,11 @@
+qpdf (2.0.3-1) unstable; urgency=low
+
+  * New upstream release
+  * upstream release includes fix for gcc 4.4 compilation errors.
+    (Closes: #505422)
+
+ -- Jay Berkenbilt <qjb@debian.org>  Sun, 15 Feb 2009 17:26:32 -0500
+
 qpdf (2.0.2-1) unstable; urgency=low
 
   * New upstream release.  All debian changes incorporated.
