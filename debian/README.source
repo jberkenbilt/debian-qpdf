@@ -1,33 +1,61 @@
-This package includes the original upstream source tarball inside its
-orig.tar.gz file.  It uses the "cdbs" package for its rules file and
-the "tarball.mk" and "simple-patchsys.mk" rule for managing the source
-and patches.  The rest of this file describes standard procedures for
-packages that use cdbs in this way (so you don't have to read it if
-you are already familiar with that technique).
 
-To produce the full source of the package in a form
-that is ready for editing, please run
+INFORMATION SPECIFIC TO THE QPDF PACKAGE
+========================================
 
-./debian/rules patch
+Since I am the upstream author of qpdf, there are seldom patches in
+the debian version of the software.  When there are, the text below
+describes how they are maintained.
 
-from the extracted package directory.  You can then find the original
-sources with debian patches applied in the "build-tree" directory.
+ -- Jay Berkenbilt <qjb@debian.org>, Sun Feb 15 18:25:53 EST 2009
 
-To remove patches that have already been applied, run
 
-./debian/rules reverse-patches
+BOILER-PLATE TEXT
+=================
 
-If you need to make additional modifications, you will need to save
-the original file and create a patch.  Do this as follows:
+This package uses quilt to manage all modifications to the upstream
+source.  Changes are stored in the source package as diffs in
+debian/patches and applied during the build.
 
-cd build-tree/package-name
-cp somedir/somefile.c somedir/somefile.c.orig
-(edit somedir/somefile.c)
-diff -u somedir/somefile.c.orig somedir/somefile.c > ../../debian/patches/patchname.patch
+To get the fully patched source after unpacking the source package, cd to
+the root level of the source package and run:
 
-You may include multiple changes in the same patch file, and you may
-create multiple patch files as needed.  Please ensure that your patch
-files are named in such a way that applying them in lexical order will
-work.  You should test your patches by starting with a clean extract
-of the source package (using dpkg-source -x package.dsc) and applying
-the patches with ./debian/rules patch.
+    quilt push -a
+
+The last patch listed in debian/patches/series will become the current
+patch.
+
+To add a new set of changes, first run quilt push -a, and then run:
+
+    quilt new <patch>
+
+where <patch> is a descriptive name for the patch, used as the filename in
+debian/patches.  Then, for every file that will be modified by this patch,
+run:
+
+    quilt add <file>
+
+before editing those files.  You must tell quilt with quilt add what files
+will be part of the patch before making changes or quilt will not work
+properly.  After editing the files, run:
+
+    quilt refresh
+
+to save the results as a patch.
+
+Alternately, if you already have an external patch and you just want to
+add it to the build system, run quilt push -a and then:
+
+    quilt import -P <patch> /path/to/patch
+    quilt push -a
+
+(add -p 0 to quilt import if needed). <patch> as above is the filename to
+use in debian/patches.  The last quilt push -a will apply the patch to
+make sure it works properly.
+
+To remove an existing patch from the list of patches that will be applied,
+run:
+
+    quilt delete <patch>
+
+You may need to run quilt pop -a to unapply patches first before running
+this command.
