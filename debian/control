@@ -9,7 +9,7 @@ Homepage: http://qpdf.sourceforge.net
 Package: libqpdf1
 Section: libs
 Architecture: any
-Depends: ${shlibs:Depends}
+Depends: ${misc:Depends}, ${shlibs:Depends}
 Recommends: qpdf
 Description: runtime library for PDF transformation/inspection software
  QPDF is a program that can be used to linearize (web-optimize),
@@ -35,7 +35,7 @@ Description: runtime library for PDF transformation/inspection software
 Package: libqpdf-dev
 Section: libdevel
 Architecture: any
-Depends: libqpdf1 (= ${binary:Version}), libpcre3-dev, zlib1g-dev
+Depends: ${misc:Depends}, libqpdf1 (= ${binary:Version}), libpcre3-dev, zlib1g-dev
 Recommends: qpdf
 Description: development files for PDF transformation/inspection library
  QPDF is a program that can be used to linearize (web-optimize),
@@ -61,7 +61,7 @@ Description: development files for PDF transformation/inspection library
 Package: qpdf
 Section: text
 Architecture: any
-Depends: ${shlibs:Depends}
+Depends: ${misc:Depends}, ${shlibs:Depends}
 Description: tools for and transforming and inspecting PDF files
  QPDF is a program that can be used to linearize (web-optimize),
  encrypt (password-protect), decrypt, and inspect PDF files from the
