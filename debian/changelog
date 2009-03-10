@@ -1,3 +1,11 @@
+qpdf (2.0.5-1) unstable; urgency=low
+
+  * New upstream release
+  * New release includes fixes to LZW decoder and improved features for
+    handling files with damaged streams.
+
+ -- Jay Berkenbilt <qjb@debian.org>  Tue, 10 Mar 2009 13:02:50 -0400
+
 qpdf (2.0.4-1) unstable; urgency=low
 
   * New upstream release
