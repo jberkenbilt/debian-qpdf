@@ -6,7 +6,7 @@ qpdf (2.0.6-1) unstable; urgency=low
     unfiltered instead of giving an error message.)
   * Updated standards version to 3.8.1.  No changes required.
 
- --
+ -- Jay Berkenbilt <qjb@debian.org>  Sun, 03 May 2009 16:30:11 -0400
 
 qpdf (2.0.5-1) unstable; urgency=low
 
