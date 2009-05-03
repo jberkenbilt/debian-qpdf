@@ -1,3 +1,12 @@
+qpdf (2.0.6-1) unstable; urgency=low
+
+  * New upstream release
+  * New release includes a fix for streams with decode parameters that
+    qpdf doesn't understand.  (It ignores them and leaves the streams
+    unfiltered instead of giving an error message.)
+
+ -- Jay Berkenbilt <qjb@debian.org>  Sun, 03 May 2009 15:55:14 -0400
+
 qpdf (2.0.5-1) unstable; urgency=low
 
   * New upstream release
