@@ -6,7 +6,7 @@ Maintainer: Jay Berkenbilt <qjb@debian.org>
 Standards-Version: 3.8.1
 Homepage: http://qpdf.sourceforge.net
 
-Package: libqpdf1
+Package: libqpdf3
 Section: libs
 Architecture: any
 Depends: ${misc:Depends}, ${shlibs:Depends}
@@ -35,7 +35,7 @@ Description: runtime library for PDF transformation/inspection software
 Package: libqpdf-dev
 Section: libdevel
 Architecture: any
-Depends: ${misc:Depends}, libqpdf1 (= ${binary:Version}), libpcre3-dev, zlib1g-dev
+Depends: ${misc:Depends}, libqpdf3 (= ${binary:Version}), libpcre3-dev, zlib1g-dev
 Recommends: qpdf
 Description: development files for PDF transformation/inspection library
  QPDF is a program that can be used to linearize (web-optimize),
