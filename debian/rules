@@ -35,5 +35,5 @@ clean::
 
 install/libqpdf-dev::
 	mkdir -p debian/tmp/usr/share/doc/libqpdf-dev/examples
-	cp -p $(DEB_SRCDIR)/examples/*.cc \
+	cp -p $(DEB_SRCDIR)/examples/*.cc $(DEB_SRCDIR)/examples/*.c \
 		debian/tmp/usr/share/doc/libqpdf-dev/examples
