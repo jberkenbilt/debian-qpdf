@@ -1,4 +1,4 @@
-qpdf (2.1~b1-1) experimental; urgency=low
+qpdf (2.1~rc1-1) experimental; urgency=low
 
   * New upstream release.  Several enhancements including support for PDF
     files with AES encryption, a partial C API (qpdf is primarily C++),
@@ -7,7 +7,7 @@ qpdf (2.1~b1-1) experimental; urgency=low
     in documentation.
   * Updated standards version to 3.8.3.  No changes required.
 
- -- Jay Berkenbilt <qjb@debian.org>  Thu, 22 Oct 2009 11:30:34 -0400
+ -- Jay Berkenbilt <qjb@debian.org>  Sat, 24 Oct 2009 10:33:43 -0400
 
 qpdf (2.0.6-1) unstable; urgency=low
 
