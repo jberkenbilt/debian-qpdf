@@ -1,9 +1,9 @@
-qpdf (2.2~rc1-1) unstable; urgency=low
+qpdf (2.2.0-1) unstable; urgency=low
 
   * New upstream release
   * Updated standards to 3.9.1.  No changes required.
 
- -- Jay Berkenbilt <qjb@debian.org>  Sun, 08 Aug 2010 18:58:31 -0400
+ --
 
 qpdf (2.1.5-1) unstable; urgency=low
 
