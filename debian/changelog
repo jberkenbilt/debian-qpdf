@@ -1,3 +1,10 @@
+qpdf (2.2.3-1) unstable; urgency=low
+
+  * New upstream release
+  * Updated standards to 3.9.2.  No changes required.
+
+ -- Jay Berkenbilt <qjb@debian.org>  Sat, 30 Apr 2011 16:18:28 -0400
+
 qpdf (2.2.2-1) unstable; urgency=low
 
   * New upstream release
