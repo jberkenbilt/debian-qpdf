@@ -1,3 +1,9 @@
+qpdf (2.2.3-2) unstable; urgency=low
+
+  * Disable -Werror for debian builds. (Closes: #625420)
+
+ -- Jay Berkenbilt <qjb@debian.org>  Sat, 07 May 2011 09:37:25 -0400
+
 qpdf (2.2.3-1) unstable; urgency=low
 
   * New upstream release
