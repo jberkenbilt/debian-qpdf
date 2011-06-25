@@ -1,3 +1,11 @@
+qpdf (2.2.4-1) unstable; urgency=low
+
+  * New upstream release.
+  * -Werror is now disabled by default, so it is no longer disabled
+    explicitly in debian/rules.
+
+ -- Jay Berkenbilt <qjb@debian.org>  Sat, 25 Jun 2011 15:14:13 -0400
+
 qpdf (2.2.3-2) unstable; urgency=low
 
   * Disable -Werror for debian builds. (Closes: #625420)

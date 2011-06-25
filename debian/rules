@@ -19,7 +19,7 @@ DEB_COMPRESS_EXCLUDE = \
 	stylesheets.css
 
 DEB_CONFIGURE_USER_FLAGS = \
-	--disable-test-compare-images --disable-werror
+	--disable-test-compare-images
 
 # Include cdbs rules files.
 include /usr/share/cdbs/1/rules/debhelper.mk
