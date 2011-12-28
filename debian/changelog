@@ -1,3 +1,11 @@
+qpdf (2.3.1-1) unstable; urgency=low
+
+  * New upstream release
+  * Release includes documentation fixes reported in debian bug reports.
+    (Closes: #638038, #636931)
+
+ -- Jay Berkenbilt <qjb@debian.org>  Wed, 28 Dec 2011 17:38:56 -0500
+
 qpdf (2.3.0-1) unstable; urgency=low
 
   * New upstream release
