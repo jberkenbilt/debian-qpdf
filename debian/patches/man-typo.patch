@@ -1,0 +1,13 @@
+Index: qpdf-2.3.1/manual/zlib-flate.1.in
+===================================================================
+--- qpdf-2.3.1.orig/manual/zlib-flate.1.in	2011-12-28 17:19:40.000000000 -0500
++++ qpdf-2.3.1/manual/zlib-flate.1.in	2012-04-06 21:44:38.533274871 -0400
+@@ -10,7 +10,7 @@
+ The zlib-flate program is part of the qpdf package.
+ .PP
+ The zlib-flate program reads from standard input and writes to
+-standard output either compressing or compressing its input using raw
++standard output either compressing or uncompressing its input using raw
+ zlib compression.  It can be used to uncompress or compress raw PDF
+ streams or other data that is compressed with raw zlib compression.
+ This program is provided primarily as a debugging tool, though it
