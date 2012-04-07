@@ -28,10 +28,8 @@ include /usr/share/cdbs/1/class/autotools.mk
 cleanbuilddir::
 	$(RM) -r $(l_STAMPS)
 
-# As 0.4.21, cdbs creates but doesn't remove debian/compat.  It
-# creates it conditionally, so this doesn't have a trivial fix.
 clean::
-	$(RM) debian/compat *.cdbs-config_list
+	$(RM) *.cdbs-config_list
 
 install/libqpdf-dev::
 	mkdir -p debian/tmp/usr/share/doc/libqpdf-dev/examples
