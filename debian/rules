@@ -18,8 +18,10 @@ DEB_COMPRESS_EXCLUDE = \
 	qpdf-manual.pdf \
 	stylesheets.css
 
-DEB_CONFIGURE_USER_FLAGS = \
+DEB_CONFIGURE_USER_FLAGS = --libdir="\$${prefix}/lib/$(DEB_HOST_MULTIARCH)" \
 	--disable-test-compare-images
+
+export DEB_BUILD_HARDENING=1
 
 # Include cdbs rules files.
 include /usr/share/cdbs/1/rules/debhelper.mk
