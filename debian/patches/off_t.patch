@@ -1,0 +1,12 @@
+Index: qpdf-2.3.1/include/qpdf/QPDFExc.hh
+===================================================================
+--- qpdf-2.3.1.orig/include/qpdf/QPDFExc.hh	2011-12-28 17:19:40.000000000 -0500
++++ qpdf-2.3.1/include/qpdf/QPDFExc.hh	2012-05-19 08:47:28.825126213 -0400
+@@ -8,6 +8,7 @@
+ #ifndef __QPDFEXC_HH__
+ #define __QPDFEXC_HH__
+ 
++#include <sys/types.h>          // not for upstream
+ #include <qpdf/DLL.h>
+ #include <qpdf/Constants.h>
+ #include <stdexcept>
