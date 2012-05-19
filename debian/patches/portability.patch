@@ -42,7 +42,7 @@ Index: qpdf-2.3.1/examples/pdf-mod-info.cc
  #include <iostream>
  #include <string.h>
  #include <stdlib.h>
-+#include <unstd.h>              // unlink - not for upstream
++#include <unistd.h>              // unlink - not for upstream
  
  static char const* version = "1.1";
  static char const* whoami = 0;
