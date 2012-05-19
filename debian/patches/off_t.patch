@@ -1,12 +1,36 @@
 Index: qpdf-2.3.1/include/qpdf/QPDFExc.hh
 ===================================================================
---- qpdf-2.3.1.orig/include/qpdf/QPDFExc.hh	2011-12-28 17:19:40.000000000 -0500
-+++ qpdf-2.3.1/include/qpdf/QPDFExc.hh	2012-05-19 08:47:28.825126213 -0400
+--- qpdf-2.3.1.orig/include/qpdf/QPDFExc.hh	2012-05-19 09:05:55.156235707 -0400
++++ qpdf-2.3.1/include/qpdf/QPDFExc.hh	2012-05-19 09:06:30.812236173 -0400
 @@ -8,6 +8,7 @@
  #ifndef __QPDFEXC_HH__
  #define __QPDFEXC_HH__
  
-+#include <sys/types.h>          // not for upstream
++#include <sys/types.h>          // off_t - not for upstream
  #include <qpdf/DLL.h>
  #include <qpdf/Constants.h>
  #include <stdexcept>
+Index: qpdf-2.3.1/include/qpdf/QPDFObjectHandle.hh
+===================================================================
+--- qpdf-2.3.1.orig/include/qpdf/QPDFObjectHandle.hh	2012-05-19 09:05:55.156235707 -0400
++++ qpdf-2.3.1/include/qpdf/QPDFObjectHandle.hh	2012-05-19 09:06:30.812236173 -0400
+@@ -8,6 +8,7 @@
+ #ifndef __QPDFOBJECTHANDLE_HH__
+ #define __QPDFOBJECTHANDLE_HH__
+ 
++#include <sys/types.h>          // off_t - not for upstream
+ #include <string>
+ #include <vector>
+ #include <set>
+Index: qpdf-2.3.1/include/qpdf/QPDF.hh
+===================================================================
+--- qpdf-2.3.1.orig/include/qpdf/QPDF.hh	2012-05-19 09:06:27.748236136 -0400
++++ qpdf-2.3.1/include/qpdf/QPDF.hh	2012-05-19 09:06:36.464236247 -0400
+@@ -8,6 +8,7 @@
+ #ifndef __QPDF_HH__
+ #define __QPDF_HH__
+ 
++#include <sys/types.h>          // off_t - not for upstream
+ #include <stdio.h>
+ #include <string>
+ #include <map>
