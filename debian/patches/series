@@ -1,3 +1,4 @@
 portability.patch
 pcre.patch
 man-typo.patch
+versioned-symbols.patch
