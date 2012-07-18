@@ -1,3 +1,5 @@
+XXX --enable-show-failed-test-output
+
 qpdf (2.3.1-5) unstable; urgency=low
 
   * Enable versioned symbols.
