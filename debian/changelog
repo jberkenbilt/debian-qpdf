@@ -1,11 +1,5 @@
 XXX --enable-show-failed-test-output
 
-qpdf (2.3.1-5) unstable; urgency=low
-
-  * Enable versioned symbols.
-
- -- Jay Berkenbilt <qjb@debian.org>  Wed, 18 Jul 2012 10:20:10 -0400
-
 qpdf (2.3.1-4) unstable; urgency=low
 
   * Work around portability issues exposed by upgrading to gcc 4.7.  The
