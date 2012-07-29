@@ -1,4 +1,9 @@
-XXX --enable-show-failed-test-output
+qpdf (3.0~rc1-1) experimental; urgency=low
+
+  * New upstream release
+  * Change hardening to use dpkg-buildflags
+
+ -- Jay Berkenbilt <qjb@debian.org>  Sun, 29 Jul 2012 14:57:40 -0400
 
 qpdf (2.3.1-4) unstable; urgency=low
 
