@@ -1,5 +1,10 @@
 #!/usr/bin/make -f
 
+# Enable all hardening options.
+export DEB_BUILD_MAINT_OPTIONS = hardening=+all
+DPKG_EXPORT_BUILDFLAGS = 1
+include /usr/share/dpkg/buildflags.mk
+
 DEB_MAKE_CHECK_TARGET = check
 DEB_COMPRESS_EXCLUDE = \
 	qpdf-manual.html \
@@ -7,8 +12,6 @@ DEB_COMPRESS_EXCLUDE = \
 	stylesheets.css
 DEB_CONFIGURE_USER_FLAGS = --libdir="\$${prefix}/lib/$(DEB_HOST_MULTIARCH)" \
 	--enable-show-failed-test-output
-
-export DEB_BUILD_HARDENING=1
 
 # Include cdbs rules files.
 include /usr/share/cdbs/1/rules/debhelper.mk
