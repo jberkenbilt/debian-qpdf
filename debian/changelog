@@ -1,3 +1,9 @@
+qpdf (4.0.1-1) experimental; urgency=low
+
+  * New upstream release.  All patches incorporated.
+
+ -- Jay Berkenbilt <qjb@debian.org>  Thu, 17 Jan 2013 10:09:39 -0500
+
 qpdf (4.0.0-2) experimental; urgency=low
 
   * Patch to test code for detection of binary attachments on big-endian
