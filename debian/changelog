@@ -1,3 +1,9 @@
+qpdf (4.1.0-1) experimental; urgency=low
+
+  * New upstream release
+
+ -- Jay Berkenbilt <qjb@debian.org>  Sun, 14 Apr 2013 14:51:40 -0400
+
 qpdf (4.0.1-2) experimental; urgency=low
 
   * Bug fix: proper handling of overridden compressed objects.  This fix
