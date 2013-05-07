@@ -1,8 +1,13 @@
 qpdf (4.1.0-2) unstable; urgency=low
 
-  * Re-upload to unstable.  No changes.
+  * Re-upload to unstable.
+  * Build depend on autotools-dev to always get latest config.sub and
+    config.guess
+  * Update standards version to 3.9.4.  No changes made.  (qpdf is a C++
+    library with versioned symbols that version "*", so we continue to use
+    a shlibs file instead of a symbols file.)
 
- -- Jay Berkenbilt <qjb@debian.org>  Mon, 06 May 2013 16:50:55 -0400
+ -- Jay Berkenbilt <qjb@debian.org>  Tue, 07 May 2013 14:15:47 -0400
 
 qpdf (4.1.0-1) experimental; urgency=low
 
