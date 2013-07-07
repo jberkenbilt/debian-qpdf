@@ -1,3 +1,9 @@
+qpdf (4.2.0-1) unstable; urgency=low
+
+  * New upstream release
+
+ -- Jay Berkenbilt <qjb@debian.org>  Sun, 07 Jul 2013 19:05:03 -0400
+
 qpdf (4.1.0-2) unstable; urgency=low
 
   * Re-upload to unstable.
