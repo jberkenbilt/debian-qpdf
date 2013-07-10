@@ -1,3 +1,10 @@
+qpdf (4.2.0-2) unstable; urgency=low
+
+  * Revert ABI change caused by bug fix.  The bug fix will be re-released
+    in qpdf 5.0.0.  (Closes: #715448)
+
+ -- Jay Berkenbilt <qjb@debian.org>  Wed, 10 Jul 2013 13:00:43 -0400
+
 qpdf (4.2.0-1) unstable; urgency=low
 
   * New upstream release
