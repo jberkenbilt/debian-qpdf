@@ -28,7 +28,7 @@ if (@ARGV)
     }
 }
 $srcdir =~ s,/$,,;
-usage() unless $srcdir =~ m/^qpdf-(\d+\.\d+(?:\.(a|b|rc)\d+)?)$/;
+usage() unless $srcdir =~ m/^qpdf-(\d+\.\d+(?:\.(a|b|rc)?\d+)?)$/;
 my $version = $1;
 usage() unless -d $srcdir;
 
@@ -110,6 +110,7 @@ if ($version_error)
 }
 
 run("autoconf");
+run("autoheader");
 run("./configure --enable-doc-maintenance");
 run("make build_manual");
 run("make distclean");
