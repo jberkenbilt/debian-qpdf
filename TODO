@@ -173,3 +173,6 @@ Index: QPDFWriter.cc
 
  * From a suggestion in bug 3152169, consider having an option to
    re-encode inline images with an ASCII encoding.
+
+ * From github issue 2, provide more in-depth output for examining
+   hint stream contents.
