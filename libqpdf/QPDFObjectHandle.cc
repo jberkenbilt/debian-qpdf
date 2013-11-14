@@ -35,6 +35,7 @@ QPDFObjectHandle::ParserCallbacks::terminateParsing()
 
 QPDFObjectHandle::QPDFObjectHandle() :
     initialized(false),
+    qpdf(0),
     objid(0),
     generation(0),
     reserved(false)
@@ -533,6 +534,12 @@ QPDFObjectHandle::replaceStreamData(PointerHolder<StreamDataProvider> provider,
     assertStream();
     dynamic_cast<QPDF_Stream*>(obj.getPointer())->replaceStreamData(
 	provider, filter, decode_parms);
+}
+
+QPDFObjGen
+QPDFObjectHandle::getObjGen() const
+{
+    return QPDFObjGen(this->objid, this->generation);
 }
 
 int

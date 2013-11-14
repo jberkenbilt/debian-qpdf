@@ -32,6 +32,7 @@ SRCS_libqpdf = \
 	libqpdf/Pl_StdioFile.cc \
 	libqpdf/QPDF.cc \
 	libqpdf/QPDFExc.cc \
+	libqpdf/QPDFObjGen.cc \
 	libqpdf/QPDFObject.cc \
 	libqpdf/QPDFObjectHandle.cc \
 	libqpdf/QPDFTokenizer.cc \
@@ -93,4 +94,4 @@ $(COBJS_libqpdf): libqpdf/$(OUTPUT_DIR)/%.$(LOBJ): libqpdf/%.c
 # * Otherwise, increment REVISION
 
 $(TARGETS_libqpdf): $(OBJS_libqpdf)
-	$(call makelib,$(OBJS_libqpdf),$@,$(LDFLAGS),$(LIBS),11,0,1)
+	$(call makelib,$(OBJS_libqpdf),$@,$(LDFLAGS),$(LIBS),12,0,2)
