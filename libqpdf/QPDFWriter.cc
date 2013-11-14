@@ -462,7 +462,9 @@ QPDFWriter::setEncryptionParameters(
 
     if (R > 3)
     {
-        // Bit 10 is deprecated and should always be set.
+        // Bit 10 is deprecated and should always be set.  This used
+        // to mean accessibility.  There is no way to disable
+        // accessibility with R > 3.
         bits_to_clear.erase(10);
     }
 
@@ -772,7 +774,11 @@ QPDFWriter::bytesNeeded(unsigned long long n)
 void
 QPDFWriter::writeBinary(unsigned long long val, unsigned int bytes)
 {
-    assert(bytes <= sizeof(unsigned long long));
+    if (bytes > sizeof(unsigned long long))
+    {
+        throw std::logic_error(
+            "QPDFWriter::writeBinary called with too many bytes");
+    }
     unsigned char data[sizeof(unsigned long long)];
     for (unsigned int i = 0; i < bytes; ++i)
     {
@@ -1097,7 +1103,11 @@ QPDFWriter::writeTrailer(trailer_e which, int size, bool xref_stream,
 		    qpdf_offset_t pos = this->pipeline->getCount();
 		    writeString(QUtil::int_to_string(prev));
 		    int nspaces = pos - this->pipeline->getCount() + 21;
-		    assert(nspaces >= 0);
+		    if (nspaces < 0)
+                    {
+                        throw std::logic_error(
+                            "QPDFWriter: no padding required in trailer");
+                    }
 		    writePad(nspaces);
 		}
 	    }
@@ -1561,7 +1571,7 @@ QPDFWriter::writeObjectStreamOffsets(std::vector<qpdf_offset_t>& offsets,
 	}
 	writeString(QUtil::int_to_string(i + first_obj));
 	writeString(" ");
-	writeString(QUtil::int_to_string(offsets[i]));
+	writeString(QUtil::int_to_string(offsets.at(i)));
     }
     writeString("\n");
 }
@@ -1595,7 +1605,7 @@ QPDFWriter::writeObjectStream(QPDFObjectHandle object)
 	{
 	    // Adjust offsets to skip over comment before first object
 
-	    first = offsets[0];
+	    first = offsets.at(0);
 	    for (std::vector<qpdf_offset_t>::iterator iter = offsets.begin();
 		 iter != offsets.end(); ++iter)
 	    {
@@ -2737,7 +2747,7 @@ QPDFWriter::writeLinearized()
 	if (pass == 2)
 	{
 	    std::vector<QPDFObjectHandle> const& pages = pdf.getAllPages();
-	    int first_page_object = obj_renumber[pages[0].getObjGen()];
+	    int first_page_object = obj_renumber[pages.at(0).getObjGen()];
 	    int npages = pages.size();
 
 	    writeString(" /Linearized 1 /L ");
@@ -2814,9 +2824,11 @@ QPDFWriter::writeLinearized()
 		// place as in pass 1.
 		writePad(first_xref_end - endpos);
 
-		// A failure of this insertion means we didn't allow
-		// enough padding for the first pass xref stream.
-		assert(this->pipeline->getCount() == first_xref_end);
+		if (this->pipeline->getCount() != first_xref_end)
+                {
+                    throw std::logic_error(
+                        "insufficient padding for first pass xref stream");
+                }
 	    }
 	    writeString("\n");
 	}
@@ -2897,8 +2909,13 @@ QPDFWriter::writeLinearized()
 
 		// If this assertion fails, maybe we didn't have
 		// enough padding above.
-		assert(this->pipeline->getCount() ==
-                       second_xref_end + hint_length);
+		if (this->pipeline->getCount() !=
+                    second_xref_end + hint_length)
+                {
+                    throw std::logic_error(
+                        "count mismatch after xref stream;"
+                        " possible insufficient padding?");
+                }
 	    }
 	}
 	else

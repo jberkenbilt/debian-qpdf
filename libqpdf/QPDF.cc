@@ -19,7 +19,7 @@
 #include <qpdf/QPDF_Null.hh>
 #include <qpdf/QPDF_Dictionary.hh>
 
-std::string QPDF::qpdf_version = "5.0.0";
+std::string QPDF::qpdf_version = "5.0.1";
 
 static char const* EMPTY_PDF =
     "%PDF-1.3\n"
@@ -531,7 +531,7 @@ QPDF::read_xrefTable(qpdf_offset_t xref_offset)
             // For xref_table, these will always be small enough to be ints 
 	    qpdf_offset_t f1 = QUtil::string_to_ll(m2.getMatch(1).c_str());
 	    int f2 = atoi(m2.getMatch(2).c_str());
-	    char type = m2.getMatch(3)[0];
+	    char type = m2.getMatch(3).at(0);
 	    if (type == 'f')
 	    {
 		// Save deleted items until after we've checked the
@@ -699,7 +699,26 @@ QPDF::processXRefStream(qpdf_offset_t xref_offset, QPDFObjectHandle& xref_obj)
 		      "Cross-reference stream does not have"
 		      " proper /W and /Index keys");
     }
-    std::vector<int> indx;
+
+    int W[3];
+    size_t entry_size = 0;
+    int max_bytes = sizeof(qpdf_offset_t);
+    for (int i = 0; i < 3; ++i)
+    {
+	W[i] = W_obj.getArrayItem(i).getIntValue();
+        if (W[i] > max_bytes)
+        {
+            throw QPDFExc(qpdf_e_damaged_pdf, this->file->getName(),
+                          "xref stream", xref_offset,
+                          "Cross-reference stream's /W contains"
+                          " impossibly large values");
+        }
+	entry_size += W[i];
+    }
+    long long max_num_entries =
+        static_cast<unsigned long long>(-1) / entry_size;
+
+    std::vector<long long> indx;
     if (Index_obj.isArray())
     {
 	int n_index = Index_obj.getArrayNItems();
@@ -731,25 +750,29 @@ QPDF::processXRefStream(qpdf_offset_t xref_offset, QPDFObjectHandle& xref_obj)
     else
     {
 	QTC::TC("qpdf", "QPDF xref /Index is null");
-	int size = dict.getKey("/Size").getIntValue();
+	long long size = dict.getKey("/Size").getIntValue();
 	indx.push_back(0);
 	indx.push_back(size);
     }
 
-    int num_entries = 0;
+    long long num_entries = 0;
     for (unsigned int i = 1; i < indx.size(); i += 2)
     {
-	num_entries += indx[i];
+        if (indx.at(i) > max_num_entries - num_entries)
+        {
+            throw QPDFExc(qpdf_e_damaged_pdf, this->file->getName(),
+                          "xref stream", xref_offset,
+                          "Cross-reference stream claims to contain"
+                          " too many entries: " +
+                          QUtil::int_to_string(indx.at(i)) + " " +
+                          QUtil::int_to_string(max_num_entries) + " " +
+                          QUtil::int_to_string(num_entries));
+        }
+	num_entries += indx.at(i);
     }
 
-    int W[3];
-    int entry_size = 0;
-    for (int i = 0; i < 3; ++i)
-    {
-	W[i] = W_obj.getArrayItem(i).getIntValue();
-	entry_size += W[i];
-    }
-
+    // entry_size and num_entries have both been validated to ensure
+    // that this multiplication does not cause an overflow.
     size_t expected_size = entry_size * num_entries;
 
     PointerHolder<Buffer> bp = xref_obj.getStreamData();
@@ -777,6 +800,9 @@ QPDF::processXRefStream(qpdf_offset_t xref_offset, QPDFObjectHandle& xref_obj)
 
     bool saw_first_compressed_object = false;
 
+    // Actual size vs. expected size check above ensures that we will
+    // not overflow any buffers here.  We know that entry_size *
+    // num_entries is equal to the size of the buffer.
     unsigned char const* data = bp->getBuffer();
     for (int i = 0; i < num_entries; ++i)
     {
@@ -803,9 +829,9 @@ QPDF::processXRefStream(qpdf_offset_t xref_offset, QPDFObjectHandle& xref_obj)
 	// based on /Index.  The generation number is 0 unless this is
 	// an uncompressed object record, in which case the generation
 	// number appears as the third field.
-	int obj = indx[cur_chunk] + chunk_count;
+	int obj = indx.at(cur_chunk) + chunk_count;
 	++chunk_count;
-	if (chunk_count >= indx[cur_chunk + 1])
+	if (chunk_count >= indx.at(cur_chunk + 1))
 	{
 	    cur_chunk += 2;
 	    chunk_count = 0;

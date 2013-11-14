@@ -441,7 +441,7 @@ static std::vector<int> parse_numrange(char const* range, int max,
         p = 0;
         for (size_t i = 0; i < work.size(); i += 2)
         {
-            int num = work[i];
+            int num = work.at(i);
             // max == 0 means we don't know the max and are just
             // testing for valid syntax.
             if ((max > 0) && ((num < 1) || (num > max)))
@@ -451,11 +451,11 @@ static std::vector<int> parse_numrange(char const* range, int max,
             }
             if (i == 0)
             {
-                result.push_back(work[i]);
+                result.push_back(work.at(i));
             }
             else
             {
-                int separator = work[i-1];
+                int separator = work.at(i-1);
                 if (separator == comma)
                 {
                     result.push_back(num);
@@ -740,13 +740,13 @@ parse_encrypt_options(
 	    {
 		usage("invalid -accessibility parameter");
 	    }
-	    if (keylen == 128)
+	    if (keylen == 40)
 	    {
-		r3_accessibility = result;
+		usage("-accessibility invalid for 40-bit keys");
 	    }
 	    else
 	    {
-		usage("-accessibility invalid for 40-bit keys");
+		r3_accessibility = result;
 	    }
 	}
 	else if (strcmp(arg, "cleartext-metadata") == 0)
@@ -1664,7 +1664,7 @@ int main(int argc, char* argv[])
                         // Pages are specified from 1 but numbered
                         // from 0 in the vector
                         int pageno = *pageno_iter - 1;
-                        pdf.addPage(page_data.orig_pages[pageno], false);
+                        pdf.addPage(page_data.orig_pages.at(pageno), false);
                         if (page_data.qpdf == &pdf)
                         {
                             // This is a page from the original file.
@@ -1683,7 +1683,7 @@ int main(int argc, char* argv[])
                 {
                     if (selected_from_orig.count(pageno) == 0)
                     {
-                        pdf.replaceObject(orig_pages[pageno].getObjGen(),
+                        pdf.replaceObject(orig_pages.at(pageno).getObjGen(),
                                           QPDFObjectHandle::newNull());
                     }
                 }
@@ -1730,49 +1730,77 @@ int main(int argc, char* argv[])
             }
 	    if (encrypt)
 	    {
+                int R = 0;
 		if (keylen == 40)
 		{
-		    w.setR2EncryptionParameters(
-			user_password.c_str(), owner_password.c_str(),
-			r2_print, r2_modify, r2_extract, r2_annotate);
+                    R = 2;
 		}
 		else if (keylen == 128)
 		{
 		    if (force_V4 || cleartext_metadata || use_aes)
 		    {
-			w.setR4EncryptionParameters(
-			    user_password.c_str(), owner_password.c_str(),
-			    r3_accessibility, r3_extract, r3_print, r3_modify,
-			    !cleartext_metadata, use_aes);
+                        R = 4;
 		    }
 		    else
 		    {
-			w.setR3EncryptionParameters(
-			    user_password.c_str(), owner_password.c_str(),
-			    r3_accessibility, r3_extract, r3_print, r3_modify);
+                        R = 3;
 		    }
 		}
 		else if (keylen == 256)
 		{
 		    if (force_R5)
                     {
-			w.setR5EncryptionParameters(
-			    user_password.c_str(), owner_password.c_str(),
-			    r3_accessibility, r3_extract, r3_print, r3_modify,
-			    !cleartext_metadata);
+                        R = 5;
 		    }
 		    else
 		    {
-			w.setR6EncryptionParameters(
-			    user_password.c_str(), owner_password.c_str(),
-			    r3_accessibility, r3_extract, r3_print, r3_modify,
-			    !cleartext_metadata);
+                        R = 6;
 		    }
 		}
 		else
 		{
 		    throw std::logic_error("bad encryption keylen");
 		}
+                if ((R > 3) && (r3_accessibility == false))
+                {
+                    std::cerr << whoami
+                              << ": -accessibility=n is ignored for modern"
+                              << " encryption formats" << std::endl;
+                }
+                switch (R)
+                {
+                  case 2:
+		    w.setR2EncryptionParameters(
+			user_password.c_str(), owner_password.c_str(),
+			r2_print, r2_modify, r2_extract, r2_annotate);
+                    break;
+                  case 3:
+                    w.setR3EncryptionParameters(
+                        user_password.c_str(), owner_password.c_str(),
+                        r3_accessibility, r3_extract, r3_print, r3_modify);
+                    break;
+                  case 4:
+                    w.setR4EncryptionParameters(
+                        user_password.c_str(), owner_password.c_str(),
+                        r3_accessibility, r3_extract, r3_print, r3_modify,
+                        !cleartext_metadata, use_aes);
+                    break;
+                  case 5:
+                    w.setR5EncryptionParameters(
+                        user_password.c_str(), owner_password.c_str(),
+                        r3_accessibility, r3_extract, r3_print, r3_modify,
+                        !cleartext_metadata);
+                    break;
+                  case 6:
+                    w.setR6EncryptionParameters(
+                        user_password.c_str(), owner_password.c_str(),
+                        r3_accessibility, r3_extract, r3_print, r3_modify,
+                        !cleartext_metadata);
+                    break;
+                  default:
+		    throw std::logic_error("bad encryption R value");
+                    break;
+                }
 	    }
 	    if (linearize)
 	    {

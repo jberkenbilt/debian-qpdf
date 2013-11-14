@@ -16,11 +16,15 @@ QPDF_Name::~QPDF_Name()
 std::string
 QPDF_Name::normalizeName(std::string const& name)
 {
+    if (name.empty())
+    {
+	return name;
+    }
     std::string result;
-    result += name[0];
+    result += name.at(0);
     for (unsigned int i = 1; i < name.length(); ++i)
     {
-	char ch = name[i];
+	char ch = name.at(i);
 	// Don't use locale/ctype here; follow PDF spec guidelines.
 	if (strchr("#()<>[]{}/%", ch) || (ch < 33) || (ch > 126))
 	{
