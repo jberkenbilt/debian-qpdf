@@ -1,6 +1,6 @@
 Summary: Command-line tools and library for transforming PDF files
 Name: qpdf
-Version: 3.0.0
+Version: 3.0.1
 Release: 1%{?dist}
 License: Artistic
 Group: System Environment/Libraries
@@ -80,6 +80,7 @@ rm -f $RPM_BUILD_ROOT%{_libdir}/libqpdf.la
 %doc install-examples/examples
 %{_includedir}/*
 %{_libdir}/libqpdf*.so
+%{_libdir}/pkgconfig
 
 %files static
 %defattr(-,root,root)
