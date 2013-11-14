@@ -1,3 +1,27 @@
+2009-02-21  Jay Berkenbilt  <ejb@ql.org>
+
+	* 2.0.4: release
+
+2009-02-20  Jay Berkenbilt  <ejb@ql.org>
+
+	* Fix many typos in comments and strings.
+
+	* qpdf/qpdf.cc: in --check mode, if there are warnings but no
+	errors, exit with a status of 3.
+
+	* libqpdf/QPDF.cc (QPDF::insertXrefEntry): when recovering the
+	cross-reference table, have objects we encounter later in the file
+	supersede those we found earlier.  This improves the chances of
+	being able to recover appended files with damaged cross-reference
+	tables.
+
+2009-02-19  Jay Berkenbilt  <ejb@ql.org>
+
+	* libqpdf/Pl_LZWDecoder.cc: correct logic error for previously
+	untested case of running the LZW decoder without the "early code
+	change" flag.  Thanks to a bug report from "Atom Smasher", I
+	finally was able to obtain an input stream compressed in this way.
+
 2009-02-15  Jay Berkenbilt  <ejb@ql.org>
 
 	* 2.0.3: release
