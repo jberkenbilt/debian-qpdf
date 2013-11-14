@@ -120,6 +120,7 @@ QPDFWriter::setOutputFile(char const* description, FILE* file, bool close_file)
 void
 QPDFWriter::setOutputMemory()
 {
+    this->filename = "memory buffer";
     this->buffer_pipeline = new Pl_Buffer("qpdf output");
     to_delete.push_back(this->buffer_pipeline);
     initializePipelineStack(this->buffer_pipeline);
@@ -192,6 +193,22 @@ void
 QPDFWriter::forcePDFVersion(std::string const& version)
 {
     this->forced_pdf_version = version;
+}
+
+void
+QPDFWriter::setExtraHeaderText(std::string const& text)
+{
+    this->extra_header_text = text;
+    if ((this->extra_header_text.length() > 0) &&
+        (*(this->extra_header_text.rbegin()) != '\n'))
+    {
+        QTC::TC("qpdf", "QPDFWriter extra header text add newline");
+        this->extra_header_text += "\n";
+    }
+    else
+    {
+        QTC::TC("qpdf", "QPDFWriter extra header text no newline");
+    }
 }
 
 void
@@ -1492,7 +1509,7 @@ QPDFWriter::generateID()
 	std::string seed;
 	seed += QUtil::int_to_string((int)QUtil::get_current_time());
 	seed += " QPDF ";
-	seed += filename;
+	seed += this->filename;
 	seed += " ";
 	if (trailer.hasKey("/Info"))
 	{
@@ -1831,6 +1848,12 @@ QPDFWriter::writeHeader()
     // it really should be treated as binary.
     writeString("\n%\xbf\xf7\xa2\xfe\n");
     writeStringQDF("%QDF-1.0\n\n");
+
+    // Note: do not write extra header text here.  Linearized PDFs
+    // must include the entire linearization parameter dictionary
+    // within the first 1024 characters of the PDF file, so for
+    // linearized files, we have to write extra header text after the
+    // linearization parameter dictionary.
 }
 
 void
@@ -2188,7 +2211,9 @@ QPDFWriter::writeLinearized()
 	// space to write real dictionary.  200 characters is enough
 	// space if all numerical values in the parameter dictionary
 	// that contain offsets are 20 digits long plus a few extra
-	// characters for safety.
+	// characters for safety.  The entire linearization parameter
+	// dictionary must appear within the first 1024 characters of
+	// the file.
 
 	qpdf_offset_t pos = this->pipeline->getCount();
 	openObject(lindict_id);
@@ -2223,6 +2248,10 @@ QPDFWriter::writeLinearized()
 	assert(spaces >= 0);
 	writePad(spaces);
 	writeString("\n");
+
+        // If the user supplied any additional header text, write it
+        // here after the linearization parameter dictionary.
+        writeString(this->extra_header_text);
 
 	// Part 3: first page cross reference table and trailer.
 
@@ -2395,6 +2424,7 @@ QPDFWriter::writeStandard()
     // Start writing
 
     writeHeader();
+    writeString(this->extra_header_text);
 
     // Put root first on queue.
     QPDFObjectHandle trailer = pdf.getTrailer();
