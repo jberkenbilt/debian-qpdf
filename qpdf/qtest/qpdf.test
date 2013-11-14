@@ -81,7 +81,17 @@ flush_tiff_cache();
 show_ntests();
 # ----------
 $td->notify("--- Miscellaneous Tests ---");
-$n_tests += 4;
+$n_tests += 16;
+
+$td->runtest("qpdf version",
+	     {$td->COMMAND => "qpdf --version"},
+	     {$td->REGEXP => "qpdf version \\S+\n.*", $td->EXIT_STATUS => 0},
+	     $td->NORMALIZE_NEWLINES);
+$td->runtest("C API: qpdf version",
+	     {$td->COMMAND => "qpdf-ctest --version"},
+	     {$td->REGEXP => "qpdf-ctest version \\S+\n",
+	      $td->EXIT_STATUS => 0},
+	     $td->NORMALIZE_NEWLINES);
 
 foreach (my $i = 1; $i <= 3; ++$i)
 {
@@ -95,6 +105,61 @@ foreach (my $i = 1; $i <= 3; ++$i)
 $td->runtest("unknown decode parameters",
 	     {$td->COMMAND => "qpdf --check fax-decode-parms.pdf"},
 	     {$td->FILE => "fax-decode-parms.out",
+	      $td->EXIT_STATUS => 0},
+	     $td->NORMALIZE_NEWLINES);
+
+# Handle xref stream with more entries than reported (bug 2872265)
+$td->runtest("xref with short size",
+	     {$td->COMMAND => "qpdf --show-xref xref-with-short-size.pdf"},
+	     {$td->FILE => "xref-with-short-size.out",
+	      $td->EXIT_STATUS => 3},
+	     $td->NORMALIZE_NEWLINES);
+$td->runtest("recover xref with short size",
+	     {$td->COMMAND => "qpdf xref-with-short-size.pdf a.pdf"},
+	     {$td->FILE => "xref-with-short-size-recover.out",
+	      $td->EXIT_STATUS => 3},
+	     $td->NORMALIZE_NEWLINES);
+$td->runtest("show new xref stream",
+	     {$td->COMMAND => "qpdf --show-xref a.pdf"},
+	     {$td->FILE => "xref-with-short-size-new.out",
+	      $td->EXIT_STATUS => 0},
+	     $td->NORMALIZE_NEWLINES);
+
+# Min/Force version
+$td->runtest("set min version",
+	     {$td->COMMAND => "qpdf --min-version=1.6 good1.pdf a.pdf"},
+	     {$td->STRING => "",
+	      $td->EXIT_STATUS => 0},
+	     $td->NORMALIZE_NEWLINES);
+$td->runtest("check version",
+	     {$td->COMMAND => "qpdf --check a.pdf"},
+	     {$td->FILE => "min-version.out",
+	      $td->EXIT_STATUS => 0},
+	     $td->NORMALIZE_NEWLINES);
+$td->runtest("force version",
+	     {$td->COMMAND => "qpdf --force-version=1.4 a.pdf b.pdf"},
+	     {$td->STRING => "",
+	      $td->EXIT_STATUS => 0},
+	     $td->NORMALIZE_NEWLINES);
+$td->runtest("check version",
+	     {$td->COMMAND => "qpdf --check b.pdf"},
+	     {$td->FILE => "forced-version.out",
+	      $td->EXIT_STATUS => 0},
+	     $td->NORMALIZE_NEWLINES);
+unlink "a.pdf", "b.pdf" or die;
+$td->runtest("C API: min/force versions",
+	     {$td->COMMAND => "qpdf-ctest 14 object-stream.pdf '' a.pdf b.pdf"},
+	     {$td->STRING => "",
+	      $td->EXIT_STATUS => 0},
+	     $td->NORMALIZE_NEWLINES);
+$td->runtest("C check version 1",
+	     {$td->COMMAND => "qpdf --check a.pdf"},
+	     {$td->FILE => "min-version.out",
+	      $td->EXIT_STATUS => 0},
+	     $td->NORMALIZE_NEWLINES);
+$td->runtest("C check version 2",
+	     {$td->COMMAND => "qpdf --check b.pdf"},
+	     {$td->FILE => "forced-version.out",
 	      $td->EXIT_STATUS => 0},
 	     $td->NORMALIZE_NEWLINES);
 
@@ -135,9 +200,12 @@ my @badfiles = ("not a PDF file", 			# 1
 		"invalid stream /Filter",		# 30
 		"unknown stream /Filter",		# 31
 		"obj/gen mismatch",			# 32
+		"invalid stream /Filter and xref",	# 33
+		"obj/gen in wrong place",		# 34
+		"object stream of wrong type",		# 35
 		);
 
-$n_tests += @badfiles;
+$n_tests += @badfiles + 5;
 
 # Test 6 contains errors in the free table consistency, but we no
 # longer have any consistency check for this since it is not important
@@ -156,10 +224,36 @@ for (my $i = 1; $i <= scalar(@badfiles); ++$i)
 		 $td->NORMALIZE_NEWLINES);
 }
 
+$td->runtest("C API: errors",
+	     {$td->COMMAND => "qpdf-ctest 2 bad1.pdf '' a.pdf"},
+	     {$td->FILE => "c-read-errors.out",
+	      $td->EXIT_STATUS => 0},
+	     $td->NORMALIZE_NEWLINES);
+$td->runtest("C API: warnings and errors",
+	     {$td->COMMAND => "qpdf-ctest 2 bad17.pdf '' a.pdf"},
+	     {$td->FILE => "c-read-warnings-and-errors.out",
+	      $td->EXIT_STATUS => 0},
+	     $td->NORMALIZE_NEWLINES);
+$td->runtest("C API: errors writing",
+	     {$td->COMMAND => "qpdf-ctest 2 bad30.pdf '' a.pdf"},
+	     {$td->FILE => "c-write-errors.out",
+	      $td->EXIT_STATUS => 0},
+	     $td->NORMALIZE_NEWLINES);
+$td->runtest("C API: errors and warnings writing",
+	     {$td->COMMAND => "qpdf-ctest 2 bad33.pdf '' a.pdf"},
+	     {$td->FILE => "c-write-warnings-and-errors.out",
+	      $td->EXIT_STATUS => 0},
+	     $td->NORMALIZE_NEWLINES);
+$td->runtest("C API: no recovery",
+	     {$td->COMMAND => "qpdf-ctest 10 bad33.pdf '' a.pdf"},
+	     {$td->FILE => "c-no-recovery.out",
+	      $td->EXIT_STATUS => 0},
+	     $td->NORMALIZE_NEWLINES);
+
 show_ntests();
 # ----------
 $td->notify("--- Recovery Tests ---");
-$n_tests += @badfiles + 7;
+$n_tests += @badfiles + 8;
 
 # Recovery tests.  These are mostly after-the-fact -- when recovery
 # was implemented, some degree of recovery was possible on many of the
@@ -167,7 +261,7 @@ $n_tests += @badfiles + 7;
 # though in some cases it may.  Acrobat Reader would not be able to
 # recover any of these files any better.
 my %recover_failures = ();
-for (1, 7, 13..21, 24..27, 29..30)
+for (1, 7, 13..21, 24, 29..30, 33, 35)
 {
     $recover_failures{$_} = 1;
 }
@@ -226,6 +320,12 @@ $td->runtest("run check on damaged file",
 	     {$td->FILE => "append-page-content-damaged-check.out",
 	      $td->EXIT_STATUS => 3},
 	     $td->NORMALIZE_NEWLINES);
+$td->runtest("check with C API",
+	     {$td->COMMAND =>
+		  "qpdf-ctest 1 append-page-content-damaged.pdf '' ''"},
+	     {$td->FILE => "append-page-content-damaged-c-check.out",
+	      $td->EXIT_STATUS => 0},
+	     $td->NORMALIZE_NEWLINES);
 
 show_ntests();
 # ----------
@@ -267,7 +367,8 @@ for (my $i = 1; $i <= scalar(@goodfiles); ++$i)
     $td->runtest("$goodfiles[$i-1]",
 		 {$td->COMMAND => "test_driver $n good$i.pdf"},
 		 {$td->FILE => "good$i.out",
-		  $td->EXIT_STATUS => 0});
+		  $td->EXIT_STATUS => 0},
+		 $td->NORMALIZE_NEWLINES);
     my $xflags = $goodtest_flags{$i} || '';
     check_pdf("create qdf",
 	      "qpdf --static-id -qdf $xflags good$i.pdf",
@@ -288,6 +389,56 @@ check_pdf("no recompression",
 	  "qpdf --static-id --stream-data=preserve good17.pdf",
 	  "good17-not-recompressed.pdf",
 	  0);
+
+show_ntests();
+# ----------
+$td->notify("--- C API Tests ---");
+
+my @capi = (
+    [2, 'no options'],
+    [3, 'normalized content'],
+    [4, 'ignore xref streams'],
+    [5, 'linearized'],
+    [6, 'object streams'],
+    [7, 'qdf'],
+    [8, 'no original object ids'],
+    [9, 'uncompressed streams'],
+    );
+$n_tests += (2 * @capi) + 3;
+foreach my $d (@capi)
+{
+    my ($n, $description) = @$d;
+    my $outfile = $description;
+    $outfile =~ s/ /-/g;
+    $outfile = "c-$outfile.pdf";
+    $td->runtest($description,
+		 {$td->COMMAND => "qpdf-ctest $n hybrid-xref.pdf '' a.pdf"},
+		 {$td->STRING => "", $td->EXIT_STATUS => 0});
+    $td->runtest("check $description",
+		 {$td->FILE => "a.pdf"},
+		 {$td->FILE => $outfile});
+}
+$td->runtest("write to bad file name",
+	     {$td->COMMAND => "qpdf-ctest 2 hybrid-xref.pdf '' /:a:/:b:"},
+	     {$td->REGEXP => "error: open /:a:/:b:: .*",
+	      $td->EXIT_STATUS => 0},
+	     $td->NORMALIZE_NEWLINES);
+
+$td->runtest("write damaged to bad file name",
+	     {$td->COMMAND => "qpdf-ctest 2 append-page-content-damaged.pdf" .
+		  " '' /:a:/:b:"},
+	     {$td->REGEXP =>
+		  "warning:(?s:.*)\n" .
+		  "error: open /:a:/:b:: .*",
+		  $td->EXIT_STATUS => 0},
+	     $td->NORMALIZE_NEWLINES);
+
+$td->runtest("write damaged",
+	     {$td->COMMAND => "qpdf-ctest 2 append-page-content-damaged.pdf" .
+		  " '' a.pdf"},
+	     {$td->FILE => "c-write-damaged.out",
+	      $td->EXIT_STATUS => 0},
+	     $td->NORMALIZE_NEWLINES);
 
 show_ntests();
 # ----------
@@ -345,7 +496,7 @@ for (my $n = 16; $n <= 19; ++$n)
 show_ntests();
 # ----------
 $td->notify("--- Specific File Tests ---");
-$n_tests += 3;
+$n_tests += 4;
 $n_compare_pdfs += 1;
 
 # Special PDF files that caused problems at some point
@@ -355,11 +506,13 @@ $n_compare_pdfs += 1;
 # happen to test boundary conditions in the LZW decoder.
 $td->runtest("old and complex",
 	     {$td->COMMAND => "qpdf --check old-and-complex.pdf"},
-	     {$td->STRING => +("checking old-and-complex.pdf\n" .
-			       "File is not encrypted\n" .
-			       "File is not linearized\n" .
-			       "No errors found\n"),
-			       $td->EXIT_STATUS => 0},
+	     {$td->FILE => "old-and-complex-check.out",
+	      $td->EXIT_STATUS => 0},
+	     $td->NORMALIZE_NEWLINES);
+$td->runtest("old and complex (C API)",
+	     {$td->COMMAND => "qpdf-ctest 1 old-and-complex.pdf '' ''"},
+	     {$td->FILE => "old-and-complex-c-check.out",
+	      $td->EXIT_STATUS => 0},
 	     $td->NORMALIZE_NEWLINES);
 
 $td->runtest("convert to qdf",
@@ -461,7 +614,8 @@ $td->runtest("unfilterable stream data",
 	     {$td->COMMAND => "qpdf encrypted-with-images.pdf" .
 		  " --show-object=8 --filtered-stream-data"},
 	     {$td->FILE => "show-unfilterable.out",
-	      $td->EXIT_STATUS => 2});
+	      $td->EXIT_STATUS => 2},
+	     $td->NORMALIZE_NEWLINES);
 
 $td->runtest("show-xref-by-id",
 	     {$td->COMMAND => "qpdf encrypted-with-images.pdf" .
@@ -475,6 +629,51 @@ $td->runtest("show-xref-by-id-filtered",
 		  " --show-object=12 --filtered-stream-data"},
 	     {$td->FILE => "show-xref-by-id-filtered.out",
 	      $td->EXIT_STATUS => 0});
+
+show_ntests();
+# ----------
+$td->notify("--- Clear-text Metadata Tests ---");
+$n_tests += 42;
+
+# args: file, exp_encrypted, exp_cleartext
+check_metadata("compressed-metadata.pdf", 0, 0);
+check_metadata("enc-base.pdf", 0, 1);
+
+foreach my $f (qw(compressed-metadata.pdf enc-base.pdf))
+{
+    foreach my $w (qw(compress preserve))
+    {
+	$td->runtest("$w streams",
+		     {$td->COMMAND => "qpdf --stream-data=$w $f a.pdf"},
+		     {$td->STRING => "", $td->EXIT_STATUS => 0});
+	check_metadata("a.pdf", 0, 1);
+	$td->runtest("encrypt normally",
+		     {$td->COMMAND =>
+			  "qpdf --encrypt '' '' 128 -- a.pdf b.pdf"},
+		     {$td->STRING => "", $td->EXIT_STATUS => 0});
+	check_metadata("b.pdf", 1, 0);
+	unlink "b.pdf";
+	$td->runtest("encrypt V4",
+		     {$td->COMMAND =>
+			  "qpdf --encrypt '' '' 128 --force-V4 -- a.pdf b.pdf"},
+		     {$td->STRING => "", $td->EXIT_STATUS => 0});
+	check_metadata("b.pdf", 1, 0);
+	unlink "b.pdf";
+	$td->runtest("encrypt with cleartext metadata",
+		     {$td->COMMAND =>
+			  "qpdf --encrypt '' '' 128 --cleartext-metadata --" .
+			  " a.pdf b.pdf"},
+		     {$td->STRING => "", $td->EXIT_STATUS => 0});
+	check_metadata("b.pdf", 1, 1);
+	unlink "b.pdf";
+	$td->runtest("encrypt with aes and cleartext metadata",
+		     {$td->COMMAND =>
+			  "qpdf --encrypt '' '' 128" .
+			  " --cleartext-metadata --use-aes=y -- a.pdf b.pdf"},
+		     {$td->STRING => "", $td->EXIT_STATUS => 0});
+	check_metadata("b.pdf", 1, 1);
+    }
+}
 
 show_ntests();
 # ----------
@@ -532,19 +731,13 @@ check_pdf("linearized and modified",
 
 $td->runtest("check linearized and modified",
 	     {$td->COMMAND => "qpdf --check lin-delete-and-reuse.pdf"},
-	     {$td->STRING => +("checking lin-delete-and-reuse.pdf\n" .
-			       "File is not encrypted\n" .
-			       "File is not linearized\n" .
-			       "No errors found\n"),
-			       $td->EXIT_STATUS => 0},
+	     {$td->FILE => "lin-delete-and-reuse-check.out",
+	      $td->EXIT_STATUS => 0},
 	     $td->NORMALIZE_NEWLINES);
 $td->runtest("check multiple modifications",
 	     {$td->COMMAND => "qpdf --check multiple-mods.pdf"},
-	     {$td->STRING => +("checking multiple-mods.pdf\n" .
-			       "File is not encrypted\n" .
-			       "File is not linearized\n" .
-			       "No errors found\n"),
-			       $td->EXIT_STATUS => 0},
+	     {$td->FILE => "multiple-mods-check.out",
+	      $td->EXIT_STATUS => 0},
 	     $td->NORMALIZE_NEWLINES);
 
 foreach my $base (@to_linearize)
@@ -602,37 +795,52 @@ $td->notify("--- Encryption Tests ---");
 # resulting files were saved and manually checked with Acrobat 5.0 to
 # ensure that the security settings were as intended.
 
-# Values: basename, password, encryption flags, /P Encrypt key.
+# Values: basename, password, encryption flags, /P Encrypt key,
+# extract-for-accessibility, extract-for-any-purpose,
+# print-low-res, print-high-res, modify-assembly, modify-forms,
+# modify-annotate, modify-other, modify-all
 my @encrypted_files =
     (['base', ''],
      ['R3,V2', '',
-      '-accessibility=n -extract=n -print=full -modify=all', -532],
+      '-accessibility=n -extract=n -print=full -modify=all', -532,
+      0, 0, 1, 1, 1, 1, 1, 1, 1],
      ['R3,V2,U=view', 'view',
-      '-accessibility=y -extract=n -print=none -modify=none', -3392],
+      '-accessibility=y -extract=n -print=none -modify=none', -3392,
+      1, 0, 0, 0, 0, 0, 0, 0, 0],
      ['R3,V2,O=master', 'master',
-      '-accessibility=n -extract=y -print=none -modify=annotate', -2576],
+      '-accessibility=n -extract=y -print=none -modify=annotate', -2576,
+      0, 1, 0, 0, 1, 1, 1, 0, 0],
      ['R3,V2,O=master', '',
-      '-accessibility=n -extract=n -print=none -modify=form', -2624],
+      '-accessibility=n -extract=n -print=none -modify=form', -2624,
+      0, 0, 0, 0, 1, 1, 0, 0, 0],
      ['R3,V2,U=view,O=master', 'view',
-      '-accessibility=n -extract=n -print=none -modify=assembly', -2880],
+      '-accessibility=n -extract=n -print=none -modify=assembly', -2880,
+      0, 0, 0, 0, 1, 0, 0, 0, 0],
      ['R3,V2,U=view,O=master', 'master',
-      '-accessibility=n -print=low', -2564],
+      '-accessibility=n -print=low', -2564,
+      0, 1, 1, 0, 1, 1, 1, 1, 1],
      ['R2,V1', '',
-      '-print=n -modify=n -extract=n -annotate=n', -64],
+      '-print=n -modify=n -extract=n -annotate=n', -64,
+      0, 0, 0, 0, 0, 0, 0, 0, 0],
      ['R2,V1,U=view', 'view',
-      '-print=y -modify=n -extract=n -annotate=n', -60],
+      '-print=y -modify=n -extract=n -annotate=n', -60,
+      0, 0, 1, 1, 0, 0, 0, 0, 0],
      ['R2,V1,O=master', 'master',
-      '-print=n -modify=y -extract=n -annotate=n', -56],
+      '-print=n -modify=y -extract=n -annotate=n', -56,
+      0, 0, 0, 0, 1, 0, 0, 1, 0],
      ['R2,V1,O=master', '',
-      '-print=n -modify=n -extract=y -annotate=n', -48],
+      '-print=n -modify=n -extract=y -annotate=n', -48,
+      1, 1, 0, 0, 0, 0, 0, 0, 0],
      ['R2,V1,U=view,O=master', 'view',
-      '-print=n -modify=n -extract=n -annotate=y', -32],
+      '-print=n -modify=n -extract=n -annotate=y', -32,
+      0, 0, 0, 0, 0, 1, 1, 0, 0],
      ['R2,V1,U=view,O=master', 'master',
-      '', -4],
+      '', -4,
+      1, 1, 1, 1, 1, 1, 1, 1, 1],
      ['long-password', 'asdf asdf asdf asdf asdf asdf qwer'],
      ['long-password', 'asdf asdf asdf asdf asdf asdf qw']);
 
-$n_tests += 3 + (2 * (@encrypted_files)) + (6 * (@encrypted_files - 3)) + 8;
+$n_tests += 3 + (2 * (@encrypted_files)) + (6 * (@encrypted_files - 3)) + 9;
 
 $td->runtest("encrypted file",
 	     {$td->COMMAND => "test_driver 2 U25A0.pdf"},
@@ -651,7 +859,23 @@ $td->runtest("recheck encrypted file",
 
 foreach my $d (@encrypted_files)
 {
-    my ($file, $pass, $xeflags, $P) = @$d;
+    my ($file, $pass, $xeflags, $P,
+	$accessible, $extract, $printlow, $printhigh,
+	$modifyassembly, $modifyform, $modifyannot,
+	$modifyother, $modifyall) = @$d;
+
+    my $f = sub { $_[0] ? "allowed" : "not allowed" };
+    my $enc_details =
+	"extract for accessibility: " . &$f($accessible) . "\n" .
+	"extract for any purpose: " . &$f($extract) . "\n" .
+	"print low resolution: " . &$f($printlow) . "\n" .
+	"print high resolution: " . &$f($printhigh) . "\n" .
+	"modify document assembly: " . &$f($modifyassembly) . "\n" .
+	"modify forms: " . &$f($modifyform) . "\n" .
+	"modify annotations: " . &$f($modifyannot) . "\n" .
+	"modify other: " . &$f($modifyother) . "\n" .
+	"modify anything: " . &$f($modifyall) . "\n";
+
     # Test writing to stdout
     $td->runtest("decrypt $file",
 		 {$td->COMMAND =>
@@ -695,8 +919,9 @@ foreach my $d (@encrypted_files)
 		     {$td->COMMAND =>
 			  "qpdf --show-encryption --password=\"$pass\"" .
 			  " $file.enc2"},
-		     {$td->STRING => "P = $P\nUser password = $upass\n",
-		      $td->EXIT_STATUS => 0},
+		     {$td->STRING => "R = $R\nP = $P\n" .
+			  "User password = $upass\n$enc_details",
+			  $td->EXIT_STATUS => 0},
 		     $td->NORMALIZE_NEWLINES);
 	$td->runtest("decrypt again",
 		     {$td->COMMAND =>
@@ -718,8 +943,9 @@ foreach my $d (@encrypted_files)
 		     {$td->COMMAND =>
 			  "qpdf --show-encryption --password=\"$pass\"" .
 			  " $file.enc4"},
-		     {$td->STRING => "P = $P\nUser password = $upass\n",
-		      $td->EXIT_STATUS => 0},
+		     {$td->STRING => "R = $R\nP = $P\n" .
+			  "User password = $upass\n$enc_details",
+			  $td->EXIT_STATUS => 0},
 		     $td->NORMALIZE_NEWLINES);
     }
 }
@@ -736,6 +962,36 @@ $td->runtest("invalid password",
 	     {$td->STRING => "enc-R2,V1,U=view.pdf: invalid password\n",
 	      $td->EXIT_STATUS => 2},
 	     $td->NORMALIZE_NEWLINES);
+$td->runtest("C API: invalid password",
+	     {$td->COMMAND => "qpdf-ctest 2 enc-R2,V1,U=view.pdf '' a.qdf"},
+	     {$td->FILE => "c-invalid-password.out", $td->EXIT_STATUS => 0},
+	     $td->NORMALIZE_NEWLINES);
+
+my @cenc = (
+    [11, 'hybrid-xref.pdf', "''", 'r2', ""],
+    [12, 'hybrid-xref.pdf', "''", 'r3', ""],
+    [15, 'hybrid-xref.pdf', "''", 'r4', ""],
+    [13, 'c-r2.pdf', 'user1', 'decrypt with user',
+     "user password: user1\n"],
+    [13, 'c-r3.pdf', 'owner2', 'decrypt with owner',
+     "user password: user2\n"],
+    );
+$n_tests += 2 * @cenc;
+
+foreach my $d (@cenc)
+{
+    my ($n, $infile, $pass, $description, $output) = @$d;
+    my $outfile = $description;
+    $outfile =~ s/ /-/g;
+    $outfile = "c-$outfile.pdf";
+    $td->runtest("C API encryption: $description",
+		 {$td->COMMAND => "qpdf-ctest $n $infile $pass a.pdf"},
+		 {$td->STRING => $output, $td->EXIT_STATUS => 0},
+		 $td->NORMALIZE_NEWLINES);
+    $td->runtest("check $description",
+		 {$td->FILE => "a.pdf"},
+		 {$td->FILE => $outfile});
+}
 
 # Test combinations of linearization and encryption.  Note that we do
 # content checks on encrypted and linearized files in various
@@ -747,8 +1003,9 @@ $td->runtest("linearize encrypted file",
 	     {$td->STRING => "",
 	      $td->EXIT_STATUS => 0});
 $td->runtest("check encryption",
-	     {$td->COMMAND => "qpdf --show-encryption a.pdf"},
-	     {$td->STRING => "P = -60\nUser password = \n",
+	     {$td->COMMAND => "qpdf --show-encryption a.pdf",
+	      $td->FILTER => "grep -v allowed"},
+	     {$td->STRING => "R = 2\nP = -60\nUser password = \n",
 	      $td->EXIT_STATUS => 0},
 	     $td->NORMALIZE_NEWLINES);
 $td->runtest("check linearization",
@@ -758,13 +1015,14 @@ $td->runtest("check linearization",
 	     $td->NORMALIZE_NEWLINES);
 $td->runtest("linearize and encrypt file",
 	     {$td->COMMAND =>
-		  "qpdf --linearize --encrypt user owner 128 --" .
+		  "qpdf --linearize --encrypt user owner 128 --use-aes=y --" .
 		  " lin-special.pdf a.pdf"},
 	     {$td->STRING => "",
 	      $td->EXIT_STATUS => 0});
 $td->runtest("check encryption",
-	     {$td->COMMAND => "qpdf --show-encryption --password=owner a.pdf"},
-	     {$td->STRING => "P = -4\nUser password = user\n",
+	     {$td->COMMAND => "qpdf --show-encryption --password=owner a.pdf",
+	      $td->FILTER => "grep -v allowed"},
+	     {$td->STRING => "R = 4\nP = -4\nUser password = user\n",
 	      $td->EXIT_STATUS => 0},
 	     $td->NORMALIZE_NEWLINES);
 $td->runtest("check linearization",
@@ -773,6 +1031,93 @@ $td->runtest("check linearization",
 	     {$td->STRING => "a.pdf: no linearization errors\n",
 	      $td->EXIT_STATUS => 0},
 	     $td->NORMALIZE_NEWLINES);
+
+# Test AES encryption in various ways.
+$n_tests += 14;
+$td->runtest("encrypt with AES",
+	     {$td->COMMAND => "qpdf --encrypt '' '' 128 --use-aes=y --" .
+		  " enc-base.pdf a.pdf"},
+	     {$td->STRING => "", $td->EXIT_STATUS => 0});
+$td->runtest("check encryption",
+	     {$td->COMMAND => "qpdf --show-encryption a.pdf",
+	      $td->FILTER => "grep -v allowed"},
+	     {$td->STRING => "R = 4\nP = -4\nUser password = \n",
+	      $td->EXIT_STATUS => 0},
+	     $td->NORMALIZE_NEWLINES);
+$td->runtest("convert original to qdf",
+	     {$td->COMMAND => "qpdf --static-id --no-original-object-ids" .
+		  " --qdf --min-version=1.6 enc-base.pdf a.qdf"},
+	     {$td->STRING => "", $td->EXIT_STATUS => 0});
+$td->runtest("convert encrypted to qdf",
+	     {$td->COMMAND => "qpdf --static-id --no-original-object-ids" .
+		  " --qdf a.pdf b.qdf"},
+	     {$td->STRING => "", $td->EXIT_STATUS => 0});
+$td->runtest("compare files",
+	     {$td->FILE => 'a.qdf'},
+	     {$td->FILE => 'b.qdf'});
+$td->runtest("linearize with AES and object streams",
+	     {$td->COMMAND => "qpdf --encrypt '' '' 128 --use-aes=y --" .
+		  " --linearize --object-streams=generate enc-base.pdf a.pdf"},
+	     {$td->STRING => "", $td->EXIT_STATUS => 0});
+$td->runtest("check encryption",
+	     {$td->COMMAND => "qpdf --show-encryption a.pdf",
+	      $td->FILTER => "grep -v allowed"},
+	     {$td->STRING => "R = 4\nP = -4\nUser password = \n",
+	      $td->EXIT_STATUS => 0},
+	     $td->NORMALIZE_NEWLINES);
+$td->runtest("linearize original",
+	     {$td->COMMAND => "qpdf --linearize --object-streams=generate" .
+		  " enc-base.pdf b.pdf"},
+	     {$td->STRING => "", $td->EXIT_STATUS => 0});
+$td->runtest("convert linearized original to qdf",
+	     {$td->COMMAND => "qpdf --static-id --no-original-object-ids" .
+		  " --qdf --object-streams=generate --min-version=1.6" .
+		  " b.pdf a.qdf"},
+	     {$td->STRING => "", $td->EXIT_STATUS => 0});
+$td->runtest("convert encrypted to qdf",
+	     {$td->COMMAND => "qpdf --static-id --no-original-object-ids" .
+		  " --qdf --object-streams=generate a.pdf b.qdf"},
+	     {$td->STRING => "", $td->EXIT_STATUS => 0});
+$td->runtest("compare files",
+	     {$td->FILE => 'a.qdf'},
+	     {$td->FILE => 'b.qdf'});
+$td->runtest("force version on aes encrypted",
+	     {$td->COMMAND => "qpdf --force-version=1.4 a.pdf b.pdf"},
+	     {$td->STRING => "", $td->EXIT_STATUS => 0});
+$td->runtest("check",
+	     {$td->COMMAND => "qpdf --check b.pdf"},
+	     {$td->FILE => "aes-forced-check.out",
+	      $td->EXIT_STATUS => 0},
+	     $td->NORMALIZE_NEWLINES);
+$td->runtest("make sure there is no xref stream",
+	     {$td->COMMAND => "grep /ObjStm b.pdf | wc -l"},
+	     {$td->REGEXP => "\\s*0\\s*", $td->EXIT_STATUS => 0},
+	     $td->NORMALIZE_NEWLINES);
+
+# Look at some actual V4 files
+$n_tests += 10;
+foreach my $d (['--force-V4', 'V4'],
+	       ['--cleartext-metadata', 'V4-clearmeta'],
+	       ['--use-aes=y', 'V4-aes'],
+	       ['--cleartext-metadata --use-aes=y', 'V4-aes-clearmeta'])
+{
+    my ($args, $out) = @$d;
+    $td->runtest("encrypt $args",
+		 {$td->COMMAND => "qpdf --static-aes-iv --static-id" .
+		      " --encrypt '' '' 128 $args -- enc-base.pdf a.pdf"},
+		 {$td->STRING => "", $td->EXIT_STATUS => 0});
+    $td->runtest("check output",
+		 {$td->FILE => "a.pdf"},
+		 {$td->FILE => "$out.pdf"});
+}
+# Crypt Filter
+$td->runtest("decrypt with crypt filter",
+	     {$td->COMMAND => "qpdf --decrypt --static-id" .
+		  " metadata-crypt-filter.pdf a.pdf"},
+	     {$td->STRING => "", $td->EXIT_STATUS => 0});
+$td->runtest("check output",
+	     {$td->FILE => 'a.pdf'},
+	     {$td->FILE => 'decrypted-crypt-filter.pdf'});
 
 show_ntests();
 # ----------
@@ -810,7 +1155,7 @@ my @flags = (["-qdf",						# 1
 	      "no arguments"],
 	     );
 
-$n_tests += (@files * @flags  * 2 * 2);
+$n_tests += (@files * @flags  * 2 * 3);
 $n_compare_pdfs += (@files * @flags * 2);
 $n_acroread += (@files * @flags * 2);
 
@@ -823,6 +1168,7 @@ foreach my $file (@files)
 	my $n = 0;
 	my $oflags = "--object-streams=$o";
 	my $odescrip = "os:" . substr($o, 0, 1);
+	my $osuf = ($o eq 'generate' ? "-ogen" : "");
 	foreach my $d (@flags)
 	{
 	    my ($flags, $fdescrip) = @$d;
@@ -836,8 +1182,15 @@ foreach my $file (@files)
 
 	    $td->runtest("check status",
 			 {$td->COMMAND => "qpdf --check a.pdf"},
-			 {$td->FILE => "$base.$n.check",
-			  $td->EXIT_STATUS => 0});
+			 {$td->FILE => "$base.$n$osuf.check",
+			  $td->EXIT_STATUS => 0},
+			 $td->NORMALIZE_NEWLINES);
+
+	    $td->runtest("check with C API",
+			 {$td->COMMAND => [qw(qpdf-ctest 1 a.pdf), "", ""]},
+			 {$td->FILE => "$base.$n$osuf.c-check",
+			  $td->EXIT_STATUS => 0},
+			 $td->NORMALIZE_NEWLINES);
 
 	    compare_pdfs($file, "a.pdf");
 
@@ -986,6 +1339,17 @@ sub compare_pdfs
 		  $td->EXIT_STATUS => $exp});
 
     system("rm -rf tif1 tif2");
+}
+
+sub check_metadata
+{
+    my ($file, $exp_encrypted, $exp_cleartext) = @_;
+    my $out = "encrypted=$exp_encrypted; cleartext=$exp_cleartext\n" .
+	"test 6 done\n";
+    $td->runtest("check metadata: $file",
+		 {$td->COMMAND => "test_driver 6 $file"},
+		 {$td->STRING => $out, $td->EXIT_STATUS => 0},
+		 $td->NORMALIZE_NEWLINES);
 }
 
 sub get_md5_checksum

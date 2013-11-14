@@ -6,8 +6,10 @@
 #include <qpdf/QUtil.hh>
 #include <qpdf/QTC.hh>
 #include <qpdf/Pl_StdioFile.hh>
+#include <qpdf/Pl_Buffer.hh>
 #include <qpdf/QPDFWriter.hh>
 #include <iostream>
+#include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
 #include <map>
@@ -126,6 +128,7 @@ void runtest(int n, char const* filename)
 
 	    std::cout << "Raw stream data:" << std::endl;
 	    std::cout.flush();
+	    QUtil::binary_stdout();
 	    PointerHolder<Pl_StdioFile> out = new Pl_StdioFile("raw", stdout);
 	    qtest.pipeStreamData(out.getPointer(), false, false, false);
 
@@ -133,6 +136,7 @@ void runtest(int n, char const* filename)
 	    if (qtest.pipeStreamData(0, true, false, false))
 	    {
 		std::cout.flush();
+		QUtil::binary_stdout();
 		out = new Pl_StdioFile("filtered", stdout);
 		qtest.pipeStreamData(out.getPointer(), true, false, false);
 		std::cout << std::endl << "End of stream data" << std::endl;
@@ -172,6 +176,7 @@ void runtest(int n, char const* filename)
 	QPDFObjectHandle kids = pages.getKey("/Kids");
 	QPDFObjectHandle page = kids.getArrayItem(1); // second page
 	QPDFObjectHandle contents = page.getKey("/Contents");
+	QUtil::binary_stdout();
 	PointerHolder<Pl_StdioFile> out = new Pl_StdioFile("filtered", stdout);
 	contents.pipeStreamData(out.getPointer(), true, false, false);
     }
@@ -183,6 +188,7 @@ void runtest(int n, char const* filename)
 	    QPDFObjectHandle stream = streams.getArrayItem(i);
 	    std::cout << "-- stream " << i << " --" << std::endl;
 	    std::cout.flush();
+	    QUtil::binary_stdout();
 	    PointerHolder<Pl_StdioFile> out =
 		new Pl_StdioFile("tokenized stream", stdout);
 	    stream.pipeStreamData(out.getPointer(), true, true, false);
@@ -278,10 +284,35 @@ void runtest(int n, char const* filename)
 	    }
 	}
     }
+    else if (n == 6)
+    {
+	QPDFObjectHandle root = pdf.getRoot();
+	QPDFObjectHandle metadata = root.getKey("/Metadata");
+	if (! metadata.isStream())
+	{
+	    throw std::logic_error("test 6 run on file with no metadata");
+	}
+	Pl_Buffer bufpl("buffer");
+	metadata.pipeStreamData(&bufpl, false, false, false);
+	Buffer* buf = bufpl.getBuffer();
+	unsigned char const* data = buf->getBuffer();
+	bool cleartext = false;
+	if ((buf->getSize() > 9) &&
+	    (strncmp((char const*)data, "<?xpacket", 9) == 0))
+	{
+	    cleartext = true;
+	}
+	delete buf;
+	std::cout << "encrypted="
+		  << (pdf.isEncrypted() ? 1 : 0)
+		  << "; cleartext="
+		  << (cleartext ? 1 : 0)
+		  << std::endl;
+    }
     else
     {
-	throw QEXC::General(std::string("invalid test ") +
-			    QUtil::int_to_string(n));
+	throw std::runtime_error(std::string("invalid test ") +
+				 QUtil::int_to_string(n));
     }
 
     std::cout << "test " << n << " done" << std::endl;
@@ -289,6 +320,7 @@ void runtest(int n, char const* filename)
 
 int main(int argc, char* argv[])
 {
+    QUtil::setLineBuf(stdout);
     if ((whoami = strrchr(argv[0], '/')) == NULL)
     {
 	whoami = argv[0];

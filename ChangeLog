@@ -1,6 +1,78 @@
+2009-10-24  Jay Berkenbilt  <ejb@ql.org>
+
+	* 2.1.rc1: release
+
+	* Provide interfaces for getting qpdf's own version number
+
+2009-10-19  Jay Berkenbilt  <ejb@ql.org>
+
+	* include/qpdf/QPDF.hh (QPDF): getWarnings now returns a list of
+	QPDFExc rather than a list of strings.  This way, warnings may be
+	inspected in more detail.
+
+	* Include information about the last object read in most error
+	messages.  Most of the time, this will provide a good hint as to
+	which object contains the error, but it's possible that the last
+	object read may not necessarily be the one that has the error if
+	the erroneous object was previously read and cached.
+
+2009-10-18  Jay Berkenbilt  <ejb@ql.org>
+
+	* If forcing version, disable object stream creation and/or
+	encryption if previous specifications are incompatible with new
+	version.  It is still possible that PDF content, compression
+	schemes, etc., may be incompatible with the new version, but at
+	least this way, older viewers will at least have a chance.
+
+	* libqpdf/QPDFWriter.cc (unparseObject): avoid compressing
+	Metadata streams if possible.
+
+2009-10-13  Jay Berkenbilt  <ejb@ql.org>
+
+	* Upgrade embedded qtest to version 1.4, which allows the test
+	suite to be run in Windows with MSYS and ActiveState Perl rather
+	than requiring Cygwin perl.
+
+2009-10-04  Jay Berkenbilt  <ejb@ql.org>
+
+	* Implement support AES encrypt and crypt filters.  Implementation
+	is not fully tested due to lack of test data but has been tested
+	for several cases.
+
+2009-10-04  Jay Berkenbilt  <ejb@ql.org>
+
+	* Add methods to QPDFWriter and corresponding command line
+	arguments to qpdf to set the minimum output PDF version and also
+	to force the version to a particular value.
+
+	* libqpdf/QPDF.cc (processXRefStream): warn and ignore extra xref
+	stream entries when stream is larger than reported size.  This
+	used to be a fatal error.  (Fixes qpdf-Bugs-2872265.)
+
+2009-09-27  Jay Berkenbilt  <ejb@ql.org>
+
+	* Add several methods to query permissions controlled by the
+	encryption dictionary.  Note that qpdf does not enforce these
+	permissions even though it allows the user to query them.
+
+	* The function QPDF::getUserPassword returned the user password
+	with the required padding as specified by the PDF specification.
+	This is seldom useful to users.  This function has been replaced
+	by QPDF::getPaddedUserPassword.  Call the new
+	QPDF::getTrimmedUserPassword to retreive the user password in a
+	human-readable format.
+
+	* qpdf/qpdf.cc (main): qpdf --check now prints the PDF version
+	number in addition to its other output.
+
+2009-09-26  Jay Berkenbilt  <ejb@ql.org>
+
+	* Removed all references to QEXC; now using std::runtime_error and
+	std::logic_error and their subclasses for all exceptions.
+
 2009-05-03  Jay Berkenbilt  <ejb@ql.org>
 
-	* 2.0.6. release
+	* 2.0.6: release
 
 	* libqpdf/QPDF_Stream.cc (filterable): ignore /DecodeParms if it's
 	not a type we recognize.  (Fixes qpdf-Bugs-2779746.)

@@ -30,32 +30,24 @@
 #ifndef __PIPELINE_HH__
 #define __PIPELINE_HH__
 
-#include <qpdf/QEXC.hh>
+#include <qpdf/DLL.h>
+#include <string>
 
 class Pipeline
 {
   public:
-    class Exception: public QEXC::General
-    {
-      public:
-	Exception(std::string const& message) :
-	    QEXC::General(message)
-	{
-	}
-
-	virtual ~Exception() throw()
-	{
-	}
-    };
-
+    QPDF_DLL
     Pipeline(char const* identifier, Pipeline* next);
 
+    QPDF_DLL
     virtual ~Pipeline();
 
     // Subclasses should implement write and finish to do their jobs
     // and then, if they are not end-of-line pipelines, call
     // getNext()->write or getNext()->finish.
+    QPDF_DLL
     virtual void write(unsigned char* data, int len) = 0;
+    QPDF_DLL
     virtual void finish() = 0;
 
   protected:

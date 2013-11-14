@@ -16,14 +16,20 @@
 class Pl_Count: public Pipeline
 {
   public:
+    QPDF_DLL
     Pl_Count(char const* identifier, Pipeline* next);
+    QPDF_DLL
     virtual ~Pl_Count();
+    QPDF_DLL
     virtual void write(unsigned char*, int);
+    QPDF_DLL
     virtual void finish();
     // Returns the number of bytes written
+    QPDF_DLL
     int getCount() const;
     // Returns the last character written, or '\0' if no characters
     // have been written (in which case getCount() returns 0)
+    QPDF_DLL
     unsigned char getLastChar() const;
 
   private:

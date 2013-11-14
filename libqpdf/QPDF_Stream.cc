@@ -1,7 +1,5 @@
-
 #include <qpdf/QPDF_Stream.hh>
 
-#include <qpdf/QEXC.hh>
 #include <qpdf/QUtil.hh>
 #include <qpdf/Pipeline.hh>
 #include <qpdf/Pl_Flate.hh>
@@ -17,6 +15,8 @@
 #include <qpdf/QPDFExc.hh>
 #include <qpdf/Pl_QPDFTokenizer.hh>
 
+#include <stdexcept>
+
 QPDF_Stream::QPDF_Stream(QPDF* qpdf, int objid, int generation,
 			 QPDFObjectHandle stream_dict,
 			 off_t offset, int length) :
@@ -29,8 +29,9 @@ QPDF_Stream::QPDF_Stream(QPDF* qpdf, int objid, int generation,
 {
     if (! stream_dict.isDictionary())
     {
-	throw QEXC::Internal("stream object instantiated with non-dictionary "
-			     "object for dictionary");
+	throw std::logic_error(
+	    "stream object instantiated with non-dictionary "
+	    "object for dictionary");
     }
 }
 
@@ -58,7 +59,7 @@ QPDF_Stream::getStreamData()
     Pl_Buffer buf("stream data buffer");
     if (! pipeStreamData(&buf, true, false, false))
     {
-	throw QPDFExc("getStreamData called on unfilterable stream");
+	throw std::logic_error("getStreamData called on unfilterable stream");
     }
     return buf.getBuffer();
 }
@@ -135,6 +136,13 @@ QPDF_Stream::filterable(std::vector<std::string>& filters,
 		    filterable = false;
 		}
 	    }
+	    else if (((key == "/Type") || (key == "/Name")) &&
+		     decode_obj.getKey("/Type").isName() &&
+		     (decode_obj.getKey("/Type").getName() ==
+		      "/CryptFilterDecodeParms"))
+	    {
+		// we handle this in decryptStream
+	    }
 	    else
 	    {
 		filterable = false;
@@ -200,8 +208,9 @@ QPDF_Stream::filterable(std::vector<std::string>& filters,
     if (! filters_okay)
     {
 	QTC::TC("qpdf", "QPDF_Stream invalid filter");
-	throw QPDFExc(qpdf->getFilename(), this->offset,
-		      "invalid filter object type for this stream");
+	throw QPDFExc(qpdf_e_damaged_pdf, qpdf->getFilename(),
+		      "", this->offset,
+		      "stream filter type is not name or array");
     }
 
     // `filters' now contains a list of filters to be applied in
@@ -211,7 +220,8 @@ QPDF_Stream::filterable(std::vector<std::string>& filters,
 	 iter != filters.end(); ++iter)
     {
 	std::string const& filter = *iter;
-	if (! ((filter == "/FlateDecode") ||
+	if (! ((filter == "/Crypt") ||
+	       (filter == "/FlateDecode") ||
 	       (filter == "/LZWDecode") ||
 	       (filter == "/ASCII85Decode") ||
 	       (filter == "/ASCIIHexDecode")))
@@ -265,7 +275,11 @@ QPDF_Stream::pipeStreamData(Pipeline* pipeline, bool filter,
 	     iter != filters.rend(); ++iter)
 	{
 	    std::string const& filter = *iter;
-	    if (filter == "/FlateDecode")
+	    if (filter == "/Crypt")
+	    {
+		// Ignore -- handled by pipeStreamData
+	    }
+	    else if (filter == "/FlateDecode")
 	    {
 		if (predictor == 12)
 		{
@@ -298,8 +312,9 @@ QPDF_Stream::pipeStreamData(Pipeline* pipeline, bool filter,
 	    }
 	    else
 	    {
-		throw QEXC::Internal("QPDFStream: unknown filter "
-				     "encountered after check");
+		throw std::logic_error(
+		    "INTERNAL ERROR: QPDFStream: unknown filter "
+		    "encountered after check");
 	    }
 	}
     }

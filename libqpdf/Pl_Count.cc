@@ -1,4 +1,3 @@
-
 #include <qpdf/Pl_Count.hh>
 
 Pl_Count::Pl_Count(char const* identifier, Pipeline* next) :

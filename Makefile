@@ -1,4 +1,3 @@
-
 # This makefile is inspired by abuild (http://www.abuild.org), which
 # was used during the development of qpdf.  The goal here is to have a
 # non-recursive build with all the proper dependencies so we can start
@@ -31,7 +30,7 @@
 # install to install in a separate location.  This is useful for
 # packagers.
 
-BUILD_ITEMS = manual libqpdf zlib-flate libtests qpdf examples
+BUILD_ITEMS := manual libqpdf zlib-flate libtests qpdf examples
 OUTPUT_DIR = build
 ALL_TARGETS =
 
@@ -63,6 +62,7 @@ $(foreach B,$(BUILD_ITEMS),$(eval \
 %.mk: ;
 make/%.mk: ;
 
+BUILDRULES ?= libtool
 include make/rules.mk
 
 DUMMY := $(shell mkdir $(foreach B,$(BUILD_ITEMS),$(B)/$(OUTPUT_DIR)) 2>/dev/null)
@@ -83,7 +83,7 @@ CLEAN_TARGETS = $(foreach B,$(BUILD_ITEMS),clean_$(B))
 export QPDF_BIN = $(abspath qpdf/$(OUTPUT_DIR)/qpdf)
 export SKIP_TEST_COMPARE_IMAGES
 
-clean: $(CLEAN_TARGETS)
+clean:: $(CLEAN_TARGETS)
 
 .PHONY: $(CLEAN_TARGETS)
 $(foreach B,$(BUILD_ITEMS),$(eval \
@@ -99,6 +99,8 @@ distclean: clean
 
 maintainer-clean: distclean
 	$(RM) configure doc/qpdf-manual.* libqpdf/qpdf/qpdf-config.h.in
+	$(RM) aclocal.m4
+	$(RM) -r install-mingw install-msvc external-libs
 
 .PHONY: $(TEST_TARGETS)
 $(foreach B,$(TEST_ITEMS),$(eval \
@@ -113,29 +115,8 @@ all: $(ALL_TARGETS) ;
 
 check: $(TEST_TARGETS)
 
-install_docs::
-install: all
-	./mkinstalldirs $(DESTDIR)$(libdir)
-	./mkinstalldirs $(DESTDIR)$(bindir)
-	./mkinstalldirs $(DESTDIR)$(includedir)/qpdf
-	./mkinstalldirs $(DESTDIR)$(docdir)
-	./mkinstalldirs $(DESTDIR)$(mandir)/man1
-	$(LIBTOOL) --mode=install install -s -c \
-		libqpdf/$(OUTPUT_DIR)/libqpdf.la \
-		$(DESTDIR)$(libdir)/libqpdf.la
-	$(LIBTOOL) --finish $(DESTDIR)$(libdir)
-	$(LIBTOOL) --mode=install install -s -c \
-		qpdf/$(OUTPUT_DIR)/qpdf \
-		$(DESTDIR)$(bindir)/qpdf
-	$(LIBTOOL) --mode=install install -s -c \
-		zlib-flate/$(OUTPUT_DIR)/zlib-flate \
-		$(DESTDIR)$(bindir)/zlib-flate
-	cp qpdf/fix-qdf $(DESTDIR)$(bindir)
-	cp include/qpdf/*.hh $(DESTDIR)$(includedir)/qpdf
-	cp doc/stylesheet.css $(DESTDIR)$(docdir)
-	cp doc/qpdf-manual.html $(DESTDIR)$(docdir)
-	cp doc/qpdf-manual.pdf $(DESTDIR)$(docdir)
-	cp doc/*.1 $(DESTDIR)$(mandir)/man1
+# Install targets are in the make directory in the rules-specific make
+# fragments.
 
 QTEST=$(abspath qtest/bin/qtest-driver)
 $(TEST_TARGETS):

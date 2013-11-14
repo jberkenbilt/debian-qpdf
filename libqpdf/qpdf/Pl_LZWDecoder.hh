@@ -1,4 +1,3 @@
-
 #ifndef __PL_LZWDECODER_HH__
 #define __PL_LZWDECODER_HH__
 
@@ -10,10 +9,14 @@
 class Pl_LZWDecoder: public Pipeline
 {
   public:
+    QPDF_DLL
     Pl_LZWDecoder(char const* identifier, Pipeline* next,
 		  bool early_code_change);
+    QPDF_DLL
     virtual ~Pl_LZWDecoder();
+    QPDF_DLL
     virtual void write(unsigned char* buf, int len);
+    QPDF_DLL
     virtual void finish();
 
   private:

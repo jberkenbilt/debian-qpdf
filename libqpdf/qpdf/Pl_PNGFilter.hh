@@ -1,4 +1,3 @@
-
 #ifndef __PL_PNGFILTER_HH__
 #define __PL_PNGFILTER_HH__
 
@@ -20,28 +19,19 @@
 class Pl_PNGFilter: public Pipeline
 {
   public:
-    class Exception: public Pipeline::Exception
-    {
-      public:
-	Exception(std::string const& message) :
-	    Pipeline::Exception(message)
-	{
-	}
-
-	virtual ~Exception() throw ()
-	{
-	}
-    };
-
     // Encoding is not presently supported
     enum action_e { a_encode, a_decode };
 
+    QPDF_DLL
     Pl_PNGFilter(char const* identifier, Pipeline* next,
 		 action_e action, unsigned int columns,
 		 unsigned int bytes_per_pixel);
+    QPDF_DLL
     virtual ~Pl_PNGFilter();
 
+    QPDF_DLL
     virtual void write(unsigned char* data, int len);
+    QPDF_DLL
     virtual void finish();
 
   private:

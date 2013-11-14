@@ -8,6 +8,8 @@
 #ifndef __QPDFOBJECT_HH__
 #define __QPDFOBJECT_HH__
 
+#include <qpdf/DLL.h>
+
 #include <string>
 
 class QPDFObject

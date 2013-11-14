@@ -11,10 +11,12 @@ Release Reminders
 
      configure.ac
      qpdf.spec
-     qpdf/qpdf.cc
+     libqpdf/QPDF.cc
      manual/qpdf-manual.xml
 
    make_dist verifies this consistency.
+
+ * Update release date in manual/qpdf-manual.xml
 
  * Each year, update copyright notices.  Just search for Copyright.
    Last updated: 2009.
@@ -22,8 +24,9 @@ Release Reminders
  * To construct a source distribution from a pristine checkout,
    make_dist does the following:
 
-    autoconf
+    aclocal -I m4
     autoheader
+    autoconf
     ./configure --enable-doc-maintenance
     make build_manual
     make distclean
@@ -34,37 +37,54 @@ Release Reminders
    internally testing releases, you can run make_dist with the
    --no-tests option.
 
+ * To create a source release of external libs, do an export from the
+   version control system into a directory called qpdf-external-libs
+   and just make a zip file of the result called
+   qpdf-external-libs-src.zip.  See the README.txt file there for
+   information on creating binary external libs releases.
+
+ * To create Windows binary releases, extract the qpdf source
+   distribution in Windows (MSYS + MINGW, MSVC) and run
+   ./make_windows_releases from there.  You will need to have zip in
+   your path.
+
+ * Remember to copy README-what-to-download.txt separately onto the
+   download area and make it the default for Windows platforms.
+
  * Remember to update documentation in the "files" subdirectory of the
    website on sourceforge.net.
 
- * Create a tag in the version control system.
+ * Create a tag in the version control system, and make backups of the
+   actual releases.
+
+ * When releasing on source forge, external-libs distributions go in
+   external-libs/yyyymmdd, and qpdf distributions go in qpdf/vvv
 
 General Build Stuff
 ===================
 
 QPDF uses autoconf and libtool but does not use automake.  The only
 files distributed with the qpdf source distribution that are not
-controlled are "configure", "libqpdf/qpdf/qpdf-config.h.in", and some
-documentation.  See above for the steps required to prepare a source
-distribution.
+controlled are "configure", "libqpdf/qpdf/qpdf-config.h.in",
+"aclocal.m4", and some documentation.  See above for the steps
+required to prepare a source distribution.
 
 A small handful of additional files have been taken from autotools
 programs.  These should probably be updated from time to time.
 
- * config.guess, config.sub, ltmain.sh: these were created by running
-   libtoolize -c.  To update, run libtoolize -f -c or remove the files
-   and rerun libtoolize.
+ * config.guess, config.sub, ltmain.sh, and the m4 directory: these
+   were created by running libtoolize -c.  To update, run libtoolize
+   -f -c or remove the files and rerun libtoolize.
 
  * Other files copied as indicated:
 
-   cp /usr/share/aclocal/libtool.m4 aclocal.m4
-   cp /usr/share/automake-1.10/install-sh .
-   cp /usr/share/automake-1.10/mkinstalldirs .
+   cp /usr/share/automake-1.11/install-sh .
+   cp /usr/share/automake-1.11/mkinstalldirs .
 
-The entire contents of aclocal.m4 came from libtool.m4.  If we had
-some additional local parts, we could manually combine them or we
-could run aclocal.  For now, the simple copy statement above is
-sufficient.
+The entire contents of the m4 directory came from libtool.m4.  If we
+had some additional local parts, we could also add those to the m4
+directory.  In order for this to work, it is necessary to run "aclocal
+-I m4" before running autoheader and autoconf.
 
 If building or editing documentation, configure with
 --enable-doc-maintenance.  This will ensure that all tools or files

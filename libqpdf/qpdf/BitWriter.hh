@@ -3,6 +3,8 @@
 #ifndef __BITWRITER_HH__
 #define __BITWRITER_HH__
 
+#include <qpdf/DLL.h>
+
 class Pipeline;
 
 class BitWriter
@@ -10,9 +12,12 @@ class BitWriter
   public:
     // Write bits to the pipeline.  It is the caller's responsibility
     // to eventually call finish on the pipeline.
+    QPDF_DLL
     BitWriter(Pipeline* pl);
+    QPDF_DLL
     void writeBits(unsigned long val, int bits);
     // Force any partial byte to be written to the pipeline.
+    QPDF_DLL
     void flush();
 
   private:

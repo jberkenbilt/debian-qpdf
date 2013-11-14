@@ -1,13 +1,14 @@
-
 #include <qpdf/QUtil.hh>
 #include <stdio.h>
 #include <errno.h>
 #include <ctype.h>
 #include <stdlib.h>
 #include <string.h>
+#include <fcntl.h>
 #ifdef _WIN32
 #include <Windows.h>
 #include <direct.h>
+#include <io.h>
 #else
 #include <unistd.h>
 #endif
@@ -22,9 +23,9 @@ QUtil::int_to_string(int num, int fullpad)
     // -2 or -1 to leave space for the possible negative sign and for NUL...
     if (abs(fullpad) > (int)sizeof(t) - ((num < 0)?2:1))
     {
-	throw QEXC::Internal("Util::int_to_string has been called with "
-			     "a padding value greater than its internal "
-			     "limit");
+	throw std::logic_error("Util::int_to_string has been called with "
+			       "a padding value greater than its internal "
+			       "limit");
     }
 
     if (fullpad)
@@ -58,9 +59,9 @@ QUtil::double_to_string(double num, int decimal_places)
     // always pass in those cases.
     if (decimal_places + 1 + (int)lhs.length() > (int)sizeof(t) - 1)
     {
-	throw QEXC::Internal("Util::double_to_string has been called with "
-			     "a number and a decimal places specification "
-			     "that would break an internal limit");
+	throw std::logic_error("Util::double_to_string has been called with "
+			       "a number and a decimal places specification "
+			       "that would break an internal limit");
     }
 
     if (decimal_places)
@@ -74,22 +75,28 @@ QUtil::double_to_string(double num, int decimal_places)
     return std::string(t);
 }
 
+void
+QUtil::throw_system_error(std::string const& description)
+{
+    throw std::runtime_error(description + ": " + strerror(errno));
+}
+
 int
-QUtil::os_wrapper(std::string const& description, int status) throw (QEXC::System)
+QUtil::os_wrapper(std::string const& description, int status)
 {
     if (status == -1)
     {
-	throw QEXC::System(description, errno);
+	throw_system_error(description);
     }
     return status;
 }
 
 FILE*
-QUtil::fopen_wrapper(std::string const& description, FILE* f) throw (QEXC::System)
+QUtil::fopen_wrapper(std::string const& description, FILE* f)
 {
     if (f == 0)
     {
-	throw QEXC::System(description, errno);
+	throw_system_error(description);
     }
     return f;
 }
@@ -102,6 +109,57 @@ QUtil::copy_string(std::string const& str)
     result[str.length()] = '\0';
     memcpy(result, str.c_str(), str.length());
     return result;
+}
+
+void
+QUtil::binary_stdout()
+{
+#ifdef _WIN32
+    _setmode(_fileno(stdout), _O_BINARY);
+#endif
+}
+
+void
+QUtil::binary_stdin()
+{
+#ifdef _WIN32
+    _setmode(_fileno(stdin), _O_BINARY);
+#endif
+}
+
+void
+QUtil::setLineBuf(FILE* f)
+{
+#ifndef _WIN32
+    setvbuf(f, (char *) NULL, _IOLBF, 0);
+#endif
+}
+
+char*
+QUtil::getWhoami(char* argv0)
+{
+#ifdef _WIN32
+    char pathsep = '\\';
+#else
+    char pathsep = '/';
+#endif
+    char* whoami = 0;
+    if ((whoami = strrchr(argv0, pathsep)) == NULL)
+    {
+	whoami = argv0;
+    }
+    else
+    {
+	++whoami;
+    }
+#ifdef _WIN32
+    if ((strlen(whoami) > 4) &&
+	(strcmp(whoami + strlen(whoami) - 4, ".exe") == 0))
+    {
+	whoami[strlen(whoami) - 4] = '\0';
+    }
+#endif
+    return whoami;
 }
 
 bool
@@ -141,6 +199,32 @@ QUtil::get_env(std::string const& var, std::string* value)
 #endif
 }
 
+time_t
+QUtil::get_current_time()
+{
+#ifdef _WIN32
+    // The procedure to get local time at this resolution comes from
+    // the Microsoft documentation.  It says to convert a SYSTEMTIME
+    // to a FILETIME, and to copy the FILETIME to a ULARGE_INTEGER.
+    // The resulting number is the number of 100-nanosecond intervals
+    // between January 1, 1601 and now.  POSIX threads wants a time
+    // based on January 1, 1970, so we adjust by subtracting the
+    // number of seconds in that time period from the result we get
+    // here.
+    SYSTEMTIME sysnow;
+    GetSystemTime(&sysnow);
+    FILETIME filenow;
+    SystemTimeToFileTime(&sysnow, &filenow);
+    ULARGE_INTEGER uinow;
+    uinow.LowPart = filenow.dwLowDateTime;
+    uinow.HighPart = filenow.dwHighDateTime;
+    ULONGLONG now = uinow.QuadPart;
+    return ((now / 10000000LL) - 11644473600LL);
+#else
+    return time(0);
+#endif
+}
+
 std::string
 QUtil::toUTF8(unsigned long uval)
 {
@@ -158,7 +242,7 @@ QUtil::toUTF8(unsigned long uval)
 
     if (uval > 0x7fffffff)
     {
-	throw QEXC::General("bounds error in QUtil::toUTF8");
+	throw std::runtime_error("bounds error in QUtil::toUTF8");
     }
     else if (uval < 128)
     {
@@ -185,7 +269,7 @@ QUtil::toUTF8(unsigned long uval)
 	    --cur_byte;
 	    if (cur_byte < bytes)
 	    {
-		throw QEXC::Internal("QUtil::toUTF8: overflow error");
+		throw std::logic_error("QUtil::toUTF8: overflow error");
 	    }
 	}
 	// If maxval is k bits long, the high (7 - k) bits of the

@@ -77,8 +77,9 @@ QPDF::flattenScalarReferences()
 	{
 	    if (node.isScalar())
 	    {
-		throw QEXC::Internal(
-		    "flattenScalarReferences landed at indirect scalar");
+		throw std::logic_error(
+		    "INTERNAL ERROR:"
+		    " flattenScalarReferences landed at indirect scalar");
 	    }
 	    ObjGen og(node.getObjectID(), node.getGeneration());
 	    if (visited.count(og) > 0)
@@ -123,7 +124,8 @@ QPDF::flattenScalarReferences()
 		{
 		    // QPDF_Dictionary.getKeys() never returns null
 		    // keys.
-		    throw QEXC::Internal("dictionary with null key found");
+		    throw std::logic_error(
+			"INTERNAL ERROR: dictionary with null key found");
 		}
 		else if (oh.isScalar())
 		{
@@ -231,9 +233,12 @@ QPDF::optimizePagesTree(
 	    {
 		if (! allow_changes)
 		{
-		    throw QPDFExc(this->file.getName() +
-				  ": optimize detected an "
-				  "inheritable resource");
+		    throw QPDFExc(qpdf_e_internal, this->file.getName(),
+				  this->last_object_description,
+				  this->file.getLastOffset(),
+				  "optimize detected an "
+				  "inheritable resource when called "
+				  "in no-change mode");
 		}
 
 		// This is an inheritable resource
@@ -336,7 +341,10 @@ QPDF::optimizePagesTree(
     }
     else
     {
-	throw QPDFExc(this->file.getName() + ": invalid Type in page tree");
+	throw QPDFExc(qpdf_e_damaged_pdf, this->file.getName(),
+		      this->last_object_description,
+		      this->file.getLastOffset(),
+		      "invalid Type in page tree");
     }
 }
 

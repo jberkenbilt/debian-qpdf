@@ -2,9 +2,9 @@ dnl Process this file with autoconf to produce a configure script.
 dnl This config.in requires autoconf 2.5 or greater.
 
 AC_PREREQ(2.60)
-AC_INIT(qpdf,2.0.6)
+AC_INIT(qpdf,2.1.rc1)
 
-dnl No AC_CONFIG_HEADERS.  If this changes, update README.maintainer.
+AC_CONFIG_MACRO_DIR([m4])
 AC_CONFIG_FILES([autoconf.mk])
 AC_CONFIG_FILES([manual/html.xsl manual/print.xsl])
 AC_CONFIG_HEADERS([libqpdf/qpdf/qpdf-config.h])
@@ -12,16 +12,35 @@ AC_CONFIG_HEADERS([libqpdf/qpdf/qpdf-config.h])
 AC_PROG_CC
 AC_PROG_CXX
 AC_HEADER_STDC
+LT_INIT([win32-dll])
 AC_PROG_LIBTOOL
 
-AC_CHECK_HEADER(zlib.h,,[MISSING_ZLIB_H=1; MISSING_ANY=1])
-AC_SEARCH_LIBS(deflate,z zlib,,[MISSING_ZLIB=1; MISSING_ANY=1])
-AC_CHECK_HEADER(pcre.h,,[MISSING_PCRE_H=1; MISSING_ANY=1])
-AC_SEARCH_LIBS(pcre_compile,pcre,,[MISSING_PCRE=1; MISSING_ANY=1])
+USE_EXTERNAL_LIBS=0
+AC_MSG_CHECKING(for whether to use external libraries distribution)
+AC_ARG_ENABLE(external-libs,
+   AS_HELP_STRING([--enable-external-libs],
+		  [whether to use external libraries distribution]),
+   [if test "$enableval" = "yes"; then
+      USE_EXTERNAL_LIBS=1;
+    else
+      USE_EXTERNAL_LIBS=0;
+    fi], [BUILD_INTERNAL_LIBS=0])
+if test "$BUILD_INTERNAL_LIBS" = "0"; then
+   AC_MSG_RESULT(no)
+else
+   AC_MSG_RESULT(yes)
+fi
 
-AC_TYPE_INT16_T
-AC_TYPE_INT32_T
-AC_TYPE_INT64_T
+if test "$BUILD_INTERNAL_LIBS" = "0"; then
+   AC_CHECK_HEADER(zlib.h,,[MISSING_ZLIB_H=1; MISSING_ANY=1])
+   AC_SEARCH_LIBS(deflate,z zlib,,[MISSING_ZLIB=1; MISSING_ANY=1])
+   AC_CHECK_HEADER(pcre.h,,[MISSING_PCRE_H=1; MISSING_ANY=1])
+   AC_SEARCH_LIBS(pcre_compile,pcre,,[MISSING_PCRE=1; MISSING_ANY=1])
+fi
+
+AC_TYPE_UINT16_T
+AC_TYPE_UINT32_T
+AC_CHECK_FUNCS(random)
 
 AC_MSG_CHECKING(for gnu make >= 3.81)
 make_okay=0
@@ -65,36 +84,49 @@ else
    AC_MSG_RESULT(no)
 fi
 
-qpdf_USE_WALL=0
-AC_MSG_CHECKING(for whether $CC supports -Wall)
-oCFLAGS=$CFLAGS
-CFLAGS="$CFLAGS -Wall"
-AC_TRY_COMPILE([], [int a = 1; int b = a; a = b;],
-	       qpdf_USE_WALL=1,
-	       qpdf_USE_WALL=0)
-if test "$qpdf_USE_WALL" = "1"; then
-   AC_MSG_RESULT(yes)
-   CXXFLAGS="$CXXFLAGS -Wall"
-else
-   AC_MSG_RESULT(no)
-   CFLAGS=$oCFLAGS
+AC_MSG_CHECKING(which build rules to use)
+AC_SUBST(BUILDRULES)
+AC_ARG_WITH(buildrules,
+   AS_HELP_STRING([--with-buildrules=rules],
+		  [which build rules to use; see README]),
+   [BUILDRULES=$withval],
+   [BUILDRULES=libtool])
+AC_MSG_RESULT($BUILDRULES)
+
+if test "$BUILDRULES" != "msvc"; then
+   qpdf_USE_WALL=0
+   AC_MSG_CHECKING(for whether $CC supports -Wall)
+   oCFLAGS=$CFLAGS
+   CFLAGS="$CFLAGS -Wall"
+   AC_TRY_COMPILE([], [int a = 1; int b = a; a = b;],
+		  qpdf_USE_WALL=1,
+		  qpdf_USE_WALL=0)
+   if test "$qpdf_USE_WALL" = "1"; then
+      AC_MSG_RESULT(yes)
+      CXXFLAGS="$CXXFLAGS -Wall"
+   else
+      AC_MSG_RESULT(no)
+      CFLAGS=$oCFLAGS
+   fi
 fi
 
-AC_MSG_CHECKING(for whether to use -Werror)
-AC_ARG_ENABLE(werror,
-   AS_HELP_STRING([--enable-werror],
-		  [whether to use werror (default is yes if -Wall works)]),
-   [if test "$enableval" = "yes"; then
-      qpdf_USE_WERROR=1;
-    else
-      qpdf_USE_WERROR=0;
-    fi], [qpdf_USE_WERROR=$qpdf_USE_WALL])
-if test "$qpdf_USE_WERROR" = "1"; then
-   AC_MSG_RESULT(yes)
-   CFLAGS="$CFLAGS -Werror"
-   CXXFLAGS="$CXXFLAGS -Werror"
-else
-   AC_MSG_RESULT(no)
+if test "$BUILDRULES" != "msvc"; then
+   AC_MSG_CHECKING(for whether to use -Werror)
+   AC_ARG_ENABLE(werror,
+      AS_HELP_STRING([--enable-werror],
+		     [whether to use werror (default is yes if -Wall works)]),
+      [if test "$enableval" = "yes"; then
+	 qpdf_USE_WERROR=1;
+       else
+	 qpdf_USE_WERROR=0;
+       fi], [qpdf_USE_WERROR=$qpdf_USE_WALL])
+   if test "$qpdf_USE_WERROR" = "1"; then
+      AC_MSG_RESULT(yes)
+      CFLAGS="$CFLAGS -Werror"
+      CXXFLAGS="$CXXFLAGS -Werror"
+   else
+      AC_MSG_RESULT(no)
+   fi
 fi
 
 AC_SUBST(SKIP_TEST_COMPARE_IMAGES)
@@ -282,6 +314,16 @@ fi
 
 if test "$MISSING_ANY" = "1"; then
   AC_MSG_ERROR(some required prerequisites were not found)
+fi
+
+# Do this last so it doesn't interfere with other tests.
+if test "$USE_EXTERNAL_LIBS" = "1"; then
+   # Don't actually check for the presence of this -- we document that
+   # the user can run this and then edit autoconf.mk if they have too
+   # much trouble getting it to work with a different compiler.
+   CPPFLAGS="$CPPFLAGS -Iexternal-libs/include"
+   LDFLAGS="$LDFLAGS -Lexternal-libs/lib-$BUILDRULES"
+   LIBS="$LIBS -lz -lpcre"
 fi
 
 AC_OUTPUT()

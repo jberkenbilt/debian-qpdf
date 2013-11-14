@@ -1,6 +1,5 @@
-
-
 #include <qpdf/Pipeline.hh>
+#include <stdexcept>
 
 Pipeline::Pipeline(char const* identifier, Pipeline* next) :
     identifier(identifier),
@@ -17,7 +16,7 @@ Pipeline::getNext(bool allow_null)
 {
     if ((next == 0) && (! allow_null))
     {
-	throw Exception(
+	throw std::logic_error(
 	    this->identifier +
 	    ": Pipeline::getNext() called on pipeline with no next");
     }

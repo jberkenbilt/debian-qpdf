@@ -1,5 +1,5 @@
-
 #include <qpdf/Pl_PNGFilter.hh>
+#include <stdexcept>
 #include <string.h>
 
 Pl_PNGFilter::Pl_PNGFilter(char const* identifier, Pipeline* next,
@@ -82,7 +82,7 @@ Pl_PNGFilter::decodeRow()
 	    break;
 
 	  case 1:			// sub
-	    throw Exception("sub filter not implemented");
+	    throw std::logic_error("sub filter not implemented");
 	    break;
 
 	  case 2:			// up
@@ -93,11 +93,11 @@ Pl_PNGFilter::decodeRow()
 	    break;
 
 	  case 3:			// average
-	    throw Exception("average filter not implemented");
+	    throw std::logic_error("average filter not implemented");
 	    break;
 
 	  case 4:			// Paeth
-	    throw Exception("Paeth filter not implemented");
+	    throw std::logic_error("Paeth filter not implemented");
 	    break;
 
 	  default:
