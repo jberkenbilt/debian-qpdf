@@ -1,3 +1,23 @@
+2009-02-15  Jay Berkenbilt  <ejb@ql.org>
+
+	* 2.0.3: release
+
+2008-12-11  Jay Berkenbilt  <ejb@ql.org>
+
+	* qpdf/qpdf.cc (main): Accept -help and -version as well as --help
+	and --version
+
+2008-11-23  Jay Berkenbilt  <ejb@ql.org>
+
+	* Include stdio.h in a few files for proper compilation with (yet
+	to be released) gcc 4.4
+
+	* updated embedded qtest to version 1.3
+
+	* libqpdf/QPDF_String.cc (QPDF_String::getUTF8Val): handle
+	UTF-16BE properly rather than just treating the string as a string
+	of 16-bit characters.
+
 2008-06-30  Jay Berkenbilt  <ejb@ql.org>
 
 	* 2.0.2: release
