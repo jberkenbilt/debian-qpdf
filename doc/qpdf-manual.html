@@ -1,0 +1,1273 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>QPDF Manual</title><link rel="stylesheet" href="stylesheet.css" type="text/css" /><meta name="generator" content="DocBook XSL Stylesheets V1.73.2" /></head><body><div class="book" lang="en" xml:lang="en"><div class="titlepage"><div><div><h1 class="title"><a id="id2447662"></a>QPDF Manual</h1></div><div><h2 class="subtitle">For QPDF Version 2.0, April 29, 2008</h2></div><div><div class="author"><h3 class="author"><span class="firstname">Jay</span> <span class="surname">Berkenbilt</span></h3></div></div><div><p class="copyright">Copyright © 2005–2008 Jay Berkenbilt</p></div></div><hr /></div><div class="toc"><p><b>Table of Contents</b></p><dl><dt><span class="preface"><a href="#acknowledgments">General Information</a></span></dt><dt><span class="chapter"><a href="#ref.overview">1. What is QPDF?</a></span></dt><dt><span class="chapter"><a href="#ref.installing">2. Building and Installing QPDF</a></span></dt><dd><dl><dt><span class="sect1"><a href="#ref.prerequisites">2.1. System Requirements</a></span></dt><dt><span class="sect1"><a href="#ref.building">2.2. Build Instructions</a></span></dt></dl></dd><dt><span class="chapter"><a href="#ref.using">3. Running QPDF</a></span></dt><dd><dl><dt><span class="sect1"><a href="#ref.invocation">3.1. Basic Invocation</a></span></dt><dt><span class="sect1"><a href="#ref.basic-options">3.2. Basic Options</a></span></dt><dt><span class="sect1"><a href="#ref.encryption-options">3.3. Encryption Options</a></span></dt><dt><span class="sect1"><a href="#ref.advanced-transformation">3.4. Advanced Transformation Options</a></span></dt><dt><span class="sect1"><a href="#ref.testing-options">3.5. Testing, Inspection, and Debugging Options</a></span></dt></dl></dd><dt><span class="chapter"><a href="#ref.qdf">4. QDF Mode</a></span></dt><dt><span class="chapter"><a href="#ref.using-library">5. Using the QPDF Library</a></span></dt><dt><span class="chapter"><a href="#ref.design">6. Design and Library Notes</a></span></dt><dd><dl><dt><span class="sect1"><a href="#ref.design.intro">6.1. Introduction</a></span></dt><dt><span class="sect1"><a href="#ref.design-goals">6.2. Design Goals</a></span></dt><dt><span class="sect1"><a href="#ref.encryption">6.3. Encryption</a></span></dt><dt><span class="sect1"><a href="#ref.rewriting">6.4. Writing PDF Files</a></span></dt><dt><span class="sect1"><a href="#ref.filtered-streams">6.5. Filtered Streams</a></span></dt></dl></dd><dt><span class="chapter"><a href="#ref.linearization">7. Linearization</a></span></dt><dd><dl><dt><span class="sect1"><a href="#ref.linearization-strategy">7.1. Basic Strategy for Linearization</a></span></dt><dt><span class="sect1"><a href="#ref.linearized.preparation">7.2. Preparing For Linearization</a></span></dt><dt><span class="sect1"><a href="#ref.optimization">7.3. Optimization</a></span></dt><dt><span class="sect1"><a href="#ref.linearization.writing">7.4. Writing Linearized Files</a></span></dt><dt><span class="sect1"><a href="#ref.linearization-data">7.5. Calculating Linearization Data</a></span></dt><dt><span class="sect1"><a href="#ref.linearization-issues">7.6. Known Issues with Linearization</a></span></dt><dt><span class="sect1"><a href="#ref.linearization-debugging">7.7. Debugging Note</a></span></dt></dl></dd><dt><span class="chapter"><a href="#ref.object-and-xref-streams">8. Object and Cross-Reference Streams</a></span></dt><dd><dl><dt><span class="sect1"><a href="#ref.object-streams">8.1. Object Streams</a></span></dt><dt><span class="sect1"><a href="#ref.xref-streams">8.2. Cross-Reference Streams</a></span></dt><dd><dl><dt><span class="sect2"><a href="#ref.xref-stream-data">8.2.1. Cross-Reference Stream Data</a></span></dt></dl></dd><dt><span class="sect1"><a href="#ref.object-streams-linearization">8.3. Implications for Linearized Files</a></span></dt><dt><span class="sect1"><a href="#ref.object-stream-implementation">8.4. Implementation Notes</a></span></dt></dl></dd></dl></div><div class="preface" lang="en" xml:lang="en"><div class="titlepage"><div><div><h2 class="title"><a id="acknowledgments"></a>General Information</h2></div></div></div><p>
+   QPDF is a program that does structural, content-preserving
+   transformations on PDF files.  QPDF's website is located at <a class="ulink" href="http://qpdf.qbilt.org/" target="_top">http://qpdf.qbilt.org/</a>.
+  </p><p>
+   QPDF has been released under the terms of <a class="ulink" href="http://www.opensource.org/licenses/artistic-license-2.0.php" target="_top">Version
+   2.0 of the Artistic License</a>, a copy of which appears in the
+   file <code class="filename">Artistic-2.0</code> in the source distribution.
+  </p><p>
+   QPDF was originally created in 2001 and modified periodically
+   between 2001 and 2005 during my employment at <a class="ulink" href="http://www.apexcovantage.com" target="_top">Apex CoVantage</a>.  Upon my
+   departure from Apex, the company graciously allowed me to take
+   ownership of the software and continue maintaining as an open
+   source project, a decision for which I am very grateful.  I have
+   made considerable enhancements to it since that time.  I feel
+   fortunate to have worked for people who would make such a decision.
+   This work would not have been possible without their support.
+  </p></div><div class="chapter" lang="en" xml:lang="en"><div class="titlepage"><div><div><h2 class="title"><a id="ref.overview"></a>Chapter 1. What is QPDF?</h2></div></div></div><p>
+   QPDF is a program that does structural, content-preserving
+   transformations on PDF files.  It could have been called something
+   like <span class="emphasis"><em>pdf-to-pdf</em></span>.  It also provides many useful
+   capabilities to developers of PDF-producing software or for people
+   who just want to look at the innards of a PDF file to learn more
+   about how they work.
+  </p><p>
+   QPDF is <span class="emphasis"><em>not</em></span> a PDF content creation library, a
+   PDF viewer, or a program capable of converting PDF into other
+   formats.  In particular, QPDF knows nothing about the semantics of
+   PDF content streams.  If you are looking for something that can do
+   that, you should look elsewhere.  However, once you have a valid
+   PDF file, QPDF can be used to transform that file in ways perhaps
+   your original PDF creation can't handle.  For example, programs
+   generate simple PDF files but can't password-protect them,
+   web-optimize them, or perform other transformations of that type.
+  </p></div><div class="chapter" lang="en" xml:lang="en"><div class="titlepage"><div><div><h2 class="title"><a id="ref.installing"></a>Chapter 2. Building and Installing QPDF</h2></div></div></div><div class="toc"><p><b>Table of Contents</b></p><dl><dt><span class="sect1"><a href="#ref.prerequisites">2.1. System Requirements</a></span></dt><dt><span class="sect1"><a href="#ref.building">2.2. Build Instructions</a></span></dt></dl></div><p>
+   This chapter describes how to build and install qpdf.  Please see
+   also the <code class="filename">README</code> and
+   <code class="filename">INSTALL</code> files in the source distribution.
+  </p><div class="sect1" lang="en" xml:lang="en"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a id="ref.prerequisites"></a>2.1. System Requirements</h2></div></div></div><p>
+    The qpdf package has relatively few external dependencies.  In
+    order to build qpdf, the following packages are required:
+    </p><div class="itemizedlist"><ul type="disc"><li><p>
+       zlib: <a class="ulink" href="http://www.zlib.net/" target="_top">http://www.zlib.net/</a>
+      </p></li><li><p>
+       pcre: <a class="ulink" href="http://www.pcre.org/" target="_top">http://www.pcre.org/</a>
+      </p></li><li><p>
+       gnu make 3.81 or newer: <a class="ulink" href="http://www.gnu.org/software/make" target="_top">http://www.gnu.org/software/make</a>
+      </p></li><li><p>
+       perl version 5.8 or newer:
+       <a class="ulink" href="http://www.perl.org/" target="_top">http://www.perl.org/</a>;
+       required for <span class="command"><strong>fix-qdf</strong></span> and the test suite.
+      </p></li><li><p>
+       GNU diffutils (any version): <a class="ulink" href="http://www.gnu.org/software/diffutils/" target="_top">http://www.gnu.org/software/diffutils/</a>
+       is required to run the test suite.  Note that this is the
+       version of diff present on virtually all GNU/Linux systems.
+       This is required because the test suite uses <span class="command"><strong>diff
+       -u</strong></span>.
+      </p></li></ul></div><p>
+   </p><p>
+    Part of qpdf's test suite does comparisons of the contents PDF
+    files by converting them images and comparing the images.  You can
+    optionally disable this part of the test suite by running
+    <span class="command"><strong>configure</strong></span> with the
+    <code class="option">--disable-test-compare-images</code> flag.  If you leave
+    this enabled, the following additional requirements are required
+    by the test suite.  Note that in no case are these items required
+    to use qpdf.
+    </p><div class="itemizedlist"><ul type="disc"><li><p>
+       libtiff: <a class="ulink" href="http://www.remotesensing.org/libtiff/" target="_top">http://www.remotesensing.org/libtiff/</a>
+      </p></li><li><p>
+       GhostScript version 8.60 or newer: <a class="ulink" href="http://pages.cs.wisc.edu/~ghost/" target="_top">http://pages.cs.wisc.edu/~ghost/</a>
+      </p></li></ul></div><p>
+    This option is primarily intended for use by packagers of qpdf so
+    that they can avoid having the qpdf packages depend on tiff and
+    ghostscript software.
+   </p><p>
+    If Adobe Reader is installed as <span class="command"><strong>acroread</strong></span>, some
+    additional test cases will be enabled.  These test cases simply
+    verify that Adobe Reader can open the files that qpdf creates.
+    They require version 8.0 or newer to pass.  However, in order to
+    avoid having qpdf depend on non-free (as in liberty) software, the
+    test suite will still pass without Adobe reader, and the test
+    suite still exercises the full functionality of the software.
+   </p><p>
+    Pre-built documentation is distributed with qpdf, so you should
+    generally not need to rebuild the documentation.  In order to
+    build the documentation from its docbook sources, you need the
+    docbook XML style sheets (<a class="ulink" href="http://downloads.sourceforge.net/docbook/" target="_top">http://downloads.sourceforge.net/docbook/</a>).
+    To build the PDF version of the documentation, you need Apache fop
+    (<a class="ulink" href="http://xml.apache.org/fop/" target="_top">http://xml.apache.org/fop/</a>)
+    version 0.94 of higher.
+   </p></div><div class="sect1" lang="en" xml:lang="en"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a id="ref.building"></a>2.2. Build Instructions</h2></div></div></div><p>
+    Building qpdf on UNIX is generally just a matter of running
+
+    </p><pre class="programlisting">./configure
+make
+</pre><p>
+    You can also run <span class="command"><strong>make check</strong></span> to run the test
+    suite and <span class="command"><strong>make install</strong></span> to install.  Please run
+    <span class="command"><strong>./configure --help</strong></span> for options on what can be
+    configured.  You can also set the value of
+    <code class="varname">DESTDIR</code> during installation to install to a
+    temporary location, as is common with many open source packages.
+    Please see also the <code class="filename">README</code> and
+    <code class="filename">INSTALL</code> files in the source distribution.
+   </p><p>
+    There is currently no support for building qpdf on Windows.  The
+    code is reasonably portable, however, and making it work on
+    Windows would probably be reasonably straightforward.  A
+    significant amount of the code in QPDF has been known to work on
+    Windows in the past.
+   </p><p>
+    There are some other things you can do with the build.  Although
+    qpdf uses <span class="application">autoconf</span>, it does not use
+    <span class="application">automake</span> but instead uses a
+    hand-crafted non-recursive Makefile that requires gnu make.  If
+    you're really interested, please read the comments in the
+    top-level <code class="filename">Makefile</code>.
+   </p></div></div><div class="chapter" lang="en" xml:lang="en"><div class="titlepage"><div><div><h2 class="title"><a id="ref.using"></a>Chapter 3. Running QPDF</h2></div></div></div><div class="toc"><p><b>Table of Contents</b></p><dl><dt><span class="sect1"><a href="#ref.invocation">3.1. Basic Invocation</a></span></dt><dt><span class="sect1"><a href="#ref.basic-options">3.2. Basic Options</a></span></dt><dt><span class="sect1"><a href="#ref.encryption-options">3.3. Encryption Options</a></span></dt><dt><span class="sect1"><a href="#ref.advanced-transformation">3.4. Advanced Transformation Options</a></span></dt><dt><span class="sect1"><a href="#ref.testing-options">3.5. Testing, Inspection, and Debugging Options</a></span></dt></dl></div><p>
+   This chapter describes how to run the qpdf program from the command
+   line.
+  </p><div class="sect1" lang="en" xml:lang="en"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a id="ref.invocation"></a>3.1. Basic Invocation</h2></div></div></div><p>
+    When running qpdf, the basic invocation is as follows:
+
+    </p><pre class="programlisting"><span class="command"><strong>qpdf</strong></span><code class="option"> [ <em class="replaceable"><code>options</code></em> ] <em class="replaceable"><code>infilename</code></em> [ <em class="replaceable"><code>outfilename</code></em> ]</code>
+</pre><p>
+    This converts PDF file <code class="option">infilename</code> to PDF file
+    <code class="option">outfilename</code>.  The output file is functionally
+    identical to the input file but may have been structurally
+    reorganized.  Also, orphaned objects will be removed from the
+    file.  Many transformations are available as controlled by the
+    options below.
+   </p><p>
+    <code class="option">outfilename</code> does not have to be seekable, even
+    when generating linearized files.  Specifying
+    “<code class="option">-</code>” as <code class="option">outfilename</code>
+    means to write to standard output.
+   </p><p>
+    Most options require an output file, but some testing or
+    inspection commands do not.  These are specifically noted.
+   </p></div><div class="sect1" lang="en" xml:lang="en"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a id="ref.basic-options"></a>3.2. Basic Options</h2></div></div></div><p>
+    The following options are the most common ones and perform
+    commonly needed transformations.
+    </p><div class="variablelist"><dl><dt><span class="term"><code class="option">--password=password</code></span></dt><dd><p>
+        Specifies a password for accessing encrypted files.
+       </p></dd><dt><span class="term"><code class="option">--linearize</code></span></dt><dd><p>
+        Causes generation of a linearized (web optimized) output file.
+       </p></dd><dt><span class="term"><code class="option">--encrypt options --</code></span></dt><dd><p>
+        Causes generation an encrypted output file.  Please see <a class="xref" href="#ref.encryption-options" title="3.3.&#xA0;Encryption Options">Section 3.3, “Encryption Options”</a> for details on how to
+        specify encryption parameters.
+       </p></dd><dt><span class="term"><code class="option">--decrypt</code></span></dt><dd><p>
+        Removes any encryption on the file.  A password must be
+        supplied if the file is password protected.
+       </p></dd></dl></div><p>
+   </p><p>
+    Password-protected files may be opened by specifying a password.
+    By default, qpdf will preserve any encryption data associated with
+    a file.  If <code class="option">--decrypt</code> is specified, qpdf will
+    attempt to remove any encryption information.  If
+    <code class="option">--encrypt</code> is specified, qpdf will replace the
+    document's encryption parameters with whatever is specified.
+   </p><p>
+    Note that qpdf does not obey encryption restrictions already
+    imposed on the file.  Doing so would be meaningless since qpdf can
+    be used to remove encryption from the file entirely.  This
+    functionality is not intended to be used for bypassing copyright
+    restrictions or other restrictions placed on files by their
+    producers.
+   </p></div><div class="sect1" lang="en" xml:lang="en"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a id="ref.encryption-options"></a>3.3. Encryption Options</h2></div></div></div><p>
+    To change the encryption parameters of a file, use the --encrypt
+    flag.  The syntax is
+
+    </p><pre class="programlisting"><code class="option">--encrypt <em class="replaceable"><code>user-password</code></em> <em class="replaceable"><code>owner-password</code></em> <em class="replaceable"><code>key-length</code></em> [ <em class="replaceable"><code>restrictions</code></em> ] --</code>
+</pre><p>
+    Note that “<code class="option">--</code>” terminates parsing of
+    encryption flags and must be present even if no restrictions are
+    present.
+   </p><p>
+    Either or both of the user password and the owner password may be
+    empty strings.
+   </p><p>
+    The value for
+    <code class="option"><em class="replaceable"><code>key-length</code></em></code> may be 40
+    or 128.  The restriction flags are dependent upon key length.
+    When no additional restrictions are given, the default is to be
+    fully permissive.
+   </p><p>
+    If <code class="option"><em class="replaceable"><code>key-length</code></em></code> is 40,
+    the following restriction options are available:
+    </p><div class="variablelist"><dl><dt><span class="term"><code class="option">--print=[yn]</code></span></dt><dd><p>
+        Determines whether or not to allow printing.
+       </p></dd><dt><span class="term"><code class="option">--modify=[yn]</code></span></dt><dd><p>
+        Determines whether or not to allow document modification.
+       </p></dd><dt><span class="term"><code class="option">--extract=[yn]</code></span></dt><dd><p>
+        Determines whether or not to allow text/image extraction.
+       </p></dd><dt><span class="term"><code class="option">--annotate=[yn]</code></span></dt><dd><p>
+        Determines whether or not to allow comments and form fill-in
+        and signing.
+       </p></dd></dl></div><p>
+    If <code class="option"><em class="replaceable"><code>key-length</code></em></code> is 128,
+    the following restriction options are available:
+    </p><div class="variablelist"><dl><dt><span class="term"><code class="option">--accessibility=[yn]</code></span></dt><dd><p>
+        Determines whether or not to allow accessibility to visually
+        impaired.
+       </p></dd><dt><span class="term"><code class="option">--extract=[yn]</code></span></dt><dd><p>
+        Determines whether or not to allow text/graphic extraction.
+       </p></dd><dt><span class="term"><code class="option">--print=<em class="replaceable"><code>print-opt</code></em></code></span></dt><dd><p>
+        Controls printing access.
+        <code class="option"><em class="replaceable"><code>print-opt</code></em></code> may be
+        one of the following:
+        </p><div class="itemizedlist"><ul type="disc"><li><p>
+           <code class="option">full</code>: allow full printing
+          </p></li><li><p>
+           <code class="option">low</code>: allow low-resolution printing only
+          </p></li><li><p>
+           <code class="option">none</code>: disallow printing
+          </p></li></ul></div><p>
+       </p></dd><dt><span class="term"><code class="option">--modify=<em class="replaceable"><code>modify-opt</code></em></code></span></dt><dd><p>
+        Controls modify access.
+        <code class="option"><em class="replaceable"><code>modify-opt</code></em></code> may be
+        one of the following:
+        </p><div class="itemizedlist"><ul type="disc"><li><p>
+           <code class="option">all</code>: allow full document modification
+          </p></li><li><p>
+           <code class="option">annotate</code>: allow comment authoring and form operations
+          </p></li><li><p>
+           <code class="option">form</code>: allow form field fill-in and signing
+          </p></li><li><p>
+           <code class="option">assembly</code>: allow document assembly only
+          </p></li><li><p>
+           <code class="option">none</code>: allow no modifications
+          </p></li></ul></div><p>
+       </p></dd></dl></div><p>
+    The default for each permission option is to be fully permissive.
+   </p></div><div class="sect1" lang="en" xml:lang="en"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a id="ref.advanced-transformation"></a>3.4. Advanced Transformation Options</h2></div></div></div><p>
+    These transformation options control fine points of how qpdf
+    creates the output file.  Mostly these are of use only to people
+    who are very familiar with the PDF file format or who are PDF
+    developers.  The following options are available:
+    </p><div class="variablelist"><dl><dt><span class="term"><code class="option">--stream-data=<em class="replaceable"><code>option</code></em></code></span></dt><dd><p>
+        Controls transformation of stream data.  The value of
+        <code class="option"><em class="replaceable"><code>option</code></em></code> may be one
+        of the following:
+        </p><div class="itemizedlist"><ul type="disc"><li><p>
+           <code class="option">compress</code>: recompress stream data when
+           possible (default)
+          </p></li><li><p>
+           <code class="option">preserve</code>: leave all stream data as is
+          </p></li><li><p>
+           <code class="option">uncompress</code>: uncompress stream data when
+           possible
+          </p></li></ul></div><p>
+       </p></dd><dt><span class="term"><code class="option">--normalize-content=[yn]</code></span></dt><dd><p>
+        Enables or disables normalization of content streams.
+       </p></dd><dt><span class="term"><code class="option">--suppress-recovery</code></span></dt><dd><p>
+        Prevents qpdf from attempting to recover damaged files.
+       </p></dd><dt><span class="term"><code class="option">--object-streams=<em class="replaceable"><code>mode</code></em></code></span></dt><dd><p>
+        Controls handing of object streams.  The value of
+        <code class="option"><em class="replaceable"><code>mode</code></em></code> may be one of
+        the following:
+        </p><div class="itemizedlist"><ul type="disc"><li><p>
+           <code class="option">preserve</code>: preserve original object streams
+           (default)
+          </p></li><li><p>
+           <code class="option">disable</code>: don't write any object streams
+          </p></li><li><p>
+           <code class="option">generate</code>: use object streams wherever
+           possible
+          </p></li></ul></div><p>
+       </p></dd><dt><span class="term"><code class="option">--ignore-xref-streams</code></span></dt><dd><p>
+        Tells qpdf to ignore any cross-reference streams.
+       </p></dd><dt><span class="term"><code class="option">--qdf</code></span></dt><dd><p>
+        Turns on QDF mode.  For additional information on QDF, please
+        see <a class="xref" href="#ref.qdf" title="Chapter&#xA0;4.&#xA0;QDF Mode">Chapter 4, <i>QDF Mode</i></a>.
+       </p></dd></dl></div><p>
+   </p><p>
+    By default, when a stream is encoded using non-lossy filters that
+    qpdf understands and is not already compressed using a good
+    compression scheme, qpdf will uncompress and recompress streams.
+    Assuming proper filter implements, this is safe and generally
+    results in smaller files.  This behavior may also be explicitly
+    requested with <code class="option">--stream-data=compress</code>.
+   </p><p>
+    When <code class="option">--stream-data=preserve</code> is specified, qpdf
+    will never attempt to change the filtering of any stream data.
+   </p><p>
+    When <code class="option">--stream-data=uncompress</code> is specified, qpdf
+    will attempt to remove any non-lossy filters that it supports.
+    This includes <code class="literal">/FlateDecode</code>,
+    <code class="literal">/LZWDecode</code>, <code class="literal">/ASCII85Decode</code>,
+    and <code class="literal">/ASCIIHexDecode</code>.  This can be very useful
+    for inspecting the contents of various streams.
+   </p><p>
+    When <code class="option">--normalize-content=y</code> is specified, qpdf
+    will attempt to normalize whitespace and newlines in page content
+    streams.  This is generally safe but could, in some cases, cause
+    damage to the content streams.  This option is intended for people
+    who wish to study PDF content streams or to debug PDF content.
+    You should not use this for “production” PDF files.
+   </p><p>
+    Ordinarily, qpdf will attempt to recover from certain types of
+    errors in PDF files.  These include errors in the cross-reference
+    table, certain types of object numbering errors, and certain types
+    of stream length errors.  Sometimes, qpdf may think it has
+    recovered but may not have actually recovered, so care should be
+    taken when using this option as some data loss is possible.  The
+    <code class="option">--suppress-recovery</code> option will prevent qpdf from
+    attempting recovery.  In this case, it will fail on the first
+    error that it encounters.
+   </p><p>
+    Object streams, also known as compressed objects, were introduced
+    into the PDF specification at version 1.5, corresponding to
+    Acrobat 6.  Some older PDF viewers may not support files with
+    object streams.  qpdf can be used to transform files with object
+    streams to files without object streams or vice versa.  As
+    mentioned above, there are three object stream modes:
+    <code class="option">preserve</code>, <code class="option">disable</code>, and
+    <code class="option">generate</code>.
+   </p><p>
+    In <code class="option">preserve</code> mode, the relationship to objects and
+    the streams that contain them is preserved from the original file.
+    In <code class="option">disable</code> mode, all objects are written as
+    regular, uncompressed objects.  The resulting file should be
+    readable by older PDF viewers.  (Of course, the content of the
+    files may include features not supported by older viewers, but at
+    least the structure will be supported.)  In
+    <code class="option">generate</code> mode, qpdf will create its own object
+    streams.  This will usually result in more compact PDF files,
+    though they may not be readable by older viewers.  In this mode,
+    qpdf will also make sure the PDF version number in the header is
+    at least 1.5.
+   </p><p>
+    Ordinarily, qpdf reads cross-reference streams when they are
+    present in a PDF file.  If <code class="option">--ignore-xref-streams</code>
+    is specified, qpdf will ignore any cross-reference streams for
+    hybrid PDF files.  The purpose of hybrid files is to make some
+    content available to viewers that are not aware of cross-reference
+    streams.  It is almost never desirable to ignore them.  The only
+    time when you might want to use this feature is if you are testing
+    creation of hybrid PDF files and wish to see how a PDF consumer
+    that doesn't understand object and cross-reference streams would
+    interpret such a file.
+   </p><p>
+    The <code class="option">--qdf</code> flag turns on QDF mode, which changes
+    some of the defaults described above.  Specifically, in QDF mode,
+    by default, stream data is uncompressed, content streams are
+    normalized, and encryption is removed.  These defaults can still
+    be overridden by specifying the appropriate options as described
+    above.  Additionally, in QDF mode, stream lengths are stored as
+    indirect objects, objects are laid out in a less efficient but
+    more readable fashion, and the documents are interspersed with
+    comments that make it easier for the user to find things and also
+    make it possible for <span class="command"><strong>fix-qdf</strong></span> to work properly.
+    QDF mode is intended for people, mostly developers, who wish to
+    inspect or modify PDF files in a text editor.  For details, please
+    see <a class="xref" href="#ref.qdf" title="Chapter&#xA0;4.&#xA0;QDF Mode">Chapter 4, <i>QDF Mode</i></a>.
+   </p></div><div class="sect1" lang="en" xml:lang="en"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a id="ref.testing-options"></a>3.5. Testing, Inspection, and Debugging Options</h2></div></div></div><p>
+    These options can be useful for digging into PDF files or for use
+    in automated test suites for software that uses the qpdf library.
+    When any of the options in this section are specified, no output
+    file should be given.  The following options are available:
+    </p><div class="variablelist"><dl><dt><span class="term"><code class="option">--static-id</code></span></dt><dd><p>
+        Causes generation of a fixed value for /ID.  This is intended
+        for testing only.  Never use it for production files.
+       </p></dd><dt><span class="term"><code class="option">-show-encryption</code></span></dt><dd><p>
+        Shows document encryption parameters.  Also shows the
+        document's user password if the owner password is given.
+       </p></dd><dt><span class="term"><code class="option">-check-linearization</code></span></dt><dd><p>
+        Checks file integrity and linearization status.
+       </p></dd><dt><span class="term"><code class="option">-show-linearization</code></span></dt><dd><p>
+        Checks and displays all data in the linearization hint tables.
+       </p></dd><dt><span class="term"><code class="option">-show-xref</code></span></dt><dd><p>
+        Shows the contents of the cross-reference table in a
+        human-readable form.  This is especially useful for files with
+        cross-reference streams which are stored in a binary format.
+       </p></dd><dt><span class="term"><code class="option">-show-object=obj[,gen]</code></span></dt><dd><p>
+        Show the contents of the given object.  This is especially
+        useful for inspecting objects that are inside of object
+        streams (also known as “compressed objects”).
+       </p></dd><dt><span class="term"><code class="option">-raw-stream-data</code></span></dt><dd><p>
+        When used along with the <code class="option">--show-object</code>
+        option, if the object is a stream, shows the raw stream data
+        instead of object's contents.
+       </p></dd><dt><span class="term"><code class="option">-filtered-stream-data</code></span></dt><dd><p>
+        When used along with the <code class="option">--show-object</code>
+        option, if the object is a stream, shows the filtered stream
+        data instead of object's contents.  If the stream is filtered
+        using filters that qpdf does not support, an error will be
+        issued.
+       </p></dd><dt><span class="term"><code class="option">-show-pages</code></span></dt><dd><p>
+        Shows the object and generation number for each page
+        dictionary object and for each content stream associated with
+        the page.  Having this information makes it more convenient to
+        inspect objects from a particular page.
+       </p></dd><dt><span class="term"><code class="option">-with-images</code></span></dt><dd><p>
+        When used along with <code class="option">--show-pages</code>, also shows
+        the object and generation numbers for the image objects on
+        each page.  (At present, information about images in shared
+        resource dictionaries are not output by this command.  This is
+        discussed in a comment in the source code.)
+       </p></dd><dt><span class="term"><code class="option">-check</code></span></dt><dd><p>
+        Checks file structure and well as encryption and
+        linearization.  A file for which <code class="option">--check</code>
+        reports no errors may still have errors in stream data but
+        should otherwise be otherwise structurally sound.
+       </p></dd></dl></div><p>
+   </p><p>
+    The <code class="option">--raw-stream-data</code> and
+    <code class="option">--filtered-stream-data</code> options are ignored unless
+    <code class="option">--show-object</code> is given.  Either of these options
+    will cause the stream data to be written to standard output.  In
+    order to avoid commingling of stream data with other output, it is
+    recommend that these objects not be combined with other
+    test/inspection options.
+   </p><p>
+    If <code class="option">--filtered-stream-data</code> is given and
+    <code class="option">--normalize-content=y</code> is also given, qpdf will
+    attempt to normalize the stream data as if it is a page content
+    stream.  This attempt will be made even if it is not a page
+    content stream, in which case it will produce unusuable results.
+   </p></div></div><div class="chapter" lang="en" xml:lang="en"><div class="titlepage"><div><div><h2 class="title"><a id="ref.qdf"></a>Chapter 4. QDF Mode</h2></div></div></div><p>
+   In QDF mode, qpdf creates PDF files in what we call <em class="firstterm">QDF
+   form</em>.  A PDF file in QDF form, sometimes called a QDF
+   file, is a completely valid PDF file that has
+   <code class="literal">%QDF-1.0</code> as its third line (after the pdf header
+   and binary characters) and has certain other characteristics.  The
+   purpose of QDF form is to make it possible to edit PDF files, with
+   some restrictions, in an ordinary text editor.  This can be very
+   useful for experimenting with different PDF constructs or for
+   making one-off edits to PDF files (though there are other reasons
+   why this may not always work).
+  </p><p>
+   It is ordinarily very difficult to edit PDF files in a text editor
+   for two reasons: most meaningful data in PDF files is compressed,
+   and PDF files are full of offset and length information that makes
+   it hard to add or remove data.  A QDF file is organized in a manner
+   such that, if edits are kept within certain constraints, the
+   <span class="command"><strong>fix-qdf</strong></span> program, distributed with qpdf, is able
+   to restore edited files to a correct state.  The
+   <span class="command"><strong>fix-qdf</strong></span> program takes no command-line
+   arguments.  It reads a possibly edited QDF file from standard input
+   and writes a repaired file to standard output.
+  </p><p>
+   The following attributes characterize a QDF file:
+   </p><div class="itemizedlist"><ul type="disc"><li><p>
+      All objects appear in numerical order in the PDF file, including
+      when objects appear in object streams.
+     </p></li><li><p>
+      Objects are printed in an easy-to-read format, and all line
+      endings are normalized to UNIX line endings.
+     </p></li><li><p>
+      Unless specifically overridden, streams appear uncompressed
+      (when qpdf supports the filters and they are compressed with a
+      non-lossy compression scheme), and most content streams are
+      normalized (line endings are converted to just a UNIX-style
+      linefeeds).
+     </p></li><li><p>
+      All streams lengths are represented as indirect objects, and the
+      stream length object is always the next object after the stream.
+      If the stream data does not end with a newline, an extra newline
+      is inserted, and a special comment appears after the stream
+      indicating that this has been done.
+     </p></li><li><p>
+      If the PDF file contains object streams, if object stream
+      <span class="emphasis"><em>n</em></span> contains <span class="emphasis"><em>k</em></span> objects,
+      those objects are numbered from <span class="emphasis"><em>n+1</em></span> through
+      <span class="emphasis"><em>n+k</em></span>, and the object number/offset pairs
+      appear on a separate line for each object.  Additionally, each
+      object in the object stream is preceded by a comment indicating
+      its object number and index.  This makes it very easy to find
+      objects in object streams.
+     </p></li><li><p>
+      All beginnings of objects, <code class="literal">stream</code> tokens,
+      <code class="literal">endstream</code> tokens, and
+      <code class="literal">endobj</code> tokens appear on lines by themselves.
+      A blank line follows every <code class="literal">endobj</code> token.
+     </p></li><li><p>
+      If there is a cross-reference stream, it is unfiltered.
+     </p></li><li><p>
+      Page dictionaries and page content streams are marked with
+      special comments that make them easy to find.
+     </p></li></ul></div><p>
+  </p><p>
+   When editing a QDF file, any edits can be made as long as the above
+   constraints are maintained.  This means that you can freely edit a
+   page's content without worrying about messing up the QDF file.  It
+   is also possible to add new objects so long as those objects are
+   added after the last object in the file or subsequent objects are
+   renumbered.  If a QDF file has object streams in it, you can always
+   add the new objects before the xref stream and then change the
+   number of the xref stream, since nothing generally ever references
+   it by number.
+  </p><p>
+   It is not generally practical to remove objects from QDF files
+   without messing up object numbering, but if you remove all
+   references to an object, you can run qpdf on the file (after
+   running <span class="command"><strong>fix-qdf</strong></span>), and qpdf will omit the
+   now-orphaned object.
+  </p><p>
+   When <span class="command"><strong>fix-qdf</strong></span> is run, it goes through the file
+   and recomputes the following parts of the file:
+   </p><div class="itemizedlist"><ul type="disc"><li><p>
+      the <code class="literal">/N</code>, <code class="literal">/W</code>, and
+      <code class="literal">/First</code> keys of all object stream dictionaries
+     </p></li><li><p>
+      the pairs of numbers representing object numbers and offsets of
+      objects in object streams
+     </p></li><li><p>
+      all stream lengths
+     </p></li><li><p>
+      the cross-reference table or cross-reference stream
+     </p></li><li><p>
+      the offset to the cross-reference table or cross-reference
+      stream following the <code class="literal">startxref</code> token
+     </p></li></ul></div><p>
+  </p></div><div class="chapter" lang="en" xml:lang="en"><div class="titlepage"><div><div><h2 class="title"><a id="ref.using-library"></a>Chapter 5. Using the QPDF Library</h2></div></div></div><p>
+    The source tree for the qpdf package has an
+    <code class="filename">examples</code> directory that contains a few
+    example programs.  The <code class="filename">qpdf/qpdf.cc</code> source
+    file also serves as a useful example since it exercises almost all
+    of the qpdf library's public interface.  The best source of
+    documentation on the library itself is reading comments in
+    <code class="filename">include/qpdf/QPDF.hh</code>,
+    <code class="filename">include/qpdf/QDFWriter.hh</code>, and
+    <code class="filename">include/qpdf/QPDFObjectHandle.hh</code>.
+   </p><p>
+    All header files are installed in the <code class="filename">include/qpdf</code> directory.  It
+    is recommend that you use <code class="literal">#include
+    &lt;qpdf/QPDF.hh&gt;</code> rather than adding
+    <code class="filename">include/qpdf</code> to your include path.
+   </p><p>
+    When linking against the qpdf library, you may also need to
+    specify <code class="literal">-lpcre -lz</code> on your link command.  If
+    your system understands how to read libtool
+    <code class="filename">.la</code> files, this may not be necessary.
+   </p></div><div class="chapter" lang="en" xml:lang="en"><div class="titlepage"><div><div><h2 class="title"><a id="ref.design"></a>Chapter 6. Design and Library Notes</h2></div></div></div><div class="toc"><p><b>Table of Contents</b></p><dl><dt><span class="sect1"><a href="#ref.design.intro">6.1. Introduction</a></span></dt><dt><span class="sect1"><a href="#ref.design-goals">6.2. Design Goals</a></span></dt><dt><span class="sect1"><a href="#ref.encryption">6.3. Encryption</a></span></dt><dt><span class="sect1"><a href="#ref.rewriting">6.4. Writing PDF Files</a></span></dt><dt><span class="sect1"><a href="#ref.filtered-streams">6.5. Filtered Streams</a></span></dt></dl></div><div class="sect1" lang="en" xml:lang="en"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a id="ref.design.intro"></a>6.1. Introduction</h2></div></div></div><p>
+    This section was written prior to the implementation of the qpdf
+    package and was subsequently modified to reflect the
+    implementation.  In some cases, for purposes of explanation, it
+    may differ slightly from the actual implementation.  As always,
+    the source code and test suite are authoritative.  Even if there
+    are some errors, this document should serve as a road map to
+    understanding how this code works.
+   </p><p>
+    In general, one should adhere strictly to a specification when
+    writing but be liberal in reading.  This way, the product of our
+    software will be accepted by the widest range of other programs,
+    and we will accept the widest range of input files.  This library
+    attempts to conform to that philosophy whenever possible but also
+    aims to provide strict checking for people who want to validate
+    PDF files.  If you don't want to see warnings and are trying to
+    write something that is tolerant, you can call
+    <code class="literal">setSuppressWarnings(true)</code>.  If you want to fail
+    on the first error, you can call
+    <code class="literal">setAttemptRecovery(false)</code>.  The default
+    behavior is to generating warnings for recoverable problems.  Note
+    that recovery will not always produce the desired results even if
+    it is able to get through the file.  Unlike most other PDF files
+    that produce generic warnings such as “This file is
+    damaged,”, qpdf generally issues a detailed error message
+    that would be most useful to a PDF developer.  This is by design
+    as there seems to be a shortage of PDF validation tools out
+    there.  (This was, in fact, one of the major motivations behind
+    the initial creation of qpdf.)
+   </p></div><div class="sect1" lang="en" xml:lang="en"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a id="ref.design-goals"></a>6.2. Design Goals</h2></div></div></div><p>
+    The QPDF package includes support for reading and rewriting PDF
+    files.  It aims to hide from the user details involving object
+    locations, modified (appended) PDF files, the
+    directness/indirectness of objects, and stream filters including
+    encryption.  It does not aim to hide knowledge of the object
+    hierarchy or content stream contents.  Put another way, a user of
+    the qpdf library is expected to have knowledge about how PDF files
+    work, but is not expected to have to keep track of bookkeeping
+    details such as file positions.
+   </p><p>
+    A user of the library never has to care whether an object is
+    direct or indirect.  All access to objects deals with this
+    transparently.  All memory management details are also handled by
+    the library.
+   </p><p>
+    The <code class="classname">PointerHolder</code> object is used internally
+    by the library to deal with memory management.  This is basically
+    a smart pointer object very similar in spirit to the Boost
+    library's <code class="classname">shared_ptr</code> object, but predating
+    it by several years.  This library also makes use of a technique
+    for giving fine-grained access to methods in one class to other
+    classes by using public subclasses with friends and only private
+    members that in turn call private methods of the containing class.
+    See <code class="classname">QPDFObjectHandle::Factory</code> as an
+    example.
+   </p><p>
+    The top-level qpdf class is <code class="classname">QPDF</code>.  A
+    <code class="classname">QPDF</code> object represents a PDF file.  The
+    library provides methods for both accessing and mutating PDF
+    files.
+   </p><p>
+    <code class="classname">QPDFObject</code> is the basic PDF Object class.
+    It is an abstract base class from which are derived classes for
+    each type of PDF object.  Clients do not interact with Objects
+    directly but instead interact with
+    <code class="classname">QPDFObjectHandle</code>.
+   </p><p>
+    <code class="classname">QPDFObjectHandle</code> contains
+    <code class="classname">PointerHolder&lt;QPDFObject&gt;</code> and
+    includes accessor methods that are type-safe proxies to the
+    methods of the derived object classes as well as methods for
+    querying object types.  They can be passed around by value,
+    copied, stored in containers, etc. with very low overhead.
+    Instances of <code class="classname">QPDFObjectHandle</code> always
+    contain a reference back to the <code class="classname">QPDF</code> object
+    from which they were created.  A
+    <code class="classname">QPDFObjectHandle</code> may be direct or indirect.
+    If indirect, the <code class="classname">QPDFObject</code> the
+    <code class="classname">PointerHolder</code> initially points to is a null
+    pointer.  In this case, the first attempt to access the underlying
+    <code class="classname">QPDFObject</code> will result in the
+    <code class="classname">QPDFObject</code> being resolved via a call to the
+    referenced <code class="classname">QPDF</code> instance.  This makes it
+    essentially impossible to make coding errors in which certain
+    things will work for some PDF files and not for others based on
+    which objects are direct and which objects are indirect.
+   </p><p>
+    There is no public interface for creating instances of
+    QPDFObjectHandle.  They can be created only inside the QPDF
+    library.  This is generally done through a call to the private
+    method <code class="function">QPDF::readObject</code> which uses
+    <code class="classname">QPDFTokenizer</code> to read an indirect object at
+    a given file position and return a
+    <code class="classname">QPDFObjectHandle</code> that encapsulates it.
+    There are also internal methods to create fabricated indirect
+    objects from existing direct objects or to change an indirect
+    object into a direct object, though these steps are not performed
+    except to support rewriting.
+   </p><p>
+    When the <code class="classname">QPDF</code> class creates a new object,
+    it dynamically allocates the appropriate type of
+    <code class="classname">QPDFObject</code> and immediately hands the
+    pointer to an instance of <code class="classname">QPDFObjectHandle</code>.
+    The parser reads a token from the current file position.  If the
+    token is a not either a dictionary or array opener, an object is
+    immediately constructed from the single token and the parser
+    returns.  Otherwise, the parser is invoked recursively in a
+    special mode in which it accumulates objects until it finds a
+    balancing closer.  During this process, the
+    “<code class="literal">R</code>” keyword is recognized and an
+    indirect <code class="classname">QPDFObjectHandle</code> may be
+    constructed.
+   </p><p>
+    The <code class="function">QPDF::resolve()</code> method, which is used to
+    resolve an indirect object, may be invoked from the
+    <code class="classname">QPDFObjectHandle</code> class.  It first checks a
+    cache to see whether this object has already been read.  If not,
+    it reads the object from the PDF file and caches it.  It the
+    returns the resulting <code class="classname">QPDFObjectHandle</code>.
+    The calling object handle then replaces its
+    <code class="classname">PointerHolder&lt;QDFObject&gt;</code> with the one
+    from the newly returned <code class="classname">QPDFObjectHandle</code>.
+    In this way, only a single copy of any direct object need exist
+    and clients can access objects transparently without knowing
+    caring whether they are direct or indirect objects.  Additionally,
+    no object is ever read from the file more than once.  That means
+    that only the portions of the PDF file that are actually needed
+    are ever read from the input file, thus allowing the qpdf package
+    to take advantage of this important design goal of PDF files.
+   </p><p>
+    If the requested object is inside of an object stream, the object
+    stream itself is first read into memory.  Then the tokenizer reads
+    objects from the memory stream based on the offset information
+    stored in the stream.  Those individual objects are cached, after
+    which the temporary buffer holding the object stream contents are
+    discarded.  In this way, the first time an object in an object
+    stream is requested, all objects in the stream are cached.
+   </p><p>
+    An instance of <code class="classname">QPDF</code> is constructed by using
+    the class's default constructor.  If desired, the
+    <code class="classname">QPDF</code> object may be configured with various
+    methods that change its default behavior.  Then the
+    <code class="function">QPDF::processFile()</code> method is passed the name
+    of a PDF file, which permanently associates the file with that
+    QPDF object.  A password may also be given for access to
+    password-protected files.  QPDF does not enforce encryption
+    parameters and will treat user and owner passwords equivalently.
+    Either password may be used to access an encrypted file.
+    <sup>[<a id="id2504010" href="#ftn.id2504010" class="footnote">1</a>]</sup>
+    <code class="classname">QPDF</code> will allow recovery of a user password
+    given an owner password.  The input PDF file must be seekable.
+    (Output files written by <code class="classname">QPDFWriter</code> need
+    not be seekable, even when creating linearized files.)  During
+    construction, <code class="classname">QPDF</code> validates the PDF file's
+    header, and then reads the cross reference tables and trailer
+    dictionaries.  The <code class="classname">QPDF</code> class keeps only
+    the first trailer dictionary though it does read all of them so it
+    can check the <code class="literal">/Prev</code> key.
+    <code class="classname">QPDF</code> class users may request the root
+    object and the trailer dictionary specifically.  The cross
+    reference table is kept private.  Objects may then be requested by
+    number of by walking the object tree.
+   </p><p>
+    When a PDF file has a cross-reference stream instead of a
+    cross-reference table and trailer, requesting the document's
+    trailer dictionary returns the stream dictionary from the
+    cross-reference stream instead.
+   </p><p>
+    There are some convenience routines for very common operations
+    such as walking the page tree and returning a vector of all page
+    objects.  For full details, please see the header file
+    <code class="filename">QPDF.hh</code>.
+   </p><p>
+    The following example should clarify how
+    <code class="classname">QPDF</code> processes a simple file.
+    </p><div class="itemizedlist"><ul type="disc"><li><p>
+       Client constructs <code class="classname">QPDF</code>
+       <code class="varname">pdf</code> and calls
+       <code class="function">pdf.processFile("a.pdf");</code>.
+      </p></li><li><p>
+       The <code class="classname">QPDF</code> class checks the beginning of
+       <code class="filename">a.pdf</code> for
+       <code class="literal">%!PDF-1.[0-9]+</code>.  It then reads the cross
+       reference table mentioned at the end of the file, ensuring that
+       it is looking before the last <code class="literal">%%EOF</code>.  After
+       getting to <code class="literal">trailer</code> keyword, it invokes the
+       parser.
+      </p></li><li><p>
+       The parser sees “<code class="literal">&lt;&lt;</code>”, so
+       it calls itself recursively in dictionary creation mode.
+      </p></li><li><p>
+       In dictionary creation mode, the parser keeps accumulating
+       objects until it encounters
+       “<code class="literal">&gt;&gt;</code>”.  Each object that is
+       read is pushed onto a stack.  If
+       “<code class="literal">R</code>” is read, the last two
+       objects on the stack are inspected.  If they are integers, they
+       are popped off the stack and their values are used to construct
+       an indirect object handle which is then pushed onto the stack.
+       When “<code class="literal">&gt;&gt;</code>” is finally read,
+       the stack is converted into a
+       <code class="classname">QPDF_Dictionary</code> which is placed in a
+       <code class="classname">QPDFObjectHandle</code> and returned.
+      </p></li><li><p>
+       The resulting dictionary is saved as the trailer dictionary.
+      </p></li><li><p>
+       The <code class="literal">/Prev</code> key is searched.  If present,
+       <code class="classname">QPDF</code> seeks to that point and repeats
+       except that the new trailer dictionary is not saved.  If
+       <code class="literal">/Prev</code> is not present, the initial parsing
+       process is complete.
+      </p><p>
+       If there is an encryption dictionary, the document's encryption
+       parameters are initialized.
+      </p></li><li><p>
+       The client requests root object.  The
+       <code class="classname">QPDF</code> class gets the value of root key
+       from trailer dictionary and returns it.  It is an unresolved
+       indirect <code class="classname">QPDFObjectHandle</code>.
+      </p></li><li><p>
+       The client requests the <code class="literal">/Pages</code> key from root
+       <code class="classname">QPDFObjectHandle</code>.  The
+       <code class="classname">QPDFObjectHandle</code> notices that it is
+       indirect so it asks <code class="classname">QPDF</code> to resolve it.
+       <code class="classname">QPDF</code> looks in the object cache for an
+       object with the root dictionary's object ID and generation
+       number.  Upon not seeing it, it checks the cross reference
+       table, gets the offset, and reads the object present at that
+       offset.  It stores the result in the object cache and returns
+       the cached result.  The calling
+       <code class="classname">QPDFObjectHandle</code> replaces its object
+       pointer with the one from the resolved
+       <code class="classname">QPDFObjectHandle</code>, verifies that it a
+       valid dictionary object, and returns the (unresolved indirect)
+       <code class="classname">QPDFObject</code> handle to the top of the
+       Pages hierarchy.
+      </p><p>
+       As the client continues to request objects, the same process is
+       followed for each new requested object.
+      </p></li></ul></div><p>
+   </p></div><div class="sect1" lang="en" xml:lang="en"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a id="ref.encryption"></a>6.3. Encryption</h2></div></div></div><p>
+    Encryption is supported transparently by qpdf.  When opening a PDF
+    file, if an encryption dictionary exists, the
+    <code class="classname">QPDF</code> object processes this dictionary using
+    the password (if any) provided.  The primary decryption key is
+    computed and cached.  No further access is made to the encryption
+    dictionary after that time.  When an object is read from a file,
+    the object ID and generation of the object in which it is
+    contained is always known.  Using this information along with the
+    stored encryption key, all stream and string objects are
+    transparently decrypted.  Raw encrypted objects are never stored
+    in memory.  This way, nothing in the library ever has to know or
+    care whether it is reading an encrypted file.
+   </p><p>
+    An interface is also provided for writing encrypted streams and
+    strings given an encryption key.  This is used by
+    <code class="classname">QPDFWriter</code> when it rewrites encrypted
+    files.
+   </p></div><div class="sect1" lang="en" xml:lang="en"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a id="ref.rewriting"></a>6.4. Writing PDF Files</h2></div></div></div><p>
+    The qpdf library supports file writing of
+    <code class="classname">QPDF</code> objects to PDF files through the
+    <code class="classname">QPDFWriter</code> class.  The
+    <code class="classname">QPDFWriter</code> class has two writing modes: one
+    for non-linearized files, and one for linearized files.  See <a class="xref" href="#ref.linearization" title="Chapter&#xA0;7.&#xA0;Linearization">Chapter 7, <i>Linearization</i></a> for a description of linearization
+    is implemented.  This section describes how we write
+    non-linearized files including the creation of QDF files (see
+    <a class="xref" href="#ref.qdf" title="Chapter&#xA0;4.&#xA0;QDF Mode">Chapter 4, <i>QDF Mode</i></a>.
+   </p><p>
+    This outline was written prior to implementation and is not
+    exactly accurate, but it provides a correct “notional”
+    idea of how writing works.  Look at the code in
+    <code class="classname">QPDFWriter</code> for exact details.
+    </p><div class="itemizedlist"><ul type="disc"><li><p>
+       Initialize state:
+       </p><div class="itemizedlist"><ul type="circle"><li><p>
+          next object number = 1
+         </p></li><li><p>
+          object queue = empty
+         </p></li><li><p>
+          renumber table: old object id/generation to new id/0 = empty
+         </p></li><li><p>
+          xref table: new id -&gt; offset = empty
+         </p></li></ul></div><p>
+      </p></li><li><p>
+       Create a QPDF object from a file.
+      </p></li><li><p>
+       Write header for new PDF file.
+      </p></li><li><p>
+       Request the trailer dictionary.
+      </p></li><li><p>
+       For each value that is an indirect object, grab the next object
+       number (via an operation that returns and increments the
+       number).  Map object to new number in renumber table.  Push
+       object onto queue.
+      </p></li><li><p>
+       While there are more objects on the queue:
+       </p><div class="itemizedlist"><ul type="circle"><li><p>
+          Pop queue.
+         </p></li><li><p>
+          Look up object's new number <span class="emphasis"><em>n</em></span> in the
+          renumbering table.
+         </p></li><li><p>
+          Store current offset into xref table.
+         </p></li><li><p>
+          Write <code class="literal"><em class="replaceable"><code>n</code></em> 0 obj</code>.
+         </p></li><li><p>
+          If object is null, whether direct or indirect, write out
+          null, thus eliminating unresolvable indirect object
+          references.
+         </p></li><li><p>
+          If the object is a stream stream, write stream contents,
+          piped through any filters as required, to a memory buffer.
+          Use this buffer to determine the stream length.
+         </p></li><li><p>
+          If object is not a stream, array, or dictionary, write out
+          its contents.
+         </p></li><li><p>
+          If object is an array or dictionary (including stream),
+          traverse its elements (for array) or values (for
+          dictionaries), handling recursive dictionaries and arrays,
+          looking for indirect objects.  When an indirect object is
+          found, if it is not resolvable, ignore.  (This case is
+          handled when writing it out.)  Otherwise, look it up in the
+          renumbering table.  If not found, grab the next available
+          object number, assign to the referenced object in the
+          renumbering table, and push the referenced object onto the
+          queue.  As a special case, when writing out a stream
+          dictionary, replace length, filters, and decode parameters
+          as required.
+         </p><p>
+          Write out dictionary or array, replacing any unresolvable
+          indirect object references with null (pdf spec says
+          reference to non-existent object is legal and resolves to
+          null) and any resolvable ones with references to the
+          renumbered objects.
+         </p></li><li><p>
+          If the object is a stream, write
+          <code class="literal">stream\n</code>, the stream contents (from the
+          memory buffer), and <code class="literal">\nendstream\n</code>.
+         </p></li><li><p>
+          When done, write <code class="literal">endobj</code>.
+         </p></li></ul></div><p>
+      </p></li></ul></div><p>
+   </p><p>
+    Once we have finished the queue, all referenced objects will have
+    been written out and all deleted objects or unreferenced objects
+    will have been skipped.  The new cross-reference table will
+    contain an offset for every new object number from 1 up to the
+    number of objects written.  This can be used to write out a new
+    xref table.  Finally we can write out the trailer dictionary with
+    appropriately computed /ID (see spec, 8.3, File Identifiers), the
+    cross reference table offset, and <code class="literal">%%EOF</code>.
+   </p></div><div class="sect1" lang="en" xml:lang="en"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a id="ref.filtered-streams"></a>6.5. Filtered Streams</h2></div></div></div><p>
+    Support for streams is implemented through the
+    <code class="classname">Pipeline</code> interface which was designed for
+    this package.
+   </p><p>
+    When reading streams, create a series of
+    <code class="classname">Pipeline</code> objects.  The
+    <code class="classname">Pipeline</code> abstract base requires
+    implementation <code class="function">write()</code> and
+    <code class="function">finish()</code> and provides an implementation of
+    <code class="function">getNext()</code>.  Each pipeline object, upon
+    receiving data, does whatever it is going to do and then writes
+    the data (possibly modified) to its successor.  Alternatively, a
+    pipeline may be an end-of-the-line pipeline that does something
+    like store its output to a file or a memory buffer ignoring a
+    successor.  For additional details, look at
+    <code class="filename">Pipeline.hh</code>.
+   </p><p>
+    <code class="classname">QPDF</code> can read raw or filtered streams.
+    When reading a filtered stream, the <code class="classname">QPDF</code>
+    class creates a <code class="classname">Pipeline</code> object for one of
+    each appropriate filter object and chains them together.  The last
+    filter should write to whatever type of output is required.  The
+    <code class="classname">QPDF</code> class has an interface to write raw or
+    filtered stream contents to a given pipeline.
+   </p></div><div class="footnotes"><br /><hr width="100" align="left" /><div class="footnote"><p><sup>[<a id="ftn.id2504010" href="#id2504010" class="para">1</a>] </sup>
+      As pointed out earlier, the intention is not for qpdf to be used
+      to bypass security on files. but as any open source PDF consumer
+      may be easily modified to bypass basic PDF document security,
+      and qpdf offers may transformations that can do this as well,
+      there seems to be little point in the added complexity of
+      conditionally enforcing document security.
+     </p></div></div></div><div class="chapter" lang="en" xml:lang="en"><div class="titlepage"><div><div><h2 class="title"><a id="ref.linearization"></a>Chapter 7. Linearization</h2></div></div></div><div class="toc"><p><b>Table of Contents</b></p><dl><dt><span class="sect1"><a href="#ref.linearization-strategy">7.1. Basic Strategy for Linearization</a></span></dt><dt><span class="sect1"><a href="#ref.linearized.preparation">7.2. Preparing For Linearization</a></span></dt><dt><span class="sect1"><a href="#ref.optimization">7.3. Optimization</a></span></dt><dt><span class="sect1"><a href="#ref.linearization.writing">7.4. Writing Linearized Files</a></span></dt><dt><span class="sect1"><a href="#ref.linearization-data">7.5. Calculating Linearization Data</a></span></dt><dt><span class="sect1"><a href="#ref.linearization-issues">7.6. Known Issues with Linearization</a></span></dt><dt><span class="sect1"><a href="#ref.linearization-debugging">7.7. Debugging Note</a></span></dt></dl></div><p>
+   This chapter describes how <code class="classname">QPDF</code> and
+   <code class="classname">QPDFWriter</code> implement creation and processing
+   of linearized PDFS.
+  </p><div class="sect1" lang="en" xml:lang="en"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a id="ref.linearization-strategy"></a>7.1. Basic Strategy for Linearization</h2></div></div></div><p>
+    To avoid the incestuous problem of having the qpdf library
+    validate its own linearized files, we have a special linearized
+    file checking mode which can be invoked via <span class="command"><strong>qpdf
+    --check-linearization</strong></span> (or <span class="command"><strong>qpdf
+    --check</strong></span>).  This mode reads the linearization parameter
+    dictionary and the hint streams and validates that object
+    ordering, parameters, and hint stream contents are correct.  The
+    validation code was first tested against linearized files created
+    by external tools (Acrobat and pdlin) and then used to validate
+    files created by <code class="classname">QPDFWriter</code> itself.
+   </p></div><div class="sect1" lang="en" xml:lang="en"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a id="ref.linearized.preparation"></a>7.2. Preparing For Linearization</h2></div></div></div><p>
+    Before creating a linearized PDF file from any other PDF file, the
+    PDF file must be altered such that all page attributes are
+    propagated down to the page level (and not inherited from parents
+    in the <code class="literal">/Pages</code> tree).  We also have to know
+    which objects refer to which other objects, being concerned with
+    page boundaries and a few other cases.  We refer to this part of
+    preparing the PDF file as <em class="firstterm">optimization</em>,
+    discussed in <a class="xref" href="#ref.optimization" title="7.3.&#xA0;Optimization">Section 7.3, “Optimization”</a>.  Note the, in
+    this context, the term <em class="firstterm">optimization</em> is a
+    qpdf term, and the term <em class="firstterm">linearization</em> is a
+    term from the PDF specification.  Do not be confused by the fact
+    that many applications refer to linearization as optimization or
+    web optimization.
+   </p><p>
+    When creating linearized PDF files from optimized PDF files, there
+    are really only a few issues that need to be dealt with:
+    </p><div class="itemizedlist"><ul type="disc"><li><p>
+       Creation of hints tables
+      </p></li><li><p>
+       Placing objects in the correct order
+      </p></li><li><p>
+       Filling in offsets and byte sizes
+      </p></li></ul></div><p>
+   </p></div><div class="sect1" lang="en" xml:lang="en"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a id="ref.optimization"></a>7.3. Optimization</h2></div></div></div><p>
+    In order to perform various operations such as linearization and
+    splitting files into pages, it is necessary to know which objects
+    are referenced by which pages, page thumbnails, and root and
+    trailer dictionary keys.  It is also necessary to ensure that all
+    page-level attributes appear directly at the page level and are
+    not inherited from parents in the pages tree.
+   </p><p>
+    We refer to the process of enforcing these constraints as
+    <em class="firstterm">optimization</em>.  As mentioned above, note
+    that some applications refer to linearization as optimization.
+    Although this optimization was initially motivated by the need to
+    create linearized files, we are using these terms separately.
+   </p><p>
+    PDF file optimization is implemented in the
+    <code class="filename">QPDF_optimization.cc</code> source file.  That file
+    is richly commented and serves as the primary reference for the
+    optimization process.
+   </p><p>
+    After optimization has been completed, the private member
+    variables <code class="varname">obj_user_to_objects</code> and
+    <code class="varname">object_to_obj_users</code> in
+    <code class="classname">QPDF</code> have been populated.  Any object that
+    has more than one value in the
+    <code class="varname">object_to_obj_users</code> table is shared.  Any
+    object that has exactly one value in the
+    <code class="varname">object_to_obj_users</code> table is private.  To find
+    all the private objects in a page or a trailer or root dictionary
+    key, one merely has make this determination for each element in
+    the <code class="varname">obj_user_to_objects</code> table for the given
+    page or key.
+   </p><p>
+    Note that pages and thumbnails have different object user types,
+    so the above test on a page will not include objects referenced by
+    the page's thumbnail dictionary and nothing else.
+   </p></div><div class="sect1" lang="en" xml:lang="en"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a id="ref.linearization.writing"></a>7.4. Writing Linearized Files</h2></div></div></div><p>
+    We will create files with only primary hint streams.  We will
+    never write overflow hint streams.  (As of PDF version 1.4,
+    Acrobat doesn't either, and they are never necessary.)  The hint
+    streams contain offset information to objects that point to where
+    they would be if the hint stream were not present.  This means
+    that we have to calculate all object positions before we can
+    generate and write the hint table.  This means that we have to
+    generate the file in two passes.  To make this reliable,
+    <code class="classname">QPDFWriter</code> in linearization mode invokes
+    exactly the same code twice to write the file to a pipeline.
+   </p><p>
+    In the first pass, the target pipeline is a count pipeline chained
+    to a discard pipeline.  The count pipeline simply passes its data
+    through to the next pipeline in the chain but can return the
+    number of bytes passed through it at any intermediate point.  The
+    discard pipeline is an end of line pipeline that just throws its
+    data away.  The hint stream is not written and dummy values with
+    adequate padding are stored in the first cross reference table,
+    linearization parameter dictionary, and /Prev key of the first
+    trailer dictionary.  All the offset, length, object renumbering
+    information, and anything else we need for the second pass is
+    stored.
+   </p><p>
+    At the end of the first pass, this information is passed to the
+    <code class="classname">QPDF</code> class which constructs a compressed
+    hint stream in a memory buffer and returns it.
+    <code class="classname">QPDFWriter</code> uses this information to write a
+    complete hint stream object into a memory buffer.  At this point,
+    the length of the hint stream is known.
+   </p><p>
+    In the second pass, the end of the pipeline chain is a regular
+    file instead of a discard pipeline, and we have known values for
+    all the offsets and lengths that we didn't have in the first pass.
+    We have to adjust offsets that appear after the start of the hint
+    stream by the length of the hint stream, which is known.  Anything
+    that is of variable length is padded, with the padding code
+    surrounding any writing code that differs in the two passes.  This
+    ensures that changes to the way things are represented never
+    results in offsets that were gathered during the first pass
+    becoming incorrect for the second pass.
+   </p><p>
+    Using this strategy, we can write linearized files to a
+    non-seekable output stream with only a single pass to disk or
+    wherever the output is going.
+   </p></div><div class="sect1" lang="en" xml:lang="en"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a id="ref.linearization-data"></a>7.5. Calculating Linearization Data</h2></div></div></div><p>
+    Once a file is optimized, we have information about which objects
+    access which other objects.  We can then process these tables to
+    decide which part (as described in “Linearized PDF Document
+    Structure” in the PDF specification) each object is
+    contained within.  This tells us the exact order in which objects
+    are written.  The <code class="classname">QPDFWriter</code> class asks for
+    this information and enqueues objects for writing in the proper
+    order.  It also turns on a check that causes an exception to be
+    thrown if an object is encountered that has not already been
+    queued.  (This could happen only if there were a bug in the
+    traversal code used to calculate the linearization data.)
+   </p></div><div class="sect1" lang="en" xml:lang="en"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a id="ref.linearization-issues"></a>7.6. Known Issues with Linearization</h2></div></div></div><p>
+    There are a handful of known issues with this linearization code.
+    These issues do not appear to impact the behavior of linearized
+    files which still work as intended: it is possible for a web
+    browser to begin to display them before they are fully
+    downloaded.  In fact, it seems that various other programs that
+    create linearized files have many of these same issues.  These
+    items make reference to terminology used in the linearization
+    appendix of the PDF specification.
+    </p><div class="itemizedlist"><ul type="disc"><li><p>
+       Thread Dictionary information keys appear in part 4 with the
+       rest of Threads instead of in part 9.  Objects in part 9 are
+       not grouped together functionally.
+      </p></li><li><p>
+       We are not calculating numerators for shared object positions
+       within content streams or interleaving them within content
+       streams.
+      </p></li><li><p>
+       We generate only page offset, shared object, and outline hint
+       tables.  It would be relatively easy to add some additional
+       tables.  We gather most of the information needed to create
+       thumbnail hint tables.  There are comments in the code about
+       this.
+      </p></li></ul></div><p>
+   </p></div><div class="sect1" lang="en" xml:lang="en"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a id="ref.linearization-debugging"></a>7.7. Debugging Note</h2></div></div></div><p>
+    The <span class="command"><strong>qpdf --show-linearization</strong></span> command can show
+    the complete contents of linearization hint streams.  To look at
+    the raw data, you can extract the filtered contents of the
+    linearization hint tables using <span class="command"><strong>qpdf --show-object=n
+    --filtered-stream-data</strong></span>.  Then, to convert this into a
+    bit stream (since linearization tables are bit streams written
+    without regard to byte boundaries), you can pipe the resulting
+    data through the following perl code:
+
+    </p><pre class="programlisting">use bytes;
+binmode STDIN;
+undef $/;
+my $a = &lt;STDIN&gt;;
+my @ch = split(//, $a);
+map { printf("%08b", ord($_)) } @ch;
+print "\n";
+</pre><p>
+   </p></div></div><div class="chapter" lang="en" xml:lang="en"><div class="titlepage"><div><div><h2 class="title"><a id="ref.object-and-xref-streams"></a>Chapter 8. Object and Cross-Reference Streams</h2></div></div></div><div class="toc"><p><b>Table of Contents</b></p><dl><dt><span class="sect1"><a href="#ref.object-streams">8.1. Object Streams</a></span></dt><dt><span class="sect1"><a href="#ref.xref-streams">8.2. Cross-Reference Streams</a></span></dt><dd><dl><dt><span class="sect2"><a href="#ref.xref-stream-data">8.2.1. Cross-Reference Stream Data</a></span></dt></dl></dd><dt><span class="sect1"><a href="#ref.object-streams-linearization">8.3. Implications for Linearized Files</a></span></dt><dt><span class="sect1"><a href="#ref.object-stream-implementation">8.4. Implementation Notes</a></span></dt></dl></div><p>
+   This chapter provides information about the implementation of
+   object stream and cross-reference stream support in qpdf.
+  </p><div class="sect1" lang="en" xml:lang="en"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a id="ref.object-streams"></a>8.1. Object Streams</h2></div></div></div><p>
+    Object streams can contain any regular object except the
+    following:
+    </p><div class="itemizedlist"><ul type="disc"><li><p>
+       stream objects
+      </p></li><li><p>
+       objects with generation &gt; 0
+      </p></li><li><p>
+       the encryption dictionary
+      </p></li><li><p>
+       objects containing the /Length of another stream
+      </p></li></ul></div><p>
+    In addition, Adobe reader (at least as of version 8.0.0) appears
+    to not be able to handle having the document catalog appear in an
+    object stream if the file is encrypted, though this is not
+    specifically disallowed by the specification.
+   </p><p>
+    There are additional restrictions for linearized files.  See <a class="xref" href="#ref.object-streams-linearization" title="8.3.&#xA0;Implications for Linearized Files">Section 8.3, “Implications for Linearized Files”</a>for details.
+   </p><p>
+    The PDF specification refers to objects in object streams as
+    “compressed objects” regardless of whether the object
+    stream is compressed.
+   </p><p>
+    The generation number of every object in an object stream must be
+    zero.  It is possible to delete and replace an object in an object
+    stream with a regular object.
+   </p><p>
+    The object stream dictionary has the following keys:
+    </p><div class="itemizedlist"><ul type="disc"><li><p>
+       <code class="literal">/N</code>: number of objects
+      </p></li><li><p>
+       <code class="literal">/First</code>: byte offset of first object
+      </p></li><li><p>
+       <code class="literal">/Extends</code>: indirect reference to stream that
+       this extends
+      </p></li></ul></div><p>
+   </p><p>
+    Stream collections are formed with <code class="literal">/Extends</code>.
+    They must form a directed acyclic graph.  These can be used for
+    semantic information and are not meaningful to the PDF document's
+    syntactic structure.  Although qpdf preserves stream collections,
+    it never generates them and doesn't make use of this information
+    in any way.
+   </p><p>
+    The specification recommends limiting the number of objects in
+    object stream for efficiency in reading and decoding.  Acrobat 6
+    uses no more than objects per object stream for linearized files
+    and no more 200 objects per stream for non-linearized files.
+    <code class="classname">QPDFWriter</code>, in object stream generation
+    mode, never puts more than 100 objects in an object stream.
+   </p><p>
+    Object stream contents consists of <span class="emphasis"><em>N</em></span> pairs of
+    integers, each of which is the object number and the byte offset
+    of the object relative to the first object in the stream, followed
+    by the objects themselves, concatenated.
+   </p></div><div class="sect1" lang="en" xml:lang="en"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a id="ref.xref-streams"></a>8.2. Cross-Reference Streams</h2></div></div></div><p>
+    For non-hybrid files, the value following
+    <code class="literal">startxref</code> is the byte offset to the xref stream
+    rather than the word <code class="literal">xref</code>.
+   </p><p>
+    For hybrid files (files containing both xref tables and
+    cross-reference streams), the xref table's trailer dictionary
+    contains the key <code class="literal">/XRefStm</code> whose value is the
+    byte offset to a cross-reference stream that supplements the xref
+    table.  A PDF 1.5-compliant application should read the xref table
+    first.  Then it should replace any object that it has already seen
+    with any defined in the xref stream.  Then it should follow any
+    <code class="literal">/Prev</code> pointer in the original xref table's
+    trailer dictionary.  The specification is not clear about what
+    should be done, if anything, with a <code class="literal">/Prev</code>
+    pointer in the xref stream referenced by an xref table.  The
+    <code class="classname">QPDF</code> class ignores it, which is probably
+    reasonable since, if this case were to appear for any sensible PDF
+    file, the previous xref table would probably have a corresponding
+    <code class="literal">/XRefStm</code> pointer of its own.  For example, if a
+    hybrid file were appended, the appended section would have its own
+    xref table and <code class="literal">/XRefStm</code>.  The appended xref
+    table would point to the previous xref table which would point the
+    <code class="literal">/XRefStm</code>, meaning that the new
+    <code class="literal">/XRefStm</code> doesn't have to point to it.
+   </p><p>
+    Since xref streams must be read very early, they may not be
+    encrypted, and the may not contain indirect objects for keys
+    required to read them, which are these:
+    </p><div class="itemizedlist"><ul type="disc"><li><p>
+       <code class="literal">/Type</code>: value <code class="literal">/XRef</code>
+      </p></li><li><p>
+       <code class="literal">/Size</code>: value <span class="emphasis"><em>n+1</em></span>: where
+       <span class="emphasis"><em>n</em></span> is highest object number (same as
+       <code class="literal">/Size</code> in the trailer dictionary)
+      </p></li><li><p>
+       <code class="literal">/Index</code> (optional): value
+       <code class="literal">[<em class="replaceable"><code>n count</code></em> ...]</code>
+       used to determine which objects' information is stored in this
+       stream.  The default is <code class="literal">[0 /Size]</code>.
+      </p></li><li><p>
+       <code class="literal">/Prev</code>: value
+       <em class="replaceable"><code>offset</code></em>: byte offset of previous xref
+       stream (same as <code class="literal">/Prev</code> in the trailer
+       dictionary)
+      </p></li><li><p>
+       <code class="literal">/W [...]</code>: sizes of each field in the xref
+       table
+      </p></li></ul></div><p>
+   </p><p>
+    The other fields in the xref stream, which may be indirect if
+    desired, are the union of those from the xref table's trailer
+    dictionary.
+   </p><div class="sect2" lang="en" xml:lang="en"><div class="titlepage"><div><div><h3 class="title"><a id="ref.xref-stream-data"></a>8.2.1. Cross-Reference Stream Data</h3></div></div></div><p>
+     The stream data is binary and encoded in big-endian byte order.
+     Entries are concatenated, and each entry has a length equal to
+     the total of the entries in <code class="literal">/W</code> above.  Each
+     entry consists of one or more fields, the first of which is the
+     type of the field.  The number of bytes for each field is given
+     by <code class="literal">/W</code> above.  A 0 in <code class="literal">/W</code>
+     indicates that the field is omitted and has the default value.
+     The default value for the field type is
+     “<code class="literal">1</code>”.  All other default values are
+     “<code class="literal">0</code>”.
+    </p><p>
+     PDF 1.5 has three field types:
+     </p><div class="itemizedlist"><ul type="disc"><li><p>
+        0: for free objects.  Format: <code class="literal">0 obj
+        next-generation</code>, same as the free table in a
+        traditional cross-reference table
+      </p></li><li><p>
+       1: regular non-compressed object.  Format: <code class="literal">1 offset
+       generation</code>
+      </p></li><li><p>
+       2: for objects in object streams.  Format: <code class="literal">2
+       object-stream-number index</code>, the number of object
+       stream containing the object and the index within the object
+       stream of the object.
+      </p></li></ul></div><p>
+    </p><p>
+     It seems standard to have the first entry in the table be
+     <code class="literal">0 0 0</code> instead of <code class="literal">0 0 ffff</code>
+     if there are no deleted objects.
+    </p></div></div><div class="sect1" lang="en" xml:lang="en"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a id="ref.object-streams-linearization"></a>8.3. Implications for Linearized Files</h2></div></div></div><p>
+    For linearized files, the linearization dictionary, document
+    catalog, and page objects may not be contained in object streams.
+   </p><p>
+    Objects stored within object streams are given the highest range
+    of object numbers within the main and first-page cross-reference
+    sections.
+   </p><p>
+    It is okay to use cross-reference streams in place of regular xref
+    tables.  There are on special considerations.
+   </p><p>
+    Hint data refers to object streams themselves, not the objects in
+    the streams.  Shared object references should also be made to the
+    object streams.  There are no reference in any hint tables to the
+    object numbers of compressed objects (objects within object
+    streams).
+   </p><p>
+    When numbering objects, all shared objects within both the first
+    and second halves of the linearized files must be numbered
+    consecutively after all normal uncompressed objects in that half.
+   </p></div><div class="sect1" lang="en" xml:lang="en"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a id="ref.object-stream-implementation"></a>8.4. Implementation Notes</h2></div></div></div><p>
+    There are three modes for writing object streams:
+    <code class="option">disable</code>, <code class="option">preserve</code>, and
+    <code class="option">generate</code>.  In disable mode, we do not generate
+    any object streams, and we also generate an xref table rather than
+    xref streams.  This can be used to generate PDF files that are
+    viewable with older readers.  In preserve mode, we write object
+    streams such that written object streams contain the same objects
+    and <code class="literal">/Extends</code> relationships as in the original
+    file.  This is equal to disable if the file has no object streams.
+    In generate, we create object streams ourselves by grouping
+    objects that are allowed in object streams together in sets of no
+    more than 100 objects.  We also ensure that the PDF version is at
+    least 1.5 in generate mode, but we preserve the version header in
+    the other modes.  The default is <code class="option">preserve</code>.
+   </p><p>
+    We do not support creation of hybrid files.  When we write files,
+    even in preserve mode, we will lose any xref tables and merge any
+    appended sections.
+   </p></div></div></div></body></html>
