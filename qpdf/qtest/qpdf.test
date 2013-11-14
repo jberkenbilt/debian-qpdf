@@ -16,11 +16,12 @@ cleanup();
 my $td = new TestDriver('qpdf');
 
 my $compare_images = 1;
-if ((exists $ENV{'SKIP_TEST_COMPARE_IMAGES'}) &&
-    ($ENV{'SKIP_TEST_COMPARE_IMAGES'} eq '1'))
+if ((exists $ENV{'QPDF_SKIP_TEST_COMPARE_IMAGES'}) &&
+    ($ENV{'QPDF_SKIP_TEST_COMPARE_IMAGES'} eq '1'))
 {
     $compare_images = 0;
 }
+my $large_file_test_path = $ENV{'QPDF_LARGE_FILE_TEST_PATH'} || undef;
 
 my $have_acroread = 0;
 
@@ -110,8 +111,45 @@ $td->runtest("new stream",
 
 show_ntests();
 # ----------
+$td->notify("--- Page API Tests ---");
+$n_tests += 9;
+
+$td->runtest("basic page API",
+	     {$td->COMMAND => "test_driver 15 page_api_1.pdf"},
+	     {$td->STRING => "test 15 done\n", $td->EXIT_STATUS => 0},
+	     $td->NORMALIZE_NEWLINES);
+$td->runtest("check output",
+	     {$td->FILE => "a.pdf"},
+	     {$td->FILE => "page_api_1-out.pdf"});
+$td->runtest("manual page manipulation",
+	     {$td->COMMAND => "test_driver 16 page_api_1.pdf"},
+	     {$td->STRING => "test 16 done\n", $td->EXIT_STATUS => 0},
+	     $td->NORMALIZE_NEWLINES);
+$td->runtest("check output",
+	     {$td->FILE => "a.pdf"},
+	     {$td->FILE => "page_api_1-out2.pdf"});
+$td->runtest("duplicate page",
+	     {$td->COMMAND => "test_driver 17 page_api_2.pdf"},
+	     {$td->FILE => "page_api_2.out", $td->EXIT_STATUS => 2},
+	     $td->NORMALIZE_NEWLINES);
+$td->runtest("delete and re-add a page",
+	     {$td->COMMAND => "test_driver 18 page_api_1.pdf"},
+	     {$td->STRING => "test 18 done\n", $td->EXIT_STATUS => 0},
+	     $td->NORMALIZE_NEWLINES);
+$td->runtest("check output",
+	     {$td->FILE => "a.pdf"},
+	     {$td->FILE => "page_api_1-out3.pdf"});
+$td->runtest("duplicate page",
+	     {$td->COMMAND => "test_driver 19 page_api_1.pdf"},
+	     {$td->FILE => "page_api_1.out", $td->EXIT_STATUS => 2},
+	     $td->NORMALIZE_NEWLINES);
+$td->runtest("remove page we don't have",
+	     {$td->COMMAND => "test_driver 22 page_api_1.pdf"},
+	     {$td->FILE => "page_api_1.out2", $td->EXIT_STATUS => 2},
+	     $td->NORMALIZE_NEWLINES);
+# ----------
 $td->notify("--- Miscellaneous Tests ---");
-$n_tests += 37;
+$n_tests += 45;
 
 $td->runtest("qpdf version",
 	     {$td->COMMAND => "qpdf --version"},
@@ -305,7 +343,165 @@ $td->runtest("check output",
 	     {$td->FILE => "c-info-out.pdf"});
 unlink "a.pdf" or die;
 
+$td->runtest("shallow copy an array",
+	     {$td->COMMAND => "test_driver 20 shallow_array.pdf"},
+	     {$td->STRING => "test 20 done\n", $td->EXIT_STATUS => 0},
+	     $td->NORMALIZE_NEWLINES);
+$td->runtest("check output",
+	     {$td->FILE => "a.pdf"},
+	     {$td->FILE => "shallow_array-out.pdf"});
+$td->runtest("shallow copy a stream",
+	     {$td->COMMAND => "test_driver 21 shallow_array.pdf"},
+	     {$td->FILE => "shallow_stream.out", $td->EXIT_STATUS => 2},
+	     $td->NORMALIZE_NEWLINES);
+$td->runtest("warn for unknown key in Pages",
+             {$td->COMMAND => "test_driver 23 lin-special.pdf"},
+             {$td->FILE => "pages-warning.out", $td->EXIT_STATUS => 0},
+             $td->NORMALIZE_NEWLINES);
+$td->runtest("reserved objects",
+             {$td->COMMAND => "test_driver 24 minimal.pdf"},
+             {$td->FILE => "reserved-objects.out", $td->EXIT_STATUS => 0},
+             $td->NORMALIZE_NEWLINES);
+$td->runtest("check output",
+             {$td->FILE => "a.pdf"},
+             {$td->FILE => "reserved-objects.pdf"});
+$td->runtest("detect foreign object in write",
+             {$td->COMMAND => "test_driver 29" .
+                  " copy-foreign-objects-in.pdf minimal.pdf"},
+             {$td->FILE => "foreign-in-write.out", $td->EXIT_STATUS => 0},
+             $td->NORMALIZE_NEWLINES);
+$td->runtest("parse objects from string",
+             {$td->COMMAND => "test_driver 31 minimal.pdf"}, # file not used
+             {$td->FILE => "parse-object.out", $td->EXIT_STATUS => 0},
+             $td->NORMALIZE_NEWLINES);
+
 show_ntests();
+# ----------
+$td->notify("--- Numeric range parsing tests ---");
+my @nrange_tests = (
+    [",5",
+     "qpdf: error at * in numeric range *,5: unexpected separator",
+     2],
+    ["4,,5",
+     "qpdf: error at * in numeric range 4,*,5: unexpected separator",
+     2],
+    ["4,5,",
+     "qpdf: error at * in numeric range 4,5,*: number expected",
+     2],
+    ["z1,",
+     "qpdf: error at * in numeric range z*1,: digit not expected",
+     2],
+    ["1z,",
+     "qpdf: error at * in numeric range 1*z,: z not expected",
+     2],
+    ["1-5?",
+     "qpdf: error at * in numeric range 1-5*?: unexpected character",
+     2],
+    ["1-30",
+     "qpdf: error in numeric range 1-30: number 30 out of range",
+     2],
+    ["1-10,0,5",
+     "qpdf: error in numeric range 1-10,0,5: number 0 out of range",
+     2],
+    ["1-10,1234,5",
+     "qpdf: error in numeric range 1-10,1234,5: number 1234 out of range",
+     2],
+    ["1,3,5-10,z-13,13,9,z,2",
+     "numeric range 1,3,5-10,z-13,13,9,z,2" .
+     " -> 1 3 5 6 7 8 9 10 15 14 13 13 9 15 2",
+     0],
+    );
+$n_tests += scalar(@nrange_tests);
+foreach my $d (@nrange_tests)
+{
+    my ($range, $output, $status) = @$d;
+    $td->runtest("numeric range $range",
+                 {$td->COMMAND => ['qpdf', '-- test-numrange=' . $range],
+                  $td->FILTER => "grep 'numeric range'"},
+                 {$td->STRING => $output . "\n", $td->EXIT_STATUS => $status},
+                 $td->NORMALIZE_NEWLINES);
+}
+
+# ----------
+$td->notify("--- Merging and Splitting ---");
+$n_tests += 6;
+
+# Select pages from the same file multiple times including selecting
+# twice from an encrypted file and specifying the password only the
+# first time.  The file 20-pages.pdf is specified with two different
+# paths to duplicate a page.
+my $pages_options = "--pages page-labels-and-outlines.pdf 1,3,5-7,z" .
+    " 20-pages.pdf --password=user z-15" .
+    " page-labels-and-outlines.pdf 12" .
+    " 20-pages.pdf 10" .
+    " ./20-pages.pdf --password=owner 10" .
+    " minimal.pdf 1 --";
+
+$td->runtest("merge three files",
+             {$td->COMMAND => "qpdf page-labels-and-outlines.pdf a.pdf" .
+                  " $pages_options --static-id"},
+             {$td->STRING => "", $td->EXIT_STATUS => 0});
+# Manually verified about this file: make sure that outline entries
+# that pointed to pages that were preserved still work in the copy,
+# and verify that all pages are as expected.  page-labels-and-outlines
+# as well as 20-pages have text on page n (from 1) that shows its page
+# position from 0, so page 1 says it's page 0.
+$td->runtest("check output",
+             {$td->FILE => "a.pdf"},
+             {$td->FILE => "merge-three-files-1.pdf"});
+# Select the same pages but add them to an empty file
+$td->runtest("merge three files",
+             {$td->COMMAND => "qpdf --empty a.pdf" .
+                  " $pages_options --static-id"},
+             {$td->STRING => "", $td->EXIT_STATUS => 0});
+# Manually verified about this file: it has the same pages but does
+# not contain outlines, page labels, or other things from the original
+# file.
+$td->runtest("check output",
+             {$td->FILE => "a.pdf"},
+             {$td->FILE => "merge-three-files-2.pdf"});
+$td->runtest("avoid respecification of password",
+             {$td->COMMAND =>
+                  "qpdf --empty a.pdf --copy-encryption=20-pages.pdf" .
+                  " --encryption-file-password=user" .
+                  " --pages 20-pages.pdf 1,z -- --static-id"},
+             {$td->STRING => "", $td->EXIT_STATUS => 0});
+$td->runtest("check output",
+             {$td->FILE => "a.pdf"},
+             {$td->FILE => "pages-copy-encryption.pdf"});
+# ----------
+$td->notify("--- PDF From Scratch ---");
+$n_tests += 2;
+
+$td->runtest("basic qpdf from scratch",
+	     {$td->COMMAND => "pdf_from_scratch 0"},
+	     {$td->STRING => "test 0 done\n", $td->EXIT_STATUS => 0},
+	     $td->NORMALIZE_NEWLINES);
+$td->runtest("check output",
+	     {$td->FILE => "a.pdf"},
+	     {$td->FILE => "from-scratch-0.pdf"});
+# ----------
+$td->notify("--- Copy Foreign Objects ---");
+$n_tests += 7;
+
+foreach my $d ([25, 1], [26, 2], [27, 3])
+{
+    my ($testn, $outn) = @$d;
+    $td->runtest("copy objects $outn",
+                 {$td->COMMAND => "test_driver $testn" .
+                      " copy-foreign-objects-in.pdf minimal.pdf"},
+                 {$td->STRING => "test $testn done\n", $td->EXIT_STATUS => 0},
+                 $td->NORMALIZE_NEWLINES);
+    $td->runtest("check output",
+                 {$td->FILE => "a.pdf"},
+                 {$td->FILE => "copy-foreign-objects-out$outn.pdf"});
+}
+$td->runtest("copy objects error",
+             {$td->COMMAND => "test_driver 28" .
+                  " copy-foreign-objects-in.pdf minimal.pdf"},
+             {$td->FILE => "copy-foreign-objects-errors.out",
+              $td->EXIT_STATUS => 0},
+             $td->NORMALIZE_NEWLINES);
 # ----------
 $td->notify("--- Error Condition Tests ---");
 # $n_tests incremented after initialization of badfiles below.
@@ -1172,7 +1368,7 @@ $td->runtest("linearize and encrypt file",
 	      $td->EXIT_STATUS => 0});
 $td->runtest("check encryption",
 	     {$td->COMMAND => "qpdf --show-encryption --password=owner a.pdf",
-	      $td->FILTER => "grep -v allowed"},
+	      $td->FILTER => "grep -v allowed | grep -v method"},
 	     {$td->STRING => "R = 4\nP = -4\nUser password = user\n",
 	      $td->EXIT_STATUS => 0},
 	     $td->NORMALIZE_NEWLINES);
@@ -1191,7 +1387,7 @@ $td->runtest("encrypt with AES",
 	     {$td->STRING => "", $td->EXIT_STATUS => 0});
 $td->runtest("check encryption",
 	     {$td->COMMAND => "qpdf --show-encryption a.pdf",
-	      $td->FILTER => "grep -v allowed"},
+	      $td->FILTER => "grep -v allowed | grep -v method"},
 	     {$td->STRING => "R = 4\nP = -4\nUser password = \n",
 	      $td->EXIT_STATUS => 0},
 	     $td->NORMALIZE_NEWLINES);
@@ -1212,7 +1408,7 @@ $td->runtest("linearize with AES and object streams",
 	     {$td->STRING => "", $td->EXIT_STATUS => 0});
 $td->runtest("check encryption",
 	     {$td->COMMAND => "qpdf --show-encryption a.pdf",
-	      $td->FILTER => "grep -v allowed"},
+	      $td->FILTER => "grep -v allowed | grep -v method"},
 	     {$td->STRING => "R = 4\nP = -4\nUser password = \n",
 	      $td->EXIT_STATUS => 0},
 	     $td->NORMALIZE_NEWLINES);
@@ -1246,7 +1442,7 @@ $td->runtest("make sure there is no xref stream",
 	     $td->NORMALIZE_NEWLINES);
 
 # Look at some actual V4 files
-$n_tests += 10;
+$n_tests += 14;
 foreach my $d (['--force-V4', 'V4'],
 	       ['--cleartext-metadata', 'V4-clearmeta'],
 	       ['--use-aes=y', 'V4-aes'],
@@ -1260,6 +1456,10 @@ foreach my $d (['--force-V4', 'V4'],
     $td->runtest("check output",
 		 {$td->FILE => "a.pdf"},
 		 {$td->FILE => "$out.pdf"});
+    $td->runtest("show encryption",
+		 {$td->COMMAND => "qpdf --show-encryption a.pdf"},
+		 {$td->FILE => "$out-encryption.out", $td->EXIT_STATUS => 0},
+                 $td->NORMALIZE_NEWLINES);
 }
 # Crypt Filter
 $td->runtest("decrypt with crypt filter",
@@ -1269,6 +1469,58 @@ $td->runtest("decrypt with crypt filter",
 $td->runtest("check output",
 	     {$td->FILE => 'a.pdf'},
 	     {$td->FILE => 'decrypted-crypt-filter.pdf'});
+
+# Copy encryption parameters
+$n_tests += 10;
+$td->runtest("create reference qdf",
+             {$td->COMMAND =>
+                  "qpdf --qdf --no-original-object-ids minimal.pdf a.qdf"},
+             {$td->STRING => "", $td->EXIT_STATUS => 0});
+$td->runtest("create encrypted file",
+	     {$td->COMMAND =>
+		  "qpdf --encrypt user owner 128 --use-aes=y --extract=n --" .
+                  " minimal.pdf a.pdf"},
+             {$td->STRING => "", $td->EXIT_STATUS => 0});
+$td->runtest("copy encryption parameters",
+             {$td->COMMAND => "test_driver 30 minimal.pdf a.pdf"},
+             {$td->STRING => "test 30 done\n", $td->EXIT_STATUS => 0},
+             $td->NORMALIZE_NEWLINES);
+$td->runtest("check output encryption",
+	     {$td->COMMAND => "qpdf --show-encryption b.pdf --password=owner"},
+	     {$td->FILE => "copied-encryption.out",
+	      $td->EXIT_STATUS => 0},
+             $td->NORMALIZE_NEWLINES);
+$td->runtest("convert to qdf",
+             {$td->COMMAND =>
+                  "qpdf --qdf b.pdf b.qdf" .
+                  " --password=owner --no-original-object-ids"},
+             {$td->STRING => "", $td->EXIT_STATUS => 0});
+$td->runtest("compare qdf",
+             {$td->COMMAND => "./diff-ignore-ID-version a.qdf b.qdf"},
+             {$td->STRING => "okay\n", $td->EXIT_STATUS => 0},
+             $td->NORMALIZE_NEWLINES);
+$td->runtest("copy encryption with qpdf",
+             {$td->COMMAND =>
+                  "qpdf --copy-encryption=a.pdf".
+                  " --encryption-file-password=user" .
+                  " minimal.pdf c.pdf"},
+             {$td->STRING => "", $td->EXIT_STATUS => 0},
+             $td->NORMALIZE_NEWLINES);
+$td->runtest("check output encryption",
+	     {$td->COMMAND => "qpdf --show-encryption c.pdf --password=owner"},
+	     {$td->FILE => "copied-encryption.out",
+	      $td->EXIT_STATUS => 0},
+             $td->NORMALIZE_NEWLINES);
+$td->runtest("convert to qdf",
+             {$td->COMMAND =>
+                  "qpdf --qdf c.pdf c.qdf" .
+                  " --password=owner --no-original-object-ids"},
+             {$td->STRING => "", $td->EXIT_STATUS => 0});
+$td->runtest("compare qdf",
+             {$td->COMMAND => "./diff-ignore-ID-version a.qdf c.qdf"},
+             {$td->STRING => "okay\n", $td->EXIT_STATUS => 0},
+             $td->NORMALIZE_NEWLINES);
+
 
 show_ntests();
 # ----------
@@ -1387,8 +1639,114 @@ for (my $n = 1; $n <= 2; ++$n)
 }
 
 show_ntests();
-
 # ----------
+$td->notify("--- Large File Tests ---");
+my $nlarge = 1;
+if (defined $large_file_test_path)
+{
+    $nlarge = 2;
+}
+else
+{
+    $td->notify("--- Skipping tests on actual large files ---");
+}
+$n_tests += $nlarge * 13;
+for (my $large = 0; $large < $nlarge; ++$large)
+{
+    if ($large)
+    {
+        $td->notify("--- Running tests on actual large files ---");
+    }
+    else
+    {
+        $td->notify("--- Running large file tests on small files ---");
+    }
+    my $size = ($large ? "large" : "small");
+    my $file = $large ? "$large_file_test_path/a.pdf" : "a.pdf";
+    $td->runtest("write test file",
+                 {$td->COMMAND => "test_large_file write $size $file"},
+                 {$td->FILE => "large_file.out", $td->EXIT_STATUS => 0},
+                 $td->NORMALIZE_NEWLINES);
+    $td->runtest("read test file",
+                 {$td->COMMAND => "test_large_file read $size $file"},
+                 {$td->FILE => "large_file.out", $td->EXIT_STATUS => 0},
+                 $td->NORMALIZE_NEWLINES);
+    $td->runtest("check",
+                 {$td->COMMAND => "qpdf --suppress-recovery --check $file",
+                  $td->FILTER => "grep -v checking"},
+                 {$td->FILE => "large_file-check-normal.out",
+                  $td->EXIT_STATUS => 0},
+                 $td->NORMALIZE_NEWLINES);
+
+    for my $ostream (0, 1)
+    {
+        for my $linearize (0, 1)
+        {
+            if (($ostream == 0) && ($linearize == 0))
+            {
+                # Original file has no object streams and is not linearized.
+                next;
+            }
+            my $args = "";
+            my $omode = $ostream ? "generate" : "disable";
+            my $lin = $linearize ? "--linearize" : "";
+            my $newfile = "$file-new";
+
+            $td->runtest("transform: ostream=$ostream, linearize=$linearize",
+                         {$td->COMMAND =>
+                              "qpdf --stream-data=preserve" .
+                              " --object-streams=$omode" .
+                              " $lin $file $newfile"},
+                         {$td->STRING => "", $td->EXIT_STATUS => 0});
+            $td->runtest("read test file",
+                         {$td->COMMAND =>
+                              "test_large_file read $size $newfile"},
+                         {$td->FILE => "large_file.out", $td->EXIT_STATUS => 0},
+                         $td->NORMALIZE_NEWLINES);
+            my $check_out =
+                ($linearize
+                 ? ($ostream
+                    ? "large_file-check-ostream-linearized.out"
+                    : "large_file-check-linearized.out")
+                 : ($ostream
+                    ? "large_file-check-ostream.out"
+                    : "large_file-check-normal.out"));
+            $td->runtest("check: ostream=$ostream, linearize=$linearize",
+                         {$td->COMMAND =>
+                              "qpdf --suppress-recovery --check $newfile",
+                          $td->FILTER => "grep -v checking"},
+                         {$td->FILE => $check_out, $td->EXIT_STATUS => 0},
+                         $td->NORMALIZE_NEWLINES);
+            unlink $newfile;
+        }
+    }
+
+    # Clobber xref
+    open(F, "+<$file") or die;
+    seek(F, -50, 2);
+    my $pos = tell F;
+    my $buf;
+    read(F, $buf, 50);
+    die unless $buf =~ m/^(.*startxref\n)\d+/s;
+    $pos += length($1);
+    seek(F, $pos, 0) or die;
+    print F "oops" or die;
+    close(F);
+
+    my $cmd = +{$td->COMMAND => "test_large_file read $size $file"};
+    if ($large)
+    {
+        $cmd->{$td->FILTER} = "sed -e s,$large_file_test_path/,,";
+    }
+    $td->runtest("reconstruct xref table",
+                 $cmd,
+                 {$td->FILE => "large_file_xref_reconstruct.out",
+                  $td->EXIT_STATUS => 0},
+                 $td->NORMALIZE_NEWLINES);
+    unlink $file;
+}
+# ----------
+
 cleanup();
 
 # See comments at beginning about calculation of number of tests.  We
@@ -1531,6 +1889,5 @@ sub get_md5_checksum
 
 sub cleanup
 {
-    system("rm -rf *.ps *.pnm a.pdf a.qdf b.pdf b.qdf c.pdf" .
-	   " *.enc* tif1 tif2 tiff-cache");
+    system("rm -rf *.ps *.pnm ?.pdf ?.qdf *.enc* tif1 tif2 tiff-cache");
 }

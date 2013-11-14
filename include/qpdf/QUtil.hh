@@ -1,4 +1,4 @@
-// Copyright (c) 2005-2011 Jay Berkenbilt
+// Copyright (c) 2005-2012 Jay Berkenbilt
 //
 // This file is part of qpdf.  This software may be distributed under
 // the terms of version 2 of the Artistic License which may be found
@@ -9,20 +9,23 @@
 #define __QUTIL_HH__
 
 #include <qpdf/DLL.h>
+#include <qpdf/Types.h>
 #include <string>
 #include <list>
 #include <stdexcept>
 #include <stdio.h>
-#include <sys/stat.h>
 
 namespace QUtil
 {
     // This is a collection of useful utility functions that don't
     // really go anywhere else.
     QPDF_DLL
-    std::string int_to_string(int, int length = 0);
+    std::string int_to_string(long long, int length = 0);
     QPDF_DLL
     std::string double_to_string(double, int decimal_places = 0);
+
+    QPDF_DLL
+    long long string_to_ll(char const* str);
 
     // Throw std::runtime_error with a string formed by appending to
     // "description: " the standard string corresponding to the
@@ -43,6 +46,12 @@ namespace QUtil
     // argument.
     QPDF_DLL
     FILE* fopen_wrapper(std::string const&, FILE*);
+
+    // Wrap around off_t versions of fseek and ftell if available
+    QPDF_DLL
+    int seek(FILE* stream, qpdf_offset_t offset, int whence);
+    QPDF_DLL
+    qpdf_offset_t tell(FILE* stream);
 
     QPDF_DLL
     char* copy_string(std::string const&);

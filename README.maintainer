@@ -1,6 +1,12 @@
 Release Reminders
 =================
 
+ * When making a release, always remember to run large file tests and
+   image comparison tests (--enable-test-compare-images
+   --with-large-file-test-path=/path).  For a major release, consider
+   running a spelling checker over the source code to catch errors in
+   variable names, strings, and comments.  Use ispell -p ispell-words.
+
  * Consider running tests with latest gcc and/or valgrind.  To do
    this, replace, build with debugging and without shared libraries.
    In build, create z and move each executable into z.  Then create a
@@ -10,7 +16,7 @@ Release Reminders
    exec valgrind --suppressions=/tmp/a.supp -q \
       `dirname $0`/z/`basename $0` ${1+"$@"}
 
-   Symlink exec-v to each executable.  /tmp/a.supp can be populated
+   Symlink exec-z to each executable.  /tmp/a.supp can be populated
    with suppressions for libraries, for example:
 
    {
@@ -50,7 +56,7 @@ Release Reminders
    done or retargeted.
 
  * Each year, update copyright notices.  Just search for Copyright.
-   Last updated: 2011.
+   Last updated: 2012.
 
  * To construct a source distribution from a pristine checkout,
    make_dist does the following:
@@ -88,11 +94,14 @@ Release Reminders
 
  * Remember to update the web page including putting new documentation
    in the "files" subdirectory of the website on sourceforge.net.
+   Linearize the PDF version of the manual when copying it there.
 
  * Create a tag in the version control system, and make backups of the
-   actual releases.
+   actual releases.  With git, use git tag -s to create a signed tag:
 
- * When releasing on source forge, external-libs distributions go in
+   git tag -s release-qpdf-$version HEAD -m'qpdf $version'
+
+ * When releasing on sourceforge, external-libs distributions go in
    external-libs/yyyymmdd, and qpdf distributions go in qpdf/vvv
 
 

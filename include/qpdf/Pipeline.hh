@@ -1,4 +1,4 @@
-// Copyright (c) 2005-2011 Jay Berkenbilt
+// Copyright (c) 2005-2012 Jay Berkenbilt
 //
 // This file is part of qpdf.  This software may be distributed under
 // the terms of version 2 of the Artistic License which may be found
@@ -46,7 +46,7 @@ class Pipeline
     // and then, if they are not end-of-line pipelines, call
     // getNext()->write or getNext()->finish.
     QPDF_DLL
-    virtual void write(unsigned char* data, int len) = 0;
+    virtual void write(unsigned char* data, size_t len) = 0;
     QPDF_DLL
     virtual void finish() = 0;
 

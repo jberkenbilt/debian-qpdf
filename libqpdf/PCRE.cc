@@ -144,7 +144,7 @@ PCRE::PCRE(char const* pattern, int options)
     this->code = pcre_compile(pattern, options, &errptr, &erroffset, 0);
     if (this->code)
     {
-	this->nbackrefs = pcre_info(this->code, 0, 0);
+	pcre_fullinfo(this->code, 0, PCRE_INFO_CAPTURECOUNT, &(this->nbackrefs));
     }
     else
     {
@@ -166,7 +166,7 @@ PCRE::match(char const* subject, int options, int startoffset, int size)
 {
     if (size == -1)
     {
-	size = strlen(subject);
+	size = (int) strlen(subject);
     }
 
     Match result(this->nbackrefs, subject);

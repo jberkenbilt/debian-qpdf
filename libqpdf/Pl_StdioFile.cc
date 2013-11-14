@@ -1,3 +1,4 @@
+#include <qpdf/qpdf-config.h>  // include first for large file support
 #include <qpdf/Pl_StdioFile.hh>
 #include <qpdf/QUtil.hh>
 #include <stdexcept>
@@ -14,7 +15,7 @@ Pl_StdioFile::~Pl_StdioFile()
 }
 
 void
-Pl_StdioFile::write(unsigned char* buf, int len)
+Pl_StdioFile::write(unsigned char* buf, size_t len)
 {
     size_t so_far = 0;
     while (len > 0)

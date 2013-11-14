@@ -81,7 +81,8 @@ CLEAN_TARGETS = $(foreach B,$(BUILD_ITEMS),clean_$(B))
 
 # For test suitse
 export QPDF_BIN = $(abspath qpdf/$(OUTPUT_DIR)/qpdf)
-export SKIP_TEST_COMPARE_IMAGES
+export QPDF_SKIP_TEST_COMPARE_IMAGES
+export QPDF_LARGE_FILE_TEST_PATH
 
 clean:: $(CLEAN_TARGETS)
 
@@ -96,6 +97,7 @@ distclean: clean
 	$(RM) manual/html.xsl
 	$(RM) manual/print.xsl
 	$(RM) doc/*.1
+	$(RM) libqpdf.pc
 
 maintainer-clean: distclean
 	$(RM) configure doc/qpdf-manual.* libqpdf/qpdf/qpdf-config.h.in
@@ -126,6 +128,8 @@ $(TEST_TARGETS):
 	 $(QTEST) -bindirs .:.. -datadir ../qtest -covdir ..; then \
 	    true; \
 	 else \
-	    cat -v qtest.log; \
+	    if test "$(SHOW_FAILED_TEST_OUTPUT)" = "1"; then \
+	       cat -v qtest.log; \
+	    fi; \
 	    false; \
 	 fi)

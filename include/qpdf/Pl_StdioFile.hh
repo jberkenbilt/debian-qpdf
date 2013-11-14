@@ -1,4 +1,4 @@
-// Copyright (c) 2005-2011 Jay Berkenbilt
+// Copyright (c) 2005-2012 Jay Berkenbilt
 //
 // This file is part of qpdf.  This software may be distributed under
 // the terms of version 2 of the Artistic License which may be found
@@ -29,7 +29,7 @@ class Pl_StdioFile: public Pipeline
     virtual ~Pl_StdioFile();
 
     QPDF_DLL
-    virtual void write(unsigned char* buf, int len);
+    virtual void write(unsigned char* buf, size_t len);
     QPDF_DLL
     virtual void finish();
 

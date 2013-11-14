@@ -1,4 +1,4 @@
-// Copyright (c) 2005-2011 Jay Berkenbilt
+// Copyright (c) 2005-2012 Jay Berkenbilt
 //
 // This file is part of qpdf.  This software may be distributed under
 // the terms of version 2 of the Artistic License which may be found
@@ -9,6 +9,7 @@
 #define __QPDFXREFENTRY_HH__
 
 #include <qpdf/DLL.h>
+#include <qpdf/Types.h>
 
 class QPDFXRefEntry
 {
@@ -22,20 +23,20 @@ class QPDFXRefEntry
     QPDF_DLL
     QPDFXRefEntry();
     QPDF_DLL
-    QPDFXRefEntry(int type, int field1, int field2);
+    QPDFXRefEntry(int type, qpdf_offset_t field1, int field2);
 
     QPDF_DLL
     int getType() const;
     QPDF_DLL
-    int getOffset() const;	// only for type 1
+    qpdf_offset_t getOffset() const;    // only for type 1
     QPDF_DLL
-    int getObjStreamNumber() const; // only for type 2
+    int getObjStreamNumber() const;     // only for type 2
     QPDF_DLL
     int getObjStreamIndex() const;	// only for type 2
 
   private:
     int type;
-    int field1;
+    qpdf_offset_t field1;
     int field2;
 };
 

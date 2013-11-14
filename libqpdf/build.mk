@@ -8,6 +8,9 @@ SRCS_libqpdf = \
 	libqpdf/BitStream.cc \
 	libqpdf/BitWriter.cc \
 	libqpdf/Buffer.cc \
+	libqpdf/BufferInputSource.cc \
+	libqpdf/FileInputSource.cc \
+	libqpdf/InputSource.cc \
 	libqpdf/MD5.cc \
 	libqpdf/PCRE.cc \
 	libqpdf/Pipeline.cc \
@@ -15,6 +18,7 @@ SRCS_libqpdf = \
 	libqpdf/Pl_ASCII85Decoder.cc \
 	libqpdf/Pl_ASCIIHexDecoder.cc \
 	libqpdf/Pl_Buffer.cc \
+	libqpdf/Pl_Concatenate.cc \
 	libqpdf/Pl_Count.cc \
 	libqpdf/Pl_Discard.cc \
 	libqpdf/Pl_Flate.cc \
@@ -38,11 +42,13 @@ SRCS_libqpdf = \
 	libqpdf/QPDF_Name.cc \
 	libqpdf/QPDF_Null.cc \
 	libqpdf/QPDF_Real.cc \
+	libqpdf/QPDF_Reserved.cc \
 	libqpdf/QPDF_Stream.cc \
 	libqpdf/QPDF_String.cc \
 	libqpdf/QPDF_encryption.cc \
 	libqpdf/QPDF_linearization.cc \
 	libqpdf/QPDF_optimization.cc \
+	libqpdf/QPDF_pages.cc \
 	libqpdf/QTC.cc \
 	libqpdf/QUtil.cc \
 	libqpdf/RC4.cc \
@@ -64,6 +70,8 @@ $(OBJS_libqpdf): libqpdf/$(OUTPUT_DIR)/%.$(LOBJ): libqpdf/%.cc
 #
 # * If any interfaces have been removed or changed, we are not binary
 #   compatible.  Increment CURRENT, and set AGE and REVISION to 0.
+#   Also update libqpdf.map, changing the numeric portion to match
+#   CURRENT.
 #
 # * Otherwise, if any interfaces have been added since the last
 #   public release, then increment CURRENT and AGE, and set REVISION
@@ -72,4 +80,4 @@ $(OBJS_libqpdf): libqpdf/$(OUTPUT_DIR)/%.$(LOBJ): libqpdf/%.cc
 # * Otherwise, increment REVISION
 
 $(TARGETS_libqpdf): $(OBJS_libqpdf)
-	$(call makelib,$(OBJS_libqpdf),$@,$(LDFLAGS),$(LIBS),7,1,4)
+	$(call makelib,$(OBJS_libqpdf),$@,$(LDFLAGS),$(LIBS),8,0,0)

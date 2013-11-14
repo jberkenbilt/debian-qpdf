@@ -1,4 +1,4 @@
-/* Copyright (c) 2005-2011 Jay Berkenbilt
+/* Copyright (c) 2005-2012 Jay Berkenbilt
  *
  * This file is part of qpdf.  This software may be distributed under
  * the terms of version 2 of the Artistic License which may be found
@@ -70,7 +70,9 @@
  */
 
 #include <qpdf/DLL.h>
+#include <qpdf/Types.h>
 #include <qpdf/Constants.h>
+#include <string.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -152,7 +154,7 @@ extern "C" {
     QPDF_DLL
     char const* qpdf_get_error_filename(qpdf_data q, qpdf_error e);
     QPDF_DLL
-    unsigned long qpdf_get_error_file_position(qpdf_data q, qpdf_error e);
+    unsigned long long qpdf_get_error_file_position(qpdf_data q, qpdf_error e);
     QPDF_DLL
     char const* qpdf_get_error_message_detail(qpdf_data q, qpdf_error e);
 
@@ -193,7 +195,7 @@ extern "C" {
     QPDF_ERROR_CODE qpdf_read_memory(qpdf_data qpdf,
 				     char const* description,
 				     char const* buffer,
-				     unsigned long size,
+				     unsigned long long size,
 				     char const* password);
 
     /* Read functions below must be called after qpdf_read or
@@ -300,7 +302,7 @@ extern "C" {
      * if a subsequent call to qpdf_init_write or
      * qpdf_init_write_memory is called. */
     QPDF_DLL
-    unsigned long qpdf_get_buffer_length(qpdf_data qpdf);
+    size_t qpdf_get_buffer_length(qpdf_data qpdf);
     QPDF_DLL
     unsigned char const* qpdf_get_buffer(qpdf_data qpdf);
 

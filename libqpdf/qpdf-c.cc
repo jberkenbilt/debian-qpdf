@@ -31,7 +31,7 @@ struct _qpdf_data
     // Parameters for functions we call
     char const* filename;	// or description
     char const* buffer;
-    unsigned long size;
+    unsigned long long size;
     char const* password;
     bool write_memory;
     Buffer* output_buffer;
@@ -218,7 +218,7 @@ char const* qpdf_get_error_filename(qpdf_data qpdf, qpdf_error e)
     return e->exc->getFilename().c_str();
 }
 
-unsigned long qpdf_get_error_file_position(qpdf_data qpdf, qpdf_error e)
+unsigned long long qpdf_get_error_file_position(qpdf_data qpdf, qpdf_error e)
 {
     if (e == 0)
     {
@@ -268,7 +268,7 @@ QPDF_ERROR_CODE qpdf_read(qpdf_data qpdf, char const* filename,
 QPDF_ERROR_CODE qpdf_read_memory(qpdf_data qpdf,
 				 char const* description,
 				 char const* buffer,
-				 unsigned long size,
+				 unsigned long long size,
 				 char const* password)
 {
     QPDF_ERROR_CODE status = QPDF_SUCCESS;
@@ -340,9 +340,7 @@ void qpdf_set_info_key(qpdf_data qpdf, char const* key, char const* value)
 	QTC::TC("qpdf", "qpdf-c add info to trailer");
 	trailer.replaceKey(
 	    "/Info",
-	    qpdf->qpdf->makeIndirectObject(
-		QPDFObjectHandle::newDictionary(
-		    std::map<std::string, QPDFObjectHandle>())));
+	    qpdf->qpdf->makeIndirectObject(QPDFObjectHandle::newDictionary()));
     }
     else
     {
@@ -462,10 +460,10 @@ static void qpdf_get_buffer_internal(qpdf_data qpdf)
     }
 }
 
-unsigned long qpdf_get_buffer_length(qpdf_data qpdf)
+size_t qpdf_get_buffer_length(qpdf_data qpdf)
 {
     qpdf_get_buffer_internal(qpdf);
-    unsigned long result = 0L;
+    size_t result = 0;
     if (qpdf->output_buffer)
     {
 	result = qpdf->output_buffer->getSize();

@@ -1,5 +1,8 @@
 # --- Required interface definitions ---
 
+# LIBTOOL needs bash
+SHELL=/bin/bash
+
 OBJ=o
 LOBJ=lo
 
@@ -14,6 +17,12 @@ $(1)
 endef
 
 # --- Private definitions ---
+
+ifeq ($(HAVE_LD_VERSION_SCRIPT), 1)
+LD_VERSION_FLAGS=-Wl,--version-script=libqpdf.map
+else
+LD_VERSION_FLAGS=
+endif
 
 # Usage: $(call libdepflags,$(basename obj))
 # Usage: $(call fixdeps,$(basename obj))
@@ -31,18 +40,20 @@ endif
 #                       1   2
 # Usage: $(call compile,src,includes)
 define compile
-	$(CXX) $(CPPFLAGS) $(CXXFLAGS) \
+	$(CXX) $(CXXFLAGS) \
 		$(call depflags,$(basename $(call src_to_obj,$(1)))) \
 		$(foreach I,$(2),-I$(I)) \
+		$(CPPFLAGS) \
 		-c $(1) -o $(call src_to_obj,$(1))
 endef
 
 #                       1   2
 # Usage: $(call c_compile,src,includes)
 define c_compile
-	$(CC) $(CPPFLAGS) $(CFLAGS) \
+	$(CC) $(CFLAGS) \
 		$(call depflags,$(basename $(call c_src_to_obj,$(1)))) \
 		$(foreach I,$(2),-I$(I)) \
+		$(CPPFLAGS) \
 		-c $(1) -o $(call c_src_to_obj,$(1))
 endef
 
@@ -50,9 +61,10 @@ endef
 # Usage: $(call libcompile,src,includes)
 define libcompile
 	$(LIBTOOL) --quiet --mode=compile \
-		$(CXX) $(CPPFLAGS) $(CXXFLAGS) \
+		$(CXX) $(CXXFLAGS) \
 		$(call libdepflags,$(basename $(call src_to_obj,$(1)))) \
 		$(foreach I,$(2),-I$(I)) \
+		$(CPPFLAGS) \
 		-c $(1) -o $(call src_to_obj,$(1)); \
 	$(call fixdeps,$(basename $(call src_to_obj,$(1))))
 endef
@@ -61,9 +73,10 @@ endef
 # Usage: $(call libcompile,src,includes)
 define c_libcompile
 	$(LIBTOOL) --quiet --mode=compile \
-		$(CC) $(CPPFLAGS) $(CXXFLAGS) \
+		$(CC) $(CXXFLAGS) \
 		$(call libdepflags,$(basename $(call c_src_to_obj,$(1)))) \
 		$(foreach I,$(2),-I$(I)) \
+		$(CPPFLAGS) \
 		-c $(1) -o $(call c_src_to_obj,$(1)); \
 	$(call fixdeps,$(basename $(call src_to_obj,$(1))))
 endef
@@ -80,20 +93,21 @@ endef
 # Usage: $(call makelib,objs,library,ldflags,libs,current,revision,age)
 define makelib
 	$(LIBTOOL) --mode=link \
-		$(CXX) $(CXXFLAGS) -o $(2) $(1) $(3) $(4) \
+		$(CXX) $(CXXFLAGS) $(LD_VERSION_FLAGS) \
+		 -o $(2) $(1) $(4) $(3) \
 		 -rpath $(libdir) -version-info $(5):$(6):$(7)
 endef
 
 #                       1    2      3       4
 # Usage: $(call makebin,objs,binary,ldflags,libs)
 define makebin
-	$(LIBTOOL) --mode=link $(CXX) $(CXXFLAGS) $(1) -o $(2) $(3) $(4)
+	$(LIBTOOL) --mode=link $(CXX) $(CXXFLAGS) $(1) -o $(2) $(4) $(3)
 endef
 
 # Install target
 
 install: all
-	./mkinstalldirs $(DESTDIR)$(libdir)
+	./mkinstalldirs $(DESTDIR)$(libdir)/pkgconfig
 	./mkinstalldirs $(DESTDIR)$(bindir)
 	./mkinstalldirs $(DESTDIR)$(includedir)/qpdf
 	./mkinstalldirs $(DESTDIR)$(docdir)
@@ -116,3 +130,4 @@ install: all
 	cp doc/qpdf-manual.html $(DESTDIR)$(docdir)
 	cp doc/qpdf-manual.pdf $(DESTDIR)$(docdir)
 	cp doc/*.1 $(DESTDIR)$(mandir)/man1
+	cp libqpdf.pc $(DESTDIR)$(libdir)/pkgconfig

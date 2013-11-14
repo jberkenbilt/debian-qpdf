@@ -3,10 +3,12 @@
 #include <stdlib.h>
 #include <fcntl.h>
 #include <stdio.h>
+#include <ctype.h>
 
 #include <qpdf/QUtil.hh>
 #include <qpdf/QTC.hh>
 #include <qpdf/Pl_StdioFile.hh>
+#include <qpdf/PointerHolder.hh>
 
 #include <qpdf/QPDF.hh>
 #include <qpdf/QPDFExc.hh>
@@ -17,6 +19,31 @@ static int const EXIT_ERROR = 2;
 static int const EXIT_WARNING = 3;
 
 static char const* whoami = 0;
+
+struct PageSpec
+{
+    PageSpec(std::string const& filename,
+             char const* password,
+             char const* range) :
+        filename(filename),
+        password(password),
+        range(range)
+    {
+    }
+
+    std::string filename;
+    char const* password;
+    char const* range;
+};
+
+struct QPDFPageData
+{
+    QPDFPageData(QPDF* qpdf, char const* range);
+
+    QPDF* qpdf;
+    std::vector<QPDFObjectHandle> orig_pages;
+    std::vector<int> selected_pages;
+};
 
 // Note: let's not be too noisy about documenting the fact that this
 // software purposely fails to enforce the distinction between user
@@ -29,9 +56,12 @@ static char const* whoami = 0;
 
 static char const* help = "\
 \n\
-Usage: qpdf [ options ] infilename [ outfilename ]\n\
+Usage: qpdf [ options ] { infilename | --empty } [ outfilename ]\n\
 \n\
 An option summary appears below.  Please see the documentation for details.\n\
+\n\
+Note that when contradictory options are provided, whichever options are\n\
+provided last take precedence.\n\
 \n\
 \n\
 Basic Options\n\
@@ -39,11 +69,21 @@ Basic Options\n\
 \n\
 --password=password     specify a password for accessing encrypted files\n\
 --linearize             generated a linearized (web optimized) file\n\
+--copy-encryption=file  copy encryption parameters from specified file\n\
+--encryption-file-password=password\n\
+                        password used to open the file from which encryption\n\
+                        parameters are being copied\n\
 --encrypt options --    generate an encrypted file\n\
 --decrypt               remove any encryption on the file\n\
+--pages options --      select specific pages from one or more files\n\
 \n\
-If neither --encrypt or --decrypt are given, qpdf will preserve any\n\
-encryption data associated with a file.\n\
+If none of --copy-encryption, --encrypt or --decrypt are given, qpdf will\n\
+preserve any encryption data associated with a file.\n\
+\n\
+Note that when copying encryption parameters from another file, all\n\
+parameters will be copied, including both user and owner passwords, even\n\
+if the user password is used to open the other file.  This works even if\n\
+the owner password is not known.\n\
 \n\
 \n\
 Encryption Options\n\
@@ -100,6 +140,36 @@ options are both off by default.\n\
 The --force-V4 flag forces the V=4 encryption handler introduced in PDF 1.5\n\
 to be used even if not otherwise needed.  This option is primarily useful\n\
 for testing qpdf and has no other practical use.\n\
+\n\
+\n\
+Page Selection Options\n\
+----------------------\n\
+\n\
+These options allow pages to be selected from one or more PDF files.\n\
+Whatever file is given as the primary input file is used as the\n\
+starting point, but its pages are replaced with pages as specified.\n\
+\n\
+--pages file [ --password=password ] page-range ... --\n\
+\n\
+For each file that pages should be taken from, specify the file, a\n\
+password needed to open the file (if any), and a page range.  The\n\
+password needs to be given only once per file.  If any of the input\n\
+files are the same as the primary input file or the file used to copy\n\
+encryption parameters (if specified), you do not need to repeat the\n\
+password here.  The same file can be repeated multiple times.  All\n\
+non-page data (info, outlines, page numbers, etc. are taken from the\n\
+primary input file.  To discard this, use --empty as the primary\n\
+input.\n\
+\n\
+The page range is a set of numbers separated by commas, ranges of\n\
+numbers separated dashes, or combinations of those.  The character\n\
+\"z\" represents the last page.  Pages can appear in any order.  Ranges\n\
+can appear with a high number followed by a low number, which causes the\n\
+pages to appear in reverse.  Repeating a number will cause an error, but\n\
+the manual discusses a workaround should you really want to include the\n\
+same page twice.\n\
+\n\
+See the manual for examples and a discussion of additional subtleties.\n\
 \n\
 \n\
 Advanced Transformation Options\n\
@@ -192,12 +262,39 @@ static std::string show_bool(bool v)
     return v ? "allowed" : "not allowed";
 }
 
+static std::string show_encryption_method(QPDF::encryption_method_e method)
+{
+    std::string result = "unknown";
+    switch (method)
+    {
+      case QPDF::e_none:
+        result = "none";
+        break;
+      case QPDF::e_unknown:
+        result = "unknown";
+        break;
+      case QPDF::e_rc4:
+        result = "RC4";
+        break;
+      case QPDF::e_aes:
+        result = "AESv2";
+        break;
+        // no default so gcc will warn for missing case
+    }
+    return result;
+}
+
 static void show_encryption(QPDF& pdf)
 {
     // Extract /P from /Encrypt
     int R = 0;
     int P = 0;
-    if (! pdf.isEncrypted(R, P))
+    int V = 0;
+    QPDF::encryption_method_e stream_method = QPDF::e_unknown;
+    QPDF::encryption_method_e string_method = QPDF::e_unknown;
+    QPDF::encryption_method_e file_method = QPDF::e_unknown;
+    if (! pdf.isEncrypted(R, P, V,
+                          stream_method, string_method, file_method))
     {
 	std::cout << "File is not encrypted" << std::endl;
     }
@@ -206,26 +303,175 @@ static void show_encryption(QPDF& pdf)
 	std::cout << "R = " << R << std::endl;
 	std::cout << "P = " << P << std::endl;
 	std::string user_password = pdf.getTrimmedUserPassword();
-	std::cout << "User password = " << user_password << std::endl;
-	std::cout << "extract for accessibility: "
-		  << show_bool(pdf.allowAccessibility()) << std::endl;
-	std::cout << "extract for any purpose: "
-		  << show_bool(pdf.allowExtractAll()) << std::endl;
-	std::cout << "print low resolution: "
-		  << show_bool(pdf.allowPrintLowRes()) << std::endl;
-	std::cout << "print high resolution: "
-		  << show_bool(pdf.allowPrintHighRes()) << std::endl;
-	std::cout << "modify document assembly: "
-		  << show_bool(pdf.allowModifyAssembly()) << std::endl;
-	std::cout << "modify forms: "
-		  << show_bool(pdf.allowModifyForm()) << std::endl;
-	std::cout << "modify annotations: "
-		  << show_bool(pdf.allowModifyAnnotation()) << std::endl;
-	std::cout << "modify other: "
-		  << show_bool(pdf.allowModifyOther()) << std::endl;
-	std::cout << "modify anything: "
+	std::cout << "User password = " << user_password << std::endl
+                  << "extract for accessibility: "
+		  << show_bool(pdf.allowAccessibility()) << std::endl
+                  << "extract for any purpose: "
+		  << show_bool(pdf.allowExtractAll()) << std::endl
+                  << "print low resolution: "
+		  << show_bool(pdf.allowPrintLowRes()) << std::endl
+                  << "print high resolution: "
+		  << show_bool(pdf.allowPrintHighRes()) << std::endl
+                  << "modify document assembly: "
+		  << show_bool(pdf.allowModifyAssembly()) << std::endl
+                  << "modify forms: "
+		  << show_bool(pdf.allowModifyForm()) << std::endl
+                  << "modify annotations: "
+		  << show_bool(pdf.allowModifyAnnotation()) << std::endl
+                  << "modify other: "
+		  << show_bool(pdf.allowModifyOther()) << std::endl
+                  << "modify anything: "
 		  << show_bool(pdf.allowModifyAll()) << std::endl;
+        if (V >= 4)
+        {
+            std::cout << "stream encryption method: "
+                      << show_encryption_method(stream_method) << std::endl
+                      << "string encryption method: "
+                      << show_encryption_method(string_method) << std::endl
+                      << "file encryption method: "
+                      << show_encryption_method(file_method) << std::endl;
+        }
     }
+}
+
+static std::vector<int> parse_numrange(char const* range, int max)
+{
+    std::vector<int> result;
+    char const* p = range;
+    try
+    {
+        std::vector<int> work;
+        static int const comma = -1;
+        static int const dash = -2;
+
+        enum { st_top,
+               st_in_number,
+               st_after_number } state = st_top;
+        bool last_separator_was_dash = false;
+        int cur_number = 0;
+        while (*p)
+        {
+            char ch = *p;
+            if (isdigit(ch))
+            {
+                if (! ((state == st_top) || (state == st_in_number)))
+                {
+                    throw std::runtime_error("digit not expected");
+                }
+                state = st_in_number;
+                cur_number *= 10;
+                cur_number += (ch - '0');
+            }
+            else if (ch == 'z')
+            {
+                // z represents max
+                if (! (state == st_top))
+                {
+                    throw std::runtime_error("z not expected");
+                }
+                state = st_after_number;
+                cur_number = max;
+            }
+            else if ((ch == ',') || (ch == '-'))
+            {
+                if (! ((state == st_in_number) || (state == st_after_number)))
+                {
+                    throw std::runtime_error("unexpected separator");
+                }
+                work.push_back(cur_number);
+                cur_number = 0;
+                if (ch == ',')
+                {
+                    state = st_top;
+                    last_separator_was_dash = false;
+                    work.push_back(comma);
+                }
+                else if (ch == '-')
+                {
+                    if (last_separator_was_dash)
+                    {
+                        throw std::runtime_error("unexpected dash");
+                    }
+                    state = st_top;
+                    last_separator_was_dash = true;
+                    work.push_back(dash);
+                }
+            }
+            else
+            {
+                throw std::runtime_error("unexpected character");
+            }
+            ++p;
+        }
+        if ((state == st_in_number) || (state == st_after_number))
+        {
+            work.push_back(cur_number);
+        }
+        else
+        {
+            throw std::runtime_error("number expected");
+        }
+
+        p = 0;
+        for (size_t i = 0; i < work.size(); i += 2)
+        {
+            int num = work[i];
+            if ((num < 1) || (num > max))
+            {
+                throw std::runtime_error(
+                    "number " + QUtil::int_to_string(num) + " out of range");
+            }
+            if (i == 0)
+            {
+                result.push_back(work[i]);
+            }
+            else
+            {
+                int separator = work[i-1];
+                if (separator == comma)
+                {
+                    result.push_back(num);
+                }
+                else if (separator == dash)
+                {
+                    int lastnum = result.back();
+                    if (num > lastnum)
+                    {
+                        for (int j = lastnum + 1; j <= num; ++j)
+                        {
+                            result.push_back(j);
+                        }
+                    }
+                    else
+                    {
+                        for (int j = lastnum - 1; j >= num; --j)
+                        {
+                            result.push_back(j);
+                        }
+                    }
+                }
+                else
+                {
+                    throw std::logic_error(
+                        "INTERNAL ERROR parsing numeric range");
+                }
+            }
+        }
+    }
+    catch (std::runtime_error e)
+    {
+        if (p)
+        {
+            usage("error at * in numeric range " +
+                  std::string(range, p - range) + "*" + p + ": " + e.what());
+        }
+        else
+        {
+            usage("error in numeric range " +
+                  std::string(range) + ": " + e.what());
+        }
+    }
+    return result;
 }
 
 static void
@@ -531,6 +777,66 @@ parse_encrypt_options(
     }
 }
 
+static std::vector<PageSpec>
+parse_pages_options(
+    int argc, char* argv[], int& cur_arg)
+{
+    std::vector<PageSpec> result;
+    while (1)
+    {
+        if ((cur_arg < argc) && (strcmp(argv[cur_arg], "--") == 0))
+        {
+            break;
+        }
+        if (cur_arg + 2 >= argc)
+        {
+            usage("insufficient arguments to --pages");
+        }
+        char* file = argv[cur_arg++];
+        char* password = 0;
+        char* range = argv[cur_arg++];
+        if (strncmp(range, "--password=", 11) == 0)
+        {
+            // Oh, that's the password, not the range
+            if (cur_arg + 1 >= argc)
+            {
+                usage("insufficient arguments to --pages");
+            }
+            password = range + 11;
+            range = argv[cur_arg++];
+        }
+
+        result.push_back(PageSpec(file, password, range));
+    }
+    return result;
+}
+
+static void test_numrange(char const* range)
+{
+    if (range == 0)
+    {
+        std::cout << "null" << std::endl;
+    }
+    else
+    {
+        std::vector<int> result = parse_numrange(range, 15);
+        std::cout << "numeric range " << range << " ->";
+        for (std::vector<int>::iterator iter = result.begin();
+             iter != result.end(); ++iter)
+        {
+            std::cout << " " << *iter;
+        }
+        std::cout << std::endl;
+    }
+}
+
+QPDFPageData::QPDFPageData(QPDF* qpdf, char const* range) :
+    qpdf(qpdf),
+    orig_pages(qpdf->getAllPages())
+{
+    this->selected_pages = parse_numrange(range, (int)this->orig_pages.size());
+}
+
 int main(int argc, char* argv[])
 {
     whoami = QUtil::getWhoami(argv[0]);
@@ -556,7 +862,7 @@ int main(int argc, char* argv[])
 	//      12345678901234567890123456789012345678901234567890123456789012345678901234567890
 	std::cout
 	    << whoami << " version " << QPDF::QPDFVersion() << std::endl
-	    << "Copyright (c) 2005-2011 Jay Berkenbilt"
+	    << "Copyright (c) 2005-2012 Jay Berkenbilt"
 	    << std::endl
 	    << "This software may be distributed under the terms of version 2 of the"
 	    << std::endl
@@ -575,9 +881,13 @@ int main(int argc, char* argv[])
 	exit(0);
     }
 
-    char const* password = "";
+    char const* password = 0;
     bool linearize = false;
     bool decrypt = false;
+
+    bool copy_encryption = false;
+    char const* encryption_file = 0;
+    char const* encryption_file_password = 0;
 
     bool encrypt = false;
     std::string user_password;
@@ -622,6 +932,8 @@ int main(int argc, char* argv[])
     bool show_page_images = false;
     bool check = false;
 
+    std::vector<PageSpec> page_specs;
+
     bool require_outfile = true;
     char const* infilename = 0;
     char const* outfilename = 0;
@@ -643,7 +955,14 @@ int main(int argc, char* argv[])
 		*parameter++ = 0;
 	    }
 
-	    if (strcmp(arg, "password") == 0)
+            // Arguments that start with space are undocumented and
+            // are for use by the test suite.
+            if (strcmp(arg, " test-numrange") == 0)
+            {
+                test_numrange(parameter);
+                exit(0);
+            }
+            else if (strcmp(arg, "password") == 0)
 	    {
 		if (parameter == 0)
 		{
@@ -651,6 +970,10 @@ int main(int argc, char* argv[])
 		}
 		password = parameter;
 	    }
+            else if (strcmp(arg, "empty") == 0)
+            {
+                infilename = "";
+            }
 	    else if (strcmp(arg, "linearize") == 0)
 	    {
 		linearize = true;
@@ -664,11 +987,44 @@ int main(int argc, char* argv[])
 		    r3_accessibility, r3_extract, r3_print, r3_modify,
 		    force_V4, cleartext_metadata, use_aes);
 		encrypt = true;
+                decrypt = false;
+                copy_encryption = false;
 	    }
 	    else if (strcmp(arg, "decrypt") == 0)
 	    {
 		decrypt = true;
+                encrypt = false;
+                copy_encryption = false;
 	    }
+            else if (strcmp(arg, "copy-encryption") == 0)
+            {
+		if (parameter == 0)
+		{
+		    usage("--copy-encryption must be given as"
+			  "--copy_encryption=file");
+		}
+                encryption_file = parameter;
+                copy_encryption = true;
+                encrypt = false;
+                decrypt = false;
+            }
+            else if (strcmp(arg, "encryption-file-password") == 0)
+            {
+		if (parameter == 0)
+		{
+		    usage("--encryption-file-password must be given as"
+			  "--encryption-file-password=password");
+		}
+                encryption_file_password = parameter;
+            }
+            else if (strcmp(arg, "pages") == 0)
+            {
+		page_specs = parse_pages_options(argc, argv, ++i);
+                if (page_specs.empty())
+                {
+                    usage("--pages: no page specifications given");
+                }
+            }
 	    else if (strcmp(arg, "stream-data") == 0)
 	    {
 		if (parameter == 0)
@@ -865,6 +1221,7 @@ int main(int argc, char* argv[])
     try
     {
 	QPDF pdf;
+        QPDF encryption_pdf;
 	if (ignore_xref_streams)
 	{
 	    pdf.setIgnoreXRefStreams(true);
@@ -873,7 +1230,14 @@ int main(int argc, char* argv[])
 	{
 	    pdf.setAttemptRecovery(false);
 	}
-	pdf.processFile(infilename, password);
+        if (strcmp(infilename, "") == 0)
+        {
+            pdf.emptyPDF();
+        }
+        else
+        {
+            pdf.processFile(infilename, password);
+        }
 	if (outfilename == 0)
 	{
 	    if (show_encryption)
@@ -919,7 +1283,7 @@ int main(int argc, char* argv[])
 			if (filter &&
 			    (! obj.pipeStreamData(0, true, false, false)))
 			{
-			    QTC::TC("qpdf", "unable to filter");
+			    QTC::TC("qpdf", "qpdf unable to filter");
 			    std::cerr << "Unable to filter stream data."
 				      << std::endl;
 			    exit(EXIT_ERROR);
@@ -945,6 +1309,10 @@ int main(int argc, char* argv[])
 	    }
 	    if (show_pages)
 	    {
+                if (show_page_images)
+                {
+                    pdf.pushInheritedAttributesToPage();
+                }
 		std::vector<QPDFObjectHandle> pages = pdf.getAllPages();
 		int pageno = 0;
 		for (std::vector<QPDFObjectHandle>::iterator iter =
@@ -1045,6 +1413,115 @@ int main(int argc, char* argv[])
 	}
 	else
 	{
+            std::vector<PointerHolder<QPDF> > page_heap;
+            if (! page_specs.empty())
+            {
+                // Parse all page specifications and translate them
+                // into lists of actual pages.
+
+                // Create a QPDF object for each file that we may take
+                // pages from.
+                std::map<std::string, QPDF*> page_spec_qpdfs;
+                page_spec_qpdfs[infilename] = &pdf;
+                std::vector<QPDFPageData> parsed_specs;
+                for (std::vector<PageSpec>::iterator iter = page_specs.begin();
+                     iter != page_specs.end(); ++iter)
+                {
+                    PageSpec& page_spec = *iter;
+                    if (page_spec_qpdfs.count(page_spec.filename) == 0)
+                    {
+                        // Open the PDF file and store the QPDF
+                        // object.  Throw a PointerHolder to the qpdf
+                        // into a heap so that it survives through
+                        // writing the output but gets cleaned up
+                        // automatically at the end.  Do not
+                        // canonicalize the file name.  Using two
+                        // different paths to refer to the same file
+                        // is a document workaround for duplicating a
+                        // page.  If you are using this an example of
+                        // how to do this with the API, you can just
+                        // create two different QPDF objects to the
+                        // same underlying file with the same path to
+                        // achieve the same affect.
+                        PointerHolder<QPDF> qpdf_ph = new QPDF();
+                        page_heap.push_back(qpdf_ph);
+                        QPDF* qpdf = qpdf_ph.getPointer();
+                        char const* password = page_spec.password;
+                        if (encryption_file && (password == 0) &&
+                            (page_spec.filename == encryption_file))
+                        {
+                            QTC::TC("qpdf", "qpdf pages encryption password");
+                            password = encryption_file_password;
+                        }
+                        qpdf->processFile(
+                            page_spec.filename.c_str(), password);
+                        page_spec_qpdfs[page_spec.filename] = qpdf;
+                    }
+
+                    // Read original pages from the PDF, and parse the
+                    // page range associated with this occurrence of
+                    // the file.
+                    parsed_specs.push_back(
+                        QPDFPageData(page_spec_qpdfs[page_spec.filename],
+                                     page_spec.range));
+                }
+
+                // Clear all pages out of the primary QPDF's pages
+                // tree but leave the objects in place in the file so
+                // they can be re-added without changing their object
+                // numbers.  This enables other things in the original
+                // file, such as outlines, to continue to work.
+                std::vector<QPDFObjectHandle> orig_pages = pdf.getAllPages();
+                for (std::vector<QPDFObjectHandle>::iterator iter =
+                         orig_pages.begin();
+                     iter != orig_pages.end(); ++iter)
+                {
+                    pdf.removePage(*iter);
+                }
+
+                // Add all the pages from all the files in the order
+                // specified.  Keep track of any pages from the
+                // original file that we are selecting.
+                std::set<int> selected_from_orig;
+                for (std::vector<QPDFPageData>::iterator iter =
+                         parsed_specs.begin();
+                     iter != parsed_specs.end(); ++iter)
+                {
+                    QPDFPageData& page_data = *iter;
+                    for (std::vector<int>::iterator pageno_iter =
+                             page_data.selected_pages.begin();
+                         pageno_iter != page_data.selected_pages.end();
+                         ++pageno_iter)
+                    {
+                        // Pages are specified from 1 but numbered
+                        // from 0 in the vector
+                        int pageno = *pageno_iter - 1;
+                        pdf.addPage(page_data.orig_pages[pageno], false);
+                        if (page_data.qpdf == &pdf)
+                        {
+                            // This is a page from the original file.
+                            // Keep track of the fact that we are
+                            // using it.
+                            selected_from_orig.insert(pageno);
+                        }
+                    }
+                }
+
+                // Delete page objects for unused page in primary.
+                // This prevents those objects from being preserved by
+                // being referred to from other places, such as the
+                // outlines dictionary.
+                for (int pageno = 0; pageno < (int)orig_pages.size(); ++pageno)
+                {
+                    if (selected_from_orig.count(pageno) == 0)
+                    {
+                        pdf.replaceObject(orig_pages[pageno].getObjectID(),
+                                          orig_pages[pageno].getGeneration(),
+                                          QPDFObjectHandle::newNull());
+                    }
+                }
+            }
+
 	    if (strcmp(outfilename, "-") == 0)
 	    {
 		outfilename = 0;
@@ -1078,6 +1555,12 @@ int main(int argc, char* argv[])
 	    {
 		w.setSuppressOriginalObjectIDs(true);
 	    }
+            if (copy_encryption)
+            {
+                encryption_pdf.processFile(
+                    encryption_file, encryption_file_password);
+                w.copyEncryptionParameters(encryption_pdf);
+            }
 	    if (encrypt)
 	    {
 		if (keylen == 40)

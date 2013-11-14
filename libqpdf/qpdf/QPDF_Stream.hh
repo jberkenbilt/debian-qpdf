@@ -1,8 +1,9 @@
 #ifndef __QPDF_STREAM_HH__
 #define __QPDF_STREAM_HH__
 
-#include <qpdf/QPDFObject.hh>
+#include <qpdf/Types.h>
 
+#include <qpdf/QPDFObject.hh>
 #include <qpdf/QPDFObjectHandle.hh>
 
 class Pipeline;
@@ -13,7 +14,7 @@ class QPDF_Stream: public QPDFObject
   public:
     QPDF_Stream(QPDF*, int objid, int generation,
 		QPDFObjectHandle stream_dict,
-		off_t offset, int length);
+		qpdf_offset_t offset, size_t length);
     virtual ~QPDF_Stream();
     virtual std::string unparse();
     QPDFObjectHandle getDict() const;
@@ -29,8 +30,9 @@ class QPDF_Stream: public QPDFObject
     void replaceStreamData(
 	PointerHolder<QPDFObjectHandle::StreamDataProvider> provider,
 	QPDFObjectHandle const& filter,
-	QPDFObjectHandle const& decode_parms,
-	size_t length);
+	QPDFObjectHandle const& decode_parms);
+
+    void replaceDict(QPDFObjectHandle new_dict);
 
     // Replace object ID and generation.  This may only be called if
     // object ID and generation are 0.  It is used by QPDFObjectHandle
@@ -50,8 +52,8 @@ class QPDF_Stream: public QPDFObject
     int objid;
     int generation;
     QPDFObjectHandle stream_dict;
-    off_t offset;
-    int length;
+    qpdf_offset_t offset;
+    size_t length;
     PointerHolder<Buffer> stream_data;
     PointerHolder<QPDFObjectHandle::StreamDataProvider> stream_provider;
 };

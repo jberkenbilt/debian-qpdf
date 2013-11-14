@@ -1,4 +1,8 @@
+// Include qpdf-config.h first so off_t is guaranteed to have the right size.
+#include <qpdf/qpdf-config.h>
+
 #include <qpdf/QUtil.hh>
+
 #include <stdio.h>
 #include <errno.h>
 #include <ctype.h>
@@ -14,7 +18,7 @@
 #endif
 
 std::string
-QUtil::int_to_string(int num, int fullpad)
+QUtil::int_to_string(long long num, int fullpad)
 {
     // This routine will need to be recompiled if an int can be longer than
     // 49 digits.
@@ -28,14 +32,20 @@ QUtil::int_to_string(int num, int fullpad)
 			       "limit");
     }
 
+#ifdef HAVE_PRINTF_LL
+# define PRINTF_LL "ll"
+#else
+# define PRINTF_LL "l"
+#endif
     if (fullpad)
     {
-	sprintf(t, "%0*d", fullpad, num);
+	sprintf(t, "%0*" PRINTF_LL "d", fullpad, num);
     }
     else
     {
-	sprintf(t, "%d", num);
+	sprintf(t, "%" PRINTF_LL "d", num);
     }
+#undef PRINTF_LL
 
     return std::string(t);
 }
@@ -75,6 +85,16 @@ QUtil::double_to_string(double num, int decimal_places)
     return std::string(t);
 }
 
+long long
+QUtil::string_to_ll(char const* str)
+{
+#ifdef _MSC_VER
+    return _strtoi64(str, 0, 10);
+#else
+    return strtoll(str, 0, 10);
+#endif
+}
+
 void
 QUtil::throw_system_error(std::string const& description)
 {
@@ -99,6 +119,38 @@ QUtil::fopen_wrapper(std::string const& description, FILE* f)
 	throw_system_error(description);
     }
     return f;
+}
+
+int
+QUtil::seek(FILE* stream, qpdf_offset_t offset, int whence)
+{
+#if HAVE_FSEEKO
+    return fseeko(stream, (off_t)offset, whence);
+#elif HAVE_FSEEKO64
+    return fseeko64(stream, offset, whence);
+#else
+# ifdef _MSC_VER
+    return _fseeki64(stream, offset, whence);
+# else
+    return fseek(stream, (long)offset, whence);
+# endif
+#endif
+}
+
+qpdf_offset_t
+QUtil::tell(FILE* stream)
+{
+#if HAVE_FSEEKO
+    return (qpdf_offset_t)ftello(stream);
+#elif HAVE_FSEEKO64
+    return (qpdf_offset_t)ftello64(stream);
+#else
+# ifdef _MSC_VER
+    return _ftelli64(stream);
+# else
+    return (qpdf_offset_t)ftell(stream);
+# endif
+#endif
 }
 
 char*
