@@ -5,8 +5,8 @@
 <!ENTITY mdash "&#x2014;">
 <!ENTITY ndash "&#x2013;">
 <!ENTITY nbsp "&#xA0;">
-<!ENTITY swversion "2.2.4">
-<!ENTITY lastreleased "June 25, 2011">
+<!ENTITY swversion "2.3.0">
+<!ENTITY lastreleased "August 11, 2011">
 ]>
 <book>
  <bookinfo>
@@ -2073,6 +2073,76 @@ print "\n";
    For a detailed list of changes, please see the file
    <filename>ChangeLog</filename> in the source distribution.
   </para>
+  <variablelist>
+   <varlistentry>
+    <term>2.3.0: August 11, 2011</term>
+    <listitem>
+     <itemizedlist>
+      <listitem>
+       <para>
+        Bug fix: when preserving existing encryption on encrypted
+        files with cleartext metadata, older qpdf versions would
+        generate password-protected files with no valid password.
+        This operation now works.  This bug only affected files
+        created by copying existing encryption parameters; explicit
+        encryption with specification of cleartext metadata worked
+        before and continues to work.
+       </para>
+      </listitem>
+      <listitem>
+       <para>
+        Enhance <classname>QPDFWriter</classname> with a new
+        constructor that allows you to delay the specification of the
+        output file.  When using this constructor, you may now call
+        <function>QPDFWriter::setOutputFilename</function> to specify
+        the output file, or you may use
+        <function>QPDFWriter::setOutputMemory</function> to cause
+        <classname>QPDFWriter</classname> to write the resulting PDF
+        file to a memory buffer.  You may then use
+        <function>QPDFWriter::getBuffer</function> to retrieve the
+        memory buffer.
+       </para>
+      </listitem>
+      <listitem>
+       <para>
+        Add new API call <function>QPDF::replaceObject</function> for
+        replacing objects by object ID
+       </para>
+      </listitem>
+      <listitem>
+       <para>
+        Add new API call <function>QPDF::swapObjects</function> for
+        swapping two objects by object ID
+       </para>
+      </listitem>
+      <listitem>
+       <para>
+        Add <function>QPDFObjectHandle::getDictAsMap</function> and
+        <function>QPDFObjectHandle::getArrayAsVector</function> to
+        allow retrieval of dictionary objects as maps and array
+        objects as vectors.
+       </para>
+      </listitem>
+      <listitem>
+       <para>
+        Add functions <function>qpdf_get_info_key</function> and
+        <function>qpdf_set_info_key</function> to the C API for
+        manipulating string fields of the document's
+        <literal>/Info</literal> dictionary.
+       </para>
+      </listitem>
+      <listitem>
+       <para>
+        Add functions <function>qpdf_init_write_memory</function>,
+        <function>qpdf_get_buffer_length</function>, and
+        <function>qpdf_get_buffer</function> to the C API for writing
+        PDF files to a memory buffer instead of a file.
+       </para>
+      </listitem>
+     </itemizedlist>
+    </listitem>
+   </varlistentry>
+  </variablelist>
   <variablelist>
    <varlistentry>
     <term>2.2.4: June 25, 2011</term>

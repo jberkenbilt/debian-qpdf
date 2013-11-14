@@ -76,7 +76,7 @@ void runtest(int n, char const* filename)
 	fseek(f, 0, SEEK_END);
 	size_t size = (size_t) ftell(f);
 	fseek(f, 0, SEEK_SET);
-	file_buf = new char[size];
+	file_buf = PointerHolder<char>(true, new char[size]);
 	char* buf_p = file_buf.getPointer();
 	size_t bytes_read = 0;
 	size_t len = 0;
@@ -518,6 +518,84 @@ void runtest(int n, char const* filename)
 		  << out.str()
 		  << "---error---" << std::endl
 		  << err.str();
+    }
+    else if (n == 14)
+    {
+	// Exercise swap and replace.  This test case is designed for
+	// a specific file.
+	std::vector<QPDFObjectHandle> pages = pdf.getAllPages();
+	if (pages.size() != 4)
+	{
+	    throw std::logic_error("test " + QUtil::int_to_string(n) +
+				   " not called 4-page file");
+	}
+	// Swap pages 2 and 3
+	pdf.swapObjects(pages[1].getObjectID(), pages[1].getGeneration(),
+			pages[2].getObjectID(), pages[2].getGeneration());
+	// Replace object and swap objects
+	QPDFObjectHandle trailer = pdf.getTrailer();
+	QPDFObjectHandle qdict = trailer.getKey("/QDict");
+	QPDFObjectHandle qarray = trailer.getKey("/QArray");
+	// Force qdict but not qarray to resolve
+	qdict.isDictionary();
+	std::map<std::string, QPDFObjectHandle> dict_keys;
+	dict_keys["/NewDict"] = QPDFObjectHandle::newInteger(2);
+	QPDFObjectHandle new_dict = QPDFObjectHandle::newDictionary(dict_keys);
+	try
+	{
+	    // Do it wrong first...
+	    pdf.replaceObject(qdict.getObjectID(), qdict.getGeneration(),
+			      qdict);
+	}
+	catch (std::logic_error)
+	{
+	    std::cout << "caught logic error as expected" << std::endl;
+	}
+	pdf.replaceObject(qdict.getObjectID(), qdict.getGeneration(),
+			  new_dict);
+	// Now qdict still points to the old dictionary
+	std::cout << "old dict: " << qdict.getKey("/Dict").getIntValue()
+		  << std::endl;
+	// Swap dict and array
+	pdf.swapObjects(qdict.getObjectID(), qdict.getGeneration(),
+			qarray.getObjectID(), qarray.getGeneration());
+	// Now qarray will resolve to new object but qdict is still
+	// the old object
+	std::cout << "old dict: " << qdict.getKey("/Dict").getIntValue()
+		  << std::endl;
+	std::cout << "new dict: " << qarray.getKey("/NewDict").getIntValue()
+		  << std::endl;
+	// Reread qdict, now pointing to an array
+	qdict = pdf.getObjectByID(qdict.getObjectID(), qdict.getGeneration());
+	std::cout << "swapped array: " << qdict.getArrayItem(0).getName()
+		  << std::endl;
+
+	// Exercise getAsMap and getAsArray
+	std::vector<QPDFObjectHandle> array_elements =
+	    qdict.getArrayAsVector();
+	std::map<std::string, QPDFObjectHandle> dict_items =
+	    qarray.getDictAsMap();
+	if ((array_elements.size() == 1) &&
+	    (array_elements[0].getName() == "/Array") &&
+	    (dict_items.size() == 1) &&
+	    (dict_items["/NewDict"].getIntValue() == 2))
+	{
+	    std::cout << "array and dictionary contents are correct"
+		      << std::endl;
+	}
+
+	// Exercise writing to memory buffer
+	QPDFWriter w(pdf);
+	w.setOutputMemory();
+	w.setStaticID(true);
+	w.setStreamDataMode(qpdf_s_preserve);
+	w.write();
+	Buffer* b = w.getBuffer();
+	FILE* f = QUtil::fopen_wrapper(std::string("open a.pdf"),
+				       fopen("a.pdf", "wb"));
+	fwrite(b->getBuffer(), b->getSize(), 1, f);
+	fclose(f);
+	delete b;
     }
     else
     {

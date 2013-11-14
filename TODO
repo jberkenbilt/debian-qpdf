@@ -111,12 +111,14 @@ Index: QPDFWriter.cc
    code to handle it properly.  In QPDF_encryption.cc, search for
    cf_file.  Remove exception thrown if cf_file is different from
    cf_stream, and write code in the stream decryption section to use
-   cf_file instead of cf_stream.  In general, add interfaces to
-   get the list of embedded files and to extract them.  To handle
-   general embedded files associated with the whole document, follow
-   root -> /Names -> /EmbeddedFiles -> /Names to get to the file
-   specification dictionaries.  Then, in each file specification
-   dictionary, follow /EF -> /F to the actual stream.
+   cf_file instead of cf_stream.  In general, add interfaces to get
+   the list of embedded files and to extract them.  To handle general
+   embedded files associated with the whole document, follow root ->
+   /Names -> /EmbeddedFiles -> /Names to get to the file specification
+   dictionaries.  Then, in each file specification dictionary, follow
+   /EF -> /F to the actual stream.  There may be other places file
+   specification dictionaries may appear, and there are also /RF keys
+   with related files, so reread section 3.10 carefully.
 
  * The description of Crypt filters is unclear with respect to how to
    use them to override /StmF for specific streams.  I'm not sure

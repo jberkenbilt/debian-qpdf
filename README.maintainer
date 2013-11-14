@@ -1,6 +1,27 @@
 Release Reminders
 =================
 
+ * Consider running tests with latest gcc and/or valgrind.  To do
+   this, replace, build with debugging and without shared libraries.
+   In build, create z and move each executable into z.  Then create a
+   script called exec-z that contains:
+
+   #!/bin/sh
+   exec valgrind --suppressions=/tmp/a.supp -q \
+      `dirname $0`/z/`basename $0` ${1+"$@"}
+
+   Symlink exec-v to each executable.  /tmp/a.supp can be populated
+   with suppressions for libraries, for example:
+
+   {
+      zlib1
+      Memcheck:Cond
+      fun:inflateReset2
+      fun:inflateInit2_
+   }
+
+   You can generate these by running valgrind with --gen-suppressions=yes.
+
  * Check all open issues in the sourceforge trackers.
 
  * If any interfaces were added or changed, check C API to see whether
@@ -40,10 +61,15 @@ Release Reminders
     make distclean
 
  * To create a source release, do an export from the version control
-   system to a directory called qpdf-version.  From the parent of that
-   directory, run make_dist with the directory as an argument.
-   Remember to have fop in your path.  For internally testing
-   releases, you can run make_dist with the --no-tests option.
+   system to a directory called qpdf-version.  For example, from this
+   directory:
+
+   rm -rf /tmp/qpdf-x.y.z
+   git archive --prefix=qpdf-x.y.z/ HEAD . | (cd /tmp; tar xf -)
+
+   From the parent of that directory, run make_dist with the directory
+   as an argument.  Remember to have fop in your path.  For internally
+   testing releases, you can run make_dist with the --no-tests option.
 
  * To create a source release of external libs, do an export from the
    version control system into a directory called qpdf-external-libs
