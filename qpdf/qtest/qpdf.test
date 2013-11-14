@@ -111,7 +111,7 @@ $td->runtest("new stream",
 show_ntests();
 # ----------
 $td->notify("--- Miscellaneous Tests ---");
-$n_tests += 28;
+$n_tests += 31;
 
 $td->runtest("qpdf version",
 	     {$td->COMMAND => "qpdf --version"},
@@ -191,6 +191,14 @@ foreach my $file (qw(short-id long-id))
 		 $td->NORMALIZE_NEWLINES);
 }
 
+# Handle file with invalid xref table and object 0 as a regular object
+# (bug 3159950).
+$td->runtest("check obj0.pdf",
+	     {$td->COMMAND => "qpdf --check obj0.pdf"},
+	     {$td->FILE => "obj0-check.out",
+	      $td->EXIT_STATUS => 3},
+	     $td->NORMALIZE_NEWLINES);
+
 # Min/Force version
 $td->runtest("set min version",
 	     {$td->COMMAND => "qpdf --min-version=1.6 good1.pdf a.pdf"},
@@ -256,6 +264,17 @@ $td->runtest("error/output redirection to strings",
 	     {$td->FILE => "linearized-and-warnings-2.out",
 	      $td->EXIT_STATUS => 0},
 	     $td->NORMALIZE_NEWLINES);
+
+$td->runtest("odd terminators for stream keyword",
+	     {$td->COMMAND =>
+		  "qpdf --qdf --static-id" .
+		  " stream-line-enders.pdf a.qdf"},
+	     {$td->FILE => "stream-line-enders.out",
+	      $td->EXIT_STATUS => 3},
+	     $td->NORMALIZE_NEWLINES);
+$td->runtest("check output",
+	     {$td->FILE => "a.qdf"},
+	     {$td->FILE => "stream-line-enders.qdf"});
 
 show_ntests();
 # ----------
@@ -1249,8 +1268,8 @@ my @flags = (["-qdf",						# 1
 	      "no arguments"],
 	     );
 
-$n_tests += (@files * @flags  * 2 * 3);
-$n_compare_pdfs += (@files * @flags * 2);
+$n_tests += 1 + (@files * @flags  * 2 * 3);
+$n_compare_pdfs += 1 + (@files * @flags * 2);
 $n_acroread += (@files * @flags * 2);
 
 foreach my $file (@files)
@@ -1302,6 +1321,14 @@ foreach my $file (@files)
 	flush_tiff_cache();
     }
 }
+
+# inline-images-cr.pdf is xbkm938-dies.pdf from PDF collection
+$td->runtest("convert inline-images-cr to qdf",
+	     {$td->COMMAND => "qpdf --static-id --no-original-object-ids" .
+		  " --qdf inline-images-cr.pdf a.pdf"},
+	     {$td->STRING => "", $td->EXIT_STATUS => 0});
+
+compare_pdfs("inline-images-cr.pdf", "a.pdf");
 
 show_ntests();
 # ----------
