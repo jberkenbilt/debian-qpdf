@@ -1,4 +1,4 @@
-// Copyright (c) 2005-2009 Jay Berkenbilt
+// Copyright (c) 2005-2010 Jay Berkenbilt
 //
 // This file is part of qpdf.  This software may be distributed under
 // the terms of version 2 of the Artistic License which may be found
@@ -240,7 +240,8 @@ class QPDFWriter
 			int prev,
 			int hint_id,
 			int hint_offset,
-			int hint_length);
+			int hint_length,
+			bool skip_compression);
 
     // When filtering subsections, push additional pipelines to the
     // stack.  When ready to switch, activate the pipeline stack.
