@@ -5,8 +5,8 @@
 <!ENTITY mdash "&#x2014;">
 <!ENTITY ndash "&#x2013;">
 <!ENTITY nbsp "&#xA0;">
-<!ENTITY swversion "2.2.rc1">
-<!ENTITY lastreleased "August 8, 2010">
+<!ENTITY swversion "2.2.0">
+<!ENTITY lastreleased "August 14, 2010">
 ]>
 <book>
  <bookinfo>
@@ -180,9 +180,12 @@ make
    </para>
    <para>
     Building on Windows is a little bit more complicated.  For
-    details, please see <filename>README.windows</filename> in the
+    details, please see <filename>README-windows.txt</filename> in the
     source distribution.  You can also download a binary distribution
-    for Windows.
+    for Windows.  There is a port of qpdf in the
+    <filename>contrib</filename> area generously contributed by Jian
+    Ma.  This is also discussed in more detail in
+    <filename>README-windows.txt</filename>.
    </para>
    <para>
     There are some other things you can do with the build.  Although
@@ -2072,7 +2075,7 @@ print "\n";
   </para>
   <variablelist>
    <varlistentry>
-    <term>2.2.rc1: August 8, 2010</term>
+    <term>2.2.0: August 14, 2010</term>
     <listitem>
      <itemizedlist>
       <listitem>
@@ -2103,6 +2106,16 @@ print "\n";
         dictionary key
         with a given value unless the value is null, in which case it
         removes the key instead.
+       </para>
+      </listitem>
+      <listitem>
+       <para>
+        Add new method in <classname>QPDFObjectHandle</classname>:
+        <function>getRawStreamData</function>, which returns the raw
+        (unfiltered) stream data into a buffer.  This complements the
+        <function>getStreamData</function> method, which returns the
+        filtered (uncompressed) stream data and can only be used when
+        the stream's data is filterable.
        </para>
       </listitem>
       <listitem>

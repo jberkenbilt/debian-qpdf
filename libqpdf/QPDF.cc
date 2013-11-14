@@ -15,7 +15,7 @@
 #include <qpdf/QPDF_Null.hh>
 #include <qpdf/QPDF_Dictionary.hh>
 
-std::string QPDF::qpdf_version = "2.2.rc1";
+std::string QPDF::qpdf_version = "2.2.0";
 
 void
 QPDF::InputSource::setLastOffset(off_t offset)
@@ -2059,6 +2059,6 @@ QPDF::getAllPagesInternal(QPDFObjectHandle cur_pages,
 	throw QPDFExc(qpdf_e_damaged_pdf, this->file.getName(),
 		      this->last_object_description,
 		      this->file.getLastOffset(),
-		      + ": invalid Type in page tree");
+		      ": invalid Type in page tree");
     }
 }
