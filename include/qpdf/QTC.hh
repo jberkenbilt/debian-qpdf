@@ -8,8 +8,11 @@
 #ifndef __QTC_HH__
 #define __QTC_HH__
 
+#include <qpdf/DLL.h>
+
 namespace QTC
 {
+    QPDF_DLL
     void TC(char const* const scope, char const* const ccase, int n = 0);
 };
 

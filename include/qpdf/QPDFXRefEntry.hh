@@ -8,6 +8,8 @@
 #ifndef __QPDFXREFENTRY_HH__
 #define __QPDFXREFENTRY_HH__
 
+#include <qpdf/DLL.h>
+
 class QPDFXRefEntry
 {
   public:
@@ -17,12 +19,18 @@ class QPDFXRefEntry
     // 1 = "uncompressed"; field 1 = offset
     // 2 = "compressed"; field 1 = object stream number, field 2 = index
 
+    QPDF_DLL
     QPDFXRefEntry();
+    QPDF_DLL
     QPDFXRefEntry(int type, int field1, int field2);
 
+    QPDF_DLL
     int getType() const;
+    QPDF_DLL
     int getOffset() const;	// only for type 1
+    QPDF_DLL
     int getObjStreamNumber() const; // only for type 2
+    QPDF_DLL
     int getObjStreamIndex() const;	// only for type 2
 
   private:

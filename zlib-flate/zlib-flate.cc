@@ -1,12 +1,12 @@
-
 #include <qpdf/Pl_Flate.hh>
 #include <qpdf/Pl_StdioFile.hh>
+#include <qpdf/QUtil.hh>
 
 #include <stdio.h>
 #include <string.h>
 #include <iostream>
 #include <stdlib.h>
-#include <unistd.h>
+#include <fcntl.h>
 
 static char const* whoami = 0;
 
@@ -59,6 +59,8 @@ int main(int argc, char* argv[])
 	usage();
     }
 
+    QUtil::binary_stdout();
+    QUtil::binary_stdin();
     Pl_StdioFile* out = new Pl_StdioFile("stdout", stdout);
     Pl_Flate* flate = new Pl_Flate("flate", out, action);
 
@@ -68,7 +70,7 @@ int main(int argc, char* argv[])
 	bool done = false;
 	while (! done)
 	{
-	    int len = read(0, buf, sizeof(buf));
+	    int len = fread(buf, 1, sizeof(buf), stdin);
 	    if (len <= 0)
 	    {
 		done = true;

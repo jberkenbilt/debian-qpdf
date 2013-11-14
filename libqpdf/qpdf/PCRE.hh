@@ -5,10 +5,14 @@
 #ifndef __PCRE_HH__
 #define __PCRE_HH__
 
+#ifdef _WIN32
+# define PCRE_STATIC
+#endif
 #include <pcre.h>
 #include <string>
+#include <stdexcept>
 
-#include <qpdf/QEXC.hh>
+#include <qpdf/DLL.h>
 
 // Note: this class does not encapsulate all features of the PCRE
 // package -- only those that I actually need right now are here.
@@ -16,18 +20,12 @@
 class PCRE
 {
   public:
-    class Exception: public QEXC::General
-    {
-      public:
-	Exception(std::string const& message);
-	virtual ~Exception() throw() {}
-    };
-
     // This is thrown when an attempt is made to access a non-existent
     // back reference.
-    class NoBackref: public Exception
+    class NoBackref: public std::logic_error
     {
       public:
+	QPDF_DLL
 	NoBackref();
 	virtual ~NoBackref() throw() {}
     };
@@ -36,10 +34,15 @@ class PCRE
     {
 	friend class PCRE;
       public:
+	QPDF_DLL
 	Match(int nbackrefs, char const* subject);
+	QPDF_DLL
 	Match(Match const&);
+	QPDF_DLL
 	Match& operator=(Match const&);
+	QPDF_DLL
 	~Match();
+	QPDF_DLL
 	operator bool();
 
 	// All the back reference accessing routines may throw the
@@ -51,11 +54,14 @@ class PCRE
 	// and not matching at all.
 
 	// see getMatch flags below
-	std::string getMatch(int n, int flags = 0)
-	    throw(QEXC::General, Exception);
-	void getOffsetLength(int n, int& offset, int& length) throw(Exception);
-	int getOffset(int n) throw(Exception);
-	int getLength(int n) throw(Exception);
+	QPDF_DLL
+	std::string getMatch(int n, int flags = 0);
+	QPDF_DLL
+	void getOffsetLength(int n, int& offset, int& length);
+	QPDF_DLL
+	int getOffset(int n);
+	QPDF_DLL
+	int getLength(int n);
 
 	// nMatches returns the number of available matches including
 	// match 0 which is the whole string.  In other words, if you
@@ -64,6 +70,7 @@ class PCRE
 	// will return the whole string, getMatch(1) will return the
 	// text that matched the backreference, and getMatch(2) will
 	// throw an exception because it is out of range.
+	QPDF_DLL
 	int nMatches() const;
 
 	// Flags for getMatch
@@ -86,13 +93,16 @@ class PCRE
 
     // The value passed in as options is passed to pcre_exec.  See man
     // pcreapi for details.
-    PCRE(char const* pattern, int options = 0) throw(Exception);
+    QPDF_DLL
+    PCRE(char const* pattern, int options = 0);
+    QPDF_DLL
     ~PCRE();
 
+    QPDF_DLL
     Match match(char const* subject, int options = 0, int startoffset = 0,
-		int size = -1)
-	throw(QEXC::General, Exception);
+		int size = -1);
 
+    QPDF_DLL
     static void test(int n = 0);
 
   private:

@@ -3,12 +3,18 @@
 #ifndef __BITSTREAM_HH__
 #define __BITSTREAM_HH__
 
+#include <qpdf/DLL.h>
+
 class BitStream
 {
   public:
+    QPDF_DLL
     BitStream(unsigned char const* p, int nbytes);
+    QPDF_DLL
     void reset();
+    QPDF_DLL
     unsigned long getBits(int nbits);
+    QPDF_DLL
     void skipToNextByte();
 
   private:

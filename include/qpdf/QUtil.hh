@@ -8,37 +8,71 @@
 #ifndef __QUTIL_HH__
 #define __QUTIL_HH__
 
+#include <qpdf/DLL.h>
 #include <string>
 #include <list>
+#include <stdexcept>
 #include <stdio.h>
 #include <sys/stat.h>
-
-#include <qpdf/QEXC.hh>
 
 namespace QUtil
 {
     // This is a collection of useful utility functions that don't
     // really go anywhere else.
+    QPDF_DLL
     std::string int_to_string(int, int length = 0);
+    QPDF_DLL
     std::string double_to_string(double, int decimal_places = 0);
 
-    // If status is -1, convert the current value of errno to a
-    // QEXC::System exception.  Otherwise, return status.
-    int os_wrapper(std::string const& description, int status)
-	throw (QEXC::System);
+    // Throw std::runtime_error with a string formed by appending to
+    // "description: " the standard string corresponding to the
+    // current value of errno.
+    QPDF_DLL
+    void throw_system_error(std::string const& description);
 
-    FILE* fopen_wrapper(std::string const&, FILE*)
-	throw (QEXC::System);
+    // The status argument is assumed to be the return value of a
+    // standard library call that sets errno when it fails.  If status
+    // is -1, convert the current value of errno to a
+    // std::runtime_error that includes the standard error string.
+    // Otherwise, return status.
+    QPDF_DLL
+    int os_wrapper(std::string const& description, int status);
 
+    // The FILE* argument is assumed to be the return of fopen.  If
+    // null, throw std::runtime_error.  Otherwise, return the FILE*
+    // argument.
+    QPDF_DLL
+    FILE* fopen_wrapper(std::string const&, FILE*);
+
+    QPDF_DLL
     char* copy_string(std::string const&);
+
+    // Set stdin, stdout to binary mode
+    QPDF_DLL
+    void binary_stdout();
+    QPDF_DLL
+    void binary_stdin();
+    // Set stdout to line buffered
+    QPDF_DLL
+    void setLineBuf(FILE*);
+
+
+    // May modify argv0
+    QPDF_DLL
+    char* getWhoami(char* argv0);
 
     // Get the value of an environment variable in a portable fashion.
     // Returns true iff the variable is defined.  If `value' is
     // non-null, initializes it with the value of the variable.
+    QPDF_DLL
     bool get_env(std::string const& var, std::string* value = 0);
+
+    QPDF_DLL
+    time_t get_current_time();
 
     // Return a string containing the byte representation of the UTF-8
     // encoding for the unicode value passed in.
+    QPDF_DLL
     std::string toUTF8(unsigned long uval);
 };
 

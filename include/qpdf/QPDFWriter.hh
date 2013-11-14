@@ -19,6 +19,9 @@
 #include <set>
 #include <map>
 
+#include <qpdf/DLL.h>
+#include <qpdf/Constants.h>
+
 #include <qpdf/QPDFXRefEntry.hh>
 
 #include <qpdf/PointerHolder.hh>
@@ -32,8 +35,16 @@ class Pl_Count;
 class QPDFWriter
 {
   public:
-    // Passing null as filename means write to stdout
+    // Passing null as filename means write to stdout.  QPDFWriter
+    // will create a zero-length output file upon construction.  If
+    // write fails, the empty or partially written file will not be
+    // deleted.  This is by design: sometimes the partial file may be
+    // useful for tracking down problems.  If your application doesn't
+    // want the partially written file to be left behind, you should
+    // delete it the eventual call to write fails.
+    QPDF_DLL
     QPDFWriter(QPDF& pdf, char const* filename);
+    QPDF_DLL
     ~QPDFWriter();
 
     // Set the value of object stream mode.  In disable mode, we never
@@ -43,16 +54,16 @@ class QPDFWriter
     // generate a conventional cross-reference table if there are no
     // object streams and a cross-reference stream if there are object
     // streams.  The default is o_preserve.
-    enum object_stream_e { o_disable, o_preserve, o_generate };
-    void setObjectStreamMode(object_stream_e);
+    QPDF_DLL
+    void setObjectStreamMode(qpdf_object_stream_e);
 
     // Set value of stream data mode.  In uncompress mode, we attempt
     // to uncompress any stream that we can.  In preserve mode, we
     // preserve any filtering applied to streams.  In compress mode,
     // if we can apply all filters and the stream is not already
     // optimally compressed, recompress the stream.
-    enum stream_data_e { s_uncompress, s_preserve, s_compress };
-    void setStreamDataMode(stream_data_e);
+    QPDF_DLL
+    void setStreamDataMode(qpdf_stream_data_e);
 
     // Set value of content stream normalization.  The default is
     // "false".  If true, we attempt to normalize newlines inside of
@@ -61,6 +72,7 @@ class QPDFWriter
     // damage the content stream.  This flag should be used only for
     // debugging and experimenting with PDF content streams.  Never
     // use it for production files.
+    QPDF_DLL
     void setContentNormalization(bool);
 
     // Set QDF mode.  QDF mode causes special "pretty printing" of
@@ -68,56 +80,93 @@ class QPDFWriter
     // Resulting PDF files can be edited in a text editor and then run
     // through fix-qdf to update cross reference tables and stream
     // lengths.
+    QPDF_DLL
     void setQDFMode(bool);
+
+    // Set the minimum PDF version.  If the PDF version of the input
+    // file (or previously set minimum version) is less than the
+    // version passed to this method, the PDF version of the output
+    // file will be set to this value.  If the original PDF file's
+    // version or previously set minimum version is already this
+    // version or later, the original file's version will be used.
+    // QPDFWriter automatically sets the minimum version to 1.4 when
+    // R3 encryption parameters are used, and to 1.5 when object
+    // streams are used.
+    QPDF_DLL
+    void setMinimumPDFVersion(std::string const&);
+
+    // Force the PDF version of the output file to be a given version.
+    // Use of this function may create PDF files that will not work
+    // properly with older PDF viewers.  When a PDF version is set
+    // using this function, qpdf will use this version even if the
+    // file contains features that are not supported in that version
+    // of PDF.  In other words, you should only use this function if
+    // you are sure the PDF file in question has no features of newer
+    // versions of PDF or if you are willing to create files that old
+    // viewers may try to open but not be able to properly interpret.
+    // If any encryption has been applied to the document either
+    // explicitly or by preserving the encryption of the source
+    // document, forcing the PDF version to a value too low to support
+    // that type of encryption will explicitly disable decryption.
+    // Additionally, forcing to a version below 1.5 will disable
+    // object streams.
+    QPDF_DLL
+    void forcePDFVersion(std::string const&);
 
     // Cause a static /ID value to be generated.  Use only in test
     // suites.
+    QPDF_DLL
     void setStaticID(bool);
+
+    // Use a fixed initialization vector for AES-CBC encryption.  This
+    // is not secure.  It should be used only in test suites for
+    // creating predictable encrypted output.
+    QPDF_DLL
+    void setStaticAesIV(bool);
 
     // Suppress inclusion of comments indicating original object IDs
     // when writing QDF files.  This can also be useful for testing,
     // particularly when using comparison of two qdf files to
     // determine whether two PDF files have identical content.
+    QPDF_DLL
     void setSuppressOriginalObjectIDs(bool);
 
     // Preserve encryption.  The default is true unless prefilering,
     // content normalization, or qdf mode has been selected in which
     // case encryption is never preserved.  Encryption is also not
     // preserved if we explicitly set encryption parameters.
+    QPDF_DLL
     void setPreserveEncryption(bool);
 
     // Set up for encrypted output.  Disables stream prefiltering and
     // content normalization.  Note that setting R2 encryption
-    // parameters sets the PDF version to at least 1.3, and setting R3
+    // parameters sets the PDF version to at least 1.3, setting R3
     // encryption parameters pushes the PDF version number to at least
-    // 1.4.
+    // 1.4, and setting R4 parameters pushes the version to at least
+    // 1.5, or if AES is used, 1.6.
+    QPDF_DLL
     void setR2EncryptionParameters(
 	char const* user_password, char const* owner_password,
 	bool allow_print, bool allow_modify,
 	bool allow_extract, bool allow_annotate);
-    enum r3_print_e
-    {
-	r3p_full,		// allow all printing
-	r3p_low,		// allow only low-resolution printing
-	r3p_none		// allow no printing
-    };
-    enum r3_modify_e
-    {
-	r3m_all,		// allow all modification
-	r3m_annotate,		// allow comment authoring and form operations
-	r3m_form,		// allow form field fill-in or signing
-	r3m_assembly,		// allow only document assembly
-	r3m_none		// allow no modification
-    };
+    QPDF_DLL
     void setR3EncryptionParameters(
 	char const* user_password, char const* owner_password,
 	bool allow_accessibility, bool allow_extract,
-	r3_print_e print, r3_modify_e modify);
+	qpdf_r3_print_e print, qpdf_r3_modify_e modify);
+    QPDF_DLL
+    void setR4EncryptionParameters(
+	char const* user_password, char const* owner_password,
+	bool allow_accessibility, bool allow_extract,
+	qpdf_r3_print_e print, qpdf_r3_modify_e modify,
+	bool encrypt_metadata, bool use_aes);
 
     // Create linearized output.  Disables qdf mode, content
     // normalization, and stream prefiltering.
+    QPDF_DLL
     void setLinearization(bool);
 
+    QPDF_DLL
     void write();
 
   private:
@@ -152,6 +201,12 @@ class QPDFWriter
     void preserveObjectStreams();
     void generateObjectStreams();
     void generateID();
+    void interpretR3EncryptionParameters(
+	std::set<int>& bits_to_clear,
+	char const* user_password, char const* owner_password,
+	bool allow_accessibility, bool allow_extract,
+	qpdf_r3_print_e print, qpdf_r3_modify_e modify);
+    void disableIncompatbleEncryption(float v);
     void setEncryptionParameters(
 	char const* user_password, char const* owner_password,
 	int V, int R, int key_len, std::set<int>& bits_to_clear);
@@ -201,6 +256,7 @@ class QPDFWriter
     // stack items are of type Pl_Buffer, the buffer is retrieved.
     void popPipelineStack(PointerHolder<Buffer>* bp = 0);
 
+    void adjustAESStreamLength(unsigned long& length);
     void pushEncryptionFilter();
     void pushDiscardFilter();
 
@@ -211,7 +267,7 @@ class QPDFWriter
     bool normalize_content_set;
     bool normalize_content;
     bool stream_data_mode_set;
-    stream_data_e stream_data_mode;
+    qpdf_stream_data_e stream_data_mode;
     bool qdf_mode;
     bool static_id;
     bool suppress_original_object_ids;
@@ -219,13 +275,16 @@ class QPDFWriter
     bool encrypted;
     bool preserve_encryption;
     bool linearized;
-    object_stream_e object_stream_mode;
+    qpdf_object_stream_e object_stream_mode;
     std::string encryption_key;
+    bool encrypt_metadata;
+    bool encrypt_use_aes;
     std::map<std::string, std::string> encryption_dictionary;
 
     std::string id1;		// for /ID key of
     std::string id2;		// trailer dictionary
     std::string min_pdf_version;
+    std::string forced_pdf_version;
     int encryption_dict_objid;
     std::string cur_data_key;
     std::list<PointerHolder<Pipeline> > to_delete;
@@ -236,7 +295,7 @@ class QPDFWriter
     std::map<int, size_t> lengths;
     int next_objid;
     int cur_stream_length_id;
-    int cur_stream_length;
+    unsigned long cur_stream_length;
     bool added_newline;
     int max_ostream_index;
     std::set<int> normalized_streams;

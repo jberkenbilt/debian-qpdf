@@ -13,6 +13,8 @@
 #include <map>
 #include <list>
 
+#include <qpdf/DLL.h>
+
 #include <qpdf/QPDFXRefEntry.hh>
 #include <qpdf/QPDFObjectHandle.hh>
 #include <qpdf/QPDFTokenizer.hh>
@@ -26,17 +28,27 @@ class QPDFExc;
 class QPDF
 {
   public:
+    // Get the current version of the QPDF software
+    QPDF_DLL
+    static std::string const& QPDFVersion();
+
+    QPDF_DLL
     QPDF();
+    QPDF_DLL
     ~QPDF();
 
     // Associate a file with a QPDF object and do initial parsing of
     // the file.  PDF objects are not read until they are needed.  A
-    // QPDF object may be associated with only on file in its
+    // QPDF object may be associated with only one file in its
     // lifetime.  This method must be called before any methods that
     // potentially ask for information about the PDF file are called.
     // Prior to calling this, the only methods that are allowed are
-    // those that set parameters.
-    void processFile(char const* filename, char const* password = "");
+    // those that set parameters.  If the input file is not
+    // encrypted,either a null password or an empty password can be
+    // used.  If the file is encrypted, either the user password or
+    // the owner password may be supplied.
+    QPDF_DLL
+    void processFile(char const* filename, char const* password = 0);
 
     // Parameter settings
 
@@ -44,18 +56,21 @@ class QPDF
     // (one that contains both cross-reference streams and
     // cross-reference tables).  This can be useful for testing to
     // ensure that a hybrid file would work with an older reader.
+    QPDF_DLL
     void setIgnoreXRefStreams(bool);
 
     // By default, any warnings are issued to stderr as they are
     // encountered.  If this is called with a true value, reporting of
     // warnings is suppressed.  You may still retrieve warnings by
     // calling getWarnings.
+    QPDF_DLL
     void setSuppressWarnings(bool);
 
     // By default, QPDF will try to recover if it finds certain types
     // of errors in PDF files.  If turned off, it will throw an
     // exception on the first such problem it finds without attempting
     // recovery.
+    QPDF_DLL
     void setAttemptRecovery(bool);
 
     // Other public methods
@@ -65,36 +80,45 @@ class QPDF
     // throws an exception.  Note that if setSuppressWarnings was not
     // called or was called with a false value, any warnings retrieved
     // here will have already been issued to stderr.
-    std::vector<std::string> getWarnings();
+    QPDF_DLL
+    std::vector<QPDFExc> getWarnings();
 
+    QPDF_DLL
     std::string getFilename() const;
+    QPDF_DLL
     std::string getPDFVersion() const;
+    QPDF_DLL
     QPDFObjectHandle getTrailer();
+    QPDF_DLL
     QPDFObjectHandle getRoot();
 
     // Install this object handle as an indirect object and return an
     // indirect reference to it.
+    QPDF_DLL
     QPDFObjectHandle makeIndirectObject(QPDFObjectHandle);
 
     // Retrieve an object by object ID and generation.  Returns an
     // indirect reference to it.
+    QPDF_DLL
     QPDFObjectHandle getObjectByID(int objid, int generation);
 
     // Encryption support
 
+    enum encryption_method_e { e_none, e_unknown, e_rc4, e_aes };
     struct EncryptionData
     {
 	// This class holds data read from the encryption dictionary.
 	EncryptionData(int V, int R, int Length_bytes, int P,
 		       std::string const& O, std::string const& U,
-		       std::string const& id1) :
+		       std::string const& id1, bool encrypt_metadata) :
 	    V(V),
 	    R(R),
 	    Length_bytes(Length_bytes),
 	    P(P),
 	    O(O),
 	    U(U),
-	    id1(id1)
+	    id1(id1),
+	    encrypt_metadata(encrypt_metadata)
 	{
 	}
 
@@ -105,30 +129,74 @@ class QPDF
 	std::string O;
 	std::string U;
 	std::string id1;
+	bool encrypt_metadata;
     };
 
+    QPDF_DLL
+    bool isEncrypted() const;
+
+    QPDF_DLL
+    bool isEncrypted(int& R, int& P);
+
+    // Encryption permissions -- not enforced by QPDF
+    QPDF_DLL
+    bool allowAccessibility();
+    QPDF_DLL
+    bool allowExtractAll();
+    QPDF_DLL
+    bool allowPrintLowRes();
+    QPDF_DLL
+    bool allowPrintHighRes();
+    QPDF_DLL
+    bool allowModifyAssembly();
+    QPDF_DLL
+    bool allowModifyForm();
+    QPDF_DLL
+    bool allowModifyAnnotation();
+    QPDF_DLL
+    bool allowModifyOther();
+    QPDF_DLL
+    bool allowModifyAll();
+
+    // Helper function to trim padding from user password.  Calling
+    // trim_user_password on the result of getPaddedUserPassword gives
+    // getTrimmedUserPassword's result.
+    QPDF_DLL
     static void trim_user_password(std::string& user_password);
+    QPDF_DLL
     static std::string compute_data_key(
-	std::string const& encryption_key, int objid, int generation);
+	std::string const& encryption_key, int objid, int generation,
+	bool use_aes);
+    QPDF_DLL
     static std::string compute_encryption_key(
 	std::string const& password, EncryptionData const& data);
 
+    QPDF_DLL
     static void compute_encryption_O_U(
 	char const* user_password, char const* owner_password,
-	int V, int R, int key_len, int P,
+	int V, int R, int key_len, int P, bool encrypt_metadata,
 	std::string const& id1,
 	std::string& O, std::string& U);
-    std::string const& getUserPassword() const;
+    // Return the full user password as stored in the PDF file.  If
+    // you are attempting to recover the user password in a
+    // user-presentable form, call getTrimmedUserPassword() instead.
+    QPDF_DLL
+    std::string const& getPaddedUserPassword() const;
+    // Return human-readable form of user password.
+    QPDF_DLL
+    std::string getTrimmedUserPassword() const;
 
     // Linearization support
 
     // Returns true iff the file starts with a linearization parameter
     // dictionary.  Does no additional validation.
+    QPDF_DLL
     bool isLinearized();
 
     // Performs various sanity checks on a linearized file.  Return
     // true if no errors or warnings.  Otherwise, return false and
     // output errors and warnings to stdout.
+    QPDF_DLL
     bool checkLinearization();
 
     // Calls checkLinearization() and, if possible, prints normalized
@@ -136,9 +204,11 @@ class QPDF
     // includes adding min values to delta values and adjusting
     // offsets based on the location and size of the primary hint
     // stream.
+    QPDF_DLL
     void showLinearizationData();
 
     // Shows the contents of the cross-reference table
+    QPDF_DLL
     void showXRefTable();
 
     // Optimization support -- see doc/optimization.  Implemented in
@@ -152,26 +222,31 @@ class QPDF
     // This is available so that the test suite can make sure that a
     // linearized file is already optimized.  When called in this way,
     // optimize() still populates the object <-> user maps
+    QPDF_DLL
     void optimize(std::map<int, int> const& object_stream_data,
 		  bool allow_changes = true);
 
     // Replace all references to indirect objects that are "scalars"
     // (i.e., things that don't have children: not arrays, streams, or
     // dictionaries) with direct objects.
+    QPDF_DLL
     void flattenScalarReferences();
 
     // Decode all streams, discarding the output.  Used to check
     // correctness of stream encoding.
+    QPDF_DLL
     void decodeStreams();
 
     // For QPDFWriter:
 
     // Remove /ID, /Encrypt, and /Prev keys from the trailer
     // dictionary since these are regenerated during write.
+    QPDF_DLL
     void trimTrailerForWrite();
 
     // Get lists of all objects in order according to the part of a
     // linearized file that they belong to.
+    QPDF_DLL
     void getLinearizedParts(
 	std::map<int, int> const& object_stream_data,
 	std::vector<QPDFObjectHandle>& part4,
@@ -180,6 +255,7 @@ class QPDF
 	std::vector<QPDFObjectHandle>& part8,
 	std::vector<QPDFObjectHandle>& part9);
 
+    QPDF_DLL
     void generateHintStream(std::map<int, QPDFXRefEntry> const& xref,
 			    std::map<int, size_t> const& lengths,
 			    std::map<int, int> const& obj_renumber,
@@ -187,15 +263,18 @@ class QPDF
 			    int& S, int& O);
 
     // Map object to object stream that contains it
+    QPDF_DLL
     void getObjectStreamData(std::map<int, int>&);
     // Get a list of objects that would be permitted in an object
     // stream
+    QPDF_DLL
     std::vector<int> getCompressibleObjects();
 
     // Convenience routines for common functions.  See also
     // QPDFObjectHandle.hh for additional convenience routines.
 
     // Traverse page tree return all /Page objects.
+    QPDF_DLL
     std::vector<QPDFObjectHandle> const& getAllPages();
 
     // Resolver class is restricted to QPDFObjectHandle so that only
@@ -229,6 +308,8 @@ class QPDF
     friend class Pipe;
 
   private:
+    static std::string qpdf_version;
+
     class InputSource
     {
       public:
@@ -339,9 +420,11 @@ class QPDF
     int processXRefStream(off_t offset, QPDFObjectHandle& xref_stream);
     void insertXrefEntry(int obj, int f0, int f1, int f2,
 			 bool overwrite = false);
+    void setLastObjectDescription(std::string const& description,
+				  int objid, int generation);
     QPDFObjectHandle readObject(
-	InputSource*, int objid, int generation,
-	bool in_object_stream);
+	InputSource*, std::string const& description,
+	int objid, int generation, bool in_object_stream);
     QPDFObjectHandle readObjectInternal(
 	InputSource* input, int objid, int generation,
 	bool in_object_stream,
@@ -351,7 +434,8 @@ class QPDF
     QPDFTokenizer::Token readToken(InputSource*);
 
     QPDFObjectHandle readObjectAtOffset(
-	off_t offset,
+	bool attempt_recovery,
+	off_t offset, std::string const& description,
 	int exp_objid, int exp_generation,
 	int& act_objid, int& act_generation);
     PointerHolder<QPDFObject> resolve(int objid, int generation);
@@ -366,11 +450,14 @@ class QPDF
 			     std::vector<QPDFObjectHandle>& result);
 
     // methods to support encryption -- implemented in QPDF_encryption.cc
+    encryption_method_e interpretCF(QPDFObjectHandle);
     void initializeEncryption();
-    std::string getKeyForObject(int objid, int generation);
+    std::string getKeyForObject(int objid, int generation, bool use_aes);
     void decryptString(std::string&, int objid, int generation);
-    void decryptStream(Pipeline*& pipeline, int objid, int generation,
-		       std::vector<PointerHolder<Pipeline> >& heap);
+    void decryptStream(
+	Pipeline*& pipeline, int objid, int generation,
+	QPDFObjectHandle& stream_dict,
+	std::vector<PointerHolder<Pipeline> >& heap);
 
     // Linearization Hint table structures.
     // Naming conventions:
@@ -699,11 +786,18 @@ class QPDF
 
     QPDFTokenizer tokenizer;
     FileInputSource file;
+    std::string last_object_description;
     bool encrypted;
     bool encryption_initialized;
     bool ignore_xref_streams;
     bool suppress_warnings;
     bool attempt_recovery;
+    int encryption_V;
+    bool encrypt_metadata;
+    std::map<std::string, encryption_method_e> crypt_filters;
+    encryption_method_e cf_stream;
+    encryption_method_e cf_string;
+    encryption_method_e cf_file;
     std::string provided_password;
     std::string user_password;
     std::string encryption_key;
@@ -716,7 +810,7 @@ class QPDF
     std::map<ObjGen, ObjCache> obj_cache;
     QPDFObjectHandle trailer;
     std::vector<QPDFObjectHandle> all_pages;
-    std::vector<std::string> warnings;
+    std::vector<QPDFExc> warnings;
 
     // Linearization data
     int first_xref_item_offset;	// actual value from file

@@ -1,4 +1,3 @@
-
 #ifndef __PL_RC4_HH__
 #define __PL_RC4_HH__
 
@@ -9,28 +8,19 @@
 class Pl_RC4: public Pipeline
 {
   public:
-    class Exception: public Pipeline::Exception
-    {
-      public:
-	Exception(std::string const& message) :
-	    Pipeline::Exception(message)
-	{
-	}
-
-	virtual ~Exception() throw()
-	{
-	}
-    };
-
     static int const def_bufsize = 65536;
 
     // key_len of -1 means treat key_data as a null-terminated string
+    QPDF_DLL
     Pl_RC4(char const* identifier, Pipeline* next,
 	   unsigned char const* key_data, int key_len = -1,
 	   int out_bufsize = def_bufsize);
+    QPDF_DLL
     virtual ~Pl_RC4();
 
+    QPDF_DLL
     virtual void write(unsigned char* data, int len);
+    QPDF_DLL
     virtual void finish();
 
   private:

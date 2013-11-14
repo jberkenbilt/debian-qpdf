@@ -8,7 +8,6 @@
 #include <iostream>
 #include <string.h>
 #include <stdlib.h>
-#include <unistd.h>
 
 static char const* version = "1.1";
 static char const* whoami = 0;
@@ -78,14 +77,8 @@ int main(int argc, char* argv[])
     bool static_id = false;
     std::map<std::string, std::string> Keys;
 
-    if ((whoami = strrchr(argv[0], '/')) == NULL)
-    {
-	whoami = argv[0];
-    }
-    else
-    {
-	++whoami;
-    }
+    whoami = QUtil::getWhoami(argv[0]);
+
     // For libtool's sake....
     if (strncmp(whoami, "lt-", 3) == 0)
     {
@@ -107,7 +100,7 @@ int main(int argc, char* argv[])
 
     char* fl_in = 0;
     char* fl_out = 0;
-    char* cur_key = 0;
+    std::string cur_key;
 
     for (int i = 1; i < argc; ++i)
     {
@@ -127,18 +120,22 @@ int main(int argc, char* argv[])
 	{
 	    QTC::TC("examples", "pdf-mod-info -key");
 	    cur_key = argv[i];
+	    if (! ((cur_key.length() > 0) && (cur_key[0] == '/')))
+	    {
+		cur_key = "/" + cur_key;
+	    }
 	    Keys[cur_key] = "";
 	}
 	else if ((! strcmp(argv[i], "-val")) && (++i < argc))
 	{
-	    if (cur_key == 0)
+	    if (cur_key.empty())
 	    {
 		QTC::TC("examples", "pdf-mod-info usage wrong val");
 		usage();
 	    }
 	    QTC::TC("examples", "pdf-mod-info -val");
 	    Keys[cur_key] = argv[i];
-	    cur_key = 0;
+	    cur_key.clear();
 	}
 	else
 	{
@@ -161,6 +158,9 @@ int main(int argc, char* argv[])
 	QTC::TC("examples", "pdf-mod-info no keys");
 	usage();
     }
+
+    std::string fl_tmp = fl_out;
+    fl_tmp += ".tmp";
 
     try
     {
@@ -199,13 +199,21 @@ int main(int argc, char* argv[])
 		fileinfo.replaceKey(it->first, elt);
 	    }
 	}
-	std::string fl_tmp = fl_out;
-	fl_tmp += ".tmp";
 	QPDFWriter w(file, fl_tmp.c_str());
-	w.setStreamDataMode(QPDFWriter::s_preserve);
+	w.setStreamDataMode(qpdf_s_preserve);
 	w.setLinearization(true);
 	w.setStaticID(static_id);
 	w.write();
+    }
+    catch (std::exception& e)
+    {
+	std::cerr << e.what() << std::endl;
+	exit(2);
+    }
+
+    try
+    {
+	(void) unlink(fl_out);
 	QUtil::os_wrapper("rename " + fl_tmp + " " + std::string(fl_out),
 			  rename(fl_tmp.c_str(), fl_out));
     }

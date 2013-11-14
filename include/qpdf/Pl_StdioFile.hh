@@ -21,25 +21,16 @@
 class Pl_StdioFile: public Pipeline
 {
   public:
-    class Exception: public Pipeline::Exception
-    {
-      public:
-	Exception(std::string const& message) :
-	    Pipeline::Exception(message)
-	{
-	}
-
-	virtual ~Exception() throw ()
-	{
-	}
-    };
-
     // f is externally maintained; this class just writes to and
     // flushes it.  It does not close it.
+    QPDF_DLL
     Pl_StdioFile(char const* identifier, FILE* f);
+    QPDF_DLL
     virtual ~Pl_StdioFile();
 
+    QPDF_DLL
     virtual void write(unsigned char* buf, int len);
+    QPDF_DLL
     virtual void finish();
 
   private:

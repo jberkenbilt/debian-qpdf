@@ -1,7 +1,5 @@
-
 #include <qpdf/Pl_MD5.hh>
-
-#include <qpdf/QEXC.hh>
+#include <stdexcept>
 
 Pl_MD5::Pl_MD5(char const* identifier, Pipeline* next) :
     Pipeline(identifier, next),
@@ -37,7 +35,8 @@ Pl_MD5::getHexDigest()
 {
     if (this->in_progress)
     {
-	throw QEXC::General("digest requested for in-progress MD5 Pipeline");
+	throw std::logic_error(
+	    "digest requested for in-progress MD5 Pipeline");
     }
     return this->md5.unparse();
 }

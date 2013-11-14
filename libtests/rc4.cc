@@ -1,4 +1,3 @@
-
 #include <qpdf/Pl_RC4.hh>
 #include <qpdf/Pl_StdioFile.hh>
 
@@ -6,12 +5,6 @@
 #include <string.h>
 #include <iostream>
 #include <stdlib.h>
-
-#ifdef _WIN32
-# include <io.h>
-#else
-# include <unistd.h>
-#endif
 
 int main(int argc, char* argv[])
 {

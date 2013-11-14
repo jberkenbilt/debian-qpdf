@@ -1,4 +1,3 @@
-
 #ifndef __PL_MD5_HH__
 #define __PL_MD5_HH__
 
@@ -16,10 +15,15 @@
 class Pl_MD5: public Pipeline
 {
   public:
+    QPDF_DLL
     Pl_MD5(char const* identifier, Pipeline* next);
+    QPDF_DLL
     virtual ~Pl_MD5();
+    QPDF_DLL
     virtual void write(unsigned char*, int);
+    QPDF_DLL
     virtual void finish();
+    QPDF_DLL
     std::string getHexDigest();
 
   private:

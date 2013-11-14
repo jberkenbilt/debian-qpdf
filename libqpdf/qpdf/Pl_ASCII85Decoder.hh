@@ -1,4 +1,3 @@
-
 #ifndef __PL_ASCII85DECODER_HH__
 #define __PL_ASCII85DECODER_HH__
 
@@ -7,9 +6,13 @@
 class Pl_ASCII85Decoder: public Pipeline
 {
   public:
+    QPDF_DLL
     Pl_ASCII85Decoder(char const* identifier, Pipeline* next);
+    QPDF_DLL
     virtual ~Pl_ASCII85Decoder();
+    QPDF_DLL
     virtual void write(unsigned char* buf, int len);
+    QPDF_DLL
     virtual void finish();
 
   private:

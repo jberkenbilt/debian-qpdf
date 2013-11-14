@@ -27,14 +27,19 @@
 class Pl_Buffer: public Pipeline
 {
   public:
+    QPDF_DLL
     Pl_Buffer(char const* identifier, Pipeline* next = 0);
+    QPDF_DLL
     virtual ~Pl_Buffer();
+    QPDF_DLL
     virtual void write(unsigned char*, int);
+    QPDF_DLL
     virtual void finish();
 
     // Each call to getBuffer() resets this object -- see notes above.
     // The caller is responsible for deleting the returned Buffer
     // object.
+    QPDF_DLL
     Buffer* getBuffer();
 
   private:

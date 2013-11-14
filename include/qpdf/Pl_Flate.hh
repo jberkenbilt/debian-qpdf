@@ -10,33 +10,22 @@
 
 #include <qpdf/Pipeline.hh>
 
-#include <zlib.h>
-
 class Pl_Flate: public Pipeline
 {
   public:
-    class Exception: public Pipeline::Exception
-    {
-      public:
-	Exception(std::string const& message) :
-	    Pipeline::Exception(message)
-	{
-	}
-
-	virtual ~Exception() throw ()
-	{
-	}
-    };
-
     static int const def_bufsize = 65536;
 
     enum action_e { a_inflate, a_deflate };
 
+    QPDF_DLL
     Pl_Flate(char const* identifier, Pipeline* next,
 	     action_e action, int out_bufsize = def_bufsize);
+    QPDF_DLL
     virtual ~Pl_Flate();
 
+    QPDF_DLL
     virtual void write(unsigned char* data, int len);
+    QPDF_DLL
     virtual void finish();
 
   private:
@@ -47,7 +36,7 @@ class Pl_Flate: public Pipeline
     int out_bufsize;
     action_e action;
     bool initialized;
-    z_stream zstream;
+    void* zdata;
 };
 
 #endif // __PL_FLATE_HH__

@@ -15,6 +15,7 @@ FILE* safe_fopen(char const* filename, char const* mode)
     {
 	std::cerr << "fopen " << filename << " failed: " << strerror(errno)
 		  << std::endl;
+	exit(2);
     }
     return result;
 }
@@ -104,9 +105,9 @@ int main(int argc, char* argv[])
     {
 	run(filename);
     }
-    catch (QEXC::General& e)
+    catch (std::exception& e)
     {
-	std::cout << e.unparse() << std::endl;
+	std::cout << e.what() << std::endl;
     }
     return 0;
 }

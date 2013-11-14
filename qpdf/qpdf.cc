@@ -1,7 +1,8 @@
-
 #include <iostream>
 #include <string.h>
 #include <stdlib.h>
+#include <fcntl.h>
+#include <stdio.h>
 
 #include <qpdf/QUtil.hh>
 #include <qpdf/QTC.hh>
@@ -72,6 +73,9 @@ Additional flags are dependent upon key length.\n\
     --extract=[yn]           allow other text/graphic extraction\n\
     --print=print-opt        control printing access\n\
     --modify=modify-opt      control modify access\n\
+    --cleartext-metadata     prevents encryption of metadata\n\
+    --use-aes=[yn]           indicates whether to use AES encryption\n\
+    --force-V4               forces use of V=4 encryption handler\n\
 \n\
     print-opt may be:\n\
 \n\
@@ -89,6 +93,14 @@ Additional flags are dependent upon key length.\n\
 \n\
 The default for each permission option is to be fully permissive.\n\
 \n\
+Specifying cleartext-metadata forces the PDF version to at least 1.5.\n\
+Specifying use of AES forces the PDF version to at least 1.6.  These\n\
+options are both off by default.\n\
+\n\
+The --force-V4 flag forces the V=4 encryption handler introduced in PDF 1.5\n\
+to be used even if not otherwise needed.  This option is primarily useful\n\
+for testing qpdf and has no other practical use.\n\
+\n\
 \n\
 Advanced Transformation Options\n\
 -------------------------------\n\
@@ -103,6 +115,8 @@ familiar with the PDF file format or who are PDF developers.\n\
 --object-streams=mode     controls handing of object streams\n\
 --ignore-xref-streams     tells qpdf to ignore any cross-reference streams\n\
 --qdf                     turns on \"QDF mode\" (below)\n\
+--min-version=version     sets the minimum PDF version of the output file\n\
+--force-version=version   forces this to be the PDF version of the output file\n\
 \n\
 Values for stream data options:\n\
 \n\
@@ -119,6 +133,12 @@ Values for object stream mode:\n\
 In qdf mode, by default, content normalization is turned on, and the\n\
 stream data mode is set to uncompress.\n\
 \n\
+Setting the minimum PDF version of the output file may raise the version\n\
+but will never lower it.  Forcing the PDF version of the output file may\n\
+set the PDF version to a lower value than actually allowed by the file's\n\
+contents.  You should only do this if you have no other possible way to\n\
+open the file or if you know that the file definitely doesn't include\n\
+features not supported later versions.\n\
 \n\
 Testing, Inspection, and Debugging Options\n\
 ------------------------------------------\n\
@@ -127,6 +147,8 @@ These options can be useful for digging into PDF files or for use in\n\
 automated test suites for software that uses the qpdf library.\n\
 \n\
 --static-id               generate static /ID: FOR TESTING ONLY!\n\
+--static-aes-iv           use a static initialization vector for AES-CBC\n\
+                          This is option is not secure!  FOR TESTING ONLY!\n\
 --no-original-object-ids  suppress original object ID comments in qdf mode\n\
 --show-encryption         quickly show encryption parameters\n\
 --check-linearization     check file integrity and linearization status\n\
@@ -165,22 +187,44 @@ void usage(std::string const& msg)
     exit(EXIT_ERROR);
 }
 
+static std::string show_bool(bool v)
+{
+    return v ? "allowed" : "not allowed";
+}
+
 static void show_encryption(QPDF& pdf)
 {
     // Extract /P from /Encrypt
-    QPDFObjectHandle trailer = pdf.getTrailer();
-    QPDFObjectHandle encrypt = trailer.getKey("/Encrypt");
-    if (encrypt.isNull())
+    int R = 0;
+    int P = 0;
+    if (! pdf.isEncrypted(R, P))
     {
 	std::cout << "File is not encrypted" << std::endl;
     }
     else
     {
-	QPDFObjectHandle P = encrypt.getKey("/P");
-	std::cout << "P = " << P.getIntValue() << std::endl;
-	std::string user_password = pdf.getUserPassword();
-	QPDF::trim_user_password(user_password);
+	std::cout << "R = " << R << std::endl;
+	std::cout << "P = " << P << std::endl;
+	std::string user_password = pdf.getTrimmedUserPassword();
 	std::cout << "User password = " << user_password << std::endl;
+	std::cout << "extract for accessibility: "
+		  << show_bool(pdf.allowAccessibility()) << std::endl;
+	std::cout << "extract for any purpose: "
+		  << show_bool(pdf.allowExtractAll()) << std::endl;
+	std::cout << "print low resolution: "
+		  << show_bool(pdf.allowPrintLowRes()) << std::endl;
+	std::cout << "print high resolution: "
+		  << show_bool(pdf.allowPrintHighRes()) << std::endl;
+	std::cout << "modify document assembly: "
+		  << show_bool(pdf.allowModifyAssembly()) << std::endl;
+	std::cout << "modify forms: "
+		  << show_bool(pdf.allowModifyForm()) << std::endl;
+	std::cout << "modify annotations: "
+		  << show_bool(pdf.allowModifyAnnotation()) << std::endl;
+	std::cout << "modify other: "
+		  << show_bool(pdf.allowModifyOther()) << std::endl;
+	std::cout << "modify anything: "
+		  << show_bool(pdf.allowModifyAll()) << std::endl;
     }
 }
 
@@ -190,7 +234,8 @@ parse_encrypt_options(
     std::string& user_password, std::string& owner_password, int& keylen,
     bool& r2_print, bool& r2_modify, bool& r2_extract, bool& r2_annotate,
     bool& r3_accessibility, bool& r3_extract,
-    QPDFWriter::r3_print_e& r3_print, QPDFWriter::r3_modify_e& r3_modify)
+    qpdf_r3_print_e& r3_print, qpdf_r3_modify_e& r3_modify,
+    bool& force_V4, bool& cleartext_metadata, bool& use_aes)
 {
     if (cur_arg + 3 >= argc)
     {
@@ -266,15 +311,15 @@ parse_encrypt_options(
 	    {
 		if (val == "full")
 		{
-		    r3_print = QPDFWriter::r3p_full;
+		    r3_print = qpdf_r3p_full;
 		}
 		else if (val == "low")
 		{
-		    r3_print = QPDFWriter::r3p_low;
+		    r3_print = qpdf_r3p_low;
 		}
 		else if (val == "none")
 		{
-		    r3_print = QPDFWriter::r3p_none;
+		    r3_print = qpdf_r3p_none;
 		}
 		else
 		{
@@ -308,23 +353,23 @@ parse_encrypt_options(
 	    {
 		if (val == "all")
 		{
-		    r3_modify = QPDFWriter::r3m_all;
+		    r3_modify = qpdf_r3m_all;
 		}
 		else if (val == "annotate")
 		{
-		    r3_modify = QPDFWriter::r3m_annotate;
+		    r3_modify = qpdf_r3m_annotate;
 		}
 		else if (val == "form")
 		{
-		    r3_modify = QPDFWriter::r3m_form;
+		    r3_modify = qpdf_r3m_form;
 		}
 		else if (val == "assembly")
 		{
-		    r3_modify = QPDFWriter::r3m_assembly;
+		    r3_modify = qpdf_r3m_assembly;
 		}
 		else if (val == "none")
 		{
-		    r3_modify = QPDFWriter::r3m_none;
+		    r3_modify = qpdf_r3m_none;
 		}
 		else
 		{
@@ -420,6 +465,65 @@ parse_encrypt_options(
 		usage("-accessibility invalid for 40-bit keys");
 	    }
 	}
+	else if (strcmp(arg, "cleartext-metadata") == 0)
+	{
+	    if (parameter)
+	    {
+		usage("--cleartext-metadata does not take a parameter");
+	    }
+	    if (keylen == 40)
+	    {
+		usage("--cleartext-metadata is invalid for 40-bit keys");
+	    }
+	    else
+	    {
+		cleartext_metadata = true;
+	    }
+	}
+	else if (strcmp(arg, "force-V4") == 0)
+	{
+	    if (parameter)
+	    {
+		usage("--force-V4 does not take a parameter");
+	    }
+	    if (keylen == 40)
+	    {
+		usage("--force-V4 is invalid for 40-bit keys");
+	    }
+	    else
+	    {
+		force_V4 = true;
+	    }
+	}
+	else if (strcmp(arg, "use-aes") == 0)
+	{
+	    if (parameter == 0)
+	    {
+		usage("--use-aes must be given as --extract=option");
+	    }
+	    std::string val = parameter;
+	    bool result = false;
+	    if (val == "y")
+	    {
+		result = true;
+	    }
+	    else if (val == "n")
+	    {
+		result = false;
+	    }
+	    else
+	    {
+		usage("invalid -use-aes parameter");
+	    }
+	    if (keylen == 40)
+	    {
+		usage("use-aes is invalid for 40-bit keys");
+	    }
+	    else
+	    {
+		use_aes = result;
+	    }
+	}
 	else
 	{
 	    usage(std::string("invalid encryption parameter --") + arg);
@@ -429,14 +533,9 @@ parse_encrypt_options(
 
 int main(int argc, char* argv[])
 {
-    if ((whoami = strrchr(argv[0], '/')) == NULL)
-    {
-	whoami = argv[0];
-    }
-    else
-    {
-	++whoami;
-    }
+    whoami = QUtil::getWhoami(argv[0]);
+    QUtil::setLineBuf(stdout);
+
     // For libtool's sake....
     if (strncmp(whoami, "lt-", 3) == 0)
     {
@@ -456,7 +555,7 @@ int main(int argc, char* argv[])
 	//               1         2         3         4         5         6         7         8
 	//      12345678901234567890123456789012345678901234567890123456789012345678901234567890
 	std::cout
-	    << whoami << " version 2.0.6" << std::endl
+	    << whoami << " version " << QPDF::QPDFVersion() << std::endl
 	    << "Copyright (c) 2005-2009 Jay Berkenbilt"
 	    << std::endl
 	    << "This software may be distributed under the terms of version 2 of the"
@@ -490,20 +589,26 @@ int main(int argc, char* argv[])
     bool r2_annotate = true;
     bool r3_accessibility = true;
     bool r3_extract = true;
-    QPDFWriter::r3_print_e r3_print = QPDFWriter::r3p_full;
-    QPDFWriter::r3_modify_e r3_modify = QPDFWriter::r3m_all;
+    qpdf_r3_print_e r3_print = qpdf_r3p_full;
+    qpdf_r3_modify_e r3_modify = qpdf_r3m_all;
+    bool force_V4 = false;
+    bool cleartext_metadata = false;
+    bool use_aes = false;
 
     bool stream_data_set = false;
-    QPDFWriter::stream_data_e stream_data_mode = QPDFWriter::s_compress;
+    qpdf_stream_data_e stream_data_mode = qpdf_s_compress;
     bool normalize_set = false;
     bool normalize = false;
     bool suppress_recovery = false;
     bool object_stream_set = false;
-    QPDFWriter::object_stream_e object_stream_mode = QPDFWriter::o_preserve;
+    qpdf_object_stream_e object_stream_mode = qpdf_o_preserve;
     bool ignore_xref_streams = false;
     bool qdf_mode = false;
+    std::string min_version;
+    std::string force_version;
 
     bool static_id = false;
+    bool static_aes_iv = false;
     bool suppress_original_object_id = false;
     bool show_encryption = false;
     bool check_linearization = false;
@@ -532,7 +637,7 @@ int main(int argc, char* argv[])
 		// Be lax about -arg vs --arg
 		++arg;
 	    }
-	    char* parameter = strchr(arg, '=');
+	    char* parameter = (char*)strchr(arg, '=');
 	    if (parameter)
 	    {
 		*parameter++ = 0;
@@ -556,7 +661,8 @@ int main(int argc, char* argv[])
 		    argc, argv, ++i,
 		    user_password, owner_password, keylen,
 		    r2_print, r2_modify, r2_extract, r2_annotate,
-		    r3_accessibility, r3_extract, r3_print, r3_modify);
+		    r3_accessibility, r3_extract, r3_print, r3_modify,
+		    force_V4, cleartext_metadata, use_aes);
 		encrypt = true;
 	    }
 	    else if (strcmp(arg, "decrypt") == 0)
@@ -573,15 +679,15 @@ int main(int argc, char* argv[])
 		stream_data_set = true;
 		if (strcmp(parameter, "compress") == 0)
 		{
-		    stream_data_mode = QPDFWriter::s_compress;
+		    stream_data_mode = qpdf_s_compress;
 		}
 		else if (strcmp(parameter, "preserve") == 0)
 		{
-		    stream_data_mode = QPDFWriter::s_preserve;
+		    stream_data_mode = qpdf_s_preserve;
 		}
 		else if (strcmp(parameter, "uncompress") == 0)
 		{
-		    stream_data_mode = QPDFWriter::s_uncompress;
+		    stream_data_mode = qpdf_s_uncompress;
 		}
 		else
 		{
@@ -612,15 +718,15 @@ int main(int argc, char* argv[])
 		object_stream_set = true;
 		if (strcmp(parameter, "disable") == 0)
 		{
-		    object_stream_mode = QPDFWriter::o_disable;
+		    object_stream_mode = qpdf_o_disable;
 		}
 		else if (strcmp(parameter, "preserve") == 0)
 		{
-		    object_stream_mode = QPDFWriter::o_preserve;
+		    object_stream_mode = qpdf_o_preserve;
 		}
 		else if (strcmp(parameter, "generate") == 0)
 		{
-		    object_stream_mode = QPDFWriter::o_generate;
+		    object_stream_mode = qpdf_o_generate;
 		}
 		else
 		{
@@ -635,9 +741,31 @@ int main(int argc, char* argv[])
 	    {
 		qdf_mode = true;
 	    }
+	    else if (strcmp(arg, "min-version") == 0)
+	    {
+		if (parameter == 0)
+		{
+		    usage("--min-version be given as"
+			  "--min-version=version");
+		}
+		min_version = parameter;
+	    }
+	    else if (strcmp(arg, "force-version") == 0)
+	    {
+		if (parameter == 0)
+		{
+		    usage("--force-version be given as"
+			  "--force-version=version");
+		}
+		force_version = parameter;
+	    }
 	    else if (strcmp(arg, "static-id") == 0)
 	    {
 		static_id = true;
+	    }
+	    else if (strcmp(arg, "static-aes-iv") == 0)
+	    {
+		static_aes_iv = true;
 	    }
 	    else if (strcmp(arg, "no-original-object-ids") == 0)
 	    {
@@ -766,7 +894,15 @@ int main(int argc, char* argv[])
 	    }
 	    if (show_linearization)
 	    {
-		pdf.showLinearizationData();
+		if (pdf.isLinearized())
+		{
+		    pdf.showLinearizationData();
+		}
+		else
+		{
+		    std::cout << infilename << " is not linearized"
+			      << std::endl;
+		}
 	    }
 	    if (show_xref)
 	    {
@@ -790,6 +926,7 @@ int main(int argc, char* argv[])
 			}
 			else
 			{
+			    QUtil::binary_stdout();
 			    Pl_StdioFile out("stdout", stdout);
 			    obj.pipeStreamData(&out, filter, normalize, false);
 			}
@@ -864,6 +1001,8 @@ int main(int argc, char* argv[])
 		std::cout << "checking " << infilename << std::endl;
 		try
 		{
+		    std::cout << "PDF Version: " << pdf.getPDFVersion()
+			      << std::endl;
 		    ::show_encryption(pdf);
 		    if (pdf.isLinearized())
 		    {
@@ -927,6 +1066,10 @@ int main(int argc, char* argv[])
 	    {
 		w.setStaticID(true);
 	    }
+	    if (static_aes_iv)
+	    {
+		w.setStaticAesIV(true);
+	    }
 	    if (suppress_original_object_id)
 	    {
 		w.setSuppressOriginalObjectIDs(true);
@@ -941,13 +1084,23 @@ int main(int argc, char* argv[])
 		}
 		else if (keylen == 128)
 		{
-		    w.setR3EncryptionParameters(
-			user_password.c_str(), owner_password.c_str(),
-			r3_accessibility, r3_extract, r3_print, r3_modify);
+		    if (force_V4 || cleartext_metadata || use_aes)
+		    {
+			w.setR4EncryptionParameters(
+			    user_password.c_str(), owner_password.c_str(),
+			    r3_accessibility, r3_extract, r3_print, r3_modify,
+			    !cleartext_metadata, use_aes);
+		    }
+		    else
+		    {
+			w.setR3EncryptionParameters(
+			    user_password.c_str(), owner_password.c_str(),
+			    r3_accessibility, r3_extract, r3_print, r3_modify);
+		    }
 		}
 		else
 		{
-		    throw QEXC::Internal("bad encryption keylen");
+		    throw std::logic_error("bad encryption keylen");
 		}
 	    }
 	    if (linearize)
@@ -957,6 +1110,14 @@ int main(int argc, char* argv[])
 	    if (object_stream_set)
 	    {
 		w.setObjectStreamMode(object_stream_mode);
+	    }
+	    if (! min_version.empty())
+	    {
+		w.setMinimumPDFVersion(min_version);
+	    }
+	    if (! force_version.empty())
+	    {
+		w.forcePDFVersion(force_version);
 	    }
 	    w.write();
 	}
