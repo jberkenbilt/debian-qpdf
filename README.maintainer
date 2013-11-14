@@ -1,13 +1,9 @@
 Release Reminders
 =================
 
- * To create a source release, do an export from the version control
-   system to a directory called qpdf-version.  From the parent of that
-   directory, run make_dist with the directory as an argument.  For
-   internally testing releases, you can run make_dist with the
-   --no-tests option.
+ * Increment shared library version information as needed
 
- * Remember to increment shared library version information as needed
+ * Add a release entry to ChangeLog
 
  * Make sure version numbers are consistent in the following
    locations:
@@ -17,19 +13,25 @@ Release Reminders
      qpdf/qpdf.cc
      manual/qpdf-manual.xml
 
-   make_dist does this automatically.
+   make_dist verifies this consistency.
 
  * Each year, update copyright notices.  Just search for Copyright.
    Last updated: 2008.
 
  * To construct a source distribution from a pristine checkout,
-   make_release does the following:
+   make_dist does the following:
 
     autoconf
     autoheader
     ./configure --enable-doc-maintenance
     make build_manual
     make distclean
+
+ * To create a source release, do an export from the version control
+   system to a directory called qpdf-version.  From the parent of that
+   directory, run make_dist with the directory as an argument.  For
+   internally testing releases, you can run make_dist with the
+   --no-tests option.
 
  * Remember to update documentation in the "files" subdirectory of the
    website on sourceforge.net.
