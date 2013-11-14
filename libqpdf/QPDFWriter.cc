@@ -19,6 +19,8 @@
 #include <qpdf/QPDF_Name.hh>
 #include <qpdf/QPDF_String.hh>
 
+#include <stdlib.h>
+
 QPDFWriter::QPDFWriter(QPDF& pdf, char const* filename) :
     pdf(pdf),
     filename(filename),
@@ -228,12 +230,12 @@ QPDFWriter::setEncryptionParameters(
     bits_to_clear.insert(1);
     bits_to_clear.insert(2);
 
-    unsigned long P = 0;
+    int P = 0;
     // Create the complement of P, then invert.
     for (std::set<int>::iterator iter = bits_to_clear.begin();
 	 iter != bits_to_clear.end(); ++iter)
     {
-	P |= (1 << (*iter) - 1);
+	P |= (1 << ((*iter) - 1));
     }
     P = ~P;
 

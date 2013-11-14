@@ -447,7 +447,7 @@ int main(int argc, char* argv[])
 	//               1         2         3         4         5         6         7         8
 	//      12345678901234567890123456789012345678901234567890123456789012345678901234567890
 	std::cout
-	    << whoami << " version 2.0" << std::endl
+	    << whoami << " version 2.0.1" << std::endl
 	    << "Copyright (c) 2005-2008 Jay Berkenbilt"
 	    << std::endl
 	    << "This software may be distributed under the terms of version 2 of the"
@@ -478,7 +478,7 @@ int main(int argc, char* argv[])
     bool r2_extract = true;
     bool r2_annotate = true;
     bool r3_accessibility = true;
-    bool r3_extract = true;;
+    bool r3_extract = true;
     QPDFWriter::r3_print_e r3_print = QPDFWriter::r3p_full;
     QPDFWriter::r3_modify_e r3_modify = QPDFWriter::r3m_all;
 
