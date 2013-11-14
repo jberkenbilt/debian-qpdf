@@ -22,10 +22,40 @@
 
 class Pipeline;
 class QPDF;
+class QPDF_Dictionary;
+class QPDF_Array;
 
 class QPDFObjectHandle
 {
   public:
+    // This class is used by replaceStreamData.  It provides an
+    // alternative way of associating stream data with a stream.  See
+    // comments on replaceStreamData and newStream for additional
+    // details.
+    class StreamDataProvider
+    {
+      public:
+	QPDF_DLL
+	virtual ~StreamDataProvider()
+	{
+	}
+	// The implementation of this function must write the
+	// unencrypted, raw stream data to the given pipeline.  Every
+	// call to provideStreamData for a given stream must write the
+	// same data.  The number of bytes written must agree with the
+	// length provided at the time the StreamDataProvider object
+	// was associated with the stream.  The object ID and
+	// generation passed to this method are those that belong to
+	// the stream on behalf of which the provider is called.  They
+	// may be ignored or used by the implementation for indexing
+	// or other purposes.  This information is made available just
+	// to make it more convenient to use a single
+	// StreamDataProvider object to provide data for multiple
+	// streams.
+	virtual void provideStreamData(int objid, int generation,
+				       Pipeline* pipeline) = 0;
+    };
+
     QPDF_DLL
     QPDFObjectHandle();
     QPDF_DLL
@@ -80,6 +110,30 @@ class QPDFObjectHandle
     QPDF_DLL
     static QPDFObjectHandle newDictionary(
 	std::map<std::string, QPDFObjectHandle> const& items);
+
+    // Create a new stream and associate it with the given qpdf
+    // object.  A subsequent call must be made to replaceStreamData()
+    // to provide data for the stream.  The stream's dictionary may be
+    // retrieved by calling getDict(), and the resulting dictionary
+    // may be modified.
+    QPDF_DLL
+    static QPDFObjectHandle newStream(QPDF* qpdf);
+
+    // Create a new stream and associate it with the given qpdf
+    // object.  Use the given buffer as the stream data.  The stream
+    // dictionary's /Length key will automatically be set to the size
+    // of the data buffer.  If additional keys are required, the
+    // stream's dictionary may be retrieved by calling getDict(), and
+    // the resulting dictionary may be modified.  This method is just
+    // a convient wrapper around the newStream() and
+    // replaceStreamData().  It is a convenience methods for streams
+    // that require no parameters beyond the stream length.  Note that
+    // you don't have to deal with compression yourself if you use
+    // QPDFWriter.  By default, QPDFWriter will automatically compress
+    // uncompressed stream data.  Example programs are provided that
+    // illustrate this.
+    QPDF_DLL
+    static QPDFObjectHandle newStream(QPDF* qpdf, PointerHolder<Buffer> data);
 
     // Accessor methods.  If an accessor method that is valid for only
     // a particular object type is called on an object of the wrong
@@ -150,6 +204,9 @@ class QPDFObjectHandle
     // Remove key, doing nothing if key does not exist
     QPDF_DLL
     void removeKey(std::string const& key);
+    // If the object is null, remove the key.  Otherwise, replace it.
+    QPDF_DLL
+    void replaceOrRemoveKey(std::string const& key, QPDFObjectHandle);
 
     // Methods for stream objects
     QPDF_DLL
@@ -181,6 +238,35 @@ class QPDFObjectHandle
     bool pipeStreamData(Pipeline*, bool filter,
 			bool normalize, bool compress);
 
+    // Replace this stream's stream data with the given data buffer,
+    // and replace the /Filter and /DecodeParms keys in the stream
+    // dictionary with the given values.  (If either value is empty,
+    // the corresponding key is removed.)  The stream's /Length key is
+    // replaced with the length of the data buffer.  The stream is
+    // interpreted as if the data read from the file, after any
+    // decryption filters have been applied, is as presented.
+    QPDF_DLL
+    void replaceStreamData(PointerHolder<Buffer> data,
+			   QPDFObjectHandle const& filter,
+			   QPDFObjectHandle const& decode_parms);
+
+    // As above, replace this stream's stream data.  Instead of
+    // directly providing a buffer with the stream data, call the
+    // given provider's provideStreamData method.  See comments on the
+    // StreamDataProvider class (defined above) for details on the
+    // method.  The provider must write the number of bytes as
+    // indicated by the length parameter, and the data must be
+    // consistent with filter and decode_parms as provided.  Although
+    // it is more complex to use this form of replaceStreamData than
+    // the one that takes a buffer, it makes it possible to avoid
+    // allocating memory for the stream data.  Example programs are
+    // provided that use both forms of replaceStreamData.
+    QPDF_DLL
+    void replaceStreamData(PointerHolder<StreamDataProvider> provider,
+			   QPDFObjectHandle const& filter,
+			   QPDFObjectHandle const& decode_parms,
+			   size_t length);
+
     // return 0 for direct objects
     QPDF_DLL
     int getObjectID() const;
@@ -202,13 +288,21 @@ class QPDFObjectHandle
     QPDF_DLL
     std::map<std::string, QPDFObjectHandle> getPageImages();
 
-    // Throws an exception if this is not a Page object.  Returns a
-    // vector of stream objects representing the content streams for
-    // the given page.  This routine allows the caller to not care
-    // whether there are one or more than one content streams for a
-    // page.
+    // Returns a vector of stream objects representing the content
+    // streams for the given page.  This routine allows the caller to
+    // not care whether there are one or more than one content streams
+    // for a page.  Throws an exception if this is not a Page object.
     QPDF_DLL
     std::vector<QPDFObjectHandle> getPageContents();
+
+    // Add the given object as a new content stream for this page.  If
+    // parameter 'first' is true, add to the beginning.  Otherwise,
+    // add to the end.  This routine automatically converts the page
+    // contents to an array if it is a scalar, allowing the caller not
+    // to care what the initial structure is.  Throws an exception if
+    // this is not a Page object.
+    QPDF_DLL
+    void addPageContents(QPDFObjectHandle contents, bool first);
 
     // Initializers for objects.  This Factory class gives the QPDF
     // class specific permission to call factory methods without
@@ -247,6 +341,20 @@ class QPDFObjectHandle
     };
     friend class ObjAccessor;
 
+    // Provide access to specific classes for recursive
+    // reverseResolved().
+    class ReleaseResolver
+    {
+	friend class QPDF_Dictionary;
+	friend class QPDF_Array;
+      private:
+	static void releaseResolved(QPDFObjectHandle& o)
+	{
+	    o.releaseResolved();
+	}
+    };
+    friend class ReleaseResolver;
+
   private:
     QPDFObjectHandle(QPDF*, int objid, int generation);
     QPDFObjectHandle(QPDFObject*);
@@ -262,6 +370,7 @@ class QPDFObjectHandle
     void assertPageObject();
     void dereference();
     void makeDirectInternal(std::set<int>& visited);
+    void releaseResolved();
 
     bool initialized;
 

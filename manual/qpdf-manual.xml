@@ -5,8 +5,8 @@
 <!ENTITY mdash "&#x2014;">
 <!ENTITY ndash "&#x2013;">
 <!ENTITY nbsp "&#xA0;">
-<!ENTITY swversion "2.1.5">
-<!ENTITY lastreleased "April 25, 2010">
+<!ENTITY swversion "2.2.rc1">
+<!ENTITY lastreleased "August 8, 2010">
 ]>
 <book>
  <bookinfo>
@@ -25,7 +25,7 @@
   <para>
    QPDF is a program that does structural, content-preserving
    transformations on PDF files.  QPDF's website is located at <ulink
-   url="http://qpdf.qbilt.org/">http://qpdf.qbilt.org/</ulink>.
+   url="http://qpdf.sourceforge.net/">http://qpdf.sourceforge.net/</ulink>.
   </para>
   <para>
    QPDF has been released under the terms of <ulink
@@ -1033,7 +1033,7 @@ make
     <filename>include/qpdf</filename> to your include path.
    </para>
    <para>
-    When linking against the qpdf library, you may also need to
+    When linking against the qpdf static library, you may also need to
     specify <literal>-lpcre -lz</literal> on your link command.  If
     your system understands how to read libtool
     <filename>.la</filename> files, this may not be necessary.
@@ -2071,6 +2071,58 @@ print "\n";
    <filename>ChangeLog</filename> in the source distribution.
   </para>
   <variablelist>
+   <varlistentry>
+    <term>2.2.rc1: August 8, 2010</term>
+    <listitem>
+     <itemizedlist>
+      <listitem>
+       <para>
+        Add new methods to <classname>QPDFObjectHandle</classname>
+        (<function>newStream</function> and
+        <function>replaceStreamData</function> for creating new
+        streams and replacing stream data.  This makes it possible to
+        perform a wide range of operations that were not previously
+        possible.
+       </para>
+      </listitem>
+      <listitem>
+       <para>
+        Add new helper method in
+        <classname>QPDFObjectHandle</classname>
+        (<function>addPageContents</function>) for appending or
+        prepending new content streams to a page.  This method makes
+        it possible to manipulate content streams without having to be
+        concerned whether a page's contents are a single stream or an
+        array of streams.
+       </para>
+      </listitem>
+      <listitem>
+       <para>
+        Add new method in <classname>QPDFObjectHandle</classname>:
+        <function>replaceOrRemoveKey</function>, which replaces a
+        dictionary key
+        with a given value unless the value is null, in which case it
+        removes the key instead.
+       </para>
+      </listitem>
+      <listitem>
+       <para>
+        Provide two new examples:
+        <command>pdf-double-page-size</command> and
+        <command>pdf-invert-images</command> that illustrate the newly
+        added interfaces.
+       </para>
+      </listitem>
+      <listitem>
+       <para>
+        Fix a memory leak that would cause loss of a few bytes for
+        every object involved in a cycle of object references.  Thanks
+        to Jian Ma for calling my attention to the leak.
+       </para>
+      </listitem>
+     </itemizedlist>
+    </listitem>
+   </varlistentry>
    <varlistentry>
     <term>2.1.5: April 25, 2010</term>
     <listitem>

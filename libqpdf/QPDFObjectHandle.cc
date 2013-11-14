@@ -41,6 +41,26 @@ QPDFObjectHandle::QPDFObjectHandle(QPDFObject* data) :
 {
 }
 
+void
+QPDFObjectHandle::releaseResolved()
+{
+    // Recursively break any resolved references to indirect objects.
+    // Do not cross over indirect object boundaries to avoid an
+    // infinite loop.  This method may only be called during final
+    // destruction.  See comments in QPDF::~QPDF().
+    if (isIndirect())
+    {
+	if (this->obj.getPointer())
+	{
+	    this->obj = 0;
+	}
+    }
+    else
+    {
+	QPDFObject::ObjAccessor::releaseResolved(this->obj.getPointer());
+    }
+}
+
 bool
 QPDFObjectHandle::isInitialized() const
 {
@@ -299,6 +319,15 @@ QPDFObjectHandle::removeKey(std::string const& key)
     return dynamic_cast<QPDF_Dictionary*>(obj.getPointer())->removeKey(key);
 }
 
+void
+QPDFObjectHandle::replaceOrRemoveKey(std::string const& key,
+				     QPDFObjectHandle value)
+{
+    assertType("Dictionary", isDictionary());
+    return dynamic_cast<QPDF_Dictionary*>(
+	obj.getPointer())->replaceOrRemoveKey(key, value);
+}
+
 // Stream accessors
 QPDFObjectHandle
 QPDFObjectHandle::getDict()
@@ -321,6 +350,27 @@ QPDFObjectHandle::pipeStreamData(Pipeline* p, bool filter,
     assertType("Stream", isStream());
     return dynamic_cast<QPDF_Stream*>(obj.getPointer())->pipeStreamData(
 	p, filter, normalize, compress);
+}
+
+void
+QPDFObjectHandle::replaceStreamData(PointerHolder<Buffer> data,
+				    QPDFObjectHandle const& filter,
+				    QPDFObjectHandle const& decode_parms)
+{
+    assertType("Stream", isStream());
+    dynamic_cast<QPDF_Stream*>(obj.getPointer())->replaceStreamData(
+	data, filter, decode_parms);
+}
+
+void
+QPDFObjectHandle::replaceStreamData(PointerHolder<StreamDataProvider> provider,
+				    QPDFObjectHandle const& filter,
+				    QPDFObjectHandle const& decode_parms,
+				    size_t length)
+{
+    assertType("Stream", isStream());
+    dynamic_cast<QPDF_Stream*>(obj.getPointer())->replaceStreamData(
+	provider, filter, decode_parms, length);
 }
 
 int
@@ -422,6 +472,35 @@ QPDFObjectHandle::getPageContents()
     return result;
 }
 
+void
+QPDFObjectHandle::addPageContents(QPDFObjectHandle new_contents, bool first)
+{
+    assertPageObject();
+    new_contents.assertType("Stream", new_contents.isStream());
+
+    std::vector<QPDFObjectHandle> orig_contents = getPageContents();
+
+    std::vector<QPDFObjectHandle> content_streams;
+    if (first)
+    {
+	QTC::TC("qpdf", "QPDFObjectHandle prepend page contents");
+	content_streams.push_back(new_contents);
+    }
+    for (std::vector<QPDFObjectHandle>::iterator iter = orig_contents.begin();
+	 iter != orig_contents.end(); ++iter)
+    {
+	QTC::TC("qpdf", "QPDFObjectHandle append page contents");
+	content_streams.push_back(*iter);
+    }
+    if (! first)
+    {
+	content_streams.push_back(new_contents);
+    }
+
+    QPDFObjectHandle contents = QPDFObjectHandle::newArray(content_streams);
+    this->replaceKey("/Contents", contents);
+}
+
 std::string
 QPDFObjectHandle::unparse()
 {
@@ -511,6 +590,30 @@ QPDFObjectHandle::newStream(QPDF* qpdf, int objid, int generation,
 				stream_dict, offset, length));
 }
 
+QPDFObjectHandle
+QPDFObjectHandle::newStream(QPDF* qpdf)
+{
+    QTC::TC("qpdf", "QPDFObjectHandle newStream");
+    std::map<std::string, QPDFObjectHandle> keys;
+    QPDFObjectHandle stream_dict = newDictionary(keys);
+    QPDFObjectHandle result = qpdf->makeIndirectObject(
+	QPDFObjectHandle(
+	    new QPDF_Stream(qpdf, 0, 0, stream_dict, 0, 0)));
+    result.dereference();
+    QPDF_Stream* stream = dynamic_cast<QPDF_Stream*>(result.obj.getPointer());
+    stream->setObjGen(result.getObjectID(), result.getGeneration());
+    return result;
+}
+
+QPDFObjectHandle
+QPDFObjectHandle::newStream(QPDF* qpdf, PointerHolder<Buffer> data)
+{
+    QTC::TC("qpdf", "QPDFObjectHandle newStream with data");
+    QPDFObjectHandle result = newStream(qpdf);
+    result.replaceStreamData(data, newNull(), newNull());
+    return result;
+}
+
 void
 QPDFObjectHandle::makeDirectInternal(std::set<int>& visited)
 {
@@ -540,7 +643,7 @@ QPDFObjectHandle::makeDirectInternal(std::set<int>& visited)
     this->objid = 0;
     this->generation = 0;
 
-    QPDFObject* new_obj = 0;
+    PointerHolder<QPDFObject> new_obj;
 
     if (isBool())
     {
@@ -599,7 +702,7 @@ QPDFObjectHandle::makeDirectInternal(std::set<int>& visited)
     }
     else
     {
-	throw std::logic_error("QPDFObjectHandle::makeIndirect: "
+	throw std::logic_error("QPDFObjectHandle::makeDirectInternal: "
 			       "unknown object type");
     }
 

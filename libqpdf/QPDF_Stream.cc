@@ -9,6 +9,7 @@
 #include <qpdf/Pl_ASCII85Decoder.hh>
 #include <qpdf/Pl_ASCIIHexDecoder.hh>
 #include <qpdf/Pl_LZWDecoder.hh>
+#include <qpdf/Pl_Count.hh>
 
 #include <qpdf/QTC.hh>
 #include <qpdf/QPDF.hh>
@@ -37,6 +38,19 @@ QPDF_Stream::QPDF_Stream(QPDF* qpdf, int objid, int generation,
 
 QPDF_Stream::~QPDF_Stream()
 {
+}
+
+void
+QPDF_Stream::setObjGen(int objid, int generation)
+{
+    if (! ((this->objid == 0) && (this->generation == 0)))
+    {
+	throw std::logic_error(
+	    "attempt to set object ID and generation of a stream"
+	    " that already has them");
+    }
+    this->objid = objid;
+    this->generation = generation;
 }
 
 std::string
@@ -319,9 +333,85 @@ QPDF_Stream::pipeStreamData(Pipeline* pipeline, bool filter,
 	}
     }
 
-    QPDF::Pipe::pipeStreamData(this->qpdf, this->objid, this->generation,
-			       this->offset, this->length,
-			       this->stream_dict, pipeline);
+    if (this->stream_data.getPointer())
+    {
+	QTC::TC("qpdf", "QPDF_Stream pipe replaced stream data");
+	Buffer& b = *(this->stream_data.getPointer());
+	pipeline->write(b.getBuffer(), b.getSize());
+	pipeline->finish();
+    }
+    else if (this->stream_provider.getPointer())
+    {
+	QPDFObjectHandle::StreamDataProvider& p =
+	    (*this->stream_provider.getPointer());
+	Pl_Count count("stream provider count", pipeline);
+	p.provideStreamData(this->objid, this->generation, &count);
+	size_t actual_length = count.getCount();
+	size_t desired_length =
+	    this->stream_dict.getKey("/Length").getIntValue();
+	if (actual_length == desired_length)
+	{
+	    QTC::TC("qpdf", "QPDF_Stream pipe use stream provider");
+	}
+	else
+	{
+	    QTC::TC("qpdf", "QPDF_Stream provider length mismatch");
+	    throw std::logic_error(
+		"stream data provider for " +
+		QUtil::int_to_string(this->objid) + " " +
+		QUtil::int_to_string(this->generation) +
+		" provided " +
+		QUtil::int_to_string(actual_length) +
+		" bytes instead of expected " +
+		QUtil::int_to_string(desired_length) + " bytes");
+	}
+    }
+    else if (this->offset == 0)
+    {
+	QTC::TC("qpdf", "QPDF_Stream pipe no stream data");
+	throw std::logic_error(
+	    "pipeStreamData called for stream with no data");
+    }
+    else
+    {
+	QTC::TC("qpdf", "QPDF_Stream pipe original stream data");
+	QPDF::Pipe::pipeStreamData(this->qpdf, this->objid, this->generation,
+				   this->offset, this->length,
+				   this->stream_dict, pipeline);
+    }
 
     return filter;
+}
+
+void
+QPDF_Stream::replaceStreamData(PointerHolder<Buffer> data,
+			       QPDFObjectHandle const& filter,
+			       QPDFObjectHandle const& decode_parms)
+{
+    this->stream_data = data;
+    this->stream_provider = 0;
+    replaceFilterData(filter, decode_parms, data.getPointer()->getSize());
+}
+
+void
+QPDF_Stream::replaceStreamData(
+    PointerHolder<QPDFObjectHandle::StreamDataProvider> provider,
+    QPDFObjectHandle const& filter,
+    QPDFObjectHandle const& decode_parms,
+    size_t length)
+{
+    this->stream_provider = provider;
+    this->stream_data = 0;
+    replaceFilterData(filter, decode_parms, length);
+}
+
+void
+QPDF_Stream::replaceFilterData(QPDFObjectHandle const& filter,
+			       QPDFObjectHandle const& decode_parms,
+			       size_t length)
+{
+    this->stream_dict.replaceOrRemoveKey("/Filter", filter);
+    this->stream_dict.replaceOrRemoveKey("/DecodeParms", decode_parms);
+    this->stream_dict.replaceKey("/Length",
+				 QPDFObjectHandle::newInteger(length));
 }

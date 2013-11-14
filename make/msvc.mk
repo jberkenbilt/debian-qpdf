@@ -65,15 +65,15 @@ endef
 #                       1    2       3       4    5       6        7
 # Usage: $(call makelib,objs,library,ldflags,libs,current,revision,age)
 define makelib
-	cl /nologo /O2 /Zi /Gy /EHsc /MD /LD /Fe$(basename $(2))$(5).dll $(1) \
+	cl /nologo /O2 /Zi /Gy /EHsc /MD /LD /Fe$(basename $(2))$(shell expr $(5) - $(7)).dll $(1) \
 		/link /incremental:no \
 		$(foreach L,$(subst -L,,$(3)),/LIBPATH:$(L)) \
 		$(foreach L,$(subst -l,,$(4)),$(L).lib)
-	if [ -f $(basename $(2))$(5).dll.manifest ]; then \
-		mt.exe -nologo -manifest $(basename $(2))$(5).dll.manifest \
-			-outputresource:$(basename $(2))$(5).dll\;2; \
+	if [ -f $(basename $(2))$(shell expr $(5) - $(7)).dll.manifest ]; then \
+		mt.exe -nologo -manifest $(basename $(2))$(shell expr $(5) - $(7)).dll.manifest \
+			-outputresource:$(basename $(2))$(shell expr $(5) - $(7)).dll\;2; \
 	fi
-	mv $(basename $(2))$(5).lib $(2)
+	mv $(basename $(2))$(shell expr $(5) - $(7)).lib $(2)
 endef
 
 #                       1    2      3       4
