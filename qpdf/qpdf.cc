@@ -12,6 +12,9 @@
 
 #include <qpdf/QPDFWriter.hh>
 
+static int const EXIT_ERROR = 2;
+static int const EXIT_WARNING = 3;
+
 static char const* whoami = 0;
 
 // Note: let's not be too noisy about documenting the fact that this
@@ -124,6 +127,7 @@ These options can be useful for digging into PDF files or for use in\n\
 automated test suites for software that uses the qpdf library.\n\
 \n\
 --static-id               generate static /ID: FOR TESTING ONLY!\n\
+--no-original-object-ids  suppress original object ID comments in qdf mode\n\
 --show-encryption         quickly show encryption parameters\n\
 --check-linearization     check file integrity and linearization status\n\
 --show-linearization      check and show all linearization data\n\
@@ -158,7 +162,7 @@ void usage(std::string const& msg)
 	<< "Usage: " << whoami << " [options] infile outfile" << std::endl
 	<< "For detailed help, run " << whoami << " --help" << std::endl
 	<< std::endl;
-    exit(2);
+    exit(EXIT_ERROR);
 }
 
 static void show_encryption(QPDF& pdf)
@@ -452,7 +456,7 @@ int main(int argc, char* argv[])
 	//               1         2         3         4         5         6         7         8
 	//      12345678901234567890123456789012345678901234567890123456789012345678901234567890
 	std::cout
-	    << whoami << " version 2.0.4" << std::endl
+	    << whoami << " version 2.0.5" << std::endl
 	    << "Copyright (c) 2005-2009 Jay Berkenbilt"
 	    << std::endl
 	    << "This software may be distributed under the terms of version 2 of the"
@@ -500,6 +504,7 @@ int main(int argc, char* argv[])
     bool qdf_mode = false;
 
     bool static_id = false;
+    bool suppress_original_object_id = false;
     bool show_encryption = false;
     bool check_linearization = false;
     bool show_linearization = false;
@@ -634,6 +639,10 @@ int main(int argc, char* argv[])
 	    {
 		static_id = true;
 	    }
+	    else if (strcmp(arg, "no-original-object-ids") == 0)
+	    {
+		suppress_original_object_id = true;
+	    }
 	    else if (strcmp(arg, "show-encryption") == 0)
 	    {
 		show_encryption = true;
@@ -752,7 +761,7 @@ int main(int argc, char* argv[])
 		}
 		else
 		{
-		    exit(2);
+		    exit(EXIT_ERROR);
 		}
 	    }
 	    if (show_linearization)
@@ -777,7 +786,7 @@ int main(int argc, char* argv[])
 			    QTC::TC("qpdf", "unable to filter");
 			    std::cerr << "Unable to filter stream data."
 				      << std::endl;
-			    exit(2);
+			    exit(EXIT_ERROR);
 			}
 			else
 			{
@@ -869,6 +878,8 @@ int main(int argc, char* argv[])
 			// traversal of file, so any structural errors
 			// would be exposed.
 			pdf.flattenScalarReferences();
+			// Also explicitly decode all streams.
+			pdf.decodeStreams();
 			okay = true;
 		    }
 		}
@@ -880,8 +891,7 @@ int main(int argc, char* argv[])
 		{
 		    if (! pdf.getWarnings().empty())
 		    {
-			// special exit status for warnings without errors
-			exit(3);
+			exit(EXIT_WARNING);
 		    }
 		    else
 		    {
@@ -917,6 +927,10 @@ int main(int argc, char* argv[])
 	    {
 		w.setStaticID(true);
 	    }
+	    if (suppress_original_object_id)
+	    {
+		w.setSuppressOriginalObjectIDs(true);
+	    }
 	    if (encrypt)
 	    {
 		if (keylen == 40)
@@ -946,11 +960,17 @@ int main(int argc, char* argv[])
 	    }
 	    w.write();
 	}
+	if (! pdf.getWarnings().empty())
+	{
+	    std::cerr << whoami << ": operation succeeded with warnings;"
+		      << " resulting file may have some problems" << std::endl;
+	    exit(EXIT_WARNING);
+	}
     }
     catch (std::exception& e)
     {
 	std::cerr << e.what() << std::endl;
-	exit(2);
+	exit(EXIT_ERROR);
     }
 
     return 0;
