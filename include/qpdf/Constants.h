@@ -1,4 +1,4 @@
-/* Copyright (c) 2005-2011 Jay Berkenbilt
+/* Copyright (c) 2005-2012 Jay Berkenbilt
  *
  * This file is part of qpdf.  This software may be distributed under
  * the terms of version 2 of the Artistic License which may be found
@@ -22,7 +22,8 @@ enum qpdf_error_code_e
     qpdf_e_system,		/* I/O error, memory error, etc. */
     qpdf_e_unsupported,		/* PDF feature not (yet) supported by qpdf */
     qpdf_e_password,		/* incorrect password for encrypted file */
-    qpdf_e_damaged_pdf		/* syntax errors or other damage in PDF */
+    qpdf_e_damaged_pdf,		/* syntax errors or other damage in PDF */
+    qpdf_e_pages,               /* erroneous or unsupported pages structure */
 };
 
 /* Write Parameters */

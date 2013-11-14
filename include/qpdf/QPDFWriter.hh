@@ -1,4 +1,4 @@
-// Copyright (c) 2005-2011 Jay Berkenbilt
+// Copyright (c) 2005-2012 Jay Berkenbilt
 //
 // This file is part of qpdf.  This software may be distributed under
 // the terms of version 2 of the Artistic License which may be found
@@ -12,6 +12,9 @@
 #ifndef __QPDFWRITER_HH__
 #define __QPDFWRITER_HH__
 
+#include <qpdf/DLL.h>
+#include <qpdf/Types.h>
+
 #include <stdio.h>
 #include <string>
 #include <list>
@@ -19,7 +22,6 @@
 #include <set>
 #include <map>
 
-#include <qpdf/DLL.h>
 #include <qpdf/Constants.h>
 
 #include <qpdf/QPDFXRefEntry.hh>
@@ -47,6 +49,14 @@ class QPDFWriter
     // setOutputFilename() for details.
     QPDF_DLL
     QPDFWriter(QPDF& pdf, char const* filename);
+
+    // Create a QPDFWriter object that writes its output to an already
+    // open FILE*.  This is equivalent to calling the first
+    // constructor and then calling setOutputFile().  See
+    // setOutputFile() for details.
+    QPDF_DLL
+    QPDFWriter(QPDF& pdf, char const* description, FILE* file, bool close_file);
+
     QPDF_DLL
     ~QPDFWriter();
 
@@ -63,6 +73,14 @@ class QPDFWriter
     // delete it the eventual call to write fails.
     QPDF_DLL
     void setOutputFilename(char const* filename);
+
+    // Write to the given FILE*, which must be opened by the caller.
+    // If close_file is true, QPDFWriter will close the file.
+    // Otherwise, the caller must close the file.  The file does not
+    // need to be seekable; it will be written to in a single pass.
+    // It must be open in binary mode.
+    QPDF_DLL
+    void setOutputFile(char const* description, FILE* file, bool close_file);
 
     // Indicate that QPDFWriter should create a memory buffer to
     // contain the final PDF file.  Obtain the memory by calling
@@ -170,6 +188,12 @@ class QPDFWriter
     QPDF_DLL
     void setPreserveEncryption(bool);
 
+    // Copy encryption parameters from another QPDF object.  If you
+    // want to copy encryption from the object you are writing, call
+    // setPreserveEncryption(true) instead.
+    QPDF_DLL
+    void copyEncryptionParameters(QPDF&);
+
     // Set up for encrypted output.  Disables stream prefiltering and
     // content normalization.  Note that setting R2 encryption
     // parameters sets the PDF version to at least 1.3, setting R3
@@ -210,8 +234,8 @@ class QPDFWriter
     enum trailer_e { t_normal, t_lin_first, t_lin_second };
 
     void init();
-    int bytesNeeded(unsigned long n);
-    void writeBinary(unsigned long val, unsigned int bytes);
+    int bytesNeeded(unsigned long long n);
+    void writeBinary(unsigned long long val, unsigned int bytes);
     void writeString(std::string const& str);
     void writeBuffer(PointerHolder<Buffer>&);
     void writeStringQDF(std::string const& str);
@@ -219,17 +243,18 @@ class QPDFWriter
     void writePad(int nspaces);
     void assignCompressedObjectNumbers(int objid);
     void enqueueObject(QPDFObjectHandle object);
-    void writeObjectStreamOffsets(std::vector<int>& offsets, int first_obj);
+    void writeObjectStreamOffsets(
+        std::vector<qpdf_offset_t>& offsets, int first_obj);
     void writeObjectStream(QPDFObjectHandle object);
     void writeObject(QPDFObjectHandle object, int object_stream_index = -1);
     void writeTrailer(trailer_e which, int size,
-		      bool xref_stream, int prev = 0);
+		      bool xref_stream, qpdf_offset_t prev = 0);
     void unparseObject(QPDFObjectHandle object, int level,
 		       unsigned int flags);
     void unparseObject(QPDFObjectHandle object, int level,
 		       unsigned int flags,
 		       // for stream dictionaries
-		       int stream_length, bool compress);
+		       size_t stream_length, bool compress);
     void unparseChild(QPDFObjectHandle child, int level, int flags);
     void initializeSpecialStreams();
     void preserveObjectStreams();
@@ -250,7 +275,6 @@ class QPDFWriter
 	int V, int R, int key_len, long P,
 	std::string const& O, std::string const& U,
 	std::string const& id1, std::string const& user_password);
-    void copyEncryptionParameters();
     void setDataKey(int objid);
     int openObject(int objid = 0);
     void closeObject(int objid);
@@ -260,24 +284,28 @@ class QPDFWriter
     void writeEncryptionDictionary();
     void writeHeader();
     void writeHintStream(int hint_id);
-    int writeXRefTable(trailer_e which, int first, int last, int size);
-    int writeXRefTable(trailer_e which, int first, int last, int size,
-		       // for linearization
-		       int prev,
-		       bool suppress_offsets,
-		       int hint_id,
-		       int hint_offset,
-		       int hint_length);
-    int writeXRefStream(int objid, int max_id, int max_offset,
-			trailer_e which, int first, int last, int size);
-    int writeXRefStream(int objid, int max_id, int max_offset,
-			trailer_e which, int first, int last, int size,
-			// for linearization
-			int prev,
-			int hint_id,
-			int hint_offset,
-			int hint_length,
-			bool skip_compression);
+    qpdf_offset_t writeXRefTable(
+        trailer_e which, int first, int last, int size);
+    qpdf_offset_t writeXRefTable(
+        trailer_e which, int first, int last, int size,
+        // for linearization
+        qpdf_offset_t prev,
+        bool suppress_offsets,
+        int hint_id,
+        qpdf_offset_t hint_offset,
+        qpdf_offset_t hint_length);
+    qpdf_offset_t writeXRefStream(
+        int objid, int max_id, qpdf_offset_t max_offset,
+        trailer_e which, int first, int last, int size);
+    qpdf_offset_t writeXRefStream(
+        int objid, int max_id, qpdf_offset_t max_offset,
+        trailer_e which, int first, int last, int size,
+        // for linearization
+        qpdf_offset_t prev,
+        int hint_id,
+        qpdf_offset_t hint_offset,
+        qpdf_offset_t hint_length,
+        bool skip_compression);
     int calculateXrefStreamPadding(int xref_bytes);
 
     // When filtering subsections, push additional pipelines to the
@@ -295,7 +323,7 @@ class QPDFWriter
     // stack items are of type Pl_Buffer, the buffer is retrieved.
     void popPipelineStack(PointerHolder<Buffer>* bp = 0);
 
-    void adjustAESStreamLength(unsigned long& length);
+    void adjustAESStreamLength(size_t& length);
     void pushEncryptionFilter();
     void pushDiscardFilter();
 
@@ -333,10 +361,10 @@ class QPDFWriter
     std::list<QPDFObjectHandle> object_queue;
     std::map<int, int> obj_renumber;
     std::map<int, QPDFXRefEntry> xref;
-    std::map<int, size_t> lengths;
+    std::map<int, qpdf_offset_t> lengths;
     int next_objid;
     int cur_stream_length_id;
-    unsigned long cur_stream_length;
+    size_t cur_stream_length;
     bool added_newline;
     int max_ostream_index;
     std::set<int> normalized_streams;

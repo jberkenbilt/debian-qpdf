@@ -1,19 +1,20 @@
 dnl Process this file with autoconf to produce a configure script.
 dnl This config.in requires autoconf 2.5 or greater.
 
-AC_PREREQ(2.60)
-AC_INIT(qpdf,2.3.1)
+AC_PREREQ([2.68])
+AC_INIT([qpdf],[3.0.rc1])
 
 AC_CONFIG_MACRO_DIR([m4])
 AC_CONFIG_FILES([autoconf.mk])
 AC_CONFIG_FILES([manual/html.xsl manual/print.xsl])
+AC_CONFIG_FILES([libqpdf.pc])
 AC_CONFIG_HEADERS([libqpdf/qpdf/qpdf-config.h])
 
 AC_PROG_CC
+AC_PROG_CC_C99
 AC_PROG_CXX
 AC_HEADER_STDC
 LT_INIT([win32-dll])
-AC_PROG_LIBTOOL
 
 USE_EXTERNAL_LIBS=0
 AC_MSG_CHECKING(for whether to use external libraries distribution)
@@ -31,6 +32,21 @@ else
    AC_MSG_RESULT(yes)
 fi
 
+WINDOWS_WORDSIZE=
+AC_SUBST(WINDOWS_WORDSIZE)
+AC_ARG_WITH(windows-wordsize,
+   AS_HELP_STRING([--with-windows-wordsize={32,64}],
+		  [Windows only: whether this is a 32-bit or 64-bit build; required if external-libs are enabled]),
+   [WINDOWS_WORDSIZE=$withval],
+   [WINDOWS_WORDSIZE=none])
+if test "$USE_EXTERNAL_LIBS" = "1"; then
+   AC_MSG_CHECKING(for windows wordsize)
+   AC_MSG_RESULT($WINDOWS_WORDSIZE)
+   if ! test "$WINDOWS_WORDSIZE" = "32" -o "$WINDOWS_WORDSIZE" = "64"; then
+      AC_MSG_ERROR(Windows wordsize of 32 or 64 must be specified if external libs are being used.)
+   fi
+fi
+
 if test "$BUILD_INTERNAL_LIBS" = "0"; then
    AC_CHECK_HEADER(zlib.h,,[MISSING_ZLIB_H=1; MISSING_ANY=1])
    AC_SEARCH_LIBS(deflate,z zlib,,[MISSING_ZLIB=1; MISSING_ANY=1])
@@ -38,9 +54,73 @@ if test "$BUILD_INTERNAL_LIBS" = "0"; then
    AC_SEARCH_LIBS(pcre_compile,pcre,,[MISSING_PCRE=1; MISSING_ANY=1])
 fi
 
+QPDF_LARGE_FILE_TEST_PATH=
+AC_SUBST(QPDF_LARGE_FILE_TEST_PATH)
+AC_ARG_WITH(large-file-test-path,
+   AS_HELP_STRING([--with-large-file-test-path=path],
+		  [To enable testing of files > 4GB, give the path to a directory with at least 11 GB free.  The test suite will write temporary files to this directory.  Alternatively, just set the QPDF_LARGE_FILE_TEST_PATH environment variable to the path before running the test suite.]),
+   [QPDF_LARGE_FILE_TEST_PATH=$withval],
+   [QPDF_LARGE_FILE_TEST_PATH=])
+
+AC_SYS_LARGEFILE
+AC_FUNC_FSEEKO
+AC_CHECK_FUNCS([fseeko64])
 AC_TYPE_UINT16_T
 AC_TYPE_UINT32_T
+
+AC_MSG_CHECKING(for whether printf supports %ll)
+AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
+#include <stdio.h>
+#include <string.h>
+#include <sys/types.h>
+int
+main()
+{
+    long long a = 160591605916059ll;
+    char t[50];
+    sprintf(t, "%lld", a);
+}
+]])],[qpdf_PRINTF_LL=yes],[qpdf_PRINTF_LL=no])
+AC_MSG_RESULT($qpdf_PRINTF_LL)
+if test "$qpdf_PRINTF_LL" = "yes"; then
+   AC_DEFINE([HAVE_PRINTF_LL], [1], [Whether printf supports %ll])
+fi
+
 AC_CHECK_FUNCS(random)
+
+# Check if LD supports linker scripts, and define conditional
+# HAVE_LD_VERSION_SCRIPT if so.  This functionality is currently
+# constrained to compilers using GNU ld on ELF systems or systems
+# which provide an adequate emulation thereof.
+AC_ARG_ENABLE([ld-version-script],
+  AS_HELP_STRING([--enable-ld-version-script],
+    [enable linker version script (default is enabled)]),
+    [have_ld_version_script=$enableval], [have_ld_version_script=yes])
+if test "$have_ld_version_script" != no; then
+  AC_MSG_CHECKING([if LD -Wl,--version-script works])
+  save_LDFLAGS="$LDFLAGS"
+  LDFLAGS="$LDFLAGS -Wl,--version-script=conftest.map"
+  cat > conftest.map <<EOF
+VERS_1 {
+        global: sym;
+};
+
+VERS_2 {
+        global: sym;
+} VERS_1;
+EOF
+  AC_LINK_IFELSE([AC_LANG_PROGRAM([], [])],
+                 [have_ld_version_script=yes], [have_ld_version_script=no])
+  rm -f conftest.map
+  LDFLAGS="$save_LDFLAGS"
+  AC_MSG_RESULT($have_ld_version_script)
+fi
+if test "$have_ld_version_script" = "yes"; then
+  HAVE_LD_VERSION_SCRIPT=1
+else
+  HAVE_LD_VERSION_SCRIPT=0
+fi
+AC_SUBST(HAVE_LD_VERSION_SCRIPT)
 
 AC_MSG_CHECKING(for gnu make >= 3.81)
 make_okay=0
@@ -67,9 +147,11 @@ AC_MSG_CHECKING(for whether $CC supports -MD -MF x.dep -MP)
 oCFLAGS=$CFLAGS
 rm -f x.dep
 CFLAGS="$CFLAGS -MD -MF x.dep -MP"
-AC_TRY_COMPILE([#include <stdio.h>], [FILE* a = stdout],
-	       qpdf_DEPFLAGS=yes,
-	       qpdf_DEPFLAGS=no)
+AC_COMPILE_IFELSE([AC_LANG_PROGRAM(
+                    [[#include <stdio.h>]], [[FILE* a = stdout]]
+                  )],
+                  [qpdf_DEPFLAGS=yes],
+                  [qpdf_DEPFLAGS=no])
 CFLAGS=$oCFLAGS
 if test "$qpdf_DEPFLAGS" = "yes"; then
    if ! grep stdio.h x.dep >/dev/null 2>&1; then
@@ -98,9 +180,8 @@ if test "$BUILDRULES" != "msvc"; then
    AC_MSG_CHECKING(for whether $CC supports -Wall)
    oCFLAGS=$CFLAGS
    CFLAGS="$CFLAGS -Wall"
-   AC_TRY_COMPILE([], [int a = 1; int b = a; a = b;],
-		  qpdf_USE_WALL=1,
-		  qpdf_USE_WALL=0)
+   AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[]], [[int a = 1; int b = a; a = b;]])],
+                     [qpdf_USE_WALL=1],[qpdf_USE_WALL=0])
    if test "$qpdf_USE_WALL" = "1"; then
       AC_MSG_RESULT(yes)
       CXXFLAGS="$CXXFLAGS -Wall"
@@ -129,16 +210,27 @@ if test "$BUILDRULES" != "msvc"; then
    fi
 fi
 
-AC_SUBST(SKIP_TEST_COMPARE_IMAGES)
+AC_SUBST(QPDF_SKIP_TEST_COMPARE_IMAGES)
 AC_ARG_ENABLE(test-compare-images,
    AS_HELP_STRING([--enable-test-compare-images],
-		  [whether to compare images in test suite; enabled by default, enabling requires ghostscript and tiffcmp to be available]),
+		  [whether to compare images in test suite; disabled by default, enabling requires ghostscript and tiffcmp to be available]),
    [if test "$enableval" = "no"; then
-      SKIP_TEST_COMPARE_IMAGES=1
+      QPDF_SKIP_TEST_COMPARE_IMAGES=1
     else
-      SKIP_TEST_COMPARE_IMAGES=0
+      QPDF_SKIP_TEST_COMPARE_IMAGES=0
     fi],
-   [SKIP_TEST_COMPARE_IMAGES=0])
+   [QPDF_SKIP_TEST_COMPARE_IMAGES=1])
+
+AC_SUBST(SHOW_FAILED_TEST_OUTPUT)
+AC_ARG_ENABLE(show-failed-test-output,
+   AS_HELP_STRING([--enable-show-failed-test-output],
+		  [if specified, write failed test output to the console; useful for building on build servers where you can't easily open the test output files]),
+   [if test "$enableval" = "no"; then
+      SHOW_FAILED_TEST_OUTPUT=0
+    else
+      SHOW_FAILED_TEST_OUTPUT=1
+    fi],
+   [SHOW_FAILED_TEST_OUTPUT=0])
 
 AC_ARG_WITH(docbook-xsl,
    AS_HELP_STRING([--with-docbook-xsl=DIR],
@@ -322,8 +414,8 @@ if test "$USE_EXTERNAL_LIBS" = "1"; then
    # the user can run this and then edit autoconf.mk if they have too
    # much trouble getting it to work with a different compiler.
    CPPFLAGS="$CPPFLAGS -Iexternal-libs/include"
-   LDFLAGS="$LDFLAGS -Lexternal-libs/lib-$BUILDRULES"
+   LDFLAGS="$LDFLAGS -Lexternal-libs/lib-$BUILDRULES$WINDOWS_WORDSIZE"
    LIBS="$LIBS -lz -lpcre"
 fi
 
-AC_OUTPUT()
+AC_OUTPUT

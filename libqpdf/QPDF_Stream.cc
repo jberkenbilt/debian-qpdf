@@ -22,7 +22,7 @@ std::map<std::string, std::string> QPDF_Stream::filter_abbreviations;
 
 QPDF_Stream::QPDF_Stream(QPDF* qpdf, int objid, int generation,
 			 QPDFObjectHandle stream_dict,
-			 off_t offset, int length) :
+			 qpdf_offset_t offset, size_t length) :
     qpdf(qpdf),
     objid(objid),
     generation(generation),
@@ -379,25 +379,34 @@ QPDF_Stream::pipeStreamData(Pipeline* pipeline, bool filter,
 	Pl_Count count("stream provider count", pipeline);
 	this->stream_provider->provideStreamData(
 	    this->objid, this->generation, &count);
-	size_t actual_length = count.getCount();
-	size_t desired_length =
-	    this->stream_dict.getKey("/Length").getIntValue();
-	if (actual_length == desired_length)
-	{
-	    QTC::TC("qpdf", "QPDF_Stream pipe use stream provider");
-	}
-	else
-	{
-	    QTC::TC("qpdf", "QPDF_Stream provider length mismatch");
-	    throw std::logic_error(
-		"stream data provider for " +
-		QUtil::int_to_string(this->objid) + " " +
-		QUtil::int_to_string(this->generation) +
-		" provided " +
-		QUtil::int_to_string(actual_length) +
-		" bytes instead of expected " +
-		QUtil::int_to_string(desired_length) + " bytes");
-	}
+	qpdf_offset_t actual_length = count.getCount();
+	qpdf_offset_t desired_length = 0;
+        if (this->stream_dict.hasKey("/Length"))
+        {
+	    desired_length = this->stream_dict.getKey("/Length").getIntValue();
+            if (actual_length == desired_length)
+            {
+                QTC::TC("qpdf", "QPDF_Stream pipe use stream provider");
+            }
+            else
+            {
+                QTC::TC("qpdf", "QPDF_Stream provider length mismatch");
+                throw std::logic_error(
+                    "stream data provider for " +
+                    QUtil::int_to_string(this->objid) + " " +
+                    QUtil::int_to_string(this->generation) +
+                    " provided " +
+                    QUtil::int_to_string(actual_length) +
+                    " bytes instead of expected " +
+                    QUtil::int_to_string(desired_length) + " bytes");
+            }
+        }
+        else
+        {
+            QTC::TC("qpdf", "QPDF_Stream provider length not provided");
+            this->stream_dict.replaceKey(
+                "/Length", QPDFObjectHandle::newInteger(actual_length));
+        }
     }
     else if (this->offset == 0)
     {
@@ -430,12 +439,11 @@ void
 QPDF_Stream::replaceStreamData(
     PointerHolder<QPDFObjectHandle::StreamDataProvider> provider,
     QPDFObjectHandle const& filter,
-    QPDFObjectHandle const& decode_parms,
-    size_t length)
+    QPDFObjectHandle const& decode_parms)
 {
     this->stream_provider = provider;
     this->stream_data = 0;
-    replaceFilterData(filter, decode_parms, length);
+    replaceFilterData(filter, decode_parms, 0);
 }
 
 void
@@ -445,6 +453,29 @@ QPDF_Stream::replaceFilterData(QPDFObjectHandle const& filter,
 {
     this->stream_dict.replaceOrRemoveKey("/Filter", filter);
     this->stream_dict.replaceOrRemoveKey("/DecodeParms", decode_parms);
-    this->stream_dict.replaceKey("/Length",
-				 QPDFObjectHandle::newInteger(length));
+    if (length == 0)
+    {
+        QTC::TC("qpdf", "QPDF_Stream unknown stream length");
+        this->stream_dict.removeKey("/Length");
+    }
+    else
+    {
+        this->stream_dict.replaceKey(
+            "/Length", QPDFObjectHandle::newInteger((int)length));
+    }
+}
+
+void
+QPDF_Stream::replaceDict(QPDFObjectHandle new_dict)
+{
+    this->stream_dict = new_dict;
+    QPDFObjectHandle length_obj = new_dict.getKey("/Length");
+    if (length_obj.isInteger())
+    {
+        this->length = length_obj.getIntValue();
+    }
+    else
+    {
+        this->length = 0;
+    }
 }

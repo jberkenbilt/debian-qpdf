@@ -37,7 +37,7 @@ QPDF_Array::unparse()
 int
 QPDF_Array::getNItems() const
 {
-    return this->items.size();
+    return (int)this->items.size();
 }
 
 QPDFObjectHandle
@@ -46,7 +46,7 @@ QPDF_Array::getItem(int n) const
     if ((n < 0) || (n >= (int)this->items.size()))
     {
 	throw std::logic_error(
-	    "INTERNAL ERROR: bounds array accessing QPDF_Array element");
+	    "INTERNAL ERROR: bounds error accessing QPDF_Array element");
     }
     return this->items[n];
 }
@@ -63,4 +63,36 @@ QPDF_Array::setItem(int n, QPDFObjectHandle const& oh)
     // Call getItem for bounds checking
     (void) getItem(n);
     this->items[n] = oh;
+}
+
+void
+QPDF_Array::setFromVector(std::vector<QPDFObjectHandle> const& items)
+{
+    this->items = items;
+}
+
+void
+QPDF_Array::insertItem(int at, QPDFObjectHandle const& item)
+{
+    // As special case, also allow insert beyond the end
+    if ((at < 0) || (at > (int)this->items.size()))
+    {
+	throw std::logic_error(
+	    "INTERNAL ERROR: bounds error accessing QPDF_Array element");
+    }
+    this->items.insert(this->items.begin() + at, item);
+}
+
+void
+QPDF_Array::appendItem(QPDFObjectHandle const& item)
+{
+    this->items.push_back(item);
+}
+
+void
+QPDF_Array::eraseItem(int at)
+{
+    // Call getItem for bounds checking
+    (void) getItem(at);
+    this->items.erase(this->items.begin() + at);
 }

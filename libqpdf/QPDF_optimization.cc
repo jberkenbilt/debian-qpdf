@@ -1,4 +1,4 @@
-// See doc/optimization.
+// See the "Optimization" section of the manual.
 
 #include <qpdf/QPDF.hh>
 
@@ -166,16 +166,16 @@ QPDF::optimize(std::map<int, int> const& object_stream_data,
     }
 
     // Traverse pages tree pushing all inherited resources down to the
-    // page level.
+    // page level.  This also initializes this->all_pages.
+    pushInheritedAttributesToPage(allow_changes, false);
 
-    // key_ancestors is a mapping of page attribute keys to a stack of
-    // Pages nodes that contain values for them.  pageno is the
-    // current page sequence number numbered from 0.
-    std::map<std::string, std::vector<QPDFObjectHandle> > key_ancestors;
-    int pageno = 0;
-    optimizePagesTree(this->trailer.getKey("/Root").getKey("/Pages"),
-		      key_ancestors, pageno, allow_changes);
-    assert(key_ancestors.empty());
+    // Traverse pages
+    int n = (int)this->all_pages.size();
+    for (int pageno = 0; pageno < n; ++pageno)
+    {
+        updateObjectMaps(ObjUser(ObjUser::ou_page, pageno),
+                         this->all_pages[pageno]);
+    }
 
     // Traverse document-level items
     std::set<std::string> keys = this->trailer.getKeys();
@@ -220,10 +220,43 @@ QPDF::optimize(std::map<int, int> const& object_stream_data,
 }
 
 void
-QPDF::optimizePagesTree(
+QPDF::pushInheritedAttributesToPage()
+{
+    // Public API should not have access to allow_changes.
+    pushInheritedAttributesToPage(true, false);
+}
+
+void
+QPDF::pushInheritedAttributesToPage(bool allow_changes, bool warn_skipped_keys)
+{
+    // Traverse pages tree pushing all inherited resources down to the
+    // page level.
+
+    // The record of whether we've done this is cleared by
+    // updateAllPagesCache().  If we're warning for skipped keys,
+    // re-traverse unconditionally.
+    if (this->pushed_inherited_attributes_to_pages && (! warn_skipped_keys))
+    {
+        return;
+    }
+
+    // key_ancestors is a mapping of page attribute keys to a stack of
+    // Pages nodes that contain values for them.
+    std::map<std::string, std::vector<QPDFObjectHandle> > key_ancestors;
+    this->all_pages.clear();
+    pushInheritedAttributesToPageInternal(
+        this->trailer.getKey("/Root").getKey("/Pages"),
+        key_ancestors, this->all_pages, allow_changes, warn_skipped_keys);
+    assert(key_ancestors.empty());
+    this->pushed_inherited_attributes_to_pages = true;
+}
+
+void
+QPDF::pushInheritedAttributesToPageInternal(
     QPDFObjectHandle cur_pages,
     std::map<std::string, std::vector<QPDFObjectHandle> >& key_ancestors,
-    int& pageno, bool allow_changes)
+    std::vector<QPDFObjectHandle>& pages,
+    bool allow_changes, bool warn_skipped_keys)
 {
     // Extract the underlying dictionary object
     std::string type = cur_pages.getKey("/Type").getName();
@@ -241,8 +274,8 @@ QPDF::optimizePagesTree(
 	     iter != keys.end(); ++iter)
 	{
 	    std::string const& key = *iter;
-	    if (! ((key == "/Type") || (key == "/Parent") ||
-		   (key == "/Kids") || (key == "/Count")))
+            if ( (key == "/MediaBox") || (key == "/CropBox") ||
+                 (key == "/Resources") || (key == "/Rotate") )
 	    {
 		if (! allow_changes)
 		{
@@ -250,7 +283,7 @@ QPDF::optimizePagesTree(
 				  this->last_object_description,
 				  this->file->getLastOffset(),
 				  "optimize detected an "
-				  "inheritable resource when called "
+                                  "inheritable attribute when called "
 				  "in no-change mode");
 		}
 
@@ -286,6 +319,25 @@ QPDF::optimizePagesTree(
 		// reattached at the page level.
 		cur_pages.removeKey(key);
 	    }
+            else if (! ((key == "/Type") || (key == "/Parent") ||
+                       (key == "/Kids") || (key == "/Count")))
+            {
+                // Warn when flattening, but not if the key is at the top
+                // level (i.e. "/Parent" not set), as we don't change these;
+                // but flattening removes intermediate /Pages nodes.
+                if ( (warn_skipped_keys) && (cur_pages.hasKey("/Parent")) )
+                {
+                    QTC::TC("qpdf", "QPDF unknown key not inherited");
+                    setLastObjectDescription("Pages object",
+                                             cur_pages.getObjectID(),
+                                             cur_pages.getGeneration());
+                    warn(QPDFExc(qpdf_e_pages, this->file->getName(),
+                                 this->last_object_description, 0,
+                                 "Unknown key " + key + " in /Pages object"
+                                 " is being discarded as a result of"
+                                 " flattening the /Pages tree"));
+                }
+            }
 	}
 
 	// Visit descendant nodes.
@@ -293,8 +345,9 @@ QPDF::optimizePagesTree(
 	int n = kids.getArrayNItems();
 	for (int i = 0; i < n; ++i)
 	{
-	    optimizePagesTree(kids.getArrayItem(i), key_ancestors, pageno,
-			      allow_changes);
+            pushInheritedAttributesToPageInternal(
+                kids.getArrayItem(i), key_ancestors, pages,
+                allow_changes, warn_skipped_keys);
 	}
 
 	// For each inheritable key, pop the stack.  If the stack
@@ -342,22 +395,14 @@ QPDF::optimizePagesTree(
 		QTC::TC("qpdf", "QPDF opt page resource hides ancestor");
 	    }
 	}
-
-	// Traverse from this point, updating the mappings of object
-	// users to objects and objects to object users.
-
-	updateObjectMaps(ObjUser(ObjUser::ou_page, pageno), cur_pages);
-
-	// Increment pageno so that its value will be correct for the
-	// next page.
-	++pageno;
+        pages.push_back(cur_pages);
     }
     else
     {
 	throw QPDFExc(qpdf_e_damaged_pdf, this->file->getName(),
 		      this->last_object_description,
 		      this->file->getLastOffset(),
-		      "invalid Type in page tree");
+		      "invalid Type " + type + " in page tree");
     }
 }
 

@@ -8,6 +8,13 @@
 #include <iostream>
 #include <string.h>
 #include <stdlib.h>
+#ifdef _WIN32
+#include <Windows.h>
+#include <direct.h>
+#include <io.h>
+#else
+#include <unistd.h>
+#endif
 
 static char const* version = "1.1";
 static char const* whoami = 0;
@@ -183,8 +190,7 @@ int main(int argc, char* argv[])
 		else
 		{
 		    QTC::TC("examples", "pdf-mod-info file no info");
-		    std::map<std::string, QPDFObjectHandle> vacant;
-		    fileinfo = fileinfo.newDictionary(vacant);
+		    fileinfo = QPDFObjectHandle::newDictionary();
 		    filetrailer.replaceKey("/Info", fileinfo);
 		}
 	    }
