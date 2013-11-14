@@ -19,7 +19,7 @@
 #include <qpdf/QPDF_Null.hh>
 #include <qpdf/QPDF_Dictionary.hh>
 
-std::string QPDF::qpdf_version = "4.2.0";
+std::string QPDF::qpdf_version = "5.0.0";
 
 static char const* EMPTY_PDF =
     "%PDF-1.3\n"
@@ -1950,30 +1950,6 @@ QPDF::getObjectStreamData(std::map<int, int>& omap)
 	    omap[og.getObj()] = entry.getObjStreamNumber();
 	}
     }
-}
-
-std::vector<int>
-QPDF::getCompressibleObjects()
-{
-    std::vector<QPDFObjGen> objects = getCompressibleObjGens();
-    std::vector<int> result;
-    for (std::vector<QPDFObjGen>::iterator iter = objects.begin();
-         iter != objects.end(); ++iter)
-    {
-        if ((*iter).getGen() != 0)
-        {
-            throw std::logic_error(
-                "QPDF::getCompressibleObjects() would return an object ID"
-                " for an object with generation != 0.  Use"
-                " QPDF::getCompressibleObjGens() instead."
-                "  See comments in QPDF.hh.");
-        }
-        else
-        {
-            result.push_back((*iter).getObj());
-        }
-    }
-    return result;
 }
 
 std::vector<QPDFObjGen>
