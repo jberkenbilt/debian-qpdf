@@ -22,10 +22,23 @@ namespace QUtil
     QPDF_DLL
     std::string int_to_string(long long, int length = 0);
     QPDF_DLL
+    std::string int_to_string_base(long long, int base, int length = 0);
+    QPDF_DLL
     std::string double_to_string(double, int decimal_places = 0);
 
     QPDF_DLL
     long long string_to_ll(char const* str);
+
+    // Pipeline's write method wants unsigned char*, but we often have
+    // some other type of string.  These methods do combinations of
+    // const_cast and reinterpret_cast to give us an unsigned char*.
+    // They should only be used when it is known that it is safe.
+    // None of the pipelines in qpdf modify the data passed to them,
+    // so within qpdf, it should always be safe.
+    QPDF_DLL
+    unsigned char* unsigned_char_pointer(std::string const& str);
+    QPDF_DLL
+    unsigned char* unsigned_char_pointer(char const* str);
 
     // Throw std::runtime_error with a string formed by appending to
     // "description: " the standard string corresponding to the
@@ -41,6 +54,11 @@ namespace QUtil
     QPDF_DLL
     int os_wrapper(std::string const& description, int status);
 
+    // If the open fails, throws std::runtime_error.  Otherwise, the
+    // FILE* is returned.
+    QPDF_DLL
+    FILE* safe_fopen(char const* filename, char const* mode);
+
     // The FILE* argument is assumed to be the return of fopen.  If
     // null, throw std::runtime_error.  Otherwise, return the FILE*
     // argument.
@@ -55,6 +73,12 @@ namespace QUtil
 
     QPDF_DLL
     char* copy_string(std::string const&);
+
+    // Returns lower-case hex-encoded version of the string, treating
+    // each character in the input string as unsigned.  The output
+    // string will be twice as long as the input string.
+    QPDF_DLL
+    std::string hex_encode(std::string const&);
 
     // Set stdin, stdout to binary mode
     QPDF_DLL

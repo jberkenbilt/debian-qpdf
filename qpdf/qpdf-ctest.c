@@ -8,8 +8,41 @@
 static char* whoami = 0;
 static qpdf_data qpdf = 0;
 
+static FILE* safe_fopen(char const* filename, char const* mode)
+{
+    // This function is basically a "C" port of QUtil::safe_fopen.
+    FILE* f = 0;
+#ifdef _MSC_VER
+    errno_t err = fopen_s(&f, filename, mode);
+    if (err != 0)
+    {
+        char buf[94];
+        strerror_s(buf, sizeof(buf), errno);
+	fprintf(stderr, "%s: unable to open %s: %s\n",
+		whoami, filename, buf);
+	exit(2);
+    }
+#else
+    f = fopen(filename, mode);
+    if (f == NULL)
+    {
+	fprintf(stderr, "%s: unable to open %s: %s\n",
+		whoami, filename, strerror(errno));
+	exit(2);
+    }
+#endif
+    return f;
+}
+
 static void report_errors()
 {
+#ifdef _WIN32
+# define POS_FMT "  pos : %I64d\n"
+#else
+/* If your compiler doesn't support lld, change to ld and lose
+   precision on offsets in error messages. */
+# define POS_FMT "  pos : %lld\n"
+#endif
     qpdf_error e = 0;
     while (qpdf_more_warnings(qpdf))
     {
@@ -17,10 +50,7 @@ static void report_errors()
 	printf("warning: %s\n", qpdf_get_error_full_text(qpdf, e));
 	printf("  code: %d\n", qpdf_get_error_code(qpdf, e));
 	printf("  file: %s\n", qpdf_get_error_filename(qpdf, e));
-        /* If your compiler doesn't support %lld, change to %ld and
-         * lose precision in the error message.
-         */
-	printf("  pos : %lld\n", qpdf_get_error_file_position(qpdf, e));
+	printf(POS_FMT, qpdf_get_error_file_position(qpdf, e));
 	printf("  text: %s\n", qpdf_get_error_message_detail(qpdf, e));
     }
     if (qpdf_has_error(qpdf))
@@ -30,8 +60,7 @@ static void report_errors()
 	printf("error: %s\n", qpdf_get_error_full_text(qpdf, e));
 	printf("  code: %d\n", qpdf_get_error_code(qpdf, e));
 	printf("  file: %s\n", qpdf_get_error_filename(qpdf, e));
-        /* see above comment about %lld */
-	printf("  pos : %lld\n", qpdf_get_error_file_position(qpdf, e));
+	printf(POS_FMT, qpdf_get_error_file_position(qpdf, e));
 	printf("  text: %s\n", qpdf_get_error_message_detail(qpdf, e));
     }
     else
@@ -56,13 +85,7 @@ static void read_file_into_memory(char const* filename,
     size_t bytes_read = 0;
     size_t len = 0;
 
-    f = fopen(filename, "rb");
-    if (f == NULL)
-    {
-	fprintf(stderr, "%s: unable to open %s: %s\n",
-		whoami, filename, strerror(errno));
-	exit(2);
-    }
+    f = safe_fopen(filename, "rb");
     fseek(f, 0, SEEK_END);
     *size = (unsigned long) ftell(f);
     fseek(f, 0, SEEK_SET);
@@ -93,7 +116,7 @@ static void read_file_into_memory(char const* filename,
 		    whoami, filename);
 	}
 	fprintf(stderr, " read %lu, wanted %lu\n",
-		(unsigned long) bytes_read, (unsigned long) size);
+		(unsigned long) bytes_read, (unsigned long) *size);
 	exit(2);
     }
     fclose(f);
@@ -364,13 +387,7 @@ static void test16(char const* infile,
     qpdf_set_static_aes_IV(qpdf, QPDF_TRUE);
     qpdf_set_stream_data_mode(qpdf, qpdf_s_uncompress);
     qpdf_write(qpdf);
-    f = fopen(outfile, "wb");
-    if (f == NULL)
-    {
-	fprintf(stderr, "%s: unable to open %s: %s\n",
-		whoami, outfile, strerror(errno));
-	exit(2);
-    }
+    f = safe_fopen(outfile, "wb");
     buflen = qpdf_get_buffer_length(qpdf);
     buf = qpdf_get_buffer(qpdf);
     fwrite(buf, 1, buflen, f);

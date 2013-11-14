@@ -15,8 +15,7 @@ FileInputSource::setFilename(char const* filename)
     destroy();
     this->filename = filename;
     this->close_file = true;
-    this->file = QUtil::fopen_wrapper(std::string("open ") + this->filename,
-				      fopen(this->filename.c_str(), "rb"));
+    this->file = QUtil::safe_fopen(this->filename.c_str(), "rb");
 }
 
 void
@@ -62,8 +61,8 @@ FileInputSource::findAndSkipNextEOL()
         }
         else
         {
-            char* p1 = (char*)memchr((void*)buf, '\r', len);
-            char* p2 = (char*)memchr((void*)buf, '\n', len);
+            char* p1 = static_cast<char*>(memchr(buf, '\r', len));
+            char* p2 = static_cast<char*>(memchr(buf, '\n', len));
             char* p = (p1 && p2) ? std::min(p1, p2) : p1 ? p1 : p2;
             if (p)
             {
@@ -137,5 +136,5 @@ void
 FileInputSource::unreadCh(char ch)
 {
     QUtil::os_wrapper(this->filename + ": unread character",
-		      ungetc((unsigned char)ch, this->file));
+		      ungetc(static_cast<unsigned char>(ch), this->file));
 }

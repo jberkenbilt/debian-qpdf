@@ -2,7 +2,7 @@ dnl Process this file with autoconf to produce a configure script.
 dnl This config.in requires autoconf 2.5 or greater.
 
 AC_PREREQ([2.68])
-AC_INIT([qpdf],[4.0.1])
+AC_INIT([qpdf],[4.1.0])
 
 AC_CONFIG_MACRO_DIR([m4])
 AC_CONFIG_FILES([autoconf.mk])
@@ -67,24 +67,6 @@ AC_FUNC_FSEEKO
 AC_CHECK_FUNCS([fseeko64])
 AC_TYPE_UINT16_T
 AC_TYPE_UINT32_T
-
-AC_MSG_CHECKING(for whether printf supports %ll)
-AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
-#include <stdio.h>
-#include <string.h>
-#include <sys/types.h>
-int
-main()
-{
-    long long a = 160591605916059ll;
-    char t[50];
-    sprintf(t, "%lld", a);
-}
-]])],[qpdf_PRINTF_LL=yes],[qpdf_PRINTF_LL=no])
-AC_MSG_RESULT($qpdf_PRINTF_LL)
-if test "$qpdf_PRINTF_LL" = "yes"; then
-   AC_DEFINE([HAVE_PRINTF_LL], [1], [Whether printf supports %ll])
-fi
 
 AC_CHECK_FUNCS(random)
 
@@ -175,39 +157,67 @@ AC_ARG_WITH(buildrules,
    [BUILDRULES=libtool])
 AC_MSG_RESULT($BUILDRULES)
 
+AC_SUBST(WFLAGS)
+AC_SUBST(CXXWFLAGS)
+qpdf_USE_EXTRA_WARNINGS=0
+if test "$BUILDRULES" = "msvc"; then
+   dnl /w14996 makes warning 4996 a level 1 warning.  This warning
+   dnl reports on functions that Microsoft considers unsafe or
+   dnl deprecated.  Removing these warnings helps people who want to
+   dnl write applications based on qpdf that can be Windows 8
+   dnl certified.
+   try_flags="/w14996"
+else
+   try_flags="-Wall"
+fi
+AC_MSG_CHECKING(for whether $CC supports $try_flags)
+oCFLAGS=$CFLAGS
+CFLAGS="$CFLAGS $try_flags"
+AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[]], [[int a = 1; int b = a; a = b;]])],
+                  [qpdf_USE_EXTRA_WARNINGS=1],[qpdf_USE_EXTRA_WARNINGS=0])
+CFLAGS=$oCFLAGS
+if test "$qpdf_USE_EXTRA_WARNINGS" = "1"; then
+   AC_MSG_RESULT(yes)
+   WFLAGS="$try_flags"
+else
+   AC_MSG_RESULT(no)
+fi
 if test "$BUILDRULES" != "msvc"; then
-   qpdf_USE_WALL=0
-   AC_MSG_CHECKING(for whether $CC supports -Wall)
-   oCFLAGS=$CFLAGS
-   CFLAGS="$CFLAGS -Wall"
+   qpdf_USE_EXTRA_WARNINGS=0
+   try_flags="-Wold-style-cast"
+   AC_MSG_CHECKING(for whether $CXX supports $try_flags)
+   oCXXFLAGS=$CXXFLAGS
+   CXXFLAGS="$CXXFLAGS $try_flags"
    AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[]], [[int a = 1; int b = a; a = b;]])],
-                     [qpdf_USE_WALL=1],[qpdf_USE_WALL=0])
-   if test "$qpdf_USE_WALL" = "1"; then
+                     [qpdf_USE_EXTRA_WARNINGS=1],[qpdf_USE_EXTRA_WARNINGS=0])
+   CXXFLAGS=$oCXXFLAGS
+   if test "$qpdf_USE_EXTRA_WARNINGS" = "1"; then
       AC_MSG_RESULT(yes)
-      CXXFLAGS="$CXXFLAGS -Wall"
+      CXXWFLAGS="$try_flags"
    else
       AC_MSG_RESULT(no)
-      CFLAGS=$oCFLAGS
    fi
 fi
 
-if test "$BUILDRULES" != "msvc"; then
-   AC_MSG_CHECKING(for whether to use -Werror)
-   AC_ARG_ENABLE(werror,
-      AS_HELP_STRING([--enable-werror],
-		     [whether to use werror (default is no)]),
-      [if test "$enableval" = "yes"; then
-	 qpdf_USE_WERROR=1;
-       else
-	 qpdf_USE_WERROR=0;
-       fi], [qpdf_USE_WERROR=0])
-   if test "$qpdf_USE_WERROR" = "1"; then
-      AC_MSG_RESULT(yes)
-      CFLAGS="$CFLAGS -Werror"
-      CXXFLAGS="$CXXFLAGS -Werror"
-   else
-      AC_MSG_RESULT(no)
-   fi
+if test "$BUILDRULES" = "msvc"; then
+   try_flags="/WX"
+else
+   try_flags="-Werror"
+fi
+AC_MSG_CHECKING(for whether to use $try_flags)
+AC_ARG_ENABLE(werror,
+   AS_HELP_STRING([--enable-werror],
+                  [whether to treat warnings as errors (default is no)]),
+   [if test "$enableval" = "yes"; then
+      qpdf_USE_WERROR=1;
+    else
+      qpdf_USE_WERROR=0;
+    fi], [qpdf_USE_WERROR=0])
+if test "$qpdf_USE_WERROR" = "1"; then
+   AC_MSG_RESULT(yes)
+   WFLAGS="$WFLAGS $try_flags"
+else
+   AC_MSG_RESULT(no)
 fi
 
 AC_SUBST(QPDF_SKIP_TEST_COMPARE_IMAGES)

@@ -33,6 +33,18 @@ QPDF_String::unparse()
     return unparse(false);
 }
 
+QPDFObject::object_type_e
+QPDF_String::getTypeCode() const
+{
+    return QPDFObject::ot_string;
+}
+
+char const*
+QPDF_String::getTypeName() const
+{
+    return "string";
+}
+
 std::string
 QPDF_String::unparse(bool force_binary)
 {
@@ -78,19 +90,11 @@ QPDF_String::unparse(bool force_binary)
     std::string result;
     if (use_hexstring)
     {
-	result += "<";
-	char num[3];
-	for (unsigned int i = 0; i < this->val.length(); ++i)
-	{
-	    sprintf(num, "%02x", (unsigned char) this->val[i]);
-	    result += num;
-	}
-	result += ">";
+	result += "<" + QUtil::hex_encode(this->val) + ">";
     }
     else
     {
 	result += "(";
-	char num[5];
 	for (unsigned int i = 0; i < this->val.length(); ++i)
 	{
 	    char ch = this->val[i];
@@ -135,8 +139,9 @@ QPDF_String::unparse(bool force_binary)
 		}
 		else
 		{
-		    sprintf(num, "\\%03o", (unsigned char)ch);
-		    result += num;
+		    result += "\\" + QUtil::int_to_string_base(
+                        static_cast<int>(static_cast<unsigned char>(ch)),
+                        8, 3);
 		}
 		break;
 	    }
@@ -176,8 +181,8 @@ QPDF_String::getUTF8Val() const
 	    // discarded, and a low codepoint not preceded by a high
 	    // codepoint will just get its low 10 bits output.
 	    unsigned short bits =
-		(((unsigned char) this->val[i]) << 8) +
-		((unsigned char) this->val[i+1]);
+		(static_cast<unsigned char>(this->val[i]) << 8) +
+		static_cast<unsigned char>(this->val[i+1]);
 	    if ((bits & 0xFC00) == 0xD800)
 	    {
 		codepoint = 0x10000 + ((bits & 0x3FF) << 10);
@@ -204,7 +209,7 @@ QPDF_String::getUTF8Val() const
     {
 	for (unsigned int i = 0; i < len; ++i)
 	{
-	    result += QUtil::toUTF8((unsigned char) this->val[i]);
+	    result += QUtil::toUTF8(static_cast<unsigned char>(this->val[i]));
 	}
     }
     return result;

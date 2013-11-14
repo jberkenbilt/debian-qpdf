@@ -19,7 +19,7 @@
 #include <qpdf/QPDF_Null.hh>
 #include <qpdf/QPDF_Dictionary.hh>
 
-std::string QPDF::qpdf_version = "4.0.1";
+std::string QPDF::qpdf_version = "4.1.0";
 
 static char const* EMPTY_PDF =
     "%PDF-1.3\n"
@@ -159,9 +159,10 @@ QPDF::processMemoryFile(char const* description,
 			char const* password)
 {
     processInputSource(
-	new BufferInputSource(description,
-			      new Buffer((unsigned char*)buf, length),
-			      true),
+	new BufferInputSource(
+            description,
+            new Buffer(QUtil::unsigned_char_pointer(buf), length),
+            true),
         password);
 }
 
@@ -280,7 +281,7 @@ QPDF::parse(char const* password)
     // where the regexp matches.
     char* p = buf;
     char const* candidate = "";
-    while ((p = (char*)memchr(p, 's', tbuf_size - (p - buf))) != 0)
+    while ((p = static_cast<char*>(memchr(p, 's', tbuf_size - (p - buf)))) != 0)
     {
 	if (eof_re.match(p))
 	{
@@ -656,7 +657,7 @@ QPDF::read_xrefStream(qpdf_offset_t xref_offset)
 	    xref_obj = readObjectAtOffset(
 		false, xref_offset, "xref stream", -1, 0, xobj, xgen);
 	}
-	catch (QPDFExc& e)
+	catch (QPDFExc&)
 	{
 	    // ignore -- report error below
 	}
@@ -796,7 +797,7 @@ QPDF::processXRefStream(qpdf_offset_t xref_offset, QPDFObjectHandle& xref_obj)
 	    for (int k = 0; k < W[j]; ++k)
 	    {
 		fields[j] <<= 8;
-		fields[j] += (int)(*p++);
+		fields[j] += static_cast<int>(*p++);
 	    }
 	}
 
@@ -828,7 +829,8 @@ QPDF::processXRefStream(qpdf_offset_t xref_offset, QPDFObjectHandle& xref_obj)
 	    // This is needed by checkLinearization()
 	    this->first_xref_item_offset = xref_offset;
 	}
-	insertXrefEntry(obj, (int)fields[0], fields[1], (int)fields[2]);
+	insertXrefEntry(obj, static_cast<int>(fields[0]),
+                        fields[1], static_cast<int>(fields[2]));
     }
 
     if (! this->trailer.isInitialized())
@@ -1096,8 +1098,7 @@ QPDF::readObject(PointerHolder<InputSource> input,
                 }
 
                 length = length_obj.getIntValue();
-                input->seek(
-                    stream_offset + (qpdf_offset_t)length, SEEK_SET);
+                input->seek(stream_offset + length, SEEK_SET);
                 if (! (readToken(input) ==
                        QPDFTokenizer::Token(
                            QPDFTokenizer::tt_word, "endstream")))
@@ -1395,7 +1396,7 @@ QPDF::readObjectAtOffset(bool try_recovery,
 	    char ch;
 	    if (this->file->read(&ch, 1))
 	    {
-		if (! isspace((unsigned char)ch))
+		if (! isspace(static_cast<unsigned char>(ch)))
 		{
 		    this->file->seek(-1, SEEK_CUR);
 		    break;
@@ -1538,20 +1539,31 @@ QPDF::resolveObjectsInStream(int obj_stream_number)
 	offsets[num] = offset + first;
     }
 
+    // To avoid having to read the object stream multiple times, store
+    // all objects that would be found here in the cache.  Remember
+    // that some objects stored here might have been overridden by new
+    // objects appended to the file, so it is necessary to recheck the
+    // xref table and only cache what would actually be resolved here.
     for (std::map<int, int>::iterator iter = offsets.begin();
 	 iter != offsets.end(); ++iter)
     {
 	int obj = (*iter).first;
-	int offset = (*iter).second;
-	input->seek(offset, SEEK_SET);
-	QPDFObjectHandle oh = readObject(input, "", obj, 0, true);
-
-	// Store in cache
 	ObjGen og(obj, 0);
-
-	this->obj_cache[og] =
-	    ObjCache(QPDFObjectHandle::ObjAccessor::getObject(oh),
-		     end_before_space, end_after_space);
+        QPDFXRefEntry const& entry = this->xref_table[og];
+        if ((entry.getType() == 2) &&
+            (entry.getObjStreamNumber() == obj_stream_number))
+        {
+            int offset = (*iter).second;
+            input->seek(offset, SEEK_SET);
+            QPDFObjectHandle oh = readObject(input, "", obj, 0, true);
+            this->obj_cache[og] =
+                ObjCache(QPDFObjectHandle::ObjAccessor::getObject(oh),
+                         end_before_space, end_after_space);
+        }
+        else
+        {
+            QTC::TC("qpdf", "QPDF not caching overridden objstm object");
+        }
     }
 }
 
@@ -2053,7 +2065,7 @@ QPDF::pipeStreamData(int objid, int generation,
 			      "unexpected EOF reading stream data");
 	    }
 	    length -= len;
-	    pipeline->write((unsigned char*)buf, len);
+	    pipeline->write(QUtil::unsigned_char_pointer(buf), len);
 	}
     }
     catch (QPDFExc& e)

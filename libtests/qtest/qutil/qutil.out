@@ -4,20 +4,22 @@
 3.141590
 3.142
 1000.123000
-exception 1: Util::int_to_string has been called with a padding value greater than its internal limit
-exception 2: Util::int_to_string has been called with a padding value greater than its internal limit
-exception 3: Util::int_to_string has been called with a padding value greater than its internal limit
-exception 4: Util::double_to_string has been called with a number and a decimal places specification that would break an internal limit
-exception 5: Util::double_to_string has been called with a number and a decimal places specification that would break an internal limit
+0.12340
+0.00012
+0.12346
+0.00012
+16059
+37273
+3ebb
 one
 7
 compare okay
 ----
-before open
-exception: open file: No such file or directory
+before remove
+exception: remove file: No such file or directory
 ----
 before fopen
-exception: fopen file: No such file or directory
+exception: open /this/file/does/not/exist: No such file or directory
 ----
 IN_TESTSUITE: 1: 1
 HAGOOGAMAGOOGLE: 0

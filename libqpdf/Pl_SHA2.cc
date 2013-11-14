@@ -2,6 +2,7 @@
 #include <stdexcept>
 #include <cstdio>
 #include <qpdf/PointerHolder.hh>
+#include <qpdf/QUtil.hh>
 
 Pl_SHA2::Pl_SHA2(int bits, Pipeline* next) :
     Pipeline("sha2", next),
@@ -127,13 +128,16 @@ Pl_SHA2::getRawDigest()
     switch (bits)
     {
       case 256:
-        result = std::string((char*)this->sha256sum, sizeof(this->sha256sum));
+        result = std::string(reinterpret_cast<char*>(this->sha256sum),
+                             sizeof(this->sha256sum));
         break;
       case 384:
-        result = std::string((char*)this->sha384sum, sizeof(this->sha384sum));
+        result = std::string(reinterpret_cast<char*>(this->sha384sum),
+                             sizeof(this->sha384sum));
         break;
       case 512:
-        result = std::string((char*)this->sha512sum, sizeof(this->sha512sum));
+        result = std::string(reinterpret_cast<char*>(this->sha512sum),
+                             sizeof(this->sha512sum));
         break;
       default:
         badBits();
@@ -150,15 +154,5 @@ Pl_SHA2::getHexDigest()
 	throw std::logic_error(
 	    "digest requested for in-progress SHA2 Pipeline");
     }
-    std::string raw = getRawDigest();
-    size_t raw_size = raw.length();
-    size_t hex_size = 1 + (2 * raw_size);
-    PointerHolder<char> bufp(true, new char[hex_size]);
-    char* buf = bufp.getPointer();
-    buf[hex_size - 1] = '\0';
-    for (unsigned int i = 0; i < raw_size; ++i)
-    {
-        std::sprintf(buf + i * 2, "%02x", (unsigned char)raw[i]);
-    }
-    return buf;
+    return QUtil::hex_encode(getRawDigest());
 }

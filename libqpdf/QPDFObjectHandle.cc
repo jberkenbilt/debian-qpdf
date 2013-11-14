@@ -7,6 +7,8 @@
 #include <qpdf/QPDF_Real.hh>
 #include <qpdf/QPDF_Name.hh>
 #include <qpdf/QPDF_String.hh>
+#include <qpdf/QPDF_Operator.hh>
+#include <qpdf/QPDF_InlineImage.hh>
 #include <qpdf/QPDF_Array.hh>
 #include <qpdf/QPDF_Dictionary.hh>
 #include <qpdf/QPDF_Stream.hh>
@@ -20,6 +22,16 @@
 #include <stdexcept>
 #include <stdlib.h>
 #include <ctype.h>
+
+class TerminateParsing
+{
+};
+
+void
+QPDFObjectHandle::ParserCallbacks::terminateParsing()
+{
+    throw TerminateParsing();
+}
 
 QPDFObjectHandle::QPDFObjectHandle() :
     initialized(false),
@@ -74,6 +86,34 @@ QPDFObjectHandle::isInitialized() const
     return this->initialized;
 }
 
+QPDFObject::object_type_e
+QPDFObjectHandle::getTypeCode()
+{
+    if (this->initialized)
+    {
+        dereference();
+        return obj->getTypeCode();
+    }
+    else
+    {
+        return QPDFObject::ot_uninitialized;
+    }
+}
+
+char const*
+QPDFObjectHandle::getTypeName()
+{
+    if (this->initialized)
+    {
+        dereference();
+        return obj->getTypeName();
+    }
+    else
+    {
+        return "uninitialized";
+    }
+}
+
 template <class T>
 class QPDFObjectTypeAccessor
 {
@@ -124,7 +164,7 @@ QPDFObjectHandle::getNumericValue()
     double result = 0.0;
     if (isInteger())
     {
-	result = getIntValue();
+	result = static_cast<double>(getIntValue());
     }
     else if (isReal())
     {
@@ -149,6 +189,20 @@ QPDFObjectHandle::isString()
 {
     dereference();
     return QPDFObjectTypeAccessor<QPDF_String>::check(obj.getPointer());
+}
+
+bool
+QPDFObjectHandle::isOperator()
+{
+    dereference();
+    return QPDFObjectTypeAccessor<QPDF_Operator>::check(obj.getPointer());
+}
+
+bool
+QPDFObjectHandle::isInlineImage()
+{
+    dereference();
+    return QPDFObjectTypeAccessor<QPDF_InlineImage>::check(obj.getPointer());
 }
 
 bool
@@ -190,7 +244,8 @@ QPDFObjectHandle::isIndirect()
 bool
 QPDFObjectHandle::isScalar()
 {
-    return (! (isArray() || isDictionary() || isStream()));
+    return (! (isArray() || isDictionary() || isStream() ||
+               isOperator() || isInlineImage()));
 }
 
 // Bool accessors
@@ -243,6 +298,22 @@ QPDFObjectHandle::getUTF8Value()
 {
     assertString();
     return dynamic_cast<QPDF_String*>(obj.getPointer())->getUTF8Val();
+}
+
+// Operator and Inline Image accessors
+
+std::string
+QPDFObjectHandle::getOperatorValue()
+{
+    assertOperator();
+    return dynamic_cast<QPDF_Operator*>(obj.getPointer())->getVal();
+}
+
+std::string
+QPDFObjectHandle::getInlineImageValue()
+{
+    assertInlineImage();
+    return dynamic_cast<QPDF_InlineImage*>(obj.getPointer())->getVal();
 }
 
 // Array accessors
@@ -449,7 +520,7 @@ QPDFObjectHandle::replaceStreamData(std::string const& data,
     assertStream();
     PointerHolder<Buffer> b = new Buffer(data.length());
     unsigned char* bp = b->getBuffer();
-    memcpy(bp, (char*)data.c_str(), data.length());
+    memcpy(bp, data.c_str(), data.length());
     dynamic_cast<QPDF_Stream*>(obj.getPointer())->replaceStreamData(
 	b, filter, decode_parms);
 }
@@ -631,7 +702,7 @@ QPDFObjectHandle::parse(std::string const& object_str,
     bool empty = false;
     QPDFObjectHandle result =
         parse(input, object_description, tokenizer, empty, 0, 0);
-    size_t offset = (size_t) input->tell();
+    size_t offset = input->tell();
     while (offset < object_str.length())
     {
         if (! isspace(object_str[offset]))
@@ -647,6 +718,113 @@ QPDFObjectHandle::parse(std::string const& object_str,
     return result;
 }
 
+void
+QPDFObjectHandle::parseContentStream(QPDFObjectHandle stream_or_array,
+                                     ParserCallbacks* callbacks)
+{
+    std::vector<QPDFObjectHandle> streams;
+    if (stream_or_array.isArray())
+    {
+        streams = stream_or_array.getArrayAsVector();
+    }
+    else
+    {
+        streams.push_back(stream_or_array);
+    }
+    for (std::vector<QPDFObjectHandle>::iterator iter = streams.begin();
+         iter != streams.end(); ++iter)
+    {
+        QPDFObjectHandle stream = *iter;
+        if (! stream.isStream())
+        {
+            throw std::logic_error(
+                "QPDFObjectHandle: parseContentStream called on non-stream");
+        }
+        try
+        {
+            parseContentStream_internal(stream, callbacks);
+        }
+        catch (TerminateParsing&)
+        {
+            return;
+        }
+    }
+    callbacks->handleEOF();
+}
+
+void
+QPDFObjectHandle::parseContentStream_internal(QPDFObjectHandle stream,
+                                              ParserCallbacks* callbacks)
+{
+    stream.assertStream();
+    PointerHolder<Buffer> stream_data = stream.getStreamData();
+    size_t length = stream_data->getSize();
+    std::string description = "content stream object " +
+        QUtil::int_to_string(stream.getObjectID()) + " " +
+        QUtil::int_to_string(stream.getGeneration());
+    PointerHolder<InputSource> input =
+        new BufferInputSource(description, stream_data.getPointer());
+    QPDFTokenizer tokenizer;
+    tokenizer.allowEOF();
+    bool empty = false;
+    while (static_cast<size_t>(input->tell()) < length)
+    {
+        QPDFObjectHandle obj =
+            parseInternal(input, "content", tokenizer, empty,
+                          0, 0, false, false, true);
+        if (! obj.isInitialized())
+        {
+            // EOF
+            break;
+        }
+
+        callbacks->handleObject(obj);
+        if (obj.isOperator() && (obj.getOperatorValue() == "ID"))
+        {
+            // Discard next character; it is the space after ID that
+            // terminated the token.  Read until end of inline image.
+            char ch;
+            input->read(&ch, 1);
+            char buf[4];
+            memset(buf, '\0', sizeof(buf));
+            bool done = false;
+            std::string inline_image;
+            while (! done)
+            {
+                if (input->read(&ch, 1) == 0)
+                {
+                    QTC::TC("qpdf", "QPDFObjectHandle EOF in inline image");
+                    throw QPDFExc(qpdf_e_damaged_pdf, input->getName(),
+                                  "stream data", input->tell(),
+                                  "EOF found while reading inline image");
+                }
+                inline_image += ch;
+                memmove(buf, buf + 1, sizeof(buf) - 1);
+                buf[sizeof(buf) - 1] = ch;
+                if (strchr(" \t\n\v\f\r", buf[0]) &&
+                    (buf[1] == 'E') &&
+                    (buf[2] == 'I') &&
+                    strchr(" \t\n\v\f\r", buf[3]))
+                {
+                    // We've found an EI operator.
+                    done = true;
+                    input->seek(-3, SEEK_CUR);
+                    for (int i = 0; i < 4; ++i)
+                    {
+                        if (inline_image.length() > 0)
+                        {
+                            inline_image.erase(inline_image.length() - 1);
+                        }
+                    }
+                }
+            }
+            QTC::TC("qpdf", "QPDFObjectHandle inline image token");
+            callbacks->handleObject(
+                QPDFObjectHandle::newInlineImage(inline_image));
+        }
+    }
+}
+
 QPDFObjectHandle
 QPDFObjectHandle::parse(PointerHolder<InputSource> input,
                         std::string const& object_description,
@@ -654,7 +832,7 @@ QPDFObjectHandle::parse(PointerHolder<InputSource> input,
                         StringDecrypter* decrypter, QPDF* context)
 {
     return parseInternal(input, object_description, tokenizer, empty,
-                         decrypter, context, false, false);
+                         decrypter, context, false, false, false);
 }
 
 QPDFObjectHandle
@@ -662,7 +840,8 @@ QPDFObjectHandle::parseInternal(PointerHolder<InputSource> input,
                                 std::string const& object_description,
                                 QPDFTokenizer& tokenizer, bool& empty,
                                 StringDecrypter* decrypter, QPDF* context,
-                                bool in_array, bool in_dictionary)
+                                bool in_array, bool in_dictionary,
+                                bool content_stream)
 {
     empty = false;
     if (in_dictionary && in_array)
@@ -688,6 +867,21 @@ QPDFObjectHandle::parseInternal(PointerHolder<InputSource> input,
 
 	switch (token.getType())
 	{
+          case QPDFTokenizer::tt_eof:
+            if (content_stream)
+            {
+                // Return uninitialized object to indicate EOF
+                return object;
+            }
+            else
+            {
+                // When not in content stream mode, EOF is tt_bad and
+                // throws an exception before we get here.
+                throw std::logic_error(
+                    "EOF received while not in content stream mode");
+            }
+            break;
+
 	  case QPDFTokenizer::tt_brace_open:
 	  case QPDFTokenizer::tt_brace_close:
 	    // Don't know what to do with these for now
@@ -731,13 +925,13 @@ QPDFObjectHandle::parseInternal(PointerHolder<InputSource> input,
 	  case QPDFTokenizer::tt_array_open:
 	    object = parseInternal(
 		input, object_description, tokenizer, empty,
-                decrypter, context, true, false);
+                decrypter, context, true, false, content_stream);
 	    break;
 
 	  case QPDFTokenizer::tt_dict_open:
 	    object = parseInternal(
 		input, object_description, tokenizer, empty,
-                decrypter, context, false, true);
+                decrypter, context, false, true, content_stream);
 	    break;
 
 	  case QPDFTokenizer::tt_bool:
@@ -793,6 +987,10 @@ QPDFObjectHandle::parseInternal(PointerHolder<InputSource> input,
 		    input->seek(input->getLastOffset(), SEEK_SET);
                     empty = true;
 		}
+		else if (content_stream)
+                {
+                    object = QPDFObjectHandle::newOperator(token.getValue());
+                }
 		else
 		{
 		    throw QPDFExc(qpdf_e_damaged_pdf, input->getName(),
@@ -833,10 +1031,10 @@ QPDFObjectHandle::parseInternal(PointerHolder<InputSource> input,
 	}
 	else if (! object.isInitialized())
 	{
-	    throw std::logic_error(
-		"INTERNAL ERROR: uninitialized object (token = " +
-		QUtil::int_to_string(token.getType()) +
-		", " + token.getValue() + ")");
+	    throw QPDFExc(qpdf_e_damaged_pdf, input->getName(),
+			  object_description,
+			  input->getLastOffset(),
+			  "parse error while reading object");
 	}
 	else
 	{
@@ -926,6 +1124,18 @@ QPDFObjectHandle
 QPDFObjectHandle::newString(std::string const& str)
 {
     return QPDFObjectHandle(new QPDF_String(str));
+}
+
+QPDFObjectHandle
+QPDFObjectHandle::newOperator(std::string const& value)
+{
+    return QPDFObjectHandle(new QPDF_Operator(value));
+}
+
+QPDFObjectHandle
+QPDFObjectHandle::newInlineImage(std::string const& value)
+{
+    return QPDFObjectHandle(new QPDF_InlineImage(value));
 }
 
 QPDFObjectHandle
@@ -1210,6 +1420,18 @@ void
 QPDFObjectHandle::assertString()
 {
     assertType("String", isString());
+}
+
+void
+QPDFObjectHandle::assertOperator()
+{
+    assertType("Operator", isOperator());
+}
+
+void
+QPDFObjectHandle::assertInlineImage()
+{
+    assertType("InlineImage", isInlineImage());
 }
 
 void

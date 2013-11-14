@@ -19,58 +19,14 @@ void string_conversion_test()
 	      << QUtil::int_to_string(16059, -7) << std::endl
 	      << QUtil::double_to_string(3.14159) << std::endl
 	      << QUtil::double_to_string(3.14159, 3) << std::endl
-	      << QUtil::double_to_string(1000.123, -1024) << std::endl;
-
-    try
-    {
-	// int_to_string bounds error
-	std::cout << QUtil::int_to_string(1, 50) << std::endl;
-    }
-    catch (std::logic_error &e)
-    {
-	std::cout << "exception 1: " << e.what() << std::endl;
-    }
-
-    try
-    {
-	// QUtil::int_to_string bounds error
-	std::cout << QUtil::int_to_string(1, -50) << std::endl;
-    }
-    catch (std::logic_error& e)
-    {
-	std::cout << "exception 2: " << e.what() << std::endl;
-    }
-
-    try
-    {
-	// QUtil::int_to_string bounds error
-	std::cout << QUtil::int_to_string(-1, 49) << std::endl;
-    }
-    catch (std::logic_error& e)
-    {
-	std::cout << "exception 3: " << e.what() << std::endl;
-    }
-
-
-    try
-    {
-	// QUtil::double_to_string bounds error
-	std::cout << QUtil::double_to_string(3.14159, 1024) << std::endl;
-    }
-    catch (std::logic_error& e)
-    {
-	std::cout << "exception 4: " << e.what() << std::endl;
-    }
-
-    try
-    {
-	// QUtil::double_to_string bounds error
-	std::cout << QUtil::double_to_string(1000.0, 95) << std::endl;
-    }
-    catch (std::logic_error& e)
-    {
-	std::cout << "exception 5: " << e.what() << std::endl;
-    }
+	      << QUtil::double_to_string(1000.123, -1024) << std::endl
+              << QUtil::double_to_string(.1234, 5) << std::endl
+              << QUtil::double_to_string(.0001234, 5) << std::endl
+              << QUtil::double_to_string(.123456, 5) << std::endl
+              << QUtil::double_to_string(.000123456, 5) << std::endl
+              << QUtil::int_to_string_base(16059, 10) << std::endl
+              << QUtil::int_to_string_base(16059, 8) << std::endl
+              << QUtil::int_to_string_base(16059, 16) << std::endl;
 
     std::string embedded_null = "one";
     embedded_null += '\0';
@@ -91,14 +47,12 @@ void string_conversion_test()
 
 void os_wrapper_test()
 {
-    int fd = -1;
     try
     {
-	std::cout << "before open" << std::endl;
-	fd = QUtil::os_wrapper("open file",
-			       open("/this/file/does/not/exist", O_RDONLY));
-	std::cout << "after open" << std::endl;
-	(void) close(fd);
+	std::cout << "before remove" << std::endl;
+	QUtil::os_wrapper("remove file",
+                          remove("/this/file/does/not/exist"));
+	std::cout << "after remove" << std::endl;
     }
     catch (std::runtime_error& s)
     {
@@ -108,12 +62,10 @@ void os_wrapper_test()
 
 void fopen_wrapper_test()
 {
-    FILE* f = 0;
     try
     {
 	std::cout << "before fopen" << std::endl;
-	f = QUtil::fopen_wrapper("fopen file",
-				 fopen("/this/file/does/not/exist", "r"));
+	FILE* f = QUtil::safe_fopen("/this/file/does/not/exist", "r");
 	std::cout << "after fopen" << std::endl;
 	(void) fclose(f);
     }
@@ -135,10 +87,8 @@ void getenv_test()
 
 static void print_utf8(unsigned long val)
 {
-    char t[20];
-    sprintf(t, "%lx", val);
     std::string result = QUtil::toUTF8(val);
-    std::cout << "0x" << t << " ->";
+    std::cout << "0x" << QUtil::int_to_string_base(val, 16) << " ->";
     if (val < 0xfffe)
     {
 	std::cout << " " << result;
@@ -151,9 +101,8 @@ static void print_utf8(unsigned long val)
 	for (std::string::iterator iter = result.begin();
 	     iter != result.end(); ++iter)
 	{
-	    char t[3];
-	    sprintf(t, "%02x", (unsigned char) (*iter));
-	    std::cout << " " << t;
+	    std::cout << " " << QUtil::int_to_string_base(
+                static_cast<int>(static_cast<unsigned char>(*iter)), 16, 2);
 	}
     }
     std::cout << std::endl;

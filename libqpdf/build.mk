@@ -40,9 +40,11 @@ SRCS_libqpdf = \
 	libqpdf/QPDF_Array.cc \
 	libqpdf/QPDF_Bool.cc \
 	libqpdf/QPDF_Dictionary.cc \
+	libqpdf/QPDF_InlineImage.cc \
 	libqpdf/QPDF_Integer.cc \
 	libqpdf/QPDF_Name.cc \
 	libqpdf/QPDF_Null.cc \
+	libqpdf/QPDF_Operator.cc \
 	libqpdf/QPDF_Real.cc \
 	libqpdf/QPDF_Reserved.cc \
 	libqpdf/QPDF_Stream.cc \
@@ -91,4 +93,4 @@ $(COBJS_libqpdf): libqpdf/$(OUTPUT_DIR)/%.$(LOBJ): libqpdf/%.c
 # * Otherwise, increment REVISION
 
 $(TARGETS_libqpdf): $(OBJS_libqpdf)
-	$(call makelib,$(OBJS_libqpdf),$@,$(LDFLAGS),$(LIBS),10,1,0)
+	$(call makelib,$(OBJS_libqpdf),$@,$(LDFLAGS),$(LIBS),11,0,1)
