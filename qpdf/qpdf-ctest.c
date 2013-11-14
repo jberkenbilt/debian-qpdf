@@ -325,6 +325,51 @@ static void test15(char const* infile,
     report_errors();
 }
 
+static void print_info(char const* key)
+{
+    char const* value = qpdf_get_info_key(qpdf, key);
+    printf("Info key %s: %s\n",
+	   key, (value ? value : "(null)"));
+}
+
+static void test16(char const* infile,
+		   char const* password,
+		   char const* outfile,
+		   char const* outfile2)
+{
+    unsigned long buflen = 0L;
+    unsigned char const* buf = 0;
+    FILE* f = 0;
+
+    qpdf_read(qpdf, infile, password);
+    print_info("/Author");
+    print_info("/Producer");
+    print_info("/Creator");
+    qpdf_set_info_key(qpdf, "/Author", "Mr. Potato Head");
+    qpdf_set_info_key(qpdf, "/Producer", "QPDF libary");
+    qpdf_set_info_key(qpdf, "/Creator", 0);
+    print_info("/Author");
+    print_info("/Producer");
+    print_info("/Creator");
+    qpdf_init_write_memory(qpdf);
+    qpdf_set_static_ID(qpdf, QPDF_TRUE);
+    qpdf_set_static_aes_IV(qpdf, QPDF_TRUE);
+    qpdf_set_stream_data_mode(qpdf, qpdf_s_uncompress);
+    qpdf_write(qpdf);
+    f = fopen(outfile, "wb");
+    if (f == NULL)
+    {
+	fprintf(stderr, "%s: unable to open %s: %s\n",
+		whoami, outfile, strerror(errno));
+	exit(2);
+    }
+    buflen = qpdf_get_buffer_length(qpdf);
+    buf = qpdf_get_buffer(qpdf);
+    fwrite(buf, 1, buflen, f);
+    fclose(f);
+    report_errors();
+}
+
 int main(int argc, char* argv[])
 {
     char* p = 0;
@@ -380,6 +425,7 @@ int main(int argc, char* argv[])
 	  (n == 13) ? test13 :
 	  (n == 14) ? test14 :
 	  (n == 15) ? test15 :
+	  (n == 16) ? test16 :
 	  0);
 
     if (fn == 0)

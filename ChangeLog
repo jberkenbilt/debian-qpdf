@@ -1,3 +1,37 @@
+2011-08-11  Jay Berkenbilt  <ejb@ql.org>
+
+	* 2.3.0: release
+
+	* include/qpdf/qpdf-c.h ("C"): add new methods
+	qpdf_init_write_memory, qpdf_get_buffer_length, and
+	qpdf_get_buffer to support writing to memory from the C API.
+
+	* include/qpdf/qpdf-c.h ("C"): add new methods qpdf_get_info_key
+	and qpdf_set_info_key for manipulating text fields of the /Info
+	dictionary.
+
+2011-08-10  Jay Berkenbilt  <ejb@ql.org>
+
+	* libqpdf/QPDFWriter.cc (copyEncryptionParameters): preserve
+	whether metadata is encryption.  This fixes part of bug 3173659:
+	the password becomes invalid if qpdf copies an encrypted file with
+	cleartext-metadata.
+
+	* include/qpdf/QPDFWriter.hh: add a new constructor that takes
+	only a QPDF reference and leaves specification of output for
+	later.  Add methods setOutputFilename() to set the output to a
+	filename or stdout, and setOutputMemory() to indicate that output
+	should go to a memory buffer.  Add method getBuffer() to retrieve
+	the buffer used if output was saved to a memory buffer.
+
+	* include/qpdf/QPDF.hh: add methods replaceObject() and
+	swapObjects() to allow replacement of an object and swapping of
+	two objects by object ID.
+
+	* include/qpdf/QPDFObjectHandle.hh: add new methods getDictAsMap()
+	and getArrayAsVector() for returning the elements of a dictionary
+	or an array as a map or vector.
+
 2011-06-25  Jay Berkenbilt  <ejb@ql.org>
 
 	* 2.2.4: release

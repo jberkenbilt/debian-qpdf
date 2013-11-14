@@ -4,7 +4,6 @@
 #include <qpdf/Pl_StdioFile.hh>
 #include <qpdf/Pl_Count.hh>
 #include <qpdf/Pl_Discard.hh>
-#include <qpdf/Pl_Buffer.hh>
 #include <qpdf/Pl_RC4.hh>
 #include <qpdf/Pl_AES_PDF.hh>
 #include <qpdf/Pl_Flate.hh>
@@ -21,32 +20,65 @@
 
 #include <stdlib.h>
 
-QPDFWriter::QPDFWriter(QPDF& pdf, char const* filename) :
-    pdf(pdf),
-    filename(filename),
-    file(0),
-    close_file(false),
-    normalize_content_set(false),
-    normalize_content(false),
-    stream_data_mode_set(false),
-    stream_data_mode(qpdf_s_compress),
-    qdf_mode(false),
-    static_id(false),
-    suppress_original_object_ids(false),
-    direct_stream_lengths(true),
-    encrypted(false),
-    preserve_encryption(true),
-    linearized(false),
-    object_stream_mode(qpdf_o_preserve),
-    encrypt_metadata(true),
-    encrypt_use_aes(false),
-    encryption_dict_objid(0),
-    next_objid(1),
-    cur_stream_length_id(0),
-    cur_stream_length(0),
-    added_newline(false),
-    max_ostream_index(0)
+QPDFWriter::QPDFWriter(QPDF& pdf) :
+    pdf(pdf)
 {
+    init();
+}
+
+QPDFWriter::QPDFWriter(QPDF& pdf, char const* filename) :
+    pdf(pdf)
+{
+    init();
+    setOutputFilename(filename);
+}
+
+void
+QPDFWriter::init()
+{
+    filename = 0;
+    file = 0;
+    close_file = false;
+    buffer_pipeline = 0;
+    output_buffer = 0;
+    normalize_content_set = false;
+    normalize_content = false;
+    stream_data_mode_set = false;
+    stream_data_mode = qpdf_s_compress;
+    qdf_mode = false;
+    static_id = false;
+    suppress_original_object_ids = false;
+    direct_stream_lengths = true;
+    encrypted = false;
+    preserve_encryption = true;
+    linearized = false;
+    object_stream_mode = qpdf_o_preserve;
+    encrypt_metadata = true;
+    encrypt_use_aes = false;
+    encryption_dict_objid = 0;
+    next_objid = 1;
+    cur_stream_length_id = 0;
+    cur_stream_length = 0;
+    added_newline = false;
+    max_ostream_index = 0;
+}
+
+QPDFWriter::~QPDFWriter()
+{
+    if (file && close_file)
+    {
+	fclose(file);
+    }
+    if (output_buffer)
+    {
+	delete output_buffer;
+    }
+}
+
+void
+QPDFWriter::setOutputFilename(char const* filename)
+{
+    this->filename = filename;
     if (filename == 0)
     {
 	this->filename = "standard output";
@@ -61,19 +93,25 @@ QPDFWriter::QPDFWriter(QPDF& pdf, char const* filename) :
 				    fopen(filename, "wb+"));
 	close_file = true;
     }
-    Pipeline* p = new Pl_StdioFile("qdf output", file);
+    Pipeline* p = new Pl_StdioFile("qpdf output", file);
     to_delete.push_back(p);
-    pipeline = new Pl_Count("qdf count", p);
-    to_delete.push_back(pipeline);
-    pipeline_stack.push_back(pipeline);
+    initializePipelineStack(p);
 }
 
-QPDFWriter::~QPDFWriter()
+void
+QPDFWriter::setOutputMemory()
 {
-    if (file)
-    {
-	fclose(file);
-    }
+    this->buffer_pipeline = new Pl_Buffer("qpdf output");
+    to_delete.push_back(this->buffer_pipeline);
+    initializePipelineStack(this->buffer_pipeline);
+}
+
+Buffer*
+QPDFWriter::getBuffer()
+{
+    Buffer* result = this->output_buffer;
+    this->output_buffer = 0;
+    return result;
 }
 
 void
@@ -345,6 +383,14 @@ QPDFWriter::copyEncryptionParameters()
 	{
 	    key_len = encrypt.getKey("/Length").getIntValue() / 8;
 	}
+	if (encrypt.hasKey("/EncryptMetadata") &&
+	    encrypt.getKey("/EncryptMetadata").isBool())
+	{
+	    this->encrypt_metadata =
+		encrypt.getKey("/EncryptMetadata").getBoolValue();
+	}
+	QTC::TC("qpdf", "QPDFWriter copy encrypt metadata",
+		this->encrypt_metadata ? 0 : 1);
 	setEncryptionParametersInternal(
 	    V,
 	    encrypt.getKey("/R").getIntValue(),
@@ -563,6 +609,14 @@ QPDFWriter::pushPipeline(Pipeline* p)
     assert(dynamic_cast<Pl_Count*>(p) == 0);
     this->pipeline_stack.push_back(p);
     return p;
+}
+
+void
+QPDFWriter::initializePipelineStack(Pipeline *p)
+{
+    this->pipeline = new Pl_Count("qpdf count", p);
+    to_delete.push_back(this->pipeline);
+    this->pipeline_stack.push_back(this->pipeline);
 }
 
 void
@@ -1048,11 +1102,12 @@ QPDFWriter::unparseObject(QPDFObjectHandle object, int level,
 	writeString("\nstream\n");
 	pushEncryptionFilter();
 	writeBuffer(stream_data);
+	char last_char = this->pipeline->getLastChar();
 	popPipelineStack();
 
 	if (this->qdf_mode)
 	{
-	    if (this->pipeline->getLastChar() != '\n')
+	    if (last_char != '\n')
 	    {
 		writeString("\n");
 		this->added_newline = true;
@@ -1656,6 +1711,11 @@ QPDFWriter::write()
 	fclose(this->file);
     }
     this->file = 0;
+    if (this->buffer_pipeline)
+    {
+	this->output_buffer = this->buffer_pipeline->getBuffer();
+	this->buffer_pipeline = 0;
+    }
 }
 
 void
@@ -1717,7 +1777,6 @@ QPDFWriter::writeHintStream(int hint_id)
     openObject(hint_id);
     setDataKey(hint_id);
 
-    unsigned char* hs = hint_buffer->getBuffer();
     unsigned long hlen = hint_buffer->getSize();
 
     writeString("<< /Filter /FlateDecode /S ");
@@ -1738,9 +1797,10 @@ QPDFWriter::writeHintStream(int hint_id)
     }
     pushEncryptionFilter();
     writeBuffer(hint_buffer);
+    char last_char = this->pipeline->getLastChar();
     popPipelineStack();
 
-    if (hs[hlen - 1] != '\n')
+    if (last_char != '\n')
     {
 	writeString("\n");
     }

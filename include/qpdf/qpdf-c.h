@@ -199,17 +199,45 @@ extern "C" {
     /* Read functions below must be called after qpdf_read or
      * qpdf_read_memory. */
 
-    /* Return the version of the PDF file. */
+    /*
+     * NOTE: Functions that return char* are returning a pointer to an
+     * internal buffer that will be reused for each call to a function
+     * that returns a char*.  You must use or copy the value before
+     * calling any other qpdf library functions.
+     */
+
+    /* Return the version of the PDF file.  See warning above about
+     * functions that return char*. */
     QPDF_DLL
     char const* qpdf_get_pdf_version(qpdf_data qpdf);
 
     /* Return the user password.  If the file is opened using the
      * owner password, the user password may be retrieved using this
      * function.  If the file is opened using the user password, this
-     * function will return that user password.
+     * function will return that user password.  See warning above
+     * about functions that return char*.
      */
     QPDF_DLL
     char const* qpdf_get_user_password(qpdf_data qpdf);
+
+    /* Return the string value of a key in the document's Info
+     * dictionary.  The key parameter should include the leading
+     * slash, e.g. "/Author".  If the key is not present or has a
+     * non-string value, a null pointer is returned.  Otherwise, a
+     * pointer to an internal buffer is returned.  See warning above
+     * about functions that return char*.
+     */
+    QPDF_DLL
+    char const* qpdf_get_info_key(qpdf_data qpdf, char const* key);
+
+    /* Set a value in the info dictionary, possibly replacing an
+     * existing value.  The key must include the leading slash
+     * (e.g. "/Author").  Passing a null pointer as a value will
+     * remove the key from the info dictionary.  Otherwise, a copy
+     * will be made of the string that is passed in.
+     */
+    QPDF_DLL
+    void qpdf_set_info_key(qpdf_data qpdf, char const* key, char const* value);
 
     /* Indicate whether the input file is linearized. */
     QPDF_DLL
@@ -256,6 +284,25 @@ extern "C" {
      */
     QPDF_DLL
     QPDF_ERROR_CODE qpdf_init_write(qpdf_data qpdf, char const* filename);
+
+    /* Initialize for writing but indicate that the PDF file should be
+     * written to memory.  Call qpdf_get_buffer_length and
+     * qpdf_get_buffer to retrieve the resulting buffer.  The memory
+     * containing the PDF file will be destroyed when qpdf_cleanup is
+     * called.
+     */
+    QPDF_DLL
+    QPDF_ERROR_CODE qpdf_init_write_memory(qpdf_data qpdf);
+
+    /* Retrieve the buffer used if the file was written to memory.
+     * qpdf_get_buffer returns a null pointer if data was not written
+     * to memory.  The memory is freed when qpdf_cleanup is called or
+     * if a subsequent call to qpdf_init_write or
+     * qpdf_init_write_memory is called. */
+    QPDF_DLL
+    unsigned long qpdf_get_buffer_length(qpdf_data qpdf);
+    QPDF_DLL
+    unsigned char const* qpdf_get_buffer(qpdf_data qpdf);
 
     QPDF_DLL
     void qpdf_set_object_stream_mode(qpdf_data qpdf,

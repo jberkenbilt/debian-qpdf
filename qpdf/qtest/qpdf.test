@@ -111,7 +111,7 @@ $td->runtest("new stream",
 show_ntests();
 # ----------
 $td->notify("--- Miscellaneous Tests ---");
-$n_tests += 31;
+$n_tests += 37;
 
 $td->runtest("qpdf version",
 	     {$td->COMMAND => "qpdf --version"},
@@ -275,6 +275,35 @@ $td->runtest("odd terminators for stream keyword",
 $td->runtest("check output",
 	     {$td->FILE => "a.qdf"},
 	     {$td->FILE => "stream-line-enders.qdf"});
+
+$td->runtest("swap and replace",
+	     {$td->COMMAND => "test_driver 14 test14-in.pdf"},
+	     {$td->FILE => "test14.out",
+	      $td->EXIT_STATUS => 0},
+	     $td->NORMALIZE_NEWLINES);
+$td->runtest("check output",
+	     {$td->FILE => "a.pdf"},
+	     {$td->FILE => "test14-out.pdf"});
+
+$td->runtest("C API info key functions",
+	     {$td->COMMAND => "qpdf-ctest 16 minimal.pdf '' a.pdf"},
+	     {$td->FILE => "c-info1.out",
+	      $td->EXIT_STATUS => 0},
+	     $td->NORMALIZE_NEWLINES);
+$td->runtest("check output",
+	     {$td->FILE => "a.pdf"},
+	     {$td->FILE => "c-info-out.pdf"});
+unlink "a.pdf" or die;
+
+$td->runtest("C API info key functions",
+	     {$td->COMMAND => "qpdf-ctest 16 c-info2-in.pdf '' a.pdf"},
+	     {$td->FILE => "c-info2.out",
+	      $td->EXIT_STATUS => 0},
+	     $td->NORMALIZE_NEWLINES);
+$td->runtest("check output",
+	     {$td->FILE => "a.pdf"},
+	     {$td->FILE => "c-info-out.pdf"});
+unlink "a.pdf" or die;
 
 show_ntests();
 # ----------
@@ -746,7 +775,7 @@ $td->runtest("show-xref-by-id-filtered",
 show_ntests();
 # ----------
 $td->notify("--- Clear-text Metadata Tests ---");
-$n_tests += 42;
+$n_tests += 58;
 
 # args: file, exp_encrypted, exp_cleartext
 check_metadata("compressed-metadata.pdf", 0, 0);
@@ -778,13 +807,22 @@ foreach my $f (qw(compressed-metadata.pdf enc-base.pdf))
 			  " a.pdf b.pdf"},
 		     {$td->STRING => "", $td->EXIT_STATUS => 0});
 	check_metadata("b.pdf", 1, 1);
-	unlink "b.pdf";
+	$td->runtest("preserve encryption",
+		     {$td->COMMAND => "qpdf b.pdf c.pdf"},
+		     {$td->STRING => "", $td->EXIT_STATUS => 0});
+	check_metadata("c.pdf", 1, 1);
+	unlink "b.pdf", "c.pdf";
 	$td->runtest("encrypt with aes and cleartext metadata",
 		     {$td->COMMAND =>
 			  "qpdf --encrypt '' '' 128" .
 			  " --cleartext-metadata --use-aes=y -- a.pdf b.pdf"},
 		     {$td->STRING => "", $td->EXIT_STATUS => 0});
 	check_metadata("b.pdf", 1, 1);
+	$td->runtest("preserve encryption",
+		     {$td->COMMAND => "qpdf b.pdf c.pdf"},
+		     {$td->STRING => "", $td->EXIT_STATUS => 0});
+	check_metadata("c.pdf", 1, 1);
+	unlink "b.pdf", "c.pdf";
     }
 }
 
