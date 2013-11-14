@@ -199,7 +199,7 @@ $td->runtest("remove page we don't have",
 show_ntests();
 # ----------
 $td->notify("--- Miscellaneous Tests ---");
-$n_tests += 62;
+$n_tests += 67;
 
 $td->runtest("qpdf version",
 	     {$td->COMMAND => "qpdf --version"},
@@ -501,6 +501,33 @@ $td->runtest("overridden compressed objects",
               $td->EXIT_STATUS => 0},
              $td->NORMALIZE_NEWLINES);
 
+$td->runtest("generate object streams for gen > 0",
+             {$td->COMMAND => "qpdf --qdf --static-id" .
+		  " --object-streams=generate gen1.pdf a.pdf"},
+             {$td->STRING => "", $td->EXIT_STATUS => 0});
+$td->runtest("check file",
+             {$td->FILE => "a.pdf"},
+             {$td->FILE => "gen1.qdf"});
+
+# This file, from a user, is missing /ID in its trailer even though it
+# is encrypted and also has a space instead of a newline after its
+# xref keyword.  xpdf can open it, but Adobe reader can't.
+$td->runtest("check broken file",
+             {$td->COMMAND => "qpdf --check invalid-id-xref.pdf"},
+             {$td->FILE => "invalid-id-xref.out", $td->EXIT_STATUS => 3},
+             $td->NORMALIZE_NEWLINES);
+
+$td->runtest("show number of pages",
+             {$td->COMMAND =>
+                  "qpdf --show-npages 20-pages.pdf --password=user"},
+             {$td->STRING => "20\n", $td->EXIT_STATUS => 0},
+             $td->NORMALIZE_NEWLINES);
+$td->runtest("ignore broken decode parms with no filters",
+             {$td->COMMAND => "qpdf --check broken-decode-parms-no-filter.pdf"},
+             {$td->FILE => "broken-decode-parms-no-filter.out",
+              $td->EXIT_STATUS => 0},
+             $td->NORMALIZE_NEWLINES);
+
 show_ntests();
 # ----------
 $td->notify("--- Numeric range parsing tests ---");
@@ -551,7 +578,7 @@ foreach my $d (@nrange_tests)
 show_ntests();
 # ----------
 $td->notify("--- Merging and Splitting ---");
-$n_tests += 6;
+$n_tests += 8;
 
 # Select pages from the same file multiple times including selecting
 # twice from an encrypted file and specifying the password only the
@@ -596,6 +623,16 @@ $td->runtest("avoid respecification of password",
 $td->runtest("check output",
              {$td->FILE => "a.pdf"},
              {$td->FILE => "pages-copy-encryption.pdf"});
+$td->runtest("merge with implicit ranges",
+             {$td->COMMAND =>
+                  "qpdf --empty a.pdf" .
+                  " --pages minimal.pdf 20-pages.pdf --password=user" .
+                  " page-labels-and-outlines.pdf --" .
+                  " --static-id"},
+             {$td->STRING => "", $td->EXIT_STATUS => 0});
+$td->runtest("check output",
+             {$td->FILE => "a.pdf"},
+             {$td->FILE => "merge-implicit-ranges.pdf"});
 show_ntests();
 # ----------
 $td->notify("--- PDF From Scratch ---");
@@ -1183,6 +1220,8 @@ my @to_linearize =
      'lin-delete-and-reuse',	# linearized, then delete and reuse
      'object-stream',		# contains object streams
      'hybrid-xref',	        # contains both xref tables and streams
+     'gen1',                    # has objects with generation > 0
+     'direct-outlines',         # /Outlines is a direct object
      @linearized_files,		# we should be able to relinearize
      );
 

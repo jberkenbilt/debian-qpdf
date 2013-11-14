@@ -19,7 +19,7 @@
 #include <qpdf/QPDF_Null.hh>
 #include <qpdf/QPDF_Dictionary.hh>
 
-std::string QPDF::qpdf_version = "4.1.0";
+std::string QPDF::qpdf_version = "4.2.0";
 
 static char const* EMPTY_PDF =
     "%PDF-1.3\n"
@@ -39,32 +39,18 @@ static char const* EMPTY_PDF =
     "110\n"
     "%%EOF\n";
 
-
-QPDF::ObjGen::ObjGen(int o = 0, int g = 0) :
-    obj(o),
-    gen(g)
-{
-}
-
-bool
-QPDF::ObjGen::operator<(ObjGen const& rhs) const
-{
-    return ((this->obj < rhs.obj) ||
-	    ((this->obj == rhs.obj) && (this->gen < rhs.gen)));
-}
-
 void
 QPDF::CopiedStreamDataProvider::provideStreamData(
     int objid, int generation, Pipeline* pipeline)
 {
     QPDFObjectHandle foreign_stream =
-        this->foreign_streams[ObjGen(objid, generation)];
+        this->foreign_streams[QPDFObjGen(objid, generation)];
     foreign_stream.pipeStreamData(pipeline, false, false, false);
 }
 
 void
 QPDF::CopiedStreamDataProvider::registerForeignStream(
-    ObjGen const& local_og, QPDFObjectHandle foreign_stream)
+    QPDFObjGen const& local_og, QPDFObjectHandle foreign_stream)
 {
     this->foreign_streams[local_og] = foreign_stream;
 }
@@ -128,7 +114,8 @@ QPDF::~QPDF()
     // have the effect of undoing any modifications that may have been
     // made to any of the objects.
     this->xref_table.clear();
-    for (std::map<ObjGen, ObjCache>::iterator iter = this->obj_cache.begin();
+    for (std::map<QPDFObjGen, ObjCache>::iterator iter =
+             this->obj_cache.begin();
 	 iter != obj_cache.end(); ++iter)
     {
 	QPDFObject::ObjAccessor::releaseResolved(
@@ -354,8 +341,8 @@ QPDF::reconstruct_xref(QPDFExc& e)
 		 "Attempting to reconstruct cross-reference table"));
 
     // Delete all references to type 1 (uncompressed) objects
-    std::set<ObjGen> to_delete;
-    for (std::map<ObjGen, QPDFXRefEntry>::iterator iter =
+    std::set<QPDFObjGen> to_delete;
+    for (std::map<QPDFObjGen, QPDFXRefEntry>::iterator iter =
 	     this->xref_table.begin();
 	 iter != this->xref_table.end(); ++iter)
     {
@@ -364,7 +351,7 @@ QPDF::reconstruct_xref(QPDFExc& e)
 	    to_delete.insert((*iter).first);
 	}
     }
-    for (std::set<ObjGen>::iterator iter = to_delete.begin();
+    for (std::set<QPDFObjGen>::iterator iter = to_delete.begin();
 	 iter != to_delete.end(); ++iter)
     {
 	this->xref_table.erase(*iter);
@@ -443,11 +430,22 @@ QPDF::read_xref(qpdf_offset_t xref_offset)
     std::map<int, int> free_table;
     while (xref_offset)
     {
+        char buf[7];
+        memset(buf, 0, sizeof(buf));
 	this->file->seek(xref_offset, SEEK_SET);
-	std::string line = this->file->readLine(50);
-	if (line == "xref")
+	this->file->read(buf, sizeof(buf) - 1);
+        // The PDF spec says xref must be followed by a line
+        // terminator, but files exist in the wild where it is
+        // terminated by arbitrary whitespace.
+        PCRE xref_re("^xref\\s+");
+	PCRE::Match m = xref_re.match(buf);
+	if (m)
 	{
-	    xref_offset = read_xrefTable(this->file->tell());
+            QTC::TC("qpdf", "QPDF xref space",
+                    ((buf[4] == '\n') ? 0 :
+                     (buf[4] == '\r') ? 1 :
+                     (buf[4] == ' ') ? 2 : 9999));
+	    xref_offset = read_xrefTable(xref_offset + m.getMatch(0).length());
 	}
 	else
 	{
@@ -464,7 +462,7 @@ QPDF::read_xref(qpdf_offset_t xref_offset)
     int max_obj = 0;
     if (! xref_table.empty())
     {
-	max_obj = (*(xref_table.rbegin())).first.obj;
+	max_obj = (*(xref_table.rbegin())).first.getObj();
     }
     if (! this->deleted_objects.empty())
     {
@@ -491,7 +489,7 @@ QPDF::read_xrefTable(qpdf_offset_t xref_offset)
     PCRE xref_first_re("^\\s*(\\d+)\\s+(\\d+)");
     PCRE xref_entry_re("(?s:(^\\d{10}) (\\d{5}) ([fn])[ \r\n]{2}$)");
 
-    std::vector<ObjGen> deleted_items;
+    std::vector<QPDFObjGen> deleted_items;
 
     this->file->seek(xref_offset, SEEK_SET);
     bool done = false;
@@ -538,7 +536,7 @@ QPDF::read_xrefTable(qpdf_offset_t xref_offset)
 	    {
 		// Save deleted items until after we've checked the
 		// XRefStm, if any.
-		deleted_items.push_back(ObjGen(i, f2));
+		deleted_items.push_back(QPDFObjGen(i, f2));
 	    }
 	    else
 	    {
@@ -615,11 +613,11 @@ QPDF::read_xrefTable(qpdf_offset_t xref_offset)
     }
 
     // Handle any deleted items now that we've read the /XRefStm.
-    for (std::vector<ObjGen>::iterator iter = deleted_items.begin();
+    for (std::vector<QPDFObjGen>::iterator iter = deleted_items.begin();
 	 iter != deleted_items.end(); ++iter)
     {
-	ObjGen& og = *iter;
-	insertXrefEntry(og.obj, 0, 0, og.gen);
+	QPDFObjGen& og = *iter;
+	insertXrefEntry(og.getObj(), 0, 0, og.getGen());
     }
 
     if (cur_trailer.hasKey("/Prev"))
@@ -874,7 +872,7 @@ QPDF::insertXrefEntry(int obj, int f0, qpdf_offset_t f1, int f2, bool overwrite)
     // object.  Disregard this one.
     { // private scope
 	int gen = (f0 == 2 ? 0 : f2);
-	ObjGen og(obj, gen);
+	QPDFObjGen og(obj, gen);
 	if (this->xref_table.count(og))
 	{
 	    if (overwrite)
@@ -904,11 +902,11 @@ QPDF::insertXrefEntry(int obj, int f0, qpdf_offset_t f1, int f2, bool overwrite)
       case 1:
 	// f2 is generation
 	QTC::TC("qpdf", "QPDF xref gen > 0", ((f2 > 0) ? 1 : 0));
-	this->xref_table[ObjGen(obj, f2)] = QPDFXRefEntry(f0, f1, f2);
+	this->xref_table[QPDFObjGen(obj, f2)] = QPDFXRefEntry(f0, f1, f2);
 	break;
 
       case 2:
-	this->xref_table[ObjGen(obj, 0)] = QPDFXRefEntry(f0, f1, f2);
+	this->xref_table[QPDFObjGen(obj, 0)] = QPDFXRefEntry(f0, f1, f2);
 	break;
 
       default:
@@ -923,13 +921,13 @@ QPDF::insertXrefEntry(int obj, int f0, qpdf_offset_t f1, int f2, bool overwrite)
 void
 QPDF::showXRefTable()
 {
-    for (std::map<ObjGen, QPDFXRefEntry>::iterator iter =
+    for (std::map<QPDFObjGen, QPDFXRefEntry>::iterator iter =
 	     this->xref_table.begin();
 	 iter != this->xref_table.end(); ++iter)
     {
-	ObjGen const& og = (*iter).first;
+	QPDFObjGen const& og = (*iter).first;
 	QPDFXRefEntry const& entry = (*iter).second;
-	*out_stream << og.obj << "/" << og.gen << ": ";
+	*out_stream << og.getObj() << "/" << og.getGen() << ": ";
 	switch (entry.getType())
 	{
 	  case 1:
@@ -1213,14 +1211,14 @@ QPDF::recoverStreamLength(PointerHolder<InputSource> input,
     if (length)
     {
 	int this_obj_offset = 0;
-	ObjGen this_obj(0, 0);
+	QPDFObjGen this_obj(0, 0);
 
 	// Make sure this is inside this object
-	for (std::map<ObjGen, QPDFXRefEntry>::iterator iter =
+	for (std::map<QPDFObjGen, QPDFXRefEntry>::iterator iter =
 		 this->xref_table.begin();
 	     iter != this->xref_table.end(); ++iter)
 	{
-	    ObjGen const& og = (*iter).first;
+	    QPDFObjGen const& og = (*iter).first;
 	    QPDFXRefEntry const& entry = (*iter).second;
 	    if (entry.getType() == 1)
 	    {
@@ -1235,8 +1233,8 @@ QPDF::recoverStreamLength(PointerHolder<InputSource> input,
 	    }
 	}
 	if (this_obj_offset &&
-	    (this_obj.obj == objid) &&
-	    (this_obj.gen == generation))
+	    (this_obj.getObj() == objid) &&
+	    (this_obj.getGen() == generation))
 	{
 	    // Well, we found endstream\nendobj within the space
 	    // allowed for this object, so we're probably in good
@@ -1330,7 +1328,7 @@ QPDF::readObjectAtOffset(bool try_recovery,
 	{
 	    // Try again after reconstructing xref table
 	    reconstruct_xref(e);
-	    ObjGen og(exp_objid, exp_generation);
+	    QPDFObjGen og(exp_objid, exp_generation);
 	    if (this->xref_table.count(og) &&
 		(this->xref_table[og].getType() == 1))
 	    {
@@ -1375,7 +1373,7 @@ QPDF::readObjectAtOffset(bool try_recovery,
 		     "expected endobj"));
     }
 
-    ObjGen og(objid, generation);
+    QPDFObjGen og(objid, generation);
     if (! this->obj_cache.count(og))
     {
 	// Store the object in the cache here so it gets cached
@@ -1425,7 +1423,7 @@ QPDF::resolve(int objid, int generation)
     // Check object cache before checking xref table.  This allows us
     // to insert things into the object cache that don't actually
     // exist in the file.
-    ObjGen og(objid, generation);
+    QPDFObjGen og(objid, generation);
     if (! this->obj_cache.count(og))
     {
 	if (! this->xref_table.count(og))
@@ -1482,7 +1480,7 @@ QPDF::resolveObjectsInStream(int obj_stream_number)
 
     // For linearization data in the object, use the data from the
     // object stream for the objects in the stream.
-    ObjGen stream_og(obj_stream_number, 0);
+    QPDFObjGen stream_og(obj_stream_number, 0);
     qpdf_offset_t end_before_space =
         this->obj_cache[stream_og].end_before_space;
     qpdf_offset_t end_after_space =
@@ -1548,7 +1546,7 @@ QPDF::resolveObjectsInStream(int obj_stream_number)
 	 iter != offsets.end(); ++iter)
     {
 	int obj = (*iter).first;
-	ObjGen og(obj, 0);
+	QPDFObjGen og(obj, 0);
         QPDFXRefEntry const& entry = this->xref_table[og];
         if ((entry.getType() == 2) &&
             (entry.getObjStreamNumber() == obj_stream_number))
@@ -1570,25 +1568,38 @@ QPDF::resolveObjectsInStream(int obj_stream_number)
 QPDFObjectHandle
 QPDF::makeIndirectObject(QPDFObjectHandle oh)
 {
-    ObjGen o1(0, 0);
+    QPDFObjGen o1(0, 0);
     if (! this->obj_cache.empty())
     {
 	o1 = (*(this->obj_cache.rbegin())).first;
     }
-    ObjGen o2 = (*(this->xref_table.rbegin())).first;
+    QPDFObjGen o2 = (*(this->xref_table.rbegin())).first;
     QTC::TC("qpdf", "QPDF indirect last obj from xref",
-	    (o2.obj > o1.obj) ? 1 : 0);
-    int max_objid = std::max(o1.obj, o2.obj);
-    ObjGen next(max_objid + 1, 0);
+	    (o2.getObj() > o1.getObj()) ? 1 : 0);
+    int max_objid = std::max(o1.getObj(), o2.getObj());
+    QPDFObjGen next(max_objid + 1, 0);
     this->obj_cache[next] =
 	ObjCache(QPDFObjectHandle::ObjAccessor::getObject(oh), -1, -1);
-    return QPDFObjectHandle::Factory::newIndirect(this, next.obj, next.gen);
+    return QPDFObjectHandle::Factory::newIndirect(
+        this, next.getObj(), next.getGen());
+}
+
+QPDFObjectHandle
+QPDF::getObjectByObjGen(QPDFObjGen const& og)
+{
+    return getObjectByID(og.getObj(), og.getGen());
 }
 
 QPDFObjectHandle
 QPDF::getObjectByID(int objid, int generation)
 {
     return QPDFObjectHandle::Factory::newIndirect(this, objid, generation);
+}
+
+void
+QPDF::replaceObject(QPDFObjGen const& og, QPDFObjectHandle oh)
+{
+    replaceObject(og.getObj(), og.getGen(), oh);
 }
 
 void
@@ -1605,7 +1616,7 @@ QPDF::replaceObject(int objid, int generation, QPDFObjectHandle oh)
     resolve(objid, generation);
 
     // Replace the object in the object cache
-    ObjGen og(objid, generation);
+    QPDFObjGen og(objid, generation);
     this->obj_cache[og] =
 	ObjCache(QPDFObjectHandle::ObjAccessor::getObject(oh), -1, -1);
 }
@@ -1616,9 +1627,7 @@ QPDF::replaceReserved(QPDFObjectHandle reserved,
 {
     QTC::TC("qpdf", "QPDF replaceReserved");
     reserved.assertReserved();
-    replaceObject(reserved.getObjectID(),
-                  reserved.getGeneration(),
-                  replacement);
+    replaceObject(reserved.getObjGen(), replacement);
 }
 
 QPDFObjectHandle
@@ -1653,8 +1662,8 @@ QPDF::copyForeignObject(QPDFObjectHandle foreign, bool allow_page)
 
     // Make sure we have an object in this file for every referenced
     // object in the old file.  obj_copier.object_map maps foreign
-    // ObjGen to local objects.  For everything new that we have to
-    // copy, the local object will be a reservation, unless it is a
+    // QPDFObjGen to local objects.  For everything new that we have
+    // to copy, the local object will be a reservation, unless it is a
     // stream, in which case the local object will already be a
     // stream.
     reserveObjects(foreign, obj_copier, true);
@@ -1675,14 +1684,13 @@ QPDF::copyForeignObject(QPDFObjectHandle foreign, bool allow_page)
             replaceForeignIndirectObjects(to_copy, obj_copier, true);
         if (! to_copy.isStream())
         {
-            ObjGen og(to_copy.getObjectID(), to_copy.getGeneration());
+            QPDFObjGen og(to_copy.getObjGen());
             replaceReserved(obj_copier.object_map[og], copy);
         }
     }
     obj_copier.to_copy.clear();
 
-    return obj_copier.object_map[ObjGen(foreign.getObjectID(),
-                                        foreign.getGeneration())];
+    return obj_copier.object_map[foreign.getObjGen()];
 }
 
 void
@@ -1709,7 +1717,7 @@ QPDF::reserveObjects(QPDFObjectHandle foreign, ObjCopier& obj_copier,
 
     if (foreign.isIndirect())
     {
-        ObjGen foreign_og(foreign.getObjectID(), foreign.getGeneration());
+        QPDFObjGen foreign_og(foreign.getObjGen());
         if (obj_copier.visiting.find(foreign_og) != obj_copier.visiting.end())
         {
             QTC::TC("qpdf", "QPDF loop reserving objects");
@@ -1717,7 +1725,7 @@ QPDF::reserveObjects(QPDFObjectHandle foreign, ObjCopier& obj_copier,
         }
         QTC::TC("qpdf", "QPDF copy indirect");
         obj_copier.visiting.insert(foreign_og);
-        std::map<ObjGen, QPDFObjectHandle>::iterator mapping =
+        std::map<QPDFObjGen, QPDFObjectHandle>::iterator mapping =
             obj_copier.object_map.find(foreign_og);
         if (mapping == obj_copier.object_map.end())
         {
@@ -1762,7 +1770,7 @@ QPDF::reserveObjects(QPDFObjectHandle foreign, ObjCopier& obj_copier,
 
     if (foreign.isIndirect())
     {
-        ObjGen foreign_og(foreign.getObjectID(), foreign.getGeneration());
+        QPDFObjGen foreign_og(foreign.getObjGen());
         obj_copier.visiting.erase(foreign_og);
     }
 }
@@ -1775,8 +1783,8 @@ QPDF::replaceForeignIndirectObjects(
     if ((! top) && foreign.isIndirect())
     {
         QTC::TC("qpdf", "QPDF replace indirect");
-        ObjGen foreign_og(foreign.getObjectID(), foreign.getGeneration());
-        std::map<ObjGen, QPDFObjectHandle>::iterator mapping =
+        QPDFObjGen foreign_og(foreign.getObjGen());
+        std::map<QPDFObjGen, QPDFObjectHandle>::iterator mapping =
             obj_copier.object_map.find(foreign_og);
         if (mapping == obj_copier.object_map.end())
         {
@@ -1819,7 +1827,7 @@ QPDF::replaceForeignIndirectObjects(
     else if (foreign.isStream())
     {
         QTC::TC("qpdf", "QPDF replace stream");
-        ObjGen foreign_og(foreign.getObjectID(), foreign.getGeneration());
+        QPDFObjGen foreign_og(foreign.getObjGen());
         result = obj_copier.object_map[foreign_og];
         result.assertStream();
         QPDFObjectHandle dict = result.getDict();
@@ -1838,7 +1846,7 @@ QPDF::replaceForeignIndirectObjects(
             this->copied_stream_data_provider = new CopiedStreamDataProvider();
             this->copied_streams = this->copied_stream_data_provider;
         }
-        ObjGen local_og(result.getObjectID(), result.getGeneration());
+        QPDFObjGen local_og(result.getObjGen());
         this->copied_stream_data_provider->registerForeignStream(
             local_og, foreign);
         result.replaceStreamData(this->copied_streams,
@@ -1861,14 +1869,20 @@ QPDF::replaceForeignIndirectObjects(
 }
 
 void
+QPDF::swapObjects(QPDFObjGen const& og1, QPDFObjGen const& og2)
+{
+    swapObjects(og1.getObj(), og1.getGen(), og2.getObj(), og2.getGen());
+}
+
+void
 QPDF::swapObjects(int objid1, int generation1, int objid2, int generation2)
 {
     // Force objects to be loaded into cache; then swap them in the
     // cache.
     resolve(objid1, generation1);
     resolve(objid2, generation2);
-    ObjGen og1(objid1, generation1);
-    ObjGen og2(objid2, generation2);
+    QPDFObjGen og1(objid1, generation1);
+    QPDFObjGen og2(objid2, generation2);
     ObjCache t = this->obj_cache[og1];
     this->obj_cache[og1] = this->obj_cache[og2];
     this->obj_cache[og2] = t;
@@ -1925,15 +1939,15 @@ QPDF::getRoot()
 void
 QPDF::getObjectStreamData(std::map<int, int>& omap)
 {
-    for (std::map<ObjGen, QPDFXRefEntry>::iterator iter =
+    for (std::map<QPDFObjGen, QPDFXRefEntry>::iterator iter =
 	     this->xref_table.begin();
 	 iter != this->xref_table.end(); ++iter)
     {
-	ObjGen const& og = (*iter).first;
+	QPDFObjGen const& og = (*iter).first;
 	QPDFXRefEntry const& entry = (*iter).second;
 	if (entry.getType() == 2)
 	{
-	    omap[og.obj] = entry.getObjStreamNumber();
+	    omap[og.getObj()] = entry.getObjStreamNumber();
 	}
     }
 }
@@ -1941,55 +1955,68 @@ QPDF::getObjectStreamData(std::map<int, int>& omap)
 std::vector<int>
 QPDF::getCompressibleObjects()
 {
-    // Return a set of object numbers of objects that are allowed to
-    // be in object streams.  We disregard generation numbers here
-    // since this is a helper function for QPDFWriter which is going
-    // to renumber objects anyway.  This code will do weird things if
-    // we have two objects with the same object number and different
-    // generations, but so do virtually all PDF consumers,
-    // particularly since this is not a permitted condition.
+    std::vector<QPDFObjGen> objects = getCompressibleObjGens();
+    std::vector<int> result;
+    for (std::vector<QPDFObjGen>::iterator iter = objects.begin();
+         iter != objects.end(); ++iter)
+    {
+        if ((*iter).getGen() != 0)
+        {
+            throw std::logic_error(
+                "QPDF::getCompressibleObjects() would return an object ID"
+                " for an object with generation != 0.  Use"
+                " QPDF::getCompressibleObjGens() instead."
+                "  See comments in QPDF.hh.");
+        }
+        else
+        {
+            result.push_back((*iter).getObj());
+        }
+    }
+    return result;
+}
 
-    // We walk through the objects by traversing the document from the
-    // root, including a traversal of the pages tree.  This makes that
-    // objects that are on the same page are more likely to be in the
-    // same object stream, which is slightly more efficient,
+std::vector<QPDFObjGen>
+QPDF::getCompressibleObjGens()
+{
+    // Return a list of objects that are allowed to be in object
+    // streams.  Walk through the objects by traversing the document
+    // from the root, including a traversal of the pages tree.  This
+    // makes that objects that are on the same page are more likely to
+    // be in the same object stream, which is slightly more efficient,
     // particularly with linearized files.  This is better than
     // iterating through the xref table since it avoids preserving
     // orphaned items.
 
     // Exclude encryption dictionary, if any
-    int encryption_dict_id = 0;
     QPDFObjectHandle encryption_dict = trailer.getKey("/Encrypt");
-    if (encryption_dict.isIndirect())
-    {
-	encryption_dict_id = encryption_dict.getObjectID();
-    }
+    QPDFObjGen encryption_dict_og = encryption_dict.getObjGen();
 
-    std::set<int> visited;
+    std::set<QPDFObjGen> visited;
     std::list<QPDFObjectHandle> queue;
     queue.push_front(this->trailer);
-    std::vector<int> result;
+    std::vector<QPDFObjGen> result;
     while (! queue.empty())
     {
 	QPDFObjectHandle obj = queue.front();
 	queue.pop_front();
 	if (obj.isIndirect())
 	{
-	    int objid = obj.getObjectID();
-	    if (visited.count(objid))
+	    QPDFObjGen og = obj.getObjGen();
+	    if (visited.count(og))
 	    {
 		QTC::TC("qpdf", "QPDF loop detected traversing objects");
 		continue;
 	    }
-	    if (objid == encryption_dict_id)
+	    if (og == encryption_dict_og)
 	    {
 		QTC::TC("qpdf", "QPDF exclude encryption dictionary");
 	    }
 	    else if (! obj.isStream())
 	    {
-		result.push_back(objid);
+		result.push_back(og);
 	    }
-	    visited.insert(objid);
+	    visited.insert(og);
 	}
 	if (obj.isStream())
 	{
@@ -2113,8 +2140,7 @@ QPDF::findAttachmentStreams()
             item.getKey("/EF").getKey("/F").isStream())
         {
             QPDFObjectHandle stream = item.getKey("/EF").getKey("/F");
-            this->attachment_streams.insert(
-                ObjGen(stream.getObjectID(), stream.getGeneration()));
+            this->attachment_streams.insert(stream.getObjGen());
         }
     }
 }

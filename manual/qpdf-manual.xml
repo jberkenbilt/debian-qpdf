@@ -5,8 +5,8 @@
 <!ENTITY mdash "&#x2014;">
 <!ENTITY ndash "&#x2013;">
 <!ENTITY nbsp "&#xA0;">
-<!ENTITY swversion "4.1.0">
-<!ENTITY lastreleased "April 14, 2013">
+<!ENTITY swversion "4.2.0">
+<!ENTITY lastreleased "July 7, 2013">
 ]>
 <book>
  <bookinfo>
@@ -257,7 +257,7 @@ make
    <para>
     <option>outfilename</option> does not have to be seekable, even
     when generating linearized files.  Specifying
-    &ldquo;<option>-</option>&rdquo; as <option>outfilename</option>
+    &ldquo;<option>--</option>&rdquo; as <option>outfilename</option>
     means to write to standard output.  However, you can't specify the
     same file as both the input and the output because qpdf reads data
     from the input file as it writes to the output file.
@@ -614,7 +614,7 @@ make
     file is given as the primary input file is used as the starting
     point, but its pages are replaced with pages as specified.
 
-    <programlisting><option>--pages <replaceable>input-file</replaceable> [ <replaceable>--password=password</replaceable> ] <replaceable>page-range</replaceable> [ ... ] --</option>
+    <programlisting><option>--pages <replaceable>input-file</replaceable> [ <replaceable>--password=password</replaceable> ] [ <replaceable>page-range</replaceable> ] [ ... ] --</option>
 </programlisting>
     Multiple input files may be specified.  Each one is given as the
     name of the input file, an optional password (if required to open
@@ -634,6 +634,15 @@ make
     (info, outlines, page numbers, etc.) are taken from the primary
     input file.  To discard these, use <option>--empty</option> as the
     primary input.
+   </para>
+   <para>
+    Starting with qpdf 4.2.0, it is possible to omit the page range.
+    If qpdf sees a value in the place where it expects a page range
+    and that value is not a valid range but is a valid file name, qpdf
+    will implicitly use the range <literal>1-z</literal>, meaning that
+    it will include all pages in the file.  This makes it possible to
+    easily combine all pages in a set of files with a command like
+    <command>qpdf --empty out.pdf --pages *.pdf --</command>.
    </para>
    <para>
     It is not presently possible to specify the same page from the
@@ -779,7 +788,7 @@ outfile.pdf</option>
       <term><option>--object-streams=<replaceable>mode</replaceable></option></term>
       <listitem>
        <para>
-        Controls handing of object streams.  The value of
+        Controls handling of object streams.  The value of
         <option><replaceable>mode</replaceable></option> may be one of
         the following:
         <itemizedlist>
@@ -1014,7 +1023,7 @@ outfile.pdf</option>
       </listitem>
      </varlistentry>
      <varlistentry>
-      <term><option>-show-encryption</option></term>
+      <term><option>--show-encryption</option></term>
       <listitem>
        <para>
         Shows document encryption parameters.  Also shows the
@@ -1023,7 +1032,7 @@ outfile.pdf</option>
       </listitem>
      </varlistentry>
      <varlistentry>
-      <term><option>-check-linearization</option></term>
+      <term><option>--check-linearization</option></term>
       <listitem>
        <para>
         Checks file integrity and linearization status.
@@ -1031,7 +1040,7 @@ outfile.pdf</option>
       </listitem>
      </varlistentry>
      <varlistentry>
-      <term><option>-show-linearization</option></term>
+      <term><option>--show-linearization</option></term>
       <listitem>
        <para>
         Checks and displays all data in the linearization hint tables.
@@ -1039,7 +1048,7 @@ outfile.pdf</option>
       </listitem>
      </varlistentry>
      <varlistentry>
-      <term><option>-show-xref</option></term>
+      <term><option>--show-xref</option></term>
       <listitem>
        <para>
         Shows the contents of the cross-reference table in a
@@ -1049,7 +1058,7 @@ outfile.pdf</option>
       </listitem>
      </varlistentry>
      <varlistentry>
-      <term><option>-show-object=obj[,gen]</option></term>
+      <term><option>--show-object=obj[,gen]</option></term>
       <listitem>
        <para>
         Show the contents of the given object.  This is especially
@@ -1059,7 +1068,7 @@ outfile.pdf</option>
       </listitem>
      </varlistentry>
      <varlistentry>
-      <term><option>-raw-stream-data</option></term>
+      <term><option>--raw-stream-data</option></term>
       <listitem>
        <para>
         When used along with the <option>--show-object</option>
@@ -1069,7 +1078,7 @@ outfile.pdf</option>
       </listitem>
      </varlistentry>
      <varlistentry>
-      <term><option>-filtered-stream-data</option></term>
+      <term><option>--filtered-stream-data</option></term>
       <listitem>
        <para>
         When used along with the <option>--show-object</option>
@@ -1081,7 +1090,18 @@ outfile.pdf</option>
       </listitem>
      </varlistentry>
      <varlistentry>
-      <term><option>-show-pages</option></term>
+      <term><option>--show-npages</option></term>
+      <listitem>
+       <para>
+        Prints the number of pages in the input file on a line by
+        itself.  Since the number of pages appears by itself on a
+        line, this option can be useful for scripting if you need to
+        know the number of pages in a file.
+       </para>
+      </listitem>
+     </varlistentry>
+     <varlistentry>
+      <term><option>--show-pages</option></term>
       <listitem>
        <para>
         Shows the object and generation number for each page
@@ -1092,7 +1112,7 @@ outfile.pdf</option>
       </listitem>
      </varlistentry>
      <varlistentry>
-      <term><option>-with-images</option></term>
+      <term><option>--with-images</option></term>
       <listitem>
        <para>
         When used along with <option>--show-pages</option>, also shows
@@ -1104,7 +1124,7 @@ outfile.pdf</option>
       </listitem>
      </varlistentry>
      <varlistentry>
-      <term><option>-check</option></term>
+      <term><option>--check</option></term>
       <listitem>
        <para>
         Checks file structure and well as encryption, linearization,
@@ -2620,6 +2640,62 @@ print "\n";
    <filename>ChangeLog</filename> in the source distribution.
   </para>
   <variablelist>
+   <varlistentry>
+    <term>4.2.0: July 7, 2013</term>
+    <listitem>
+     <itemizedlist>
+      <listitem>
+       <para>
+        Bug fix: previous versions of qpdf would lose objects with
+        generation != 0 when generating object streams.  This also
+        required deprecation of
+        <function>QPDF::getCompressibleObjects()</function>, which has
+        now been replaced with
+        <function>QPDF::getCompressibleObjGens()</function>.
+       </para>
+      </listitem>
+      <listitem>
+       <para>
+        New <type>QPDFObjGen</type> class added to represent an object
+        ID/generation pair.  The new method
+        <function>QPDF::getCompressibleObjGens()</function> uses this
+        type, and a handful of other API additions were made that use
+        this type.  In particular,
+        <function>QPDFObjectHandle::getObjGen()</function> is now
+        preferred over
+        <function>QPDFObjectHandle::getObjectID()</function> and
+        <function>QPDFObjectHandle::getGeneration()</function> as it
+        makes it less likely for people to accidentally write code
+        that ignores the generation number.  See
+        <filename>QPDF.hh</filename> and
+        <filename>QPDFObjectHandle.hh</filename> for additional notes.
+       </para>
+      </listitem>
+      <listitem>
+       <para>
+        Add <option>--show-npages</option> command-line option to the
+        <command>qpdf</command> command to show the number of pages in
+        a file.
+       </para>
+      </listitem>
+      <listitem>
+       <para>
+        Allow omission of the page range within
+        <option>--pages</option> for the <command>qpdf</command>
+        command.  When omitted, the page range is implicitly taken to
+        be all the pages in the file.
+       </para>
+      </listitem>
+      <listitem>
+       <para>
+        Various enhancements were made to support different types of
+        broken files or broken readers.  Details can be found in
+        <filename>ChangeLog</filename>.
+       </para>
+      </listitem>
+     </itemizedlist>
+    </listitem>
+   </varlistentry>
    <varlistentry>
     <term>4.1.0: April 14, 2013</term>
     <listitem>
