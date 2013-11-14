@@ -1,0 +1,25 @@
+operator: BT
+name: /F1
+integer: 24
+operator: Tf
+integer: 72
+integer: 720
+operator: Td
+string: (Potato)
+operator: Tj
+operator: ET
+operator: BI
+name: /CS
+name: /G
+name: /W
+integer: 1
+name: /H
+integer: 1
+name: /BPC
+integer: 8
+name: /F
+name: /Fl
+name: /DP
+dictionary: << /Columns 1 /Predictor 15 >>
+operator: ID
+content stream object 4 0 (stream data, file position 139): EOF found while reading inline image

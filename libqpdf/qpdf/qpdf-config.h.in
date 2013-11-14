@@ -15,9 +15,6 @@
 /* Define to 1 if you have the <memory.h> header file. */
 #undef HAVE_MEMORY_H
 
-/* Whether printf supports %ll */
-#undef HAVE_PRINTF_LL
-
 /* Define to 1 if you have the `random' function. */
 #undef HAVE_RANDOM
 

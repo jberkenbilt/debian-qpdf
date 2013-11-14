@@ -73,7 +73,7 @@ endef
 # Usage: $(call libcompile,src,includes)
 define c_libcompile
 	$(LIBTOOL) --quiet --mode=compile \
-		$(CC) $(CXXFLAGS) \
+		$(CC) $(CFLAGS) \
 		$(call libdepflags,$(basename $(call c_src_to_obj,$(1)))) \
 		$(foreach I,$(2),-I$(I)) \
 		$(CPPFLAGS) \
@@ -112,15 +112,14 @@ install: all
 	./mkinstalldirs $(DESTDIR)$(includedir)/qpdf
 	./mkinstalldirs $(DESTDIR)$(docdir)
 	./mkinstalldirs $(DESTDIR)$(mandir)/man1
-	$(LIBTOOL) --mode=install install -c \
+	$(LIBTOOL) --mode=install ./install-sh \
 		libqpdf/$(OUTPUT_DIR)/libqpdf.la \
 		$(DESTDIR)$(libdir)/libqpdf.la
 	$(LIBTOOL) --finish $(DESTDIR)$(libdir)
-	$(RM) $(DESTDIR)$(libdir)/libqpdf.la
-	$(LIBTOOL) --mode=install install -c \
+	$(LIBTOOL) --mode=install ./install-sh \
 		qpdf/$(OUTPUT_DIR)/qpdf \
 		$(DESTDIR)$(bindir)/qpdf
-	$(LIBTOOL) --mode=install install -c \
+	$(LIBTOOL) --mode=install ./install-sh \
 		zlib-flate/$(OUTPUT_DIR)/zlib-flate \
 		$(DESTDIR)$(bindir)/zlib-flate
 	cp qpdf/fix-qdf $(DESTDIR)$(bindir)

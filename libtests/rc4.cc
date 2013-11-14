@@ -1,5 +1,6 @@
 #include <qpdf/Pl_RC4.hh>
 #include <qpdf/Pl_StdioFile.hh>
+#include <qpdf/QUtil.hh>
 
 #include <stdio.h>
 #include <string.h>
@@ -17,18 +18,12 @@ int main(int argc, char* argv[])
     char* hexkey = argv[1];
     char* infilename = argv[2];
     char* outfilename = argv[3];
-    unsigned int hexkeylen = (unsigned int)strlen(hexkey);
+    unsigned int hexkeylen = strlen(hexkey);
     unsigned int keylen = hexkeylen / 2;
     unsigned char* key = new unsigned char[keylen + 1];
     key[keylen] = '\0';
 
-    FILE* infile = fopen(infilename, "rb");
-    if (infile == 0)
-    {
-	std::cerr << "can't open " << infilename << std::endl;
-	exit(2);
-    }
-
+    FILE* infile = QUtil::safe_fopen(infilename, "rb");
     for (unsigned int i = 0; i < strlen(hexkey); i += 2)
     {
 	char t[3];
@@ -37,15 +32,10 @@ int main(int argc, char* argv[])
 	t[2] = '\0';
 
 	long val = strtol(t, 0, 16);
-	key[i/2] = (unsigned char) val;
+	key[i/2] = static_cast<unsigned char>(val);
     }
 
-    FILE* outfile = fopen(outfilename, "wb");
-    if (outfile == 0)
-    {
-	std::cerr << "can't open " << outfilename << std::endl;
-	exit(2);
-    }
+    FILE* outfile = QUtil::safe_fopen(outfilename, "wb");
     Pl_StdioFile* out = new Pl_StdioFile("stdout", outfile);
     // Use a small buffer size (64) for testing
     Pl_RC4* rc4 = new Pl_RC4("rc4", out, key, keylen, 64);

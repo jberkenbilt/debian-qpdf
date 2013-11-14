@@ -1,5 +1,6 @@
 #include <qpdf/Pl_AES_PDF.hh>
 #include <qpdf/Pl_StdioFile.hh>
+#include <qpdf/QUtil.hh>
 
 #include <stdio.h>
 #include <string.h>
@@ -86,23 +87,11 @@ int main(int argc, char* argv[])
         usage();
     }
 
-    unsigned int hexkeylen = (unsigned int)strlen(hexkey);
+    unsigned int hexkeylen = strlen(hexkey);
     unsigned int keylen = hexkeylen / 2;
 
-    FILE* infile = fopen(infilename, "rb");
-    if (infile == 0)
-    {
-	std::cerr << "can't open " << infilename << std::endl;
-	exit(2);
-    }
-
-    FILE* outfile = fopen(outfilename, "wb");
-    if (outfile == 0)
-    {
-	std::cerr << "can't open " << outfilename << std::endl;
-	exit(2);
-    }
-
+    FILE* infile = QUtil::safe_fopen(infilename, "rb");
+    FILE* outfile = QUtil::safe_fopen(outfilename, "wb");
     unsigned char* key = new unsigned char[keylen];
     for (unsigned int i = 0; i < strlen(hexkey); i += 2)
     {
@@ -112,7 +101,7 @@ int main(int argc, char* argv[])
 	t[2] = '\0';
 
 	long val = strtol(t, 0, 16);
-	key[i/2] = (unsigned char) val;
+	key[i/2] = static_cast<unsigned char>(val);
     }
 
     Pl_StdioFile* out = new Pl_StdioFile("stdout", outfile);

@@ -1,0 +1,11 @@
+operator: BT
+name: /F1
+integer: 24
+operator: Tf
+integer: 72
+integer: 720
+operator: Td
+string: (Potato)
+operator: Tj
+operator: ET
+-EOF-

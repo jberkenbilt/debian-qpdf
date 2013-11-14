@@ -71,12 +71,44 @@ class QPDFObjectHandle
         virtual void decryptString(std::string& val) = 0;
     };
 
+    // This class is used by parseContentStream.  Callers must
+    // instantiate a subclass of this with handlers defined to accept
+    // QPDFObjectHandles that are parsed from the stream.
+    class ParserCallbacks
+    {
+      public:
+        QPDF_DLL
+        virtual ~ParserCallbacks()
+        {
+        }
+        virtual void handleObject(QPDFObjectHandle) = 0;
+        virtual void handleEOF() = 0;
+
+      protected:
+        // Implementors may call this method during parsing to
+        // terminate parsing early.  This method throws an exception
+        // that is caught by parseContentStream, so its effect is
+        // immediate.
+        QPDF_DLL
+        void terminateParsing();
+    };
+
+
     QPDF_DLL
     QPDFObjectHandle();
     QPDF_DLL
     bool isInitialized() const;
 
-    // Exactly one of these will return true for any object.
+    // Return type code and type name of underlying object.  These are
+    // useful for doing rapid type tests (like switch statements) or
+    // for testing and debugging.
+    QPDF_DLL
+    QPDFObject::object_type_e getTypeCode();
+    QPDF_DLL
+    char const* getTypeName();
+
+    // Exactly one of these will return true for any object.  Operator
+    // and InlineImage are only allowed in content streams.
     QPDF_DLL
     bool isBool();
     QPDF_DLL
@@ -89,6 +121,10 @@ class QPDFObjectHandle
     bool isName();
     QPDF_DLL
     bool isString();
+    QPDF_DLL
+    bool isOperator();
+    QPDF_DLL
+    bool isInlineImage();
     QPDF_DLL
     bool isArray();
     QPDF_DLL
@@ -103,7 +139,8 @@ class QPDFObjectHandle
     QPDF_DLL
     bool isIndirect();
 
-    // True for everything except array, dictionary, and stream
+    // True for everything except array, dictionary, stream, word, and
+    // inline image.
     QPDF_DLL
     bool isScalar();
 
@@ -132,6 +169,11 @@ class QPDFObjectHandle
                                   StringDecrypter* decrypter,
                                   QPDF* context);
 
+    // Helpers for parsing content streams
+    QPDF_DLL
+    static void parseContentStream(QPDFObjectHandle stream_or_array,
+                                   ParserCallbacks* callbacks);
+
     // Type-specific factories
     QPDF_DLL
     static QPDFObjectHandle newNull();
@@ -147,6 +189,10 @@ class QPDFObjectHandle
     static QPDFObjectHandle newName(std::string const& name);
     QPDF_DLL
     static QPDFObjectHandle newString(std::string const& str);
+    QPDF_DLL
+    static QPDFObjectHandle newOperator(std::string const&);
+    QPDF_DLL
+    static QPDFObjectHandle newInlineImage(std::string const&);
     QPDF_DLL
     static QPDFObjectHandle newArray();
     QPDF_DLL
@@ -238,6 +284,12 @@ class QPDFObjectHandle
     std::string getStringValue();
     QPDF_DLL
     std::string getUTF8Value();
+
+    // Methods for content stream objects
+    QPDF_DLL
+    std::string getOperatorValue();
+    QPDF_DLL
+    std::string getInlineImageValue();
 
     // Methods for array objects; see also name and array objects
     QPDF_DLL
@@ -510,6 +562,10 @@ class QPDFObjectHandle
     QPDF_DLL
     void assertString();
     QPDF_DLL
+    void assertOperator();
+    QPDF_DLL
+    void assertInlineImage();
+    QPDF_DLL
     void assertArray();
     QPDF_DLL
     void assertDictionary();
@@ -551,7 +607,10 @@ class QPDFObjectHandle
         std::string const& object_description,
         QPDFTokenizer& tokenizer, bool& empty,
         StringDecrypter* decrypter, QPDF* context,
-        bool in_array, bool in_dictionary);
+        bool in_array, bool in_dictionary,
+        bool content_stream);
+    static void parseContentStream_internal(
+        QPDFObjectHandle stream, ParserCallbacks* callbacks);
 
     bool initialized;
 

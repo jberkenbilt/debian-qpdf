@@ -46,6 +46,14 @@ struct QPDFPageData
     std::vector<int> selected_pages;
 };
 
+class DiscardContents: public QPDFObjectHandle::ParserCallbacks
+{
+  public:
+    virtual ~DiscardContents() {}
+    virtual void handleObject(QPDFObjectHandle) {}
+    virtual void handleEOF() {}
+};
+
 // Note: let's not be too noisy about documenting the fact that this
 // software purposely fails to enforce the distinction between user
 // and owner passwords.  A user password is sufficient to gain full
@@ -873,7 +881,7 @@ QPDFPageData::QPDFPageData(QPDF* qpdf, char const* range) :
     qpdf(qpdf),
     orig_pages(qpdf->getAllPages())
 {
-    this->selected_pages = parse_numrange(range, (int)this->orig_pages.size());
+    this->selected_pages = parse_numrange(range, this->orig_pages.size());
 }
 
 static void parse_version(std::string const& full_version_string,
@@ -1004,7 +1012,7 @@ int main(int argc, char* argv[])
 		// Be lax about -arg vs --arg
 		++arg;
 	    }
-	    char* parameter = (char*)strchr(arg, '=');
+	    char* parameter = const_cast<char*>(strchr(arg, '='));
 	    if (parameter)
 	    {
 		*parameter++ = 0;
@@ -1420,7 +1428,11 @@ int main(int argc, char* argv[])
 	    }
 	    if (check)
 	    {
-		bool okay = false;
+                // Code below may set okay to false but not to true.
+                // We assume okay until we prove otherwise but may
+                // continue to perform additional checks after finding
+                // errors.
+		bool okay = true;
 		std::cout << "checking " << infilename << std::endl;
 		try
 		{
@@ -1436,26 +1448,53 @@ int main(int argc, char* argv[])
 		    if (pdf.isLinearized())
 		    {
 			std::cout << "File is linearized\n";
-			okay = pdf.checkLinearization();
-			// any errors are reported by checkLinearization().
+			if (! pdf.checkLinearization())
+                        {
+                            // any errors are reported by checkLinearization()
+                            okay = false;
+                        }
 		    }
 		    else
 		    {
 			std::cout << "File is not linearized\n";
-                        // Write the file no nowhere, uncompressing
-                        // streams.  This causes full file traversal
-                        // and decoding of all streams we can decode.
-                        QPDFWriter w(pdf);
-                        Pl_Discard discard;
-                        w.setOutputPipeline(&discard);
-                        w.setStreamDataMode(qpdf_s_uncompress);
-                        w.write();
-			okay = true;
-		    }
+                    }
+
+                    // Write the file no nowhere, uncompressing
+                    // streams.  This causes full file traversal and
+                    // decoding of all streams we can decode.
+                    QPDFWriter w(pdf);
+                    Pl_Discard discard;
+                    w.setOutputPipeline(&discard);
+                    w.setStreamDataMode(qpdf_s_uncompress);
+                    w.write();
+
+                    // Parse all content streams
+                    std::vector<QPDFObjectHandle> pages = pdf.getAllPages();
+                    DiscardContents discard_contents;
+                    int pageno = 0;
+                    for (std::vector<QPDFObjectHandle>::iterator iter =
+                             pages.begin();
+                         iter != pages.end(); ++iter)
+                    {
+                        ++pageno;
+                        try
+                        {
+                            QPDFObjectHandle::parseContentStream(
+                                (*iter).getKey("/Contents"),
+                                &discard_contents);
+                        }
+                        catch (QPDFExc& e)
+                        {
+                            okay = false;
+                            std::cout << "page " << pageno << ": "
+                                      << e.what() << std::endl;
+                        }
+                    }
 		}
 		catch (std::exception& e)
 		{
 		    std::cout << e.what() << std::endl;
+                    okay = false;
 		}
 		if (okay)
 		{
@@ -1472,6 +1511,10 @@ int main(int argc, char* argv[])
 				  << std::endl;
 		    }
 		}
+                else
+                {
+                    exit(EXIT_ERROR);
+                }
 	    }
 	}
 	else
@@ -1574,7 +1617,7 @@ int main(int argc, char* argv[])
                 // This prevents those objects from being preserved by
                 // being referred to from other places, such as the
                 // outlines dictionary.
-                for (int pageno = 0; pageno < (int)orig_pages.size(); ++pageno)
+                for (size_t pageno = 0; pageno < orig_pages.size(); ++pageno)
                 {
                     if (selected_from_orig.count(pageno) == 0)
                     {

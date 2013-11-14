@@ -1,3 +1,115 @@
+2013-04-14  Jay Berkenbilt  <ejb@ql.org>
+
+	* 4.1.0: release
+
+2013-03-25  Jay Berkenbilt  <ejb@ql.org>
+
+	* manual/qpdf-manual.xml: Document the casting policy that is
+	followed in qpdf's implementation.
+
+2013-03-11  Jay Berkenbilt  <ejb@ql.org>
+
+	* When creating Windows binary distributions, make sure to only
+	copy DLLs of the correct type.  The ensures that the 32-bit
+	distributions contain 32-bit DLLs and the 64-bit distributions
+	contain 64-bit DLLs.
+
+2013-03-07  Jay Berkenbilt  <ejb@ql.org>
+
+	* Use ./install-sh (already present) instead of "install -c" to
+	install executables to fix portability problems against different
+	UNIX variants.
+
+2013-03-03  Jay Berkenbilt  <ejb@ql.org>
+
+	* Add protected terminateParsing method to
+	QPDFObjectHandle::ParserCallbacks that implementor can call to
+	terminate parsing of a content stream.
+
+2013-02-28  Jay Berkenbilt  <ejb@ql.org>
+
+	* Favor fopen_s and strerror_s on MSVC to avoid CRT security
+	warnings.  This is useful for people who may want to use qpdf in
+	an application that is Windows 8 certified.
+
+	* New method QUtil::safe_fopen to wrap calls to fopen.  This is
+	less cumbersome than calling QUtil::fopen_wrapper.
+
+	* Remove all calls to sprintf
+
+	* New method QUtil::int_to_string_base to convert to octal or
+	hexademical (or decimal) strings without using sprintf
+
+2013-02-26  Jay Berkenbilt  <ejb@ql.org>
+
+	* Rewrite QUtil::int_to_string and QUtil::double_to_string to
+	remove internal length limits but to remain backward compatible
+	with the old versions for valid inputs.
+
+2013-02-23  Jay Berkenbilt  <ejb@ql.org>
+
+	* Bug fix: properly handle overridden compressed objects.  When
+	caching objects from an object stream, only cache objects that,
+	based on the xref table, would actually be resolved into this
+	stream.  Prior to this fix, if an object stream A contained an
+	object B that was overridden by an appended section of the file,
+	qpdf would cache the old value of B if any non-overridden member
+	of A was accessed before B.  This commit fixes that bug.
+
+2013-01-31  Jay Berkenbilt  <ejb@ql.org>
+
+	* Do not remove libtool's .la file during the make install step.
+	Note to packagers: if your distribution wants to you remove the
+	.la file, you will have to do that yourself now.
+
+2013-01-25  Jay Berkenbilt  <ejb@ql.org>
+
+	* New method QUtil::hex_encode to encode binary data as a
+	hexadecimal string
+
+	* qpdf --check was exiting with status 0 in some rare cases even
+	when errors were found.  It now always exits with one of the
+	document error codes (0 for success, 2 for errors, 3 or warnings).
+
+2013-01-24  Jay Berkenbilt  <ejb@ql.org>
+
+	* Make --enable-werror work for MSVC, and generally handle warning
+	options better for that compiler.  Warning flags for that compiler
+	were previous hard-coded into the build with /WX enabled
+	unconditionally.
+
+	* Split warning flags into WFLAGS in autoconf.mk to make them
+	easier to override.  Before they were repeated in CFLAGS and
+	CXXFLAGS and were commingled with other compiler flags.
+
+	* qpdf --check now does syntactic checks all pages' content
+	streams as well as checking overall document structure.  Semantic
+	errors are still not checked, and there are no plans to add
+	semantic checks.
+
+2013-01-22  Jay Berkenbilt  <ejb@ql.org>
+
+	* Add QPDFObjectHandle::getTypeCode().  This method returns a
+	unique integer (enumerated type) value corresponding to the object
+	type of the QPDFObjectHandle.  It can be used as an alternative to
+	the QPDFObjectHandle::is* methods for type testing, particularly
+	where there is a desire to use a switch statement or optimize for
+	performance when testing object types.
+
+	* Add QPDFObjectHandle::getTypeName().  This method returns a
+	string literal describing the object type.  It is useful for
+	testing and debugging.
+
+2013-01-20  Jay Berkenbilt  <ejb@ql.org>
+
+	* Add QPDFObjectHandle::parseContentStream, which parses the
+	objects in a content stream and calls handlers in a callback
+	class.  The example pdf-parse-content illustrates it use.
+
+	* Add QPDF_Operator and QPDF_InlineImage types along with
+	appropriate wrapper methods in QPDFObjectHandle.  These new object
+	types are to facilitate content stream parsing.
+
 2013-01-17  Jay Berkenbilt  <ejb@ql.org>
 
 	* 4.0.1: release
