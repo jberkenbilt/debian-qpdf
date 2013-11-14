@@ -527,8 +527,7 @@ QPDFWriter::writeString(std::string const& str)
 void
 QPDFWriter::writeBuffer(PointerHolder<Buffer>& b)
 {
-    this->pipeline->write(b.getPointer()->getBuffer(),
-			  b.getPointer()->getSize());
+    this->pipeline->write(b->getBuffer(), b->getSize());
 }
 
 void
@@ -993,7 +992,9 @@ QPDFWriter::unparseObject(QPDFObjectHandle object, int level,
 	    // compressed with a lossy compression scheme, but we
 	    // don't support any of those right now.
 	    QPDFObjectHandle filter_obj = stream_dict.getKey("/Filter");
-	    if (filter_obj.isName() && (filter_obj.getName() == "/FlateDecode"))
+	    if (filter_obj.isName() &&
+		((filter_obj.getName() == "/FlateDecode") ||
+		 (filter_obj.getName() == "/Fl")))
 	    {
 		QTC::TC("qpdf", "QPDFWriter not recompressing /FlateDecode");
 		filter = false;
@@ -1036,7 +1037,7 @@ QPDFWriter::unparseObject(QPDFObjectHandle object, int level,
 	    compress = false;
 	}
 
-	this->cur_stream_length = stream_data.getPointer()->getSize();
+	this->cur_stream_length = stream_data->getSize();
 	if (is_metadata && this->encrypted && (! this->encrypt_metadata))
 	{
 	    // Don't encrypt stream data for the metadata stream
@@ -1224,7 +1225,7 @@ QPDFWriter::writeObjectStream(QPDFObjectHandle object)
     writeStringQDF("\n ");
     writeString(" /Type /ObjStm");
     writeStringQDF("\n ");
-    unsigned long length = stream_buffer.getPointer()->getSize();
+    unsigned long length = stream_buffer->getSize();
     adjustAESStreamLength(length);
     writeString(" /Length " + QUtil::int_to_string(length));
     writeStringQDF("\n ");
@@ -1716,8 +1717,8 @@ QPDFWriter::writeHintStream(int hint_id)
     openObject(hint_id);
     setDataKey(hint_id);
 
-    unsigned char* hs = hint_buffer.getPointer()->getBuffer();
-    unsigned long hlen = hint_buffer.getPointer()->getSize();
+    unsigned char* hs = hint_buffer->getBuffer();
+    unsigned long hlen = hint_buffer->getSize();
 
     writeString("<< /Filter /FlateDecode /S ");
     writeString(QUtil::int_to_string(S));
@@ -1886,8 +1887,7 @@ QPDFWriter::writeXRefStream(int xref_id, int max_id, int max_offset,
     writeStringQDF("\n ");
     writeString(" /Type /XRef");
     writeStringQDF("\n ");
-    writeString(" /Length " +
-		QUtil::int_to_string(xref_data.getPointer()->getSize()));
+    writeString(" /Length " + QUtil::int_to_string(xref_data->getSize()));
     if (compressed)
     {
 	writeStringQDF("\n ");
@@ -2249,7 +2249,7 @@ QPDFWriter::writeLinearized()
 	    activatePipelineStack();
 	    writeHintStream(hint_id);
 	    popPipelineStack(&hint_buffer);
-	    hint_length = hint_buffer.getPointer()->getSize();
+	    hint_length = hint_buffer->getSize();
 
 	    // Restore hint offset
 	    this->xref[hint_id] = QPDFXRefEntry(1, hint_offset, 0);

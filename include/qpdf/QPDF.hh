@@ -12,6 +12,7 @@
 #include <string>
 #include <map>
 #include <list>
+#include <iostream>
 
 #include <qpdf/DLL.h>
 
@@ -50,7 +51,31 @@ class QPDF
     QPDF_DLL
     void processFile(char const* filename, char const* password = 0);
 
+    // Parse a PDF file loaded into a memory buffer.  This works
+    // exactly like processFile except that the PDF file is in memory
+    // instead of on disk.  The description appears in any warning or
+    // error message in place of the file name.
+    QPDF_DLL
+    void processMemoryFile(char const* description,
+			   char const* buf, size_t length,
+			   char const* password = 0);
+
     // Parameter settings
+
+    // By default, warning messages are issued to std::cerr and output
+    // messages printed by certain check calls are issued to
+    // std::cout.  This method allows you to specify alternative
+    // streams for this purpose.  Note that no normal QPDF operations
+    // generate output to std::cout, so for applications that just
+    // wish to avoid creating output and don't call any check
+    // functions, calling setSuppressWarnings(true) is sufficient.
+    // Applications that wish to present check or warning information
+    // to users may replace the output and error streams to capture
+    // the output and errors for other use.  A null value for either
+    // stream will cause QPDF to use std::cout or std::cerr as
+    // appropriate.
+    QPDF_DLL
+    void setOutputStreams(std::ostream* out_stream, std::ostream* err_stream);
 
     // If true, ignore any cross-reference streams in a hybrid file
     // (one that contains both cross-reference streams and
@@ -59,7 +84,8 @@ class QPDF
     QPDF_DLL
     void setIgnoreXRefStreams(bool);
 
-    // By default, any warnings are issued to stderr as they are
+    // By default, any warnings are issued to std::cerr or the error
+    // stream specified in a call to setOutputStreams as they are
     // encountered.  If this is called with a true value, reporting of
     // warnings is suppressed.  You may still retrieve warnings by
     // calling getWarnings.
@@ -79,7 +105,7 @@ class QPDF
     // clear the list.  This method may be called even if processFile
     // throws an exception.  Note that if setSuppressWarnings was not
     // called or was called with a false value, any warnings retrieved
-    // here will have already been issued to stderr.
+    // here will have already been output.
     QPDF_DLL
     std::vector<QPDFExc> getWarnings();
 
@@ -195,12 +221,14 @@ class QPDF
 
     // Performs various sanity checks on a linearized file.  Return
     // true if no errors or warnings.  Otherwise, return false and
-    // output errors and warnings to stdout.
+    // output errors and warnings to std::cout or the output stream
+    // specified in a call to setOutputStreams.
     QPDF_DLL
     bool checkLinearization();
 
     // Calls checkLinearization() and, if possible, prints normalized
-    // contents of some of the hints tables to stdout.  Normalization
+    // contents of some of the hints tables to std::cout or the output
+    // stream specified in a call to setOutputStreams.  Normalization
     // includes adding min values to delta values and adjusting
     // offsets based on the location and size of the primary hint
     // stream.
@@ -362,7 +390,8 @@ class QPDF
     class BufferInputSource: public InputSource
     {
       public:
-	BufferInputSource(std::string const& description, Buffer* buf);
+	BufferInputSource(std::string const& description, Buffer* buf,
+			  bool own_memory = false);
 	virtual ~BufferInputSource();
 	virtual std::string const& getName() const;
 	virtual off_t tell();
@@ -372,6 +401,7 @@ class QPDF
 	virtual void unreadCh(char ch);
 
       private:
+	bool own_memory;
 	std::string description;
 	Buffer* buf;
 	off_t cur_offset;
@@ -410,7 +440,7 @@ class QPDF
 	off_t end_after_space;
     };
 
-    void parse();
+    void parse(char const* password);
     void warn(QPDFExc const& e);
     void setTrailer(QPDFObjectHandle obj);
     void read_xref(off_t offset);
@@ -423,15 +453,16 @@ class QPDF
     void setLastObjectDescription(std::string const& description,
 				  int objid, int generation);
     QPDFObjectHandle readObject(
-	InputSource*, std::string const& description,
+	PointerHolder<InputSource>, std::string const& description,
 	int objid, int generation, bool in_object_stream);
     QPDFObjectHandle readObjectInternal(
-	InputSource* input, int objid, int generation,
+	PointerHolder<InputSource> input, int objid, int generation,
 	bool in_object_stream,
 	bool in_array, bool in_dictionary);
     int recoverStreamLength(
-	InputSource* input, int objid, int generation, off_t stream_offset);
-    QPDFTokenizer::Token readToken(InputSource*);
+	PointerHolder<InputSource> input, int objid, int generation,
+	off_t stream_offset);
+    QPDFTokenizer::Token readToken(PointerHolder<InputSource>);
 
     QPDFObjectHandle readObjectAtOffset(
 	bool attempt_recovery,
@@ -785,12 +816,14 @@ class QPDF
 
 
     QPDFTokenizer tokenizer;
-    FileInputSource file;
+    PointerHolder<InputSource> file;
     std::string last_object_description;
     bool encrypted;
     bool encryption_initialized;
     bool ignore_xref_streams;
     bool suppress_warnings;
+    std::ostream* out_stream;
+    std::ostream* err_stream;
     bool attempt_recovery;
     int encryption_V;
     bool encrypt_metadata;
