@@ -199,7 +199,7 @@ $td->runtest("remove page we don't have",
 show_ntests();
 # ----------
 $td->notify("--- Miscellaneous Tests ---");
-$n_tests += 67;
+$n_tests += 70;
 
 $td->runtest("qpdf version",
 	     {$td->COMMAND => "qpdf --version"},
@@ -526,6 +526,23 @@ $td->runtest("ignore broken decode parms with no filters",
              {$td->COMMAND => "qpdf --check broken-decode-parms-no-filter.pdf"},
              {$td->FILE => "broken-decode-parms-no-filter.out",
               $td->EXIT_STATUS => 0},
+             $td->NORMALIZE_NEWLINES);
+$td->runtest("bounds check linearization data 1",
+             {$td->COMMAND => "qpdf --check linearization-bounds-1.pdf"},
+             {$td->FILE => "linearization-bounds-1.out",
+              $td->EXIT_STATUS => 2},
+             $td->NORMALIZE_NEWLINES);
+$td->runtest("bounds check linearization data 2",
+             {$td->COMMAND => "qpdf --check linearization-bounds-2.pdf"},
+             {$td->FILE => "linearization-bounds-2.out",
+              $td->EXIT_STATUS => 2},
+             $td->NORMALIZE_NEWLINES);
+# Throws logic error, not bad_alloc
+$td->runtest("sanity check array size",
+             {$td->COMMAND =>
+                  "qpdf --check linearization-large-vector-alloc.pdf"},
+             {$td->FILE => "linearization-large-vector-alloc.out",
+              $td->EXIT_STATUS => 2},
              $td->NORMALIZE_NEWLINES);
 
 show_ntests();
@@ -1382,6 +1399,9 @@ my @encrypted_files =
      ['XI-R6,V5,U=view,O=master', 'master',
       '-print=low', -2052,
       1, 1, 1, 0, 1, 1, 1, 1, 1],
+     ['XI-R6,V5,U=view,O=master', 'master',
+      '-accessibility=n', -4, # -accessibility=n has no effect
+      1, 1, 1, 1, 1, 1, 1, 1, 1],
      ['XI-long-password', 'qwertyuiopasdfghjklzxcvbnmqwertyuiopasdfghjklzxcvbnmqwertyuiopasdfghjklzxcvbnmqwertyuiopasdfghjklzxcvbnmqwertyuiopasdfghjklzxcvbnm'],
      ['XI-long-password', 'qwertyuiopasdfghjklzxcvbnmqwertyuiopasdfghjklzxcvbnmqwertyuiopasdfghjklzxcvbnmqwertyuiopasdfghjklzxcvbnmqwertyuiopasdfghjklzxcv'],
     );
@@ -1484,12 +1504,20 @@ foreach my $d (@encrypted_files)
             # password.
             $upass = "";
         }
+        my $accessibility_warning = "";
+        if (($R > 3) && ($eflags =~ /accessibility=n/))
+        {
+            $accessibility_warning =
+                "qpdf: -accessibility=n is ignored" .
+                " for modern encryption formats\n";
+        }
 	$td->runtest("encrypt $file",
 		     {$td->COMMAND =>
 			  "qpdf --static-id --no-original-object-ids -qdf" .
 			  " $eflags $file.enc $file.enc2"},
-		     {$td->STRING => "",
-		      $td->EXIT_STATUS => 0});
+		     {$td->STRING => $accessibility_warning,
+		      $td->EXIT_STATUS => 0},
+                     $td->NORMALIZE_NEWLINES);
 	$td->runtest("check /P",
 		     {$td->COMMAND =>
 			  "qpdf --show-encryption --password=\"$pass\"" .

@@ -17,6 +17,7 @@
 #include <Windows.h>
 #include <direct.h>
 #include <io.h>
+#include <Wincrypt.h>
 #else
 #include <unistd.h>
 #endif
@@ -200,7 +201,7 @@ QUtil::hex_encode(std::string const& input)
     for (unsigned int i = 0; i < input.length(); ++i)
     {
         result += QUtil::int_to_string_base(
-            static_cast<int>(static_cast<unsigned char>(input[i])), 16, 2);
+            static_cast<int>(static_cast<unsigned char>(input.at(i))), 16, 2);
     }
     return result;
 }
@@ -360,11 +361,11 @@ QUtil::toUTF8(unsigned long uval)
 	    // Maximum that will fit in high byte now shrinks by one bit
 	    maxval >>= 1;
 	    // Slide to the left one byte
-	    --cur_byte;
-	    if (cur_byte < bytes)
+	    if (cur_byte <= bytes)
 	    {
 		throw std::logic_error("QUtil::toUTF8: overflow error");
 	    }
+	    --cur_byte;
 	}
 	// If maxval is k bits long, the high (7 - k) bits of the
 	// resulting byte must be high.
@@ -376,6 +377,8 @@ QUtil::toUTF8(unsigned long uval)
 
     return result;
 }
+
+#ifdef USE_INSECURE_RANDOM
 
 long
 QUtil::random()
@@ -390,21 +393,11 @@ QUtil::random()
 	seeded_random = true;
     }
 
-#ifdef HAVE_RANDOM
+#  ifdef HAVE_RANDOM
     return ::random();
-#else
+#  else
     return rand();
-#endif
-}
-
-void
-QUtil::srandom(unsigned int seed)
-{
-#ifdef HAVE_RANDOM
-    ::srandom(seed);
-#else
-    srand(seed);
-#endif
+#  endif
 }
 
 void
@@ -414,4 +407,86 @@ QUtil::initializeWithRandomBytes(unsigned char* data, size_t len)
     {
         data[i] = static_cast<unsigned char>((QUtil::random() & 0xff0) >> 4);
     }
+}
+
+#else
+
+long
+QUtil::random()
+{
+    long result = 0L;
+    initializeWithRandomBytes(
+        reinterpret_cast<unsigned char*>(&result),
+        sizeof(result));
+    return result;
+}
+
+#ifdef _WIN32
+class WindowsCryptProvider
+{
+  public:
+    WindowsCryptProvider()
+    {
+        if (! CryptAcquireContext(&crypt_prov, NULL, NULL, PROV_RSA_FULL, 0))
+        {
+            throw std::runtime_error("unable to acquire crypt context");
+        }
+    }
+    ~WindowsCryptProvider()
+    {
+        // Ignore error
+        CryptReleaseContext(crypt_prov, 0);
+    }
+
+    HCRYPTPROV crypt_prov;
+};
+#endif
+
+void
+QUtil::initializeWithRandomBytes(unsigned char* data, size_t len)
+{
+#if defined(_WIN32)
+
+    // Optimization: make the WindowsCryptProvider static as long as
+    // it can be done in a thread-safe fashion.
+    WindowsCryptProvider c;
+    if (! CryptGenRandom(c.crypt_prov, len, reinterpret_cast<BYTE*>(data)))
+    {
+        throw std::runtime_error("unable to generate secure random data");
+    }
+
+#elif defined(RANDOM_DEVICE)
+
+    // Optimization: wrap the file open and close in a class so that
+    // the file is closed in a destructor, then make this static to
+    // keep the file handle open.  Only do this if it can be done in a
+    // thread-safe fashion.
+    FILE* f = QUtil::safe_fopen(RANDOM_DEVICE, "rb");
+    size_t fr = fread(data, 1, len, f);
+    fclose(f);
+    if (fr != len)
+    {
+        throw std::runtime_error(
+            "unable to read " +
+            QUtil::int_to_string(len) +
+            " bytes from " + std::string(RANDOM_DEVICE));
+    }
+
+#else
+
+#  error "Don't know how to generate secure random numbers on this platform.  See random number generation in the top-level README"
+
+#endif
+}
+
+#endif
+
+void
+QUtil::srandom(unsigned int seed)
+{
+#ifdef HAVE_RANDOM
+    ::srandom(seed);
+#else
+    srand(seed);
+#endif
 }

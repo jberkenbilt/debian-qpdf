@@ -18,6 +18,9 @@
 /* Define to 1 if you have the `random' function. */
 #undef HAVE_RANDOM
 
+/* Define to 1 (and set RANDOM_DEVICE) if a random device is available */
+#undef HAVE_RANDOM_DEVICE
+
 /* Define to 1 if you have the <stdint.h> header file. */
 #undef HAVE_STDINT_H
 
@@ -61,8 +64,14 @@
 /* Define to the version of this package. */
 #undef PACKAGE_VERSION
 
+/* Define to the filename of the random device (and set HAVE_RANDOM_DEVICE) */
+#undef RANDOM_DEVICE
+
 /* Define to 1 if you have the ANSI C header files. */
 #undef STDC_HEADERS
+
+/* Whether to use inscure random numbers */
+#undef USE_INSECURE_RANDOM
 
 /* Enable large inode numbers on Mac OS X 10.5.  */
 #ifndef _DARWIN_USE_64_BIT_INODE

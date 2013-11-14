@@ -1,3 +1,59 @@
+2013-10-18  Jay Berkenbilt  <ejb@ql.org>
+
+	* 5.0.1: release
+
+	* Warn when -accessibility=n is specified with a modern encryption
+	format (R > 3).  Also, accept this flag (and ignore with warning)
+	with 256-bit encryption.  qpdf has always ignored the
+	accessibility setting with R > 3, but it previously did so
+	silently.
+
+2013-10-05  Jay Berkenbilt  <ejb@ql.org>
+
+	* Replace operator[] in std::string and std::vector with "at" in
+	order to get bounds checking.  This reduces the chances that
+	incorrect code will result in data exposure or buffer overruns.
+	See README.hardening for additional notes.
+
+	* Use cryptographically secure random number generation when
+	available.  See additional notes in README.
+
+	* Replace some assert() calls with std::logic_error exceptions.
+	Ideally there shouldn't be assert() calls outside of testing.
+	This change may make a few more potential code errors in handling
+	invalid data recoverable.
+
+	* Security fix: In places where std::vector<T>(size_t) was used,
+	either validate that the size parameter is sane or refactor code
+	to avoid the need to pre-allocate the vector.  This reduces the
+	likelihood of allocating a lot of memory in response to invalid
+	data in linearization hint streams.
+
+	* Security fix: sanitize /W array in cross reference stream to
+	avoid a potential integer overflow in a multiplication.  It is
+	unlikely that any exploits were possible from this bug as
+	additional checks were also performed.
+
+	* Security fix: avoid buffer overrun that could be caused by bogus
+	data in linearization hint streams.  The incorrect code could only
+	be triggered when checking linearization data, which must be
+	invoked explicitly.  qpdf does not check linearization data when
+	reading or writing linearized files, but the qpdf --check command
+	does check linearization data.
+
+	* Security fix: properly handle empty strings in
+	QPDF_Name::normalizeName.  The empty string is not a valid name
+	and would never be parsed as a name, so there were no known
+	conditions where this method could be called with an empty string.
+
+	* Security fix: perform additional argument sanity checks when
+	reading bit streams.
+
+	* Security fix: in QUtil::toUTF8, change bounds checking to avoid
+	having a pointer point temporarily outside the bounds of an
+	array.  Some compiler optimizations could have made the original
+	code unsafe.
+
 2013-07-10  Jay Berkenbilt  <ejb@ql.org>
 
 	* 5.0.0: release
