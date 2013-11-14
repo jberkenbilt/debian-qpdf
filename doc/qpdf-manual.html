@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
-<html xmlns="http://www.w3.org/1999/xhtml"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>QPDF Manual</title><link rel="stylesheet" type="text/css" href="stylesheet.css" /><meta name="generator" content="DocBook XSL Stylesheets V1.76.1" /></head><body><div class="book" title="QPDF Manual"><div class="titlepage"><div><div><h1 class="title"><a id="idm5674192"></a>QPDF Manual</h1></div><div><h2 class="subtitle">For QPDF Version 3.0.2, September 6, 2012</h2></div><div><div class="author"><h3 class="author"><span class="firstname">Jay</span> <span class="surname">Berkenbilt</span></h3></div></div><div><p class="copyright">Copyright © 2005–2012 Jay Berkenbilt</p></div></div><hr /></div><div class="toc"><p><strong>Table of Contents</strong></p><dl><dt><span class="preface"><a href="#acknowledgments">General Information</a></span></dt><dt><span class="chapter"><a href="#ref.overview">1. What is QPDF?</a></span></dt><dt><span class="chapter"><a href="#ref.installing">2. Building and Installing QPDF</a></span></dt><dd><dl><dt><span class="sect1"><a href="#ref.prerequisites">2.1. System Requirements</a></span></dt><dt><span class="sect1"><a href="#ref.building">2.2. Build Instructions</a></span></dt></dl></dd><dt><span class="chapter"><a href="#ref.using">3. Running QPDF</a></span></dt><dd><dl><dt><span class="sect1"><a href="#ref.invocation">3.1. Basic Invocation</a></span></dt><dt><span class="sect1"><a href="#ref.basic-options">3.2. Basic Options</a></span></dt><dt><span class="sect1"><a href="#ref.encryption-options">3.3. Encryption Options</a></span></dt><dt><span class="sect1"><a href="#ref.page-selection">3.4. Page Selection Options</a></span></dt><dt><span class="sect1"><a href="#ref.advanced-transformation">3.5. Advanced Transformation Options</a></span></dt><dt><span class="sect1"><a href="#ref.testing-options">3.6. Testing, Inspection, and Debugging Options</a></span></dt></dl></dd><dt><span class="chapter"><a href="#ref.qdf">4. QDF Mode</a></span></dt><dt><span class="chapter"><a href="#ref.using-library">5. Using the QPDF Library</a></span></dt><dt><span class="chapter"><a href="#ref.design">6. Design and Library Notes</a></span></dt><dd><dl><dt><span class="sect1"><a href="#ref.design.intro">6.1. Introduction</a></span></dt><dt><span class="sect1"><a href="#ref.design-goals">6.2. Design Goals</a></span></dt><dt><span class="sect1"><a href="#ref.encryption">6.3. Encryption</a></span></dt><dt><span class="sect1"><a href="#ref.adding-and-remove-pages">6.4. Adding and Removing Pages</a></span></dt><dt><span class="sect1"><a href="#ref.reserved-objects">6.5. Reserving Object Numbers</a></span></dt><dt><span class="sect1"><a href="#ref.foreign-objects">6.6. Copying Objects From Other PDF Files</a></span></dt><dt><span class="sect1"><a href="#ref.rewriting">6.7. Writing PDF Files</a></span></dt><dt><span class="sect1"><a href="#ref.filtered-streams">6.8. Filtered Streams</a></span></dt></dl></dd><dt><span class="chapter"><a href="#ref.linearization">7. Linearization</a></span></dt><dd><dl><dt><span class="sect1"><a href="#ref.linearization-strategy">7.1. Basic Strategy for Linearization</a></span></dt><dt><span class="sect1"><a href="#ref.linearized.preparation">7.2. Preparing For Linearization</a></span></dt><dt><span class="sect1"><a href="#ref.optimization">7.3. Optimization</a></span></dt><dt><span class="sect1"><a href="#ref.linearization.writing">7.4. Writing Linearized Files</a></span></dt><dt><span class="sect1"><a href="#ref.linearization-data">7.5. Calculating Linearization Data</a></span></dt><dt><span class="sect1"><a href="#ref.linearization-issues">7.6. Known Issues with Linearization</a></span></dt><dt><span class="sect1"><a href="#ref.linearization-debugging">7.7. Debugging Note</a></span></dt></dl></dd><dt><span class="chapter"><a href="#ref.object-and-xref-streams">8. Object and Cross-Reference Streams</a></span></dt><dd><dl><dt><span class="sect1"><a href="#ref.object-streams">8.1. Object Streams</a></span></dt><dt><span class="sect1"><a href="#ref.xref-streams">8.2. Cross-Reference Streams</a></span></dt><dd><dl><dt><span class="sect2"><a href="#ref.xref-stream-data">8.2.1. Cross-Reference Stream Data</a></span></dt></dl></dd><dt><span class="sect1"><a href="#ref.object-streams-linearization">8.3. Implications for Linearized Files</a></span></dt><dt><span class="sect1"><a href="#ref.object-stream-implementation">8.4. Implementation Notes</a></span></dt></dl></dd><dt><span class="appendix"><a href="#ref.release-notes">A. Release Notes</a></span></dt><dt><span class="appendix"><a href="#ref.upgrading-to-2.1">B. Upgrading from 2.0 to 2.1</a></span></dt><dt><span class="appendix"><a href="#ref.upgrading-to-3.0">C. Upgrading to 3.0</a></span></dt></dl></div><div class="preface" title="General Information"><div class="titlepage"><div><div><h2 class="title"><a id="acknowledgments"></a>General Information</h2></div></div></div><p>
+<html xmlns="http://www.w3.org/1999/xhtml"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>QPDF Manual</title><link rel="stylesheet" type="text/css" href="stylesheet.css" /><meta name="generator" content="DocBook XSL Stylesheets V1.76.1" /></head><body><div class="book" title="QPDF Manual"><div class="titlepage"><div><div><h1 class="title"><a id="idm5653216"></a>QPDF Manual</h1></div><div><h2 class="subtitle">For QPDF Version 4.0.0, December 31, 2012</h2></div><div><div class="author"><h3 class="author"><span class="firstname">Jay</span> <span class="surname">Berkenbilt</span></h3></div></div><div><p class="copyright">Copyright © 2005–2013 Jay Berkenbilt</p></div></div><hr /></div><div class="toc"><p><strong>Table of Contents</strong></p><dl><dt><span class="preface"><a href="#acknowledgments">General Information</a></span></dt><dt><span class="chapter"><a href="#ref.overview">1. What is QPDF?</a></span></dt><dt><span class="chapter"><a href="#ref.installing">2. Building and Installing QPDF</a></span></dt><dd><dl><dt><span class="sect1"><a href="#ref.prerequisites">2.1. System Requirements</a></span></dt><dt><span class="sect1"><a href="#ref.building">2.2. Build Instructions</a></span></dt></dl></dd><dt><span class="chapter"><a href="#ref.using">3. Running QPDF</a></span></dt><dd><dl><dt><span class="sect1"><a href="#ref.invocation">3.1. Basic Invocation</a></span></dt><dt><span class="sect1"><a href="#ref.basic-options">3.2. Basic Options</a></span></dt><dt><span class="sect1"><a href="#ref.encryption-options">3.3. Encryption Options</a></span></dt><dt><span class="sect1"><a href="#ref.page-selection">3.4. Page Selection Options</a></span></dt><dt><span class="sect1"><a href="#ref.advanced-transformation">3.5. Advanced Transformation Options</a></span></dt><dt><span class="sect1"><a href="#ref.testing-options">3.6. Testing, Inspection, and Debugging Options</a></span></dt></dl></dd><dt><span class="chapter"><a href="#ref.qdf">4. QDF Mode</a></span></dt><dt><span class="chapter"><a href="#ref.using-library">5. Using the QPDF Library</a></span></dt><dt><span class="chapter"><a href="#ref.design">6. Design and Library Notes</a></span></dt><dd><dl><dt><span class="sect1"><a href="#ref.design.intro">6.1. Introduction</a></span></dt><dt><span class="sect1"><a href="#ref.design-goals">6.2. Design Goals</a></span></dt><dt><span class="sect1"><a href="#ref.encryption">6.3. Encryption</a></span></dt><dt><span class="sect1"><a href="#ref.adding-and-remove-pages">6.4. Adding and Removing Pages</a></span></dt><dt><span class="sect1"><a href="#ref.reserved-objects">6.5. Reserving Object Numbers</a></span></dt><dt><span class="sect1"><a href="#ref.foreign-objects">6.6. Copying Objects From Other PDF Files</a></span></dt><dt><span class="sect1"><a href="#ref.rewriting">6.7. Writing PDF Files</a></span></dt><dt><span class="sect1"><a href="#ref.filtered-streams">6.8. Filtered Streams</a></span></dt></dl></dd><dt><span class="chapter"><a href="#ref.linearization">7. Linearization</a></span></dt><dd><dl><dt><span class="sect1"><a href="#ref.linearization-strategy">7.1. Basic Strategy for Linearization</a></span></dt><dt><span class="sect1"><a href="#ref.linearized.preparation">7.2. Preparing For Linearization</a></span></dt><dt><span class="sect1"><a href="#ref.optimization">7.3. Optimization</a></span></dt><dt><span class="sect1"><a href="#ref.linearization.writing">7.4. Writing Linearized Files</a></span></dt><dt><span class="sect1"><a href="#ref.linearization-data">7.5. Calculating Linearization Data</a></span></dt><dt><span class="sect1"><a href="#ref.linearization-issues">7.6. Known Issues with Linearization</a></span></dt><dt><span class="sect1"><a href="#ref.linearization-debugging">7.7. Debugging Note</a></span></dt></dl></dd><dt><span class="chapter"><a href="#ref.object-and-xref-streams">8. Object and Cross-Reference Streams</a></span></dt><dd><dl><dt><span class="sect1"><a href="#ref.object-streams">8.1. Object Streams</a></span></dt><dt><span class="sect1"><a href="#ref.xref-streams">8.2. Cross-Reference Streams</a></span></dt><dd><dl><dt><span class="sect2"><a href="#ref.xref-stream-data">8.2.1. Cross-Reference Stream Data</a></span></dt></dl></dd><dt><span class="sect1"><a href="#ref.object-streams-linearization">8.3. Implications for Linearized Files</a></span></dt><dt><span class="sect1"><a href="#ref.object-stream-implementation">8.4. Implementation Notes</a></span></dt></dl></dd><dt><span class="appendix"><a href="#ref.release-notes">A. Release Notes</a></span></dt><dt><span class="appendix"><a href="#ref.upgrading-to-2.1">B. Upgrading from 2.0 to 2.1</a></span></dt><dt><span class="appendix"><a href="#ref.upgrading-to-3.0">C. Upgrading to 3.0</a></span></dt><dt><span class="appendix"><a href="#ref.upgrading-to-4.0">D. Upgrading to 4.0</a></span></dt></dl></div><div class="preface" title="General Information"><div class="titlepage"><div><div><h2 class="title"><a id="acknowledgments"></a>General Information</h2></div></div></div><p>
    QPDF is a program that does structural, content-preserving
    transformations on PDF files.  QPDF's website is located at <a class="ulink" href="http://qpdf.sourceforge.net/" target="_top">http://qpdf.sourceforge.net/</a>.
    QPDF's source code is hosted on github at <a class="ulink" href="https://github.com/qpdf/qpdf" target="_top">https://github.com/qpdf/qpdf</a>.
@@ -253,8 +253,8 @@ make
     empty strings.
    </p><p>
     The value for
-    <code class="option"><em class="replaceable"><code>key-length</code></em></code> may be 40
-    or 128.  The restriction flags are dependent upon key length.
+    <code class="option"><em class="replaceable"><code>key-length</code></em></code> may be 40,
+    128, or 256.  The restriction flags are dependent upon key length.
     When no additional restrictions are given, the default is to be
     fully permissive.
    </p><p>
@@ -320,6 +320,25 @@ make
         reason to ever use this option.  It exists primarily for use
         in testing qpdf itself.  This option also forces the PDF
         version to be at least 1.5.
+       </p></dd></dl></div><p>
+    If <code class="option"><em class="replaceable"><code>key-length</code></em></code> is 256,
+    the minimum PDF version is 1.7 with extension level 8, and the
+    AES-based encryption format used is the PDF 2.0 encryption method
+    supported by Acrobat X.  the same options are available as with
+    128 bits with the following exceptions:
+    </p><div class="variablelist"><dl><dt><span class="term"><code class="option">--use-aes</code></span></dt><dd><p>
+        This option is not available with 256-bit keys.  AES is always
+        used with 256-bit encryption keys.
+       </p></dd><dt><span class="term"><code class="option">--force-V4</code></span></dt><dd><p>
+        This option is not available with 256 keys.
+       </p></dd><dt><span class="term"><code class="option">--force-R5</code></span></dt><dd><p>
+        If specified, qpdf sets the minimum version to 1.7 at
+        extension level 3 and writes the deprecated encryption format
+        used by Acrobat version IX.  This option should not be used in
+        practice to generate PDF files that will be in general use,
+        but it can be useful to generate files if you are trying to
+        test proper support in another application for PDF files
+        encrypted in this way.
        </p></dd></dl></div><p>
     The default for each permission option is to be fully permissive.
    </p></div><div class="sect1" title="3.4. Page Selection Options"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a id="ref.page-selection"></a>3.4. Page Selection Options</h2></div></div></div><p>
@@ -471,17 +490,31 @@ outfile.pdf</code>
         used.  It is seldom necessary to use this option since qpdf
         will automatically increase the version as needed when adding
         features that require newer PDF readers.
+       </p><p>
+        The version number may be expressed in the form
+        <em class="replaceable"><code>major.minor.extension-level</code></em>, in
+        which case the version is interpreted as
+        <em class="replaceable"><code>major.minor</code></em> at extension level
+        <em class="replaceable"><code>extension-level</code></em>.  For example,
+        version <code class="literal">1.7.8</code> represents version 1.7 at
+        extension level 8.  Note that minimal syntax checking is done
+        on the command line.
        </p></dd><dt><span class="term"><code class="option">--force-version=<em class="replaceable"><code>version</code></em></code></span></dt><dd><p>
         This option forces the PDF version to be the exact version
         specified <span class="emphasis"><em>even when the file may have content that
-        is not supported in that version</em></span>.  In some cases,
-        forcing the output file's PDF version to be lower than that of
-        the input file will cause qpdf to disable certain features of
-        the document.  Specifically, AES encryption is disabled if the
-        version is less than 1.6, cleartext metadata and object
-        streams are disabled if less than 1.5, 128-bit encryption keys
-        are disabled if less than 1.4, and all encryption is disabled
-        if less than 1.3.  Even with these precautions, qpdf won't be
+        is not supported in that version</em></span>.  The version
+        number is interpreted in the same way as with
+        <code class="option">--min-version</code> so that extension levels can be
+        set.  In some cases, forcing the output file's PDF version to
+        be lower than that of the input file will cause qpdf to
+        disable certain features of the document.  Specifically,
+        256-bit keys are disabled if the version is less than 1.7 with
+        extension level 8 (except R5 is disabled if less than 1.7 with
+        extension level 3), AES encryption is disabled if the version
+        is less than 1.6, cleartext metadata and object streams are
+        disabled if less than 1.5, 128-bit encryption keys are
+        disabled if less than 1.4, and all encryption is disabled if
+        less than 1.3.  Even with these precautions, qpdf won't be
         able to do things like eliminate use of newer image
         compression schemes, transparency groups, or other features
         that may have been added in more recent versions of PDF.
@@ -927,7 +960,7 @@ outfile.pdf</code>
     password-protected files.  QPDF does not enforce encryption
     parameters and will treat user and owner passwords equivalently.
     Either password may be used to access an encrypted file.
-    <sup>[<a id="idp382528" href="#ftn.idp382528" class="footnote">1</a>]</sup>
+    <sup>[<a id="idp395824" href="#ftn.idp395824" class="footnote">1</a>]</sup>
     <code class="classname">QPDF</code> will allow recovery of a user password
     given an owner password.  The input PDF file must be seekable.
     (Output files written by <code class="classname">QPDFWriter</code> need
@@ -1037,6 +1070,29 @@ outfile.pdf</code>
     strings given an encryption key.  This is used by
     <code class="classname">QPDFWriter</code> when it rewrites encrypted
     files.
+   </p><p>
+    When copying encrypted files, unless otherwise directed, qpdf will
+    preserve any encryption in force in the original file.  qpdf can
+    do this with either the user or the owner password.  There is no
+    difference in capability based on which password is used.  When 40
+    or 128 bit encryption keys are used, the user password can be
+    recovered with the owner password.  With 256 keys, the user and
+    owner passwords are used independently to encrypt the actual
+    encryption key, so while either can be used, the owner password
+    can no longer be used to recover the user password.
+   </p><p>
+    Starting with version 4.0.0, qpdf can read files that are not
+    encrypted but that contain encrypted attachments, but it cannot
+    write such files.  qpdf also requires the password to be specified
+    in order to open the file, not just to extract attachments, since
+    once the file is open, all decryption is handled transparently.
+    When copying files like this while preserving encryption, qpdf
+    will apply the file's encryption to everything in the file, not
+    just to the attachments.  When decrypting the file, qpdf will
+    decrypt the attachments.  In general, when copying PDF files with
+    multiple encryption formats, qpdf will choose the newest format.
+    The only exception to this is that clear-text metadata will be
+    preserved as clear-text if it is that way in the original file.
    </p></div><div class="sect1" title="6.4. Adding and Removing Pages"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a id="ref.adding-and-remove-pages"></a>6.4. Adding and Removing Pages</h2></div></div></div><p>
     While qpdf's API has supported adding and modifying objects for
     some time, version 3.0 introduces specific methods for adding and
@@ -1222,7 +1278,7 @@ outfile.pdf</code>
     filter should write to whatever type of output is required.  The
     <code class="classname">QPDF</code> class has an interface to write raw or
     filtered stream contents to a given pipeline.
-   </p></div><div class="footnotes"><br /><hr width="100" align="left" /><div class="footnote"><p><sup>[<a id="ftn.idp382528" href="#idp382528" class="para">1</a>] </sup>
+   </p></div><div class="footnotes"><br /><hr width="100" align="left" /><div class="footnote"><p><sup>[<a id="ftn.idp395824" href="#idp395824" class="para">1</a>] </sup>
       As pointed out earlier, the intention is not for qpdf to be used
       to bypass security on files. but as any open source PDF consumer
       may be easily modified to bypass basic PDF document security,
@@ -1585,7 +1641,130 @@ print "\n";
    </p></div></div><div class="appendix" title="Appendix A. Release Notes"><div class="titlepage"><div><div><h2 class="title"><a id="ref.release-notes"></a>Appendix A. Release Notes</h2></div></div></div><p>
    For a detailed list of changes, please see the file
    <code class="filename">ChangeLog</code> in the source distribution.
-  </p><div class="variablelist"><dl><dt><span class="term">3.0.2: September 6, 2012</span></dt><dd><div class="itemizedlist"><ul class="itemizedlist" type="disc"><li class="listitem"><p>
+  </p><div class="variablelist"><dl><dt><span class="term">4.0.0: December 31, 2012</span></dt><dd><div class="itemizedlist"><ul class="itemizedlist" type="disc"><li class="listitem"><p>
+        Major enhancement: support has been added for newer encryption
+        schemes supported by version X of Adobe Acrobat.  This
+        includes use of 127-character passwords, 256-bit encryption
+        keys, and the encryption scheme specified in ISO 32000-2, the
+        PDF 2.0 specification.  This scheme can be chosen from the
+        command line by specifying use of 256-bit keys.  qpdf also
+        supports the deprecated encryption method used by Acrobat IX.
+        This encryption style has known security weaknesses and should
+        not be used in practice.  However, such files exist “in
+        the wild,” so support for this scheme is still useful.
+        New methods
+        <code class="function">QPDFWriter::setR6EncryptionParameters</code>
+        (for the PDF 2.0 scheme) and
+        <code class="function">QPDFWriter::setR5EncryptionParameters</code>
+        (for the deprecated scheme) have been added to enable these
+        new encryption schemes.  Corresponding functions have been
+        added to the C API as well.
+       </p></li><li class="listitem"><p>
+        Full support for Adobe extension levels in PDF version
+        information.  Starting with PDF version 1.7, corresponding to
+        ISO 32000, Adobe adds new functionality by increasing the
+        extension level rather than increasing the version.  This
+        support includes addition of the
+        <code class="function">QPDF::getExtensionLevel</code> method for
+        retrieving the document's extension level, addition of
+        versions of
+        <code class="function">QPDFWriter::setMinimumPDFVersion</code> and
+        <code class="function">QPDFWriter::forcePDFVersion</code> that accept
+        an extension level, and extended syntax for specifying forced
+        and minimum versions on the command line as described in <a class="xref" href="#ref.advanced-transformation" title="3.5. Advanced Transformation Options">Section 3.5, “Advanced Transformation Options”</a>.  Corresponding
+        functions have been added to the C API as well.
+       </p></li><li class="listitem"><p>
+        Minor fixes to prevent qpdf from referencing objects in the
+        file that are not referenced in the file's overall structure.
+        Most files don't have any such objects, but some files have
+        contain unreferenced objects with errors, so these fixes
+        prevent qpdf from needlessly rejecting or complaining about
+        such objects.
+       </p></li><li class="listitem"><p>
+        Add new generalized methods for reading and writing files
+        from/to programmer-defined sources.  The method
+        <code class="function">QPDF::processInputSource</code> allows the
+        programmer to use any input source for the input file, and
+        <code class="function">QPDFWriter::setOutputPipeline</code> allows the
+        programmer to write the output file through any pipeline.
+        These methods would make it possible to perform any number of
+        specialized operations, such as accessing external storage
+        systems, creating bindings for qpdf in other programming
+        languages that have their own I/O systems, etc.
+       </p></li><li class="listitem"><p>
+        Add new method <code class="function">QPDF::getEncryptionKey</code> for
+        retrieving the underlying encryption key used in the file.
+       </p></li><li class="listitem"><p>
+        This release includes a small handful of non-compatible API
+        changes.  While effort is made to avoid such changes, all the
+        non-compatible API changes in this version were to parts of
+        the API that would likely never be used outside the library
+        itself.  In all cases, the altered methods or structures were
+        parts of the <code class="classname">QPDF</code> that were public to
+        enable them to be called from either
+        <code class="classname">QPDFWriter</code> or were part of validation
+        code that was over-zealous in reporting problems in parts of
+        the file that would not ordinarily be referenced.  In no case
+        did any of the removed methods do anything worse that falsely
+        report error conditions in files that were broken in ways that
+        didn't matter.  The following public parts of the
+        <code class="classname">QPDF</code> class were changed in a
+        non-compatible way:
+        </p><div class="itemizedlist"><ul class="itemizedlist" type="circle"><li class="listitem"><p>
+           Updated nested <code class="classname">QPDF::EncryptionData</code>
+           class to add fields needed by the newer encryption formats,
+           member variables changed to private so that future changes
+           will not require breaking backward compatibility.
+          </p></li><li class="listitem"><p>
+           Added additional parameters to
+           <code class="function">compute_data_key</code>, which is used by
+           <code class="classname">QPDFWriter</code> to compute the encryption
+           key used to encrypt a specific object.
+          </p></li><li class="listitem"><p>
+           Removed the method
+           <code class="function">flattenScalarReferences</code>.  This method
+           was previously used prior to writing a new PDF file, but it
+           has the undesired side effect of causing qpdf to read
+           objects in the file that were not referenced.  Some
+           otherwise files have unreferenced objects with errors in
+           them, so this could cause qpdf to reject files that would
+           be accepted by virtually all other PDF readers.  In fact,
+           qpdf relied on only a very small part of what
+           flattenScalarReferences did, so only this part has been
+           preserved, and it is now done directly inside
+           <code class="classname">QPDFWriter</code>.
+          </p></li><li class="listitem"><p>
+           Removed the method <code class="function">decodeStreams</code>.
+           This method was used by the <code class="option">--check</code> option
+           of the <span class="command"><strong>qpdf</strong></span> command-line tool to force
+           all streams in the file to be decoded, but it also suffered
+           from the problem of opening otherwise unreferenced streams
+           and thus could report false positive.  The
+           <code class="option">--check</code> option now causes qpdf to go
+           through all the motions of writing a new file based on the
+           original one, so it will always reference and check exactly
+           those parts of a file that any ordinary viewer would check.
+          </p></li><li class="listitem"><p>
+           Removed the method
+           <code class="function">trimTrailerForWrite</code>.  This method was
+           used by <code class="classname">QPDFWriter</code> to modify the
+           original QPDF object by removing fields from the trailer
+           dictionary that wouldn't apply to the newly written file.
+           This functionality, though generally harmless, was a poor
+           implementation and has been replaced by having QPDFWriter
+           filter these out when copying the trailer rather than
+           modifying the original QPDF object.  (Note that qpdf never
+           modifies the original file itself.)
+          </p></li></ul></div><p>
+       </p></li><li class="listitem"><p>
+        Allow the PDF header to appear anywhere in the first 1024
+        bytes of the file.  This is consistent with what other readers
+        do.
+       </p></li><li class="listitem"><p>
+        Fix the <span class="command"><strong>pkg-config</strong></span> files to list zlib and
+        pcre in <code class="function">Requires.private</code> to better
+        support static linking using <span class="command"><strong>pkg-config</strong></span>.
+       </p></li></ul></div></dd></dl></div><div class="variablelist"><dl><dt><span class="term">3.0.2: September 6, 2012</span></dt><dd><div class="itemizedlist"><ul class="itemizedlist" type="disc"><li class="listitem"><p>
         Bug fix: <code class="function">QPDFWriter::setOutputMemory</code> did
         not work when not used with
         <code class="function">QPDFWriter::setStaticID</code>, which made it
@@ -2047,4 +2226,12 @@ print "\n";
       previously been smaller types.  This change was required to
       support files larger than two gigabytes in size.
      </p></li></ul></div><p>
+  </p></div><div class="appendix" title="Appendix D. Upgrading to 4.0"><div class="titlepage"><div><div><h2 class="title"><a id="ref.upgrading-to-4.0"></a>Appendix D. Upgrading to 4.0</h2></div></div></div><p>
+   While version 4.0 includes a few non-compatible API changes, it is
+   very unlikely that anyone's code would have used any of those parts
+   of the API since they generally required information that would
+   only be available inside the library.  In the unlikely event that
+   you should run into trouble, please see the ChangeLog.  See also
+   <a class="xref" href="#ref.release-notes" title="Appendix A. Release Notes">Appendix A, <em>Release Notes</em></a> for a complete list of the
+   non-compatible API changes made in this version.
   </p></div></div></body></html>

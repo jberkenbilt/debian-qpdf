@@ -28,7 +28,7 @@ Release Reminders
 
    You can generate these by running valgrind with --gen-suppressions=yes.
 
- * Check all open issues in the sourceforge trackers.
+ * Check all open issues in the sourceforge trackers and on github.
 
  * If any interfaces were added or changed, check C API to see whether
    changes are appropriate there as well.
@@ -58,7 +58,7 @@ Release Reminders
    done or retargeted.
 
  * Each year, update copyright notices.  Just search for Copyright.
-   Last updated: 2012.
+   Last updated: 2013.
 
  * To construct a source distribution from a pristine checkout,
    make_dist does the following:
@@ -91,8 +91,10 @@ Release Reminders
    libraries.  Run ./make_windows_releases from there.  You will need
    to have zip in your path.
 
+ * Before releasing, rebuild and test debian package.
+
  * Remember to copy README-what-to-download.txt separately onto the
-   download area and make it the default for Windows platforms.
+   download area.
 
  * Remember to update the web page including putting new documentation
    in the "files" subdirectory of the website on sourceforge.net.
@@ -104,7 +106,9 @@ Release Reminders
    git tag -s release-qpdf-$version HEAD -m'qpdf $version'
 
  * When releasing on sourceforge, external-libs distributions go in
-   external-libs/yyyymmdd, and qpdf distributions go in qpdf/vvv
+   external-libs/yyyymmdd, and qpdf distributions go in qpdf/vvv.
+   Make the source package the default for all but Windows, and make
+   the 32-bit mingw build the default for Windows.
 
 
 General Build Stuff

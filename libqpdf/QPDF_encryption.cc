@@ -10,6 +10,7 @@
 #include <qpdf/Pl_RC4.hh>
 #include <qpdf/Pl_AES_PDF.hh>
 #include <qpdf/Pl_Buffer.hh>
+#include <qpdf/Pl_SHA2.hh>
 #include <qpdf/RC4.hh>
 #include <qpdf/MD5.hh>
 
@@ -23,11 +24,110 @@ static unsigned char const padding_string[] = {
     0x2f, 0x0c, 0xa9, 0xfe, 0x64, 0x53, 0x69, 0x7a
 };
 
-static unsigned int const O_key_bytes = sizeof(MD5::Digest);
 static unsigned int const key_bytes = 32;
 
+// V4 key lengths apply to V <= 4
+static unsigned int const OU_key_bytes_V4 = sizeof(MD5::Digest);
+
+static unsigned int const OU_key_bytes_V5 = 48;
+static unsigned int const OUE_key_bytes_V5 = 32;
+static unsigned int const Perms_key_bytes_V5 = 16;
+
+int
+QPDF::EncryptionData::getV() const
+{
+    return this->V;
+}
+
+int
+QPDF::EncryptionData::getR() const
+{
+    return this->R;
+}
+
+int
+QPDF::EncryptionData::getLengthBytes() const
+{
+    return this->Length_bytes;
+}
+
+int
+QPDF::EncryptionData::getP() const
+{
+    return this->P;
+}
+
+std::string const&
+QPDF::EncryptionData::getO() const
+{
+    return this->O;
+}
+
+std::string const&
+QPDF::EncryptionData::getU() const
+{
+    return this->U;
+}
+
+std::string const&
+QPDF::EncryptionData::getOE() const
+{
+    return this->OE;
+}
+
+std::string const&
+QPDF::EncryptionData::getUE() const
+{
+    return this->UE;
+}
+
+std::string const&
+QPDF::EncryptionData::getPerms() const
+{
+    return this->Perms;
+}
+
+std::string const&
+QPDF::EncryptionData::getId1() const
+{
+    return this->id1;
+}
+
+bool
+QPDF::EncryptionData::getEncryptMetadata() const
+{
+    return this->encrypt_metadata;
+}
+
 void
-pad_or_truncate_password(std::string const& password, char k1[key_bytes])
+QPDF::EncryptionData::setO(std::string const& O)
+{
+    this->O = O;
+}
+
+void
+QPDF::EncryptionData::setU(std::string const& U)
+{
+    this->U = U;
+}
+
+void
+QPDF::EncryptionData::setV5EncryptionParameters(
+    std::string const& O,
+    std::string const& OE,
+    std::string const& U,
+    std::string const& UE,
+    std::string const& Perms)
+{
+    this->O = O;
+    this->OE = OE;
+    this->U = U;
+    this->UE = UE;
+    this->Perms = Perms;
+}
+
+static void
+pad_or_truncate_password_V4(std::string const& password, char k1[key_bytes])
 {
     int password_bytes = std::min(key_bytes, (unsigned int)password.length());
     int pad_bytes = key_bytes - password_bytes;
@@ -48,23 +148,35 @@ QPDF::trim_user_password(std::string& user_password)
 	return;
     }
 
-    char const* p = 0;
-    while ((p = strchr(cstr, '\x28')) != 0)
+    char const* p1 = cstr;
+    char const* p2 = 0;
+    while ((p2 = strchr(p1, '\x28')) != 0)
     {
-	if (memcmp(p, padding_string, len - (p - cstr)) == 0)
+	if (memcmp(p2, padding_string, len - (p2 - cstr)) == 0)
 	{
-	    user_password = user_password.substr(0, p - cstr);
+	    user_password = user_password.substr(0, p2 - cstr);
 	    return;
 	}
+        else
+        {
+            QTC::TC("qpdf", "QPDF_encryption skip 0x28");
+            p1 = p2 + 1;
+        }
     }
 }
 
 static std::string
-pad_or_truncate_password(std::string const& password)
+pad_or_truncate_password_V4(std::string const& password)
 {
     char k1[key_bytes];
-    pad_or_truncate_password(password, k1);
+    pad_or_truncate_password_V4(password, k1);
     return std::string(k1, key_bytes);
+}
+
+static std::string
+truncate_password_V5(std::string const& password)
+{
+    return password.substr(0, std::min((size_t)127, password.length()));
 }
 
 static void
@@ -100,14 +212,145 @@ iterate_rc4(unsigned char* data, int data_len,
     delete [] key;
 }
 
+static std::string
+process_with_aes(std::string const& key,
+                 bool encrypt,
+                 std::string const& data,
+                 size_t outlength = 0,
+                 unsigned int repetitions = 1,
+                 unsigned char const* iv = 0,
+                 size_t iv_length = 0)
+{
+    Pl_Buffer buffer("buffer");
+    Pl_AES_PDF aes("aes", &buffer, encrypt,
+                   (unsigned char const*)key.c_str(),
+                   (unsigned int)key.length());
+    if (iv)
+    {
+        aes.setIV(iv, iv_length);
+    }
+    else
+    {
+        aes.useZeroIV();
+    }
+    aes.disablePadding();
+    for (unsigned int i = 0; i < repetitions; ++i)
+    {
+        aes.write((unsigned char*)data.c_str(), data.length());
+    }
+    aes.finish();
+    PointerHolder<Buffer> bufp = buffer.getBuffer();
+    if (outlength == 0)
+    {
+        outlength = bufp->getSize();
+    }
+    else
+    {
+        outlength = std::min(outlength, bufp->getSize());
+    }
+    return std::string((char const*)bufp->getBuffer(), outlength);
+}
+
+static std::string
+hash_V5(std::string const& password,
+        std::string const& salt,
+        std::string const& udata,
+        QPDF::EncryptionData const& data)
+{
+    Pl_SHA2 hash(256);
+    hash.write((unsigned char*)password.c_str(), password.length());
+    hash.write((unsigned char*)salt.c_str(), salt.length());
+    hash.write((unsigned char*)udata.c_str(), udata.length());
+    hash.finish();
+    std::string K = hash.getRawDigest();
+
+    std::string result;
+    if (data.getR() < 6)
+    {
+        result = K;
+    }
+    else
+    {
+        // Algorithm 2.B from ISO 32000-1 chapter 7: Computing a hash
+
+        int round_number = 0;
+        bool done = false;
+        while (! done)
+        {
+            // The hash algorithm has us setting K initially to the R5
+            // value and then repeating a series of steps 64 times
+            // before starting with the termination case testing.  The
+            // wording of the specification is very unclear as to the
+            // exact number of times it should be run since the
+            // wording about whether the initial setup counts as round
+            // 0 or not is ambiguous.  This code counts the initial
+            // setup (R5) value as round 0, which appears to be
+            // correct.  This was determined to be correct by
+            // increasing or decreasing the number of rounds by 1 or 2
+            // from this value and generating 20 test files.  In this
+            // interpretation, all the test files worked with Adobe
+            // Reader X.  In the other configurations, many of the
+            // files did not work, and we were accurately able to
+            // predict which files didn't work by looking at the
+            // conditions under which we terminated repetition.
+
+            ++round_number;
+            std::string K1 = password + K + udata;
+            assert(K.length() >= 32);
+            std::string E = process_with_aes(
+                K.substr(0, 16), true, K1, 0, 64,
+                (unsigned char*)K.substr(16, 16).c_str(), 16);
+
+            // E_mod_3 is supposed to be mod 3 of the first 16 bytes
+            // of E taken as as a (128-bit) big-endian number.  Since
+            // (xy mod n) is equal to ((x mod n) + (y mod n)) mod n
+            // and since 256 mod n is 1, we can just take the sums of
+            // the the mod 3s of each byte to get the same result.
+            int E_mod_3 = 0;
+            for (unsigned int i = 0; i < 16; ++i)
+            {
+                E_mod_3 += (unsigned char)E[i];
+            }
+            E_mod_3 %= 3;
+            int next_hash = ((E_mod_3 == 0) ? 256 :
+                             (E_mod_3 == 1) ? 384 :
+                             512);
+            Pl_SHA2 hash(next_hash);
+            hash.write((unsigned char*)E.c_str(), E.length());
+            hash.finish();
+            K = hash.getRawDigest();
+
+            if (round_number >= 64)
+            {
+                unsigned int ch = (unsigned int)((unsigned char) *(E.rbegin()));
+
+                if (ch <= (unsigned int)(round_number - 32))
+                {
+                    done = true;
+                }
+            }
+        }
+        result = K.substr(0, 32);
+    }
+
+    return result;
+}
+
 std::string
 QPDF::compute_data_key(std::string const& encryption_key,
-		       int objid, int generation,
-		       bool use_aes)
+		       int objid, int generation, bool use_aes,
+                       int encryption_V, int encryption_R)
 {
     // Algorithm 3.1 from the PDF 1.7 Reference Manual
 
     std::string result = encryption_key;
+
+    if (encryption_V >= 5)
+    {
+        // Algorithm 3.1a (PDF 1.7 extension level 3): just use
+        // encryption key straight.
+        return result;
+    }
 
     // Append low three bytes of object ID and low two bytes of generation
     result += (char) (objid & 0xff);
@@ -132,36 +375,69 @@ std::string
 QPDF::compute_encryption_key(
     std::string const& password, EncryptionData const& data)
 {
+    if (data.getV() >= 5)
+    {
+        // For V >= 5, the encryption key is generated and stored in
+        // the file, encrypted separately with both user and owner
+        // passwords.
+        return recover_encryption_key_with_password(password, data);
+    }
+    else
+    {
+        // For V < 5, the encryption key is derived from the user
+        // password.
+        return compute_encryption_key_from_password(password, data);
+    }
+}
+
+std::string
+QPDF::compute_encryption_key_from_password(
+    std::string const& password, EncryptionData const& data)
+{
     // Algorithm 3.2 from the PDF 1.7 Reference Manual
+
+    // This code does not properly handle Unicode passwords.
+    // Passwords are supposed to be converted from OS codepage
+    // characters to PDFDocEncoding.  Unicode passwords are supposed
+    // to be converted to OS codepage before converting to
+    // PDFDocEncoding.  We instead require the password to be
+    // presented in its final form.
 
     MD5 md5;
     md5.encodeDataIncrementally(
-	pad_or_truncate_password(password).c_str(), key_bytes);
-    md5.encodeDataIncrementally(data.O.c_str(), key_bytes);
+	pad_or_truncate_password_V4(password).c_str(), key_bytes);
+    md5.encodeDataIncrementally(data.getO().c_str(), key_bytes);
     char pbytes[4];
-    pbytes[0] = (char) (data.P & 0xff);
-    pbytes[1] = (char) ((data.P >> 8) & 0xff);
-    pbytes[2] = (char) ((data.P >> 16) & 0xff);
-    pbytes[3] = (char) ((data.P >> 24) & 0xff);
+    int P = data.getP();
+    pbytes[0] = (char) (P & 0xff);
+    pbytes[1] = (char) ((P >> 8) & 0xff);
+    pbytes[2] = (char) ((P >> 16) & 0xff);
+    pbytes[3] = (char) ((P >> 24) & 0xff);
     md5.encodeDataIncrementally(pbytes, 4);
-    md5.encodeDataIncrementally(data.id1.c_str(), (int)data.id1.length());
-    if ((data.R >= 4) && (! data.encrypt_metadata))
+    md5.encodeDataIncrementally(data.getId1().c_str(),
+                                (int)data.getId1().length());
+    if ((data.getR() >= 4) && (! data.getEncryptMetadata()))
     {
 	char bytes[4];
 	memset(bytes, 0xff, 4);
 	md5.encodeDataIncrementally(bytes, 4);
     }
     MD5::Digest digest;
-    iterate_md5_digest(md5, digest, ((data.R >= 3) ? 50 : 0));
-    return std::string((char*)digest, data.Length_bytes);
+    iterate_md5_digest(md5, digest, ((data.getR() >= 3) ? 50 : 0));
+    return std::string((char*)digest, data.getLengthBytes());
 }
 
 static void
 compute_O_rc4_key(std::string const& user_password,
 		  std::string const& owner_password,
 		  QPDF::EncryptionData const& data,
-		  unsigned char key[O_key_bytes])
+		  unsigned char key[OU_key_bytes_V4])
 {
+    if (data.getV() >= 5)
+    {
+	throw std::logic_error(
+	    "compute_O_rc4_key called for file with V >= 5");
+    }
     std::string password = owner_password;
     if (password.empty())
     {
@@ -169,10 +445,10 @@ compute_O_rc4_key(std::string const& user_password,
     }
     MD5 md5;
     md5.encodeDataIncrementally(
-	pad_or_truncate_password(password).c_str(), key_bytes);
+	pad_or_truncate_password_V4(password).c_str(), key_bytes);
     MD5::Digest digest;
-    iterate_md5_digest(md5, digest, ((data.R >= 3) ? 50 : 0));
-    memcpy(key, digest, O_key_bytes);
+    iterate_md5_digest(md5, digest, ((data.getR() >= 3) ? 50 : 0));
+    memcpy(key, digest, OU_key_bytes_V4);
 }
 
 static std::string
@@ -182,13 +458,14 @@ compute_O_value(std::string const& user_password,
 {
     // Algorithm 3.3 from the PDF 1.7 Reference Manual
 
-    unsigned char O_key[O_key_bytes];
+    unsigned char O_key[OU_key_bytes_V4];
     compute_O_rc4_key(user_password, owner_password, data, O_key);
 
     char upass[key_bytes];
-    pad_or_truncate_password(user_password, upass);
+    pad_or_truncate_password_V4(user_password, upass);
     iterate_rc4((unsigned char*) upass, key_bytes,
-		O_key, data.Length_bytes, (data.R >= 3) ? 20 : 1, false);
+		O_key, data.getLengthBytes(),
+                (data.getR() >= 3) ? 20 : 1, false);
     return std::string(upass, key_bytes);
 }
 
@@ -201,9 +478,9 @@ compute_U_value_R2(std::string const& user_password,
 
     std::string k1 = QPDF::compute_encryption_key(user_password, data);
     char udata[key_bytes];
-    pad_or_truncate_password("", udata);
+    pad_or_truncate_password_V4("", udata);
     iterate_rc4((unsigned char*) udata, key_bytes,
-		(unsigned char*)k1.c_str(), data.Length_bytes, 1, false);
+		(unsigned char*)k1.c_str(), data.getLengthBytes(), 1, false);
     return std::string(udata, key_bytes);
 }
 
@@ -217,12 +494,13 @@ compute_U_value_R3(std::string const& user_password,
     std::string k1 = QPDF::compute_encryption_key(user_password, data);
     MD5 md5;
     md5.encodeDataIncrementally(
-	pad_or_truncate_password("").c_str(), key_bytes);
-    md5.encodeDataIncrementally(data.id1.c_str(), (int)data.id1.length());
+	pad_or_truncate_password_V4("").c_str(), key_bytes);
+    md5.encodeDataIncrementally(data.getId1().c_str(),
+                                (int)data.getId1().length());
     MD5::Digest digest;
     md5.digest(digest);
     iterate_rc4(digest, sizeof(MD5::Digest),
-		(unsigned char*) k1.c_str(), data.Length_bytes, 20, false);
+		(unsigned char*) k1.c_str(), data.getLengthBytes(), 20, false);
     char result[key_bytes];
     memcpy(result, digest, sizeof(MD5::Digest));
     // pad with arbitrary data -- make it consistent for the sake of
@@ -238,7 +516,7 @@ static std::string
 compute_U_value(std::string const& user_password,
 		QPDF::EncryptionData const& data)
 {
-    if (data.R >= 3)
+    if (data.getR() >= 3)
     {
 	return compute_U_value_R3(user_password, data);
     }
@@ -247,14 +525,79 @@ compute_U_value(std::string const& user_password,
 }
 
 static bool
-check_user_password(std::string const& user_password,
-		    QPDF::EncryptionData const& data)
+check_user_password_V4(std::string const& user_password,
+                       QPDF::EncryptionData const& data)
 {
     // Algorithm 3.6 from the PDF 1.7 Reference Manual
 
     std::string u_value = compute_U_value(user_password, data);
-    int to_compare = ((data.R >= 3) ? sizeof(MD5::Digest) : key_bytes);
-    return (memcmp(data.U.c_str(), u_value.c_str(), to_compare) == 0);
+    int to_compare = ((data.getR() >= 3) ? sizeof(MD5::Digest)
+                      : key_bytes);
+    return (memcmp(data.getU().c_str(), u_value.c_str(), to_compare) == 0);
+}
+
+static bool
+check_user_password_V5(std::string const& user_password,
+                       QPDF::EncryptionData const& data)
+{
+    // Algorithm 3.11 from the PDF 1.7 extension level 3
+
+    std::string user_data = data.getU().substr(0, 32);
+    std::string validation_salt = data.getU().substr(32, 8);
+    std::string password = truncate_password_V5(user_password);
+    return (hash_V5(password, validation_salt, "", data) == user_data);
+}
+
+static bool
+check_user_password(std::string const& user_password,
+		    QPDF::EncryptionData const& data)
+{
+    if (data.getV() < 5)
+    {
+        return check_user_password_V4(user_password, data);
+    }
+    else
+    {
+        return check_user_password_V5(user_password, data);
+    }
+}
+
+static bool
+check_owner_password_V4(std::string& user_password,
+                        std::string const& owner_password,
+                        QPDF::EncryptionData const& data)
+{
+    // Algorithm 3.7 from the PDF 1.7 Reference Manual
+
+    unsigned char key[OU_key_bytes_V4];
+    compute_O_rc4_key(user_password, owner_password, data, key);
+    unsigned char O_data[key_bytes];
+    memcpy(O_data, (unsigned char*) data.getO().c_str(), key_bytes);
+    iterate_rc4(O_data, key_bytes, key, data.getLengthBytes(),
+                (data.getR() >= 3) ? 20 : 1, true);
+    std::string new_user_password =
+        std::string((char*)O_data, key_bytes);
+    bool result = false;
+    if (check_user_password(new_user_password, data))
+    {
+        result = true;
+        user_password = new_user_password;
+    }
+    return result;
+}
+
+static bool
+check_owner_password_V5(std::string const& owner_password,
+                        QPDF::EncryptionData const& data)
+{
+    // Algorithm 3.12 from the PDF 1.7 extension level 3
+
+    std::string user_data = data.getU().substr(0, 48);
+    std::string owner_data = data.getO().substr(0, 32);
+    std::string validation_salt = data.getO().substr(32, 8);
+    std::string password = truncate_password_V5(owner_password);
+    return (hash_V5(password, validation_salt, user_data,
+                    data) == owner_data);
 }
 
 static bool
@@ -262,23 +605,132 @@ check_owner_password(std::string& user_password,
 		     std::string const& owner_password,
 		     QPDF::EncryptionData const& data)
 {
-    // Algorithm 3.7 from the PDF 1.7 Reference Manual
-
-    unsigned char key[O_key_bytes];
-    compute_O_rc4_key(user_password, owner_password, data, key);
-    unsigned char O_data[key_bytes];
-    memcpy(O_data, (unsigned char*) data.O.c_str(), key_bytes);
-    iterate_rc4(O_data, key_bytes, key, data.Length_bytes,
-		(data.R >= 3) ? 20 : 1, true);
-    std::string new_user_password =
-	std::string((char*)O_data, key_bytes);
-    bool result = false;
-    if (check_user_password(new_user_password, data))
+    if (data.getV() < 5)
     {
-	result = true;
-	user_password = new_user_password;
+        return check_owner_password_V4(user_password, owner_password, data);
     }
-    return result;
+    else
+    {
+        return check_owner_password_V5(owner_password, data);
+    }
+}
+
+std::string
+QPDF::recover_encryption_key_with_password(
+    std::string const& password, EncryptionData const& data)
+{
+    // Disregard whether Perms is valid.
+    bool disregard;
+    return recover_encryption_key_with_password(password, data, disregard);
+}
+
+static void
+compute_U_UE_value_V5(std::string const& user_password,
+                      std::string const& encryption_key,
+                      QPDF::EncryptionData const& data,
+                      std::string& U, std::string& UE)
+{
+    // Algorithm 3.8 from the PDF 1.7 extension level 3
+    char k[16];
+    QUtil::initializeWithRandomBytes((unsigned char*) k, sizeof(k));
+    std::string validation_salt(k, 8);
+    std::string key_salt(k + 8, 8);
+    U = hash_V5(user_password, validation_salt, "", data) +
+        validation_salt + key_salt;
+    std::string intermediate_key = hash_V5(user_password, key_salt, "", data);
+    UE = process_with_aes(intermediate_key, true, encryption_key);
+}
+
+static void
+compute_O_OE_value_V5(std::string const& owner_password,
+                      std::string const& encryption_key,
+                      QPDF::EncryptionData const& data,
+                      std::string const& U,
+                      std::string& O, std::string& OE)
+{
+    // Algorithm 3.9 from the PDF 1.7 extension level 3
+    char k[16];
+    QUtil::initializeWithRandomBytes((unsigned char*) k, sizeof(k));
+    std::string validation_salt(k, 8);
+    std::string key_salt(k + 8, 8);
+    O = hash_V5(owner_password, validation_salt, U, data) +
+        validation_salt + key_salt;
+    std::string intermediate_key = hash_V5(owner_password, key_salt, U, data);
+    OE = process_with_aes(intermediate_key, true, encryption_key);
+}
+
+void
+compute_Perms_value_V5_clear(std::string const& encryption_key,
+                             QPDF::EncryptionData const& data,
+                             unsigned char k[16])
+{
+    // From algorithm 3.10 from the PDF 1.7 extension level 3
+    unsigned long long extended_perms = 0xffffffff00000000LL | data.getP();
+    for (int i = 0; i < 8; ++i)
+    {
+        k[i] = (unsigned char) (extended_perms & 0xff);
+        extended_perms >>= 8;
+    }
+    k[8] = data.getEncryptMetadata() ? 'T' : 'F';
+    k[9] = 'a';
+    k[10] = 'd';
+    k[11] = 'b';
+    QUtil::initializeWithRandomBytes(k + 12, 4);
+}
+
+static std::string
+compute_Perms_value_V5(std::string const& encryption_key,
+                       QPDF::EncryptionData const& data)
+{
+    // Algorithm 3.10 from the PDF 1.7 extension level 3
+    unsigned char k[16];
+    compute_Perms_value_V5_clear(encryption_key, data, k);
+    return process_with_aes(encryption_key, true,
+                            std::string((char const*) k, sizeof(k)));
+}
+
+std::string
+QPDF::recover_encryption_key_with_password(
+    std::string const& password, EncryptionData const& data,
+    bool& perms_valid)
+{
+    // Algorithm 3.2a from the PDF 1.7 extension level 3
+
+    // This code does not handle Unicode passwords correctly.
+    // Empirical evidence suggests that most viewers don't.  We are
+    // supposed to process the input string with the SASLprep (RFC
+    // 4013) profile of stringprep (RFC 3454) and then convert the
+    // result to UTF-8.
+
+    perms_valid = false;
+    std::string key_password = truncate_password_V5(password);
+    std::string key_salt;
+    std::string user_data;
+    std::string encrypted_file_key;
+    if (check_owner_password_V5(key_password, data))
+    {
+        key_salt = data.getO().substr(40, 8);
+        user_data = data.getU().substr(0, 48);
+        encrypted_file_key = data.getOE().substr(0, 32);
+    }
+    else if (check_user_password_V5(key_password, data))
+    {
+        key_salt = data.getU().substr(40, 8);
+        encrypted_file_key = data.getUE().substr(0, 32);
+    }
+    std::string intermediate_key =
+        hash_V5(key_password, key_salt, user_data, data);
+    std::string file_key =
+        process_with_aes(intermediate_key, false, encrypted_file_key);
+
+    // Decrypt Perms and check against expected value
+    std::string perms_check =
+        process_with_aes(file_key, false, data.getPerms(), 12);
+    unsigned char k[16];
+    compute_Perms_value_V5_clear(file_key, data, k);
+    perms_valid = (memcmp(perms_check.c_str(), k, 12) == 0);
+
+    return file_key;
 }
 
 QPDF::encryption_method_e
@@ -384,29 +836,70 @@ QPDF::initializeEncryption()
     std::string U = encryption_dict.getKey("/U").getStringValue();
     unsigned int P = (unsigned int) encryption_dict.getKey("/P").getIntValue();
 
-    if (! (((R == 2) || (R == 3) || (R == 4)) &&
-	   ((V == 1) || (V == 2) || (V == 4))))
+    // If supporting new encryption R/V values, remember to update
+    // error message inside this if statement.
+    if (! (((R >= 2) && (R <= 6)) &&
+	   ((V == 1) || (V == 2) || (V == 4) || (V == 5))))
     {
 	throw QPDFExc(qpdf_e_unsupported, this->file->getName(),
 		      "encryption dictionary", this->file->getLastOffset(),
-		      "Unsupported /R or /V in encryption dictionary");
+		      "Unsupported /R or /V in encryption dictionary; R = " +
+                      QUtil::int_to_string(R) + " (max 6), V = " +
+                      QUtil::int_to_string(V) + " (max 5)");
     }
 
     this->encryption_V = V;
+    this->encryption_R = R;
 
-    if (! ((O.length() == key_bytes) && (U.length() == key_bytes)))
+    // OE, UE, and Perms are only present if V >= 5.
+    std::string OE;
+    std::string UE;
+    std::string Perms;
+
+    if (V < 5)
     {
-	throw QPDFExc(qpdf_e_damaged_pdf, this->file->getName(),
-		      "encryption dictionary", this->file->getLastOffset(),
-		      "incorrect length for /O and/or /P in "
-		      "encryption dictionary");
+        if (! ((O.length() == key_bytes) && (U.length() == key_bytes)))
+        {
+            throw QPDFExc(qpdf_e_damaged_pdf, this->file->getName(),
+                          "encryption dictionary", this->file->getLastOffset(),
+                          "incorrect length for /O and/or /U in "
+                          "encryption dictionary");
+        }
+    }
+    else
+    {
+        if (! (encryption_dict.getKey("/OE").isString() &&
+               encryption_dict.getKey("/UE").isString() &&
+               encryption_dict.getKey("/Perms").isString()))
+        {
+            throw QPDFExc(qpdf_e_damaged_pdf, this->file->getName(),
+                          "encryption dictionary", this->file->getLastOffset(),
+                          "some V=5 encryption dictionary parameters are "
+                          "missing or the wrong type");
+        }
+        OE = encryption_dict.getKey("/OE").getStringValue();
+        UE = encryption_dict.getKey("/UE").getStringValue();
+        Perms = encryption_dict.getKey("/Perms").getStringValue();
+
+        if ((O.length() < OU_key_bytes_V5) ||
+            (U.length() < OU_key_bytes_V5) ||
+            (OE.length() < OUE_key_bytes_V5) ||
+            (UE.length() < OUE_key_bytes_V5) ||
+            (Perms.length() < Perms_key_bytes_V5))
+        {
+            throw QPDFExc(qpdf_e_damaged_pdf, this->file->getName(),
+                          "encryption dictionary", this->file->getLastOffset(),
+                          "incorrect length for some of"
+                          " /O, /U, /OE, /UE, or /Perms in"
+                          " encryption dictionary");
+        }
     }
 
     int Length = 40;
     if (encryption_dict.getKey("/Length").isInteger())
     {
 	Length = encryption_dict.getKey("/Length").getIntValue();
-	if ((Length % 8) || (Length < 40) || (Length > 128))
+	if ((Length % 8) || (Length < 40) || (Length > 256))
 	{
 	    throw QPDFExc(qpdf_e_damaged_pdf, this->file->getName(),
 			  "encryption dictionary", this->file->getLastOffset(),
@@ -421,7 +914,7 @@ QPDF::initializeEncryption()
 	    encryption_dict.getKey("/EncryptMetadata").getBoolValue();
     }
 
-    if (V == 4)
+    if ((V == 4) || (V == 5))
     {
 	QPDFObjectHandle CF = encryption_dict.getKey("/CF");
 	std::set<std::string> keys = CF.getKeys();
@@ -445,6 +938,11 @@ QPDF::initializeEncryption()
 		    {
 			QTC::TC("qpdf", "QPDF_encryption CFM AESV2");
 			method = e_aes;
+		    }
+		    else if (method_name == "/AESV3")
+		    {
+			QTC::TC("qpdf", "QPDF_encryption CFM AESV3");
+			method = e_aesv3;
 		    }
 		    else
 		    {
@@ -470,35 +968,15 @@ QPDF::initializeEncryption()
 	{
 	    this->cf_file = this->cf_stream;
 	}
-	if (this->cf_file != this->cf_stream)
-	{
-	    // The issue for qpdf is that it can't tell the difference
-	    // between an embedded file stream and a regular stream.
-	    // Search for a comment containing cf_file.  To fix this,
-	    // we need files with encrypted embedded files and
-	    // non-encrypted native streams and vice versa.  Also if
-	    // it is possible for them to be encrypted in different
-	    // ways, we should have some of those too.  In cases where
-	    // we can detect whether a stream is encrypted or not, we
-	    // might want to try to detecet that automatically in
-	    // defense of possible logic errors surrounding detection
-	    // of embedded file streams, unless that's really clear
-	    // from the specification.
-	    throw QPDFExc(qpdf_e_unsupported, this->file->getName(),
-			  "encryption dictionary", this->file->getLastOffset(),
-			  "This document has embedded files that are"
-			  " encrypted differently from the rest of the file."
-			  "  qpdf does not presently support this due to"
-			  " lack of test data; if possible, please submit"
-			  " a bug report that includes this file.");
-	}
     }
-    EncryptionData data(V, R, Length / 8, P, O, U, id1, this->encrypt_metadata);
+
+    EncryptionData data(V, R, Length / 8, P, O, U, OE, UE, Perms,
+                        id1, this->encrypt_metadata);
     if (check_owner_password(
 	    this->user_password, this->provided_password, data))
     {
 	// password supplied was owner password; user_password has
-	// been initialized
+	// been initialized for V < 5
     }
     else if (check_user_password(this->provided_password, data))
     {
@@ -510,7 +988,30 @@ QPDF::initializeEncryption()
 		      "", 0, "invalid password");
     }
 
-    this->encryption_key = compute_encryption_key(this->user_password, data);
+    if (V < 5)
+    {
+        // For V < 5, the user password is encrypted with the owner
+        // password, and the user password is always used for
+        // computing the encryption key.
+        this->encryption_key = compute_encryption_key(
+            this->user_password, data);
+    }
+    else
+    {
+        // For V >= 5, either password can be used independently to
+        // compute the encryption key, and neither password can be
+        // used to recover the other.
+        bool perms_valid;
+        this->encryption_key = recover_encryption_key_with_password(
+            this->provided_password, data, perms_valid);
+        if (! perms_valid)
+        {
+            warn(QPDFExc(qpdf_e_damaged_pdf, this->file->getName(),
+                         "encryption dictionary", this->file->getLastOffset(),
+                         "/Perms field in encryption dictionary"
+                         " doesn't match expected value"));
+        }
+    }
 }
 
 std::string
@@ -526,7 +1027,8 @@ QPDF::getKeyForObject(int objid, int generation, bool use_aes)
 	   (generation == this->cached_key_generation)))
     {
 	this->cached_object_encryption_key =
-	    compute_data_key(this->encryption_key, objid, generation, use_aes);
+	    compute_data_key(this->encryption_key, objid, generation,
+                             use_aes, this->encryption_V, this->encryption_R);
 	this->cached_key_objid = objid;
 	this->cached_key_generation = generation;
     }
@@ -542,7 +1044,7 @@ QPDF::decryptString(std::string& str, int objid, int generation)
 	return;
     }
     bool use_aes = false;
-    if (this->encryption_V == 4)
+    if (this->encryption_V >= 4)
     {
 	switch (this->cf_string)
 	{
@@ -550,6 +1052,10 @@ QPDF::decryptString(std::string& str, int objid, int generation)
 	    return;
 
 	  case e_aes:
+	    use_aes = true;
+	    break;
+
+	  case e_aesv3:
 	    use_aes = true;
 	    break;
 
@@ -576,10 +1082,10 @@ QPDF::decryptString(std::string& str, int objid, int generation)
 	if (use_aes)
 	{
 	    QTC::TC("qpdf", "QPDF_encryption aes decode string");
-	    assert(key.length() == Pl_AES_PDF::key_size);
 	    Pl_Buffer bufpl("decrypted string");
 	    Pl_AES_PDF pl("aes decrypt string", &bufpl, false,
-			  (unsigned char const*)key.c_str());
+			  (unsigned char const*)key.c_str(),
+                          (unsigned int)key.length());
 	    pl.write((unsigned char*)str.c_str(), str.length());
 	    pl.finish();
 	    PointerHolder<Buffer> buf = bufpl.getBuffer();
@@ -628,23 +1134,53 @@ QPDF::decryptStream(Pipeline*& pipeline, int objid, int generation,
 	return;
     }
     bool use_aes = false;
-    if (this->encryption_V == 4)
+    if (this->encryption_V >= 4)
     {
 	encryption_method_e method = e_unknown;
 	std::string method_source = "/StmF from /Encrypt dictionary";
 
-	if (stream_dict.getKey("/Filter").isOrHasName("/Crypt") &&
-	    stream_dict.getKey("/DecodeParms").isDictionary())
-	{
-	    QPDFObjectHandle decode_parms = stream_dict.getKey("/DecodeParms");
-	    if (decode_parms.getKey("/Type").isName() &&
-		(decode_parms.getKey("/Type").getName() ==
-		 "/CryptFilterDecodeParms"))
-	    {
-		QTC::TC("qpdf", "QPDF_encryption stream crypt filter");
-		method = interpretCF(decode_parms.getKey("/Name"));
-		method_source = "stream's Crypt decode parameters";
-	    }
+	if (stream_dict.getKey("/Filter").isOrHasName("/Crypt"))
+        {
+            if (stream_dict.getKey("/DecodeParms").isDictionary())
+            {
+                QPDFObjectHandle decode_parms =
+                    stream_dict.getKey("/DecodeParms");
+                if (decode_parms.getKey("/Type").isName() &&
+                    (decode_parms.getKey("/Type").getName() ==
+                     "/CryptFilterDecodeParms"))
+                {
+                    QTC::TC("qpdf", "QPDF_encryption stream crypt filter");
+                    method = interpretCF(decode_parms.getKey("/Name"));
+                    method_source = "stream's Crypt decode parameters";
+                }
+            }
+            else if (stream_dict.getKey("/DecodeParms").isArray() &&
+                     stream_dict.getKey("/Filter").isArray())
+            {
+                QPDFObjectHandle filter = stream_dict.getKey("/Filter");
+                QPDFObjectHandle decode = stream_dict.getKey("/DecodeParms");
+                if (filter.getArrayNItems() == decode.getArrayNItems())
+                {
+                    for (int i = 0; i < filter.getArrayNItems(); ++i)
+                    {
+                        if (filter.getArrayItem(i).isName() &&
+                            (filter.getArrayItem(i).getName() == "/Crypt"))
+                        {
+                            QPDFObjectHandle crypt_params =
+                                decode.getArrayItem(i);
+                            if (crypt_params.isDictionary() &&
+                                crypt_params.getKey("/Name").isName())
+                            {
+                                QTC::TC("qpdf", "QPDF_encrypt crypt array");
+                                method = interpretCF(
+                                    crypt_params.getKey("/Name"));
+                                method_source = "stream's Crypt "
+                                    "decode parameters (array)";
+                            }
+                        }
+                    }
+                }
+            }
 	}
 
 	if (method == e_unknown)
@@ -656,12 +1192,15 @@ QPDF::decryptStream(Pipeline*& pipeline, int objid, int generation,
 	    }
 	    else
 	    {
-		// NOTE: We should should use cf_file if this is an
-		// embedded file, but we can't yet detect embedded
-		// file streams as such.  When fixing, search for all
-		// occurrences of cf_file to find a reference to this
-		// comment.
-		method = this->cf_stream;
+                if (this->attachment_streams.count(
+                        ObjGen(objid, generation)) > 0)
+                {
+                    method = this->cf_file;
+                }
+                else
+                {
+                    method = this->cf_stream;
+                }
 	    }
 	}
 	use_aes = false;
@@ -672,6 +1211,10 @@ QPDF::decryptStream(Pipeline*& pipeline, int objid, int generation,
 	    break;
 
 	  case e_aes:
+	    use_aes = true;
+	    break;
+
+	  case e_aesv3:
 	    use_aes = true;
 	    break;
 
@@ -696,15 +1239,16 @@ QPDF::decryptStream(Pipeline*& pipeline, int objid, int generation,
     if (use_aes)
     {
 	QTC::TC("qpdf", "QPDF_encryption aes decode stream");
-	assert(key.length() == Pl_AES_PDF::key_size);
 	pipeline = new Pl_AES_PDF("AES stream decryption", pipeline,
-				  false, (unsigned char*) key.c_str());
+				  false, (unsigned char*) key.c_str(),
+                                  (unsigned int) key.length());
     }
     else
     {
 	QTC::TC("qpdf", "QPDF_encryption rc4 decode stream");
 	pipeline = new Pl_RC4("RC4 stream decryption", pipeline,
-			      (unsigned char*) key.c_str(), (int)key.length());
+			      (unsigned char*) key.c_str(),
+                              (unsigned int) key.length());
     }
     heap.push_back(pipeline);
 }
@@ -715,10 +1259,37 @@ QPDF::compute_encryption_O_U(
     int V, int R, int key_len, int P, bool encrypt_metadata,
     std::string const& id1, std::string& O, std::string& U)
 {
-    EncryptionData data(V, R, key_len, P, "", "", id1, encrypt_metadata);
-    data.O = compute_O_value(user_password, owner_password, data);
-    O = data.O;
-    U = compute_U_value(user_password, data);
+    if (V >= 5)
+    {
+	throw std::logic_error(
+	    "compute_encryption_O_U called for file with V >= 5");
+    }
+    EncryptionData data(V, R, key_len, P, "", "", "", "", "",
+                        id1, encrypt_metadata);
+    data.setO(compute_O_value(user_password, owner_password, data));
+    O = data.getO();
+    data.setU(compute_U_value(user_password, data));
+    U = data.getU();
+}
+
+void
+QPDF::compute_encryption_parameters_V5(
+    char const* user_password, char const* owner_password,
+    int V, int R, int key_len, int P, bool encrypt_metadata,
+    std::string const& id1,
+    std::string& encryption_key,
+    std::string& O, std::string& U,
+    std::string& OE, std::string& UE, std::string& Perms)
+{
+    EncryptionData data(V, R, key_len, P, "", "", "", "", "",
+                        id1, encrypt_metadata);
+    unsigned char k[key_bytes];
+    QUtil::initializeWithRandomBytes(k, key_bytes);
+    encryption_key = std::string((char const*)k, key_bytes);
+    compute_U_UE_value_V5(user_password, encryption_key, data, U, UE);
+    compute_O_OE_value_V5(owner_password, encryption_key, data, U, O, OE);
+    Perms = compute_Perms_value_V5(encryption_key, data);
+    data.setV5EncryptionParameters(O, OE, U, UE, Perms);
 }
 
 std::string const&
@@ -733,6 +1304,12 @@ QPDF::getTrimmedUserPassword() const
     std::string result = this->user_password;
     trim_user_password(result);
     return result;
+}
+
+std::string
+QPDF::getEncryptionKey() const
+{
+    return this->encryption_key;
 }
 
 bool

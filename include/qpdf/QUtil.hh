@@ -1,4 +1,4 @@
-// Copyright (c) 2005-2012 Jay Berkenbilt
+// Copyright (c) 2005-2013 Jay Berkenbilt
 //
 // This file is part of qpdf.  This software may be distributed under
 // the terms of version 2 of the Artistic License which may be found
@@ -83,6 +83,18 @@ namespace QUtil
     // encoding for the unicode value passed in.
     QPDF_DLL
     std::string toUTF8(unsigned long uval);
+
+    // Wrapper around random from stdlib.  Calls srandom automatically
+    // the first time it is called.
+    QPDF_DLL
+    long random();
+
+    // Wrapper around srandom from stdlib.
+    QPDF_DLL
+    void srandom(unsigned int seed);
+
+    QPDF_DLL
+    void initializeWithRandomBytes(unsigned char* data, size_t len);
 };
 
 #endif // __QUTIL_HH__

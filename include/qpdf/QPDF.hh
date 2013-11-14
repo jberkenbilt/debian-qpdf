@@ -1,4 +1,4 @@
-// Copyright (c) 2005-2012 Jay Berkenbilt
+// Copyright (c) 2005-2013 Jay Berkenbilt
 //
 // This file is part of qpdf.  This software may be distributed under
 // the terms of version 2 of the Artistic License which may be found
@@ -72,6 +72,13 @@ class QPDF
 			   char const* buf, size_t length,
 			   char const* password = 0);
 
+    // Parse a PDF file loaded from a custom InputSource.  If you have
+    // your own method of retrieving a PDF file, you can subclass
+    // InputSource and use this method.
+    QPDF_DLL
+    void processInputSource(PointerHolder<InputSource>,
+                            char const* password = 0);
+
     // Create a QPDF object for an empty PDF.  This PDF has no pages
     // or objects other than a minimal trailer, a document catalog,
     // and a /Pages tree containing zero pages.  Pages and other
@@ -136,6 +143,8 @@ class QPDF
     std::string getFilename() const;
     QPDF_DLL
     std::string getPDFVersion() const;
+    QPDF_DLL
+    int getExtensionLevel();
     QPDF_DLL
     QPDFObjectHandle getTrailer();
     QPDF_DLL
@@ -215,12 +224,16 @@ class QPDF
 
     // Encryption support
 
-    enum encryption_method_e { e_none, e_unknown, e_rc4, e_aes };
-    struct EncryptionData
+    enum encryption_method_e { e_none, e_unknown, e_rc4, e_aes, e_aesv3 };
+    class EncryptionData
     {
+      public:
+
 	// This class holds data read from the encryption dictionary.
 	EncryptionData(int V, int R, int Length_bytes, int P,
 		       std::string const& O, std::string const& U,
+                       std::string const& OE, std::string const& UE,
+                       std::string const& Perms,
 		       std::string const& id1, bool encrypt_metadata) :
 	    V(V),
 	    R(R),
@@ -228,10 +241,37 @@ class QPDF
 	    P(P),
 	    O(O),
 	    U(U),
+            OE(OE),
+            UE(UE),
+            Perms(Perms),
 	    id1(id1),
 	    encrypt_metadata(encrypt_metadata)
 	{
 	}
+
+	int getV() const;
+	int getR() const;
+	int getLengthBytes() const;
+	int getP() const;
+	std::string const& getO() const;
+	std::string const& getU() const;
+	std::string const& getOE() const;
+	std::string const& getUE() const;
+	std::string const& getPerms() const;
+	std::string const& getId1() const;
+	bool getEncryptMetadata() const;
+
+        void setO(std::string const&);
+        void setU(std::string const&);
+        void setV5EncryptionParameters(std::string const& O,
+                                       std::string const& OE,
+                                       std::string const& U,
+                                       std::string const& UE,
+                                       std::string const& Perms);
+
+      private:
+        EncryptionData(EncryptionData const&);
+        EncryptionData& operator=(EncryptionData const&);
 
 	int V;
 	int R;
@@ -239,6 +279,9 @@ class QPDF
 	int P;
 	std::string O;
 	std::string U;
+        std::string OE;
+        std::string UE;
+        std::string Perms;
 	std::string id1;
 	bool encrypt_metadata;
     };
@@ -283,7 +326,7 @@ class QPDF
     QPDF_DLL
     static std::string compute_data_key(
 	std::string const& encryption_key, int objid, int generation,
-	bool use_aes);
+	bool use_aes, int encryption_V, int encryption_R);
     QPDF_DLL
     static std::string compute_encryption_key(
 	std::string const& password, EncryptionData const& data);
@@ -294,6 +337,14 @@ class QPDF
 	int V, int R, int key_len, int P, bool encrypt_metadata,
 	std::string const& id1,
 	std::string& O, std::string& U);
+    QPDF_DLL
+    static void compute_encryption_parameters_V5(
+	char const* user_password, char const* owner_password,
+	int V, int R, int key_len, int P, bool encrypt_metadata,
+	std::string const& id1,
+        std::string& encryption_key,
+	std::string& O, std::string& U,
+        std::string& OE, std::string& UE, std::string& Perms);
     // Return the full user password as stored in the PDF file.  If
     // you are attempting to recover the user password in a
     // user-presentable form, call getTrimmedUserPassword() instead.
@@ -302,6 +353,10 @@ class QPDF
     // Return human-readable form of user password.
     QPDF_DLL
     std::string getTrimmedUserPassword() const;
+    // Return the previously computed or retrieved encryption key for
+    // this file
+    QPDF_DLL
+    std::string getEncryptionKey() const;
 
     // Linearization support
 
@@ -345,23 +400,7 @@ class QPDF
     void optimize(std::map<int, int> const& object_stream_data,
 		  bool allow_changes = true);
 
-    // Replace all references to indirect objects that are "scalars"
-    // (i.e., things that don't have children: not arrays, streams, or
-    // dictionaries) with direct objects.
-    QPDF_DLL
-    void flattenScalarReferences();
-
-    // Decode all streams, discarding the output.  Used to check
-    // correctness of stream encoding.
-    QPDF_DLL
-    void decodeStreams();
-
     // For QPDFWriter:
-
-    // Remove /ID, /Encrypt, and /Prev keys from the trailer
-    // dictionary since these are regenerated during write.
-    QPDF_DLL
-    void trimTrailerForWrite();
 
     // Get lists of all objects in order according to the part of a
     // linearized file that they belong to.
@@ -577,6 +616,7 @@ class QPDF
 	int& act_objid, int& act_generation);
     PointerHolder<QPDFObject> resolve(int objid, int generation);
     void resolveObjectsInStream(int obj_stream_number);
+    void findAttachmentStreams();
 
     // Calls finish() on the pipeline when done but does not delete it
     void pipeStreamData(int objid, int generation,
@@ -600,6 +640,13 @@ class QPDF
     void initializeEncryption();
     std::string getKeyForObject(int objid, int generation, bool use_aes);
     void decryptString(std::string&, int objid, int generation);
+    static std::string compute_encryption_key_from_password(
+        std::string const& password, EncryptionData const& data);
+    static std::string recover_encryption_key_with_password(
+        std::string const& password, EncryptionData const& data);
+    static std::string recover_encryption_key_with_password(
+        std::string const& password, EncryptionData const& data,
+        bool& perms_valid);
     void decryptStream(
 	Pipeline*& pipeline, int objid, int generation,
 	QPDFObjectHandle& stream_dict,
@@ -953,6 +1000,7 @@ class QPDF
     std::ostream* err_stream;
     bool attempt_recovery;
     int encryption_V;
+    int encryption_R;
     bool encrypt_metadata;
     std::map<std::string, encryption_method_e> crypt_filters;
     encryption_method_e cf_stream;
@@ -977,6 +1025,7 @@ class QPDF
     PointerHolder<QPDFObjectHandle::StreamDataProvider> copied_streams;
     // copied_stream_data_provider is owned by copied_streams
     CopiedStreamDataProvider* copied_stream_data_provider;
+    std::set<ObjGen> attachment_streams;
 
     // Linearization data
     qpdf_offset_t first_xref_item_offset; // actual value from file

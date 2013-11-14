@@ -13,12 +13,13 @@
 #include <qpdf/Pl_Discard.hh>
 #include <qpdf/FileInputSource.hh>
 #include <qpdf/BufferInputSource.hh>
+#include <qpdf/OffsetInputSource.hh>
 
 #include <qpdf/QPDFExc.hh>
 #include <qpdf/QPDF_Null.hh>
 #include <qpdf/QPDF_Dictionary.hh>
 
-std::string QPDF::qpdf_version = "3.0.2";
+std::string QPDF::qpdf_version = "4.0.0";
 
 static char const* EMPTY_PDF =
     "%PDF-1.3\n"
@@ -96,6 +97,7 @@ QPDF::QPDF() :
     err_stream(&std::cerr),
     attempt_recovery(true),
     encryption_V(0),
+    encryption_R(0),
     encrypt_metadata(true),
     cf_stream(e_none),
     cf_string(e_none),
@@ -138,9 +140,8 @@ void
 QPDF::processFile(char const* filename, char const* password)
 {
     FileInputSource* fi = new FileInputSource();
-    this->file = fi;
     fi->setFilename(filename);
-    parse(password);
+    processInputSource(fi, password);
 }
 
 void
@@ -148,9 +149,8 @@ QPDF::processFile(char const* description, FILE* filep,
                   bool close_file, char const* password)
 {
     FileInputSource* fi = new FileInputSource();
-    this->file = fi;
     fi->setFile(description, filep, close_file);
-    parse(password);
+    processInputSource(fi, password);
 }
 
 void
@@ -158,10 +158,18 @@ QPDF::processMemoryFile(char const* description,
 			char const* buf, size_t length,
 			char const* password)
 {
-    this->file =
+    processInputSource(
 	new BufferInputSource(description,
 			      new Buffer((unsigned char*)buf, length),
-			      true);
+			      true),
+        password);
+}
+
+void
+QPDF::processInputSource(PointerHolder<InputSource> source,
+                         char const* password)
+{
+    this->file = source;
     parse(password);
 }
 
@@ -207,7 +215,7 @@ QPDF::getWarnings()
 void
 QPDF::parse(char const* password)
 {
-    PCRE header_re("^%PDF-(1.\\d+)\\b");
+    PCRE header_re("\\A((?s).*?)%PDF-(1.\\d+)\\b");
     PCRE eof_re("(?s:startxref\\s+(\\d+)\\s+%%EOF\\b)");
 
     if (password)
@@ -215,11 +223,26 @@ QPDF::parse(char const* password)
 	this->provided_password = password;
     }
 
-    std::string line = this->file->readLine(20);
+    // Find the header anywhere in the first 1024 bytes of the file,
+    // plus add a little extra space for the header itself.
+    char buffer[1045];
+    memset(buffer, '\0', sizeof(buffer));
+    this->file->read(buffer, sizeof(buffer) - 1);
+    std::string line(buffer);
     PCRE::Match m1 = header_re.match(line.c_str());
     if (m1)
     {
-	this->pdf_version = m1.getMatch(1);
+        size_t global_offset = m1.getMatch(1).length();
+        if (global_offset != 0)
+        {
+            // Empirical evidence strongly suggests that when there is
+            // leading material prior to the PDF header, all explicit
+            // offsets in the file are such that 0 points to the
+            // beginning of the header.
+            QTC::TC("qpdf", "QPDF global offset");
+            this->file = new OffsetInputSource(this->file, global_offset);
+        }
+	this->pdf_version = m1.getMatch(2);
 	if (atof(this->pdf_version.c_str()) < 1.2)
 	{
 	    this->tokenizer.allowPoundAnywhereInName();
@@ -292,6 +315,7 @@ QPDF::parse(char const* password)
     }
 
     initializeEncryption();
+    findAttachmentStreams();
 }
 
 void
@@ -1247,6 +1271,21 @@ QPDF::readObjectAtOffset(bool try_recovery,
 			 int& objid, int& generation)
 {
     setLastObjectDescription(description, exp_objid, exp_generation);
+
+    // Special case: if offset is 0, just return null.  Some PDF
+    // writers, in particular "Mac OS X 10.7.5 Quartz PDFContext", may
+    // store deleted objects in the xref table as "0000000000 00000
+    // n", which is not correct, but it won't hurt anything for to
+    // ignore these.
+    if (offset == 0)
+    {
+        QTC::TC("qpdf", "QPDF bogus 0 offset", 0);
+	warn(QPDFExc(qpdf_e_damaged_pdf, this->file->getName(),
+		     this->last_object_description, 0,
+		     "object has offset 0"));
+        return QPDFObjectHandle::newNull();
+    }
+
     this->file->seek(offset, SEEK_SET);
 
     QPDFTokenizer::Token tobjid = readToken(this->file);
@@ -1823,28 +1862,6 @@ QPDF::swapObjects(int objid1, int generation1, int objid2, int generation2)
     this->obj_cache[og2] = t;
 }
 
-void
-QPDF::trimTrailerForWrite()
-{
-    // Note that removing the encryption dictionary does not interfere
-    // with reading encrypted files.  QPDF loads all the information
-    // it needs from the encryption dictionary at the beginning and
-    // never looks at it again.
-    this->trailer.removeKey("/ID");
-    this->trailer.removeKey("/Encrypt");
-    this->trailer.removeKey("/Prev");
-
-    // Remove all trailer keys that potentially come from a
-    // cross-reference stream
-    this->trailer.removeKey("/Index");
-    this->trailer.removeKey("/W");
-    this->trailer.removeKey("/Length");
-    this->trailer.removeKey("/Filter");
-    this->trailer.removeKey("/DecodeParms");
-    this->trailer.removeKey("/Type");
-    this->trailer.removeKey("/XRefStm");
-}
-
 std::string
 QPDF::getFilename() const
 {
@@ -1855,6 +1872,30 @@ std::string
 QPDF::getPDFVersion() const
 {
     return this->pdf_version;
+}
+
+int
+QPDF::getExtensionLevel()
+{
+    int result = 0;
+    QPDFObjectHandle obj = getRoot();
+    if (obj.hasKey("/Extensions"))
+    {
+        obj = obj.getKey("/Extensions");
+        if (obj.isDictionary() && obj.hasKey("/ADBE"))
+        {
+            obj = obj.getKey("/ADBE");
+            if (obj.isDictionary() && obj.hasKey("/ExtensionLevel"))
+            {
+                obj = obj.getKey("/ExtensionLevel");
+                if (obj.isInteger())
+                {
+                    result = obj.getIntValue();
+                }
+            }
+        }
+    }
+    return result;
 }
 
 QPDFObjectHandle
@@ -2032,18 +2073,36 @@ QPDF::pipeStreamData(int objid, int generation,
 }
 
 void
-QPDF::decodeStreams()
+QPDF::findAttachmentStreams()
 {
-    for (std::map<ObjGen, QPDFXRefEntry>::iterator iter =
-	     this->xref_table.begin();
-	 iter != this->xref_table.end(); ++iter)
+    QPDFObjectHandle root = getRoot();
+    QPDFObjectHandle names = root.getKey("/Names");
+    if (! names.isDictionary())
     {
-	ObjGen const& og = (*iter).first;
-	QPDFObjectHandle obj = getObjectByID(og.obj, og.gen);
-	if (obj.isStream())
-	{
-	    Pl_Discard pl;
-	    obj.pipeStreamData(&pl, true, false, false);
-	}
+        return;
+    }
+    QPDFObjectHandle embeddedFiles = names.getKey("/EmbeddedFiles");
+    if (! embeddedFiles.isDictionary())
+    {
+        return;
+    }
+    names = embeddedFiles.getKey("/Names");
+    if (! names.isArray())
+    {
+        return;
+    }
+    for (int i = 0; i < names.getArrayNItems(); ++i)
+    {
+        QPDFObjectHandle item = names.getArrayItem(i);
+        if (item.isDictionary() &&
+            item.getKey("/Type").isName() &&
+            (item.getKey("/Type").getName() == "/Filespec") &&
+            item.getKey("/EF").isDictionary() &&
+            item.getKey("/EF").getKey("/F").isStream())
+        {
+            QPDFObjectHandle stream = item.getKey("/EF").getKey("/F");
+            this->attachment_streams.insert(
+                ObjGen(stream.getObjectID(), stream.getGeneration()));
+        }
     }
 }

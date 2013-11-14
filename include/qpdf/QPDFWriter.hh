@@ -1,4 +1,4 @@
-// Copyright (c) 2005-2012 Jay Berkenbilt
+// Copyright (c) 2005-2013 Jay Berkenbilt
 //
 // This file is part of qpdf.  This software may be distributed under
 // the terms of version 2 of the Artistic License which may be found
@@ -95,6 +95,15 @@ class QPDFWriter
     QPDF_DLL
     Buffer* getBuffer();
 
+    // Supply your own pipeline object.  Output will be written to
+    // this pipeline, and QPDFWriter will call finish() on the
+    // pipeline.  It is the caller's responsibility to manage the
+    // memory for the pipeline.  The pipeline is never deleted by
+    // QPDFWriter, which makes it possible for you to call additional
+    // methods on the pipeline after the writing is finished.
+    QPDF_DLL
+    void setOutputPipeline(Pipeline*);
+
     // Setting Parameters
 
     // Set the value of object stream mode.  In disable mode, we never
@@ -144,6 +153,8 @@ class QPDFWriter
     // streams are used.
     QPDF_DLL
     void setMinimumPDFVersion(std::string const&);
+    QPDF_DLL
+    void setMinimumPDFVersion(std::string const&, int extension_level);
 
     // Force the PDF version of the output file to be a given version.
     // Use of this function may create PDF files that will not work
@@ -162,6 +173,8 @@ class QPDFWriter
     // object streams.
     QPDF_DLL
     void forcePDFVersion(std::string const&);
+    QPDF_DLL
+    void forcePDFVersion(std::string const&, int extension_level);
 
     // Provide additional text to insert in the PDF file somewhere
     // near the beginning of the file.  This can be used to add
@@ -210,8 +223,9 @@ class QPDFWriter
     // content normalization.  Note that setting R2 encryption
     // parameters sets the PDF version to at least 1.3, setting R3
     // encryption parameters pushes the PDF version number to at least
-    // 1.4, and setting R4 parameters pushes the version to at least
-    // 1.5, or if AES is used, 1.6.
+    // 1.4, setting R4 parameters pushes the version to at least 1.5,
+    // or if AES is used, 1.6, and setting R5 or R6 parameters pushes
+    // the version to at least 1.7 with extension level 3.
     QPDF_DLL
     void setR2EncryptionParameters(
 	char const* user_password, char const* owner_password,
@@ -228,6 +242,21 @@ class QPDFWriter
 	bool allow_accessibility, bool allow_extract,
 	qpdf_r3_print_e print, qpdf_r3_modify_e modify,
 	bool encrypt_metadata, bool use_aes);
+    // R5 is deprecated.  Do not use it for production use.  Writing
+    // R5 is supported by qpdf primarily to generate test files for
+    // applications that may need to test R5 support.
+    QPDF_DLL
+    void setR5EncryptionParameters(
+	char const* user_password, char const* owner_password,
+	bool allow_accessibility, bool allow_extract,
+	qpdf_r3_print_e print, qpdf_r3_modify_e modify,
+	bool encrypt_metadata);
+    QPDF_DLL
+    void setR6EncryptionParameters(
+	char const* user_password, char const* owner_password,
+	bool allow_accessibility, bool allow_extract,
+	qpdf_r3_print_e print, qpdf_r3_modify_e modify,
+	bool encrypt_metadata_aes);
 
     // Create linearized output.  Disables qdf mode, content
     // normalization, and stream prefiltering.
@@ -277,7 +306,8 @@ class QPDFWriter
 	char const* user_password, char const* owner_password,
 	bool allow_accessibility, bool allow_extract,
 	qpdf_r3_print_e print, qpdf_r3_modify_e modify);
-    void disableIncompatibleEncryption(int major, int minor);
+    void disableIncompatibleEncryption(int major, int minor,
+                                       int extension_level);
     void parseVersion(std::string const& version, int& major, int& minor) const;
     int compareVersions(int major1, int minor1, int major2, int minor2) const;
     void setEncryptionParameters(
@@ -286,10 +316,14 @@ class QPDFWriter
     void setEncryptionParametersInternal(
 	int V, int R, int key_len, long P,
 	std::string const& O, std::string const& U,
-	std::string const& id1, std::string const& user_password);
+	std::string const& OE, std::string const& UE, std::string const& Perms,
+	std::string const& id1, std::string const& user_password,
+        std::string const& encryption_key);
     void setDataKey(int objid);
     int openObject(int objid = 0);
     void closeObject(int objid);
+    QPDFObjectHandle getTrimmedTrailer();
+    void prepareFileForWrite();
     void writeStandard();
     void writeLinearized();
     void enqueuePart(std::vector<QPDFObjectHandle>& part);
@@ -361,11 +395,17 @@ class QPDFWriter
     bool encrypt_metadata;
     bool encrypt_use_aes;
     std::map<std::string, std::string> encryption_dictionary;
+    int encryption_V;
+    int encryption_R;
 
     std::string id1;		// for /ID key of
     std::string id2;		// trailer dictionary
+    std::string final_pdf_version;
+    int final_extension_level;
     std::string min_pdf_version;
+    int min_extension_level;
     std::string forced_pdf_version;
+    int forced_extension_level;
     std::string extra_header_text;
     int encryption_dict_objid;
     std::string cur_data_key;

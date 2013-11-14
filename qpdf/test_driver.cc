@@ -21,7 +21,7 @@ static char const* whoami = 0;
 
 void usage()
 {
-    std::cerr << "Usage: " << whoami << " n filename1 [filename2]"
+    std::cerr << "Usage: " << whoami << " n filename1 [arg2]"
               << std::endl;
     exit(2);
 }
@@ -82,11 +82,28 @@ static QPDFObjectHandle createPageContents(QPDF& pdf, std::string const& text)
     return QPDFObjectHandle::newStream(&pdf, contents);
 }
 
-void runtest(int n, char const* filename1, char const* filename2)
+void runtest(int n, char const* filename1, char const* arg2)
 {
     // Most tests here are crafted to work on specific files.  Look at
     // the test suite to see how the test is invoked to find the file
     // that the test is supposed to operate on.
+
+    if (n == 0)
+    {
+        // Throw in some random test cases that don't fit anywhere
+        // else.  This is in addition to whatever else is going on in
+        // test 0.
+
+        // The code to trim user passwords looks for 0x28 (which is
+        // "(") since it marks the beginning of the padding.  Exercise
+        // the code to make sure it skips over 0x28 characters that
+        // aren't part of padding.
+        std::string password(
+            "1234567890123456789012(45678\x28\xbf\x4e\x5e");
+        assert(password.length() == 32);
+        QPDF::trim_user_password(password);
+        assert(password == "1234567890123456789012(45678");
+    }
 
     QPDF pdf;
     PointerHolder<char> file_buf;
@@ -95,7 +112,12 @@ void runtest(int n, char const* filename1, char const* filename2)
     {
 	pdf.setAttemptRecovery(false);
     }
-    if (n % 2 == 0)
+    if (((n == 35) || (n == 36)) && (arg2 != 0))
+    {
+        // arg2 is password
+	pdf.processFile(filename1, arg2);
+    }
+    else if (n % 2 == 0)
     {
         if (n % 4 == 0)
         {
@@ -936,9 +958,9 @@ void runtest(int n, char const* filename1, char const* filename2)
         // Copy qtest without crossing page boundaries.  Should get O1
         // and O2 and their streams but not O3 or any other pages.
 
-        assert(filename2 != 0);
+        assert(arg2 != 0);
         QPDF newpdf;
-        newpdf.processFile(filename2);
+        newpdf.processFile(arg2);
         QPDFObjectHandle qtest = pdf.getTrailer().getKey("/QTest");
         newpdf.getTrailer().replaceKey(
             "/QTest", newpdf.copyForeignObject(qtest));
@@ -956,9 +978,9 @@ void runtest(int n, char const* filename1, char const* filename2)
         // that O3 points to.  Also, inherited object will have been
         // pushed down and will be preserved.
 
-        assert(filename2 != 0);
+        assert(arg2 != 0);
         QPDF newpdf;
-        newpdf.processFile(filename2);
+        newpdf.processFile(arg2);
         QPDFObjectHandle qtest = pdf.getTrailer().getKey("/QTest");
         QPDFObjectHandle O3 = qtest.getKey("/O3");
         newpdf.addPage(O3, false);
@@ -976,9 +998,9 @@ void runtest(int n, char const* filename1, char const* filename2)
         // Should get qtest plus only the O3 page and the page that O3
         // points to.  Inherited objects should be preserved.
 
-        assert(filename2 != 0);
+        assert(arg2 != 0);
         QPDF newpdf;
-        newpdf.processFile(filename2);
+        newpdf.processFile(arg2);
         QPDFObjectHandle qtest = pdf.getTrailer().getKey("/QTest");
         QPDFObjectHandle O3 = qtest.getKey("/O3");
         newpdf.addPage(O3.getKey("/OtherPage"), false);
@@ -1016,9 +1038,9 @@ void runtest(int n, char const* filename1, char const* filename2)
     else if (n == 29)
     {
         // Detect mixed objects in QPDFWriter
-        assert(filename2 != 0);
+        assert(arg2 != 0);
         QPDF other;
-        other.processFile(filename2);
+        other.processFile(arg2);
         // Should use copyForeignObject instead
         other.getTrailer().replaceKey(
             "/QTest", pdf.getTrailer().getKey("/QTest"));
@@ -1036,9 +1058,9 @@ void runtest(int n, char const* filename1, char const* filename2)
     }
     else if (n == 30)
     {
-        assert(filename2 != 0);
+        assert(arg2 != 0);
         QPDF encrypted;
-        encrypted.processFile(filename2, "user");
+        encrypted.processFile(arg2, "user");
         QPDFWriter w(pdf, "b.pdf");
 	w.setStreamDataMode(qpdf_s_preserve);
         w.copyEncryptionParameters(encrypted);
@@ -1112,6 +1134,117 @@ void runtest(int n, char const* filename1, char const* filename2)
             w.write();
         }
     }
+    else if (n == 33)
+    {
+        // Test writing to a custom pipeline
+        Pl_Buffer p("buffer");
+        QPDFWriter w(pdf);
+        w.setStaticID(true);
+        w.setOutputPipeline(&p);
+        w.write();
+        PointerHolder<Buffer> b = p.getBuffer();
+        FILE* f = QUtil::fopen_wrapper("open a.pdf",
+                                       fopen("a.pdf", "wb"));
+        fwrite(b->getBuffer(), b->getSize(), 1, f);
+        fclose(f);
+    }
+    else if (n == 34)
+    {
+        // Look at Extensions dictionary
+        std::cout << "version: " << pdf.getPDFVersion() << std::endl
+                  << "extension level: " << pdf.getExtensionLevel() << std::endl
+                  << pdf.getRoot().getKey("/Extensions").unparse() << std::endl;
+    }
+    else if (n == 35)
+    {
+        // Extract attachments
+
+        std::map<std::string, PointerHolder<Buffer> > attachments;
+        QPDFObjectHandle root = pdf.getRoot();
+        QPDFObjectHandle names = root.getKey("/Names");
+        QPDFObjectHandle embeddedFiles = names.getKey("/EmbeddedFiles");
+        names = embeddedFiles.getKey("/Names");
+        for (int i = 0; i < names.getArrayNItems(); ++i)
+        {
+            QPDFObjectHandle item = names.getArrayItem(i);
+            if (item.isDictionary() &&
+                item.getKey("/Type").isName() &&
+                (item.getKey("/Type").getName() == "/Filespec") &&
+                item.getKey("/EF").isDictionary() &&
+                item.getKey("/EF").getKey("/F").isStream())
+            {
+                std::string filename = item.getKey("/F").getStringValue();
+                QPDFObjectHandle stream = item.getKey("/EF").getKey("/F");
+                attachments[filename] = stream.getStreamData();
+            }
+        }
+        for (std::map<std::string, PointerHolder<Buffer> >::iterator iter =
+                 attachments.begin(); iter != attachments.end(); ++iter)
+        {
+            std::string const& filename = (*iter).first;
+            std::string data = std::string(
+                (char const*)(*iter).second->getBuffer(),
+                (*iter).second->getSize());
+            bool is_binary = false;
+            for (size_t i = 0; i < data.size(); ++i)
+            {
+                if (data[i] < 0)
+                {
+                    is_binary = true;
+                    break;
+                }
+            }
+            if (is_binary)
+            {
+                std::string t;
+                for (size_t i = 0; i < std::min(data.size(), (size_t)20); ++i)
+                {
+                    if ((data[i] >= 32) && (data[i] <= 126))
+                    {
+                        t += data[i];
+                    }
+                    else
+                    {
+                        t += ".";
+                    }
+                }
+                t += " (" + QUtil::int_to_string(data.size()) + " bytes)";
+                data = t;
+            }
+            std::cout << filename << ":\n" << data << "--END--\n";
+        }
+    }
+    else if (n == 36)
+    {
+        // Extract raw unfilterable attachment
+
+        QPDFObjectHandle root = pdf.getRoot();
+        QPDFObjectHandle names = root.getKey("/Names");
+        QPDFObjectHandle embeddedFiles = names.getKey("/EmbeddedFiles");
+        names = embeddedFiles.getKey("/Names");
+        for (int i = 0; i < names.getArrayNItems(); ++i)
+        {
+            QPDFObjectHandle item = names.getArrayItem(i);
+            if (item.isDictionary() &&
+                item.getKey("/Type").isName() &&
+                (item.getKey("/Type").getName() == "/Filespec") &&
+                item.getKey("/EF").isDictionary() &&
+                item.getKey("/EF").getKey("/F").isStream() &&
+                (item.getKey("/F").getStringValue() == "attachment1.txt"))
+            {
+                std::string filename = item.getKey("/F").getStringValue();
+                QPDFObjectHandle stream = item.getKey("/EF").getKey("/F");
+                Pl_Buffer p1("buffer");
+                Pl_Flate p2("compress", &p1, Pl_Flate::a_inflate);
+                stream.pipeStreamData(&p2, false, false, false);
+                PointerHolder<Buffer> buf = p1.getBuffer();
+                std::string data = std::string(
+                    (char const*)buf->getBuffer(), buf->getSize());
+                std::cout << stream.getDict().unparse()
+                          << filename << ":\n" << data << "--END--\n";
+            }
+        }
+    }
     else
     {
 	throw std::runtime_error(std::string("invalid test ") +
@@ -1151,8 +1284,8 @@ int main(int argc, char* argv[])
     {
 	int n = atoi(argv[1]);
 	char const* filename1 = argv[2];
-        char const* filename2 = argv[3];
-	runtest(n, filename1, filename2);
+        char const* arg2 = argv[3];
+	runtest(n, filename1, arg2);
     }
     catch (std::exception& e)
     {
