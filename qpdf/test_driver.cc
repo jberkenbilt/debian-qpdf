@@ -7,6 +7,7 @@
 #include <qpdf/QTC.hh>
 #include <qpdf/Pl_StdioFile.hh>
 #include <qpdf/Pl_Buffer.hh>
+#include <qpdf/Pl_Flate.hh>
 #include <qpdf/QPDFWriter.hh>
 #include <iostream>
 #include <stdio.h>
@@ -21,6 +22,39 @@ void usage()
     std::cerr << "Usage: " << whoami << " n filename" << std::endl;
     exit(2);
 }
+
+class Provider: public QPDFObjectHandle::StreamDataProvider
+{
+  public:
+    Provider(PointerHolder<Buffer> b) :
+	b(b),
+	bad_length(false)
+    {
+    }
+    virtual ~Provider()
+    {
+    }
+    virtual void provideStreamData(int objid, int generation,
+				   Pipeline* p)
+    {
+	p->write(b.getPointer()->getBuffer(),
+		 b.getPointer()->getSize());
+	if (this->bad_length)
+	{
+	    unsigned char ch = ' ';
+	    p->write(&ch, 1);
+	}
+	p->finish();
+    }
+    void badLength(bool v)
+    {
+	this->bad_length = v;
+    }
+
+  private:
+    PointerHolder<Buffer> b;
+    bool bad_length;
+};
 
 void runtest(int n, char const* filename)
 {
@@ -308,6 +342,108 @@ void runtest(int n, char const* filename)
 		  << "; cleartext="
 		  << (cleartext ? 1 : 0)
 		  << std::endl;
+    }
+    else if (n == 7)
+    {
+	QPDFObjectHandle root = pdf.getRoot();
+	QPDFObjectHandle qstream = root.getKey("/QStream");
+	if (! qstream.isStream())
+	{
+	    throw std::logic_error("test 7 run on file with no QStream");
+	}
+	PointerHolder<Buffer> b = new Buffer(20);
+	unsigned char* bp = b.getPointer()->getBuffer();
+	memcpy(bp, (char*)"new data for stream\n", 20); // no null!
+	qstream.replaceStreamData(
+	    b, QPDFObjectHandle::newNull(), QPDFObjectHandle::newNull());
+	QPDFWriter w(pdf, "a.pdf");
+	w.setStaticID(true);
+	w.setStreamDataMode(qpdf_s_preserve);
+	w.write();
+    }
+    else if (n == 8)
+    {
+	QPDFObjectHandle root = pdf.getRoot();
+	QPDFObjectHandle qstream = root.getKey("/QStream");
+	if (! qstream.isStream())
+	{
+	    throw std::logic_error("test 7 run on file with no QStream");
+	}
+	Pl_Buffer p1("buffer");
+	Pl_Flate p2("compress", &p1, Pl_Flate::a_deflate);
+	p2.write((unsigned char*)"new data for stream\n", 20); // no null!
+	p2.finish();
+	PointerHolder<Buffer> b = p1.getBuffer();
+	// This is a bogus way to use StreamDataProvider, but it does
+	// adequately test its functionality.
+	Provider* provider = new Provider(b);
+	PointerHolder<QPDFObjectHandle::StreamDataProvider> p = provider;
+	qstream.replaceStreamData(
+	    p, QPDFObjectHandle::newName("/FlateDecode"),
+	    QPDFObjectHandle::newNull(),
+	    b.getPointer()->getSize());
+	provider->badLength(true);
+	try
+	{
+	    qstream.getStreamData();
+	    std::cout << "oops -- getStreamData didn't throw" << std::endl;
+	}
+	catch (std::logic_error const& e)
+	{
+	    std::cout << "exception: " << e.what() << std::endl;
+	}
+	provider->badLength(false);
+	QPDFWriter w(pdf, "a.pdf");
+	w.setStaticID(true);
+	w.setStreamDataMode(qpdf_s_preserve);
+	w.write();
+    }
+    else if (n == 9)
+    {
+	QPDFObjectHandle root = pdf.getRoot();
+	PointerHolder<Buffer> b1 = new Buffer(20);
+	unsigned char* bp = b1.getPointer()->getBuffer();
+	memcpy(bp, (char*)"data for new stream\n", 20); // no null!
+	QPDFObjectHandle qstream = QPDFObjectHandle::newStream(&pdf, b1);
+	QPDFObjectHandle rstream = QPDFObjectHandle::newStream(&pdf);
+	try
+	{
+	    rstream.getStreamData();
+	    std::cout << "oops -- getStreamData didn't throw" << std::endl;
+	}
+	catch (std::logic_error const& e)
+	{
+	    std::cout << "exception: " << e.what() << std::endl;
+	}
+	PointerHolder<Buffer> b2 = new Buffer(22);
+	bp = b2.getPointer()->getBuffer();
+	memcpy(bp, (char*)"data for other stream\n", 22); // no null!
+	rstream.replaceStreamData(
+	    b2, QPDFObjectHandle::newNull(), QPDFObjectHandle::newNull());
+	root.replaceKey("/QStream", qstream);
+	root.replaceKey("/RStream", rstream);
+	QPDFWriter w(pdf, "a.pdf");
+	w.setStaticID(true);
+	w.setStreamDataMode(qpdf_s_preserve);
+	w.write();
+    }
+    else if (n == 10)
+    {
+	PointerHolder<Buffer> b1 = new Buffer(37);
+	unsigned char* bp = b1.getPointer()->getBuffer();
+	memcpy(bp, (char*)"BT /F1 12 Tf 72 620 Td (Baked) Tj ET\n", 37);
+	PointerHolder<Buffer> b2 = new Buffer(38);
+	bp = b2.getPointer()->getBuffer();
+	memcpy(bp, (char*)"BT /F1 18 Tf 72 520 Td (Mashed) Tj ET\n", 38);
+
+	std::vector<QPDFObjectHandle> pages = pdf.getAllPages();
+	pages[0].addPageContents(QPDFObjectHandle::newStream(&pdf, b1), true);
+	pages[0].addPageContents(QPDFObjectHandle::newStream(&pdf, b2), false);
+
+	QPDFWriter w(pdf, "a.pdf");
+	w.setStaticID(true);
+	w.setStreamDataMode(qpdf_s_preserve);
+	w.write();
     }
     else
     {

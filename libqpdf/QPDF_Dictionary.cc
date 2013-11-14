@@ -13,6 +13,17 @@ QPDF_Dictionary::~QPDF_Dictionary()
 {
 }
 
+void
+QPDF_Dictionary::releaseResolved()
+{
+    for (std::map<std::string, QPDFObjectHandle>::iterator iter =
+	     this->items.begin();
+	 iter != this->items.end(); ++iter)
+    {
+	QPDFObjectHandle::ReleaseResolver::releaseResolved((*iter).second);
+    }
+}
+
 std::string
 QPDF_Dictionary::unparse()
 {
@@ -80,4 +91,18 @@ QPDF_Dictionary::removeKey(std::string const& key)
 {
     // no-op if key does not exist
     this->items.erase(key);
+}
+
+void
+QPDF_Dictionary::replaceOrRemoveKey(std::string const& key,
+				    QPDFObjectHandle value)
+{
+    if (value.isNull())
+    {
+	removeKey(key);
+    }
+    else
+    {
+	replaceKey(key, value);
+    }
 }

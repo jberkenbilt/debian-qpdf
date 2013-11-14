@@ -15,7 +15,7 @@
 #include <qpdf/QPDF_Null.hh>
 #include <qpdf/QPDF_Dictionary.hh>
 
-std::string QPDF::qpdf_version = "2.1.5";
+std::string QPDF::qpdf_version = "2.2.rc1";
 
 void
 QPDF::InputSource::setLastOffset(off_t offset)
@@ -277,6 +277,27 @@ QPDF::QPDF() :
 
 QPDF::~QPDF()
 {
+    // If two objects are mutually referential (through each object
+    // having an array or dictionary that contains an indirect
+    // reference to the other), the circular references in the
+    // PointerHolder objects will prevent the objects from being
+    // deleted.  Walk through all objects in the object cache, which
+    // is those objects that we read from the file, and break all
+    // resolved references.  At this point, obviously no one is still
+    // using the QPDF object, but we'll explicitly clear the xref
+    // table anyway just to prevent any possibility of resolve()
+    // succeeding.  Note that we can't break references like this at
+    // any time when the QPDF object is active.  If we do, the next
+    // reference will reread the object from the file, which would
+    // have the effect of undoing any modifications that may have been
+    // made to any of the objects.
+    this->xref_table.clear();
+    for (std::map<ObjGen, ObjCache>::iterator iter = this->obj_cache.begin();
+	 iter != obj_cache.end(); ++iter)
+    {
+	QPDFObject::ObjAccessor::releaseResolved(
+	    (*iter).second.object.getPointer());
+    }
 }
 
 void
@@ -538,7 +559,11 @@ QPDF::read_xref(off_t xref_offset)
     }
 
     int size = this->trailer.getKey("/Size").getIntValue();
-    int max_obj = (*(xref_table.rbegin())).first.obj;
+    int max_obj = 0;
+    if (! xref_table.empty())
+    {
+	max_obj = (*(xref_table.rbegin())).first.obj;
+    }
     if (! this->deleted_objects.empty())
     {
 	max_obj = std::max(max_obj, *(this->deleted_objects.rbegin()));
@@ -1754,7 +1779,11 @@ QPDF::resolveObjectsInStream(int obj_stream_number)
 QPDFObjectHandle
 QPDF::makeIndirectObject(QPDFObjectHandle oh)
 {
-    ObjGen o1 = (*(this->obj_cache.rbegin())).first;
+    ObjGen o1(0, 0);
+    if (! this->obj_cache.empty())
+    {
+	o1 = (*(this->obj_cache.rbegin())).first;
+    }
     ObjGen o2 = (*(this->xref_table.rbegin())).first;
     QTC::TC("qpdf", "QPDF indirect last obj from xref",
 	    (o2.obj > o1.obj) ? 1 : 0);
