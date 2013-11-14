@@ -1,3 +1,30 @@
+2011-04-30  Jay Berkenbilt  <ejb@ql.org>
+
+	* 2.2.3: release
+
+	* libqpdf/QPDF.cc (readObjectInternal): Accept the case of the
+	stream keyword being followed by carriage return by itself.  While
+	this is not permitted by the specification, there are PDF files
+	that do this, and other readers can read them.
+
+	* libqpdf/Pl_QPDFTokenizer.cc (processChar): When an inline image
+	is detected, suspend normalization only up to the end of the
+	inline image rather than for the remainder of the content stream.
+	(Fixes qpdf-Bugs 3152169.)
+
+2011-01-31  Jay Berkenbilt  <ejb@ql.org>
+
+	* libqpdf/QPDF.cc (readObjectAtOffset): use -1 rather than 0 when
+	reading an object at a given to indicate that no object number is
+	expected.  This allows xref recovery to proceed even if a file
+	uses the invalid object number 0 as a regular object.
+
+	* libqpdf/QPDF_linearization.cc (isLinearized): use -1 rather than
+	0 as a sentintel for not having found the first object in the
+	file.  Since -1 can never match the regular expression, this
+	prevents an infinite loop when checking a file that starts with
+	(erroneous) 0 0 obj.  (Fixes qpdf-Bugs-3159950.)
+
 2010-10-04  Jay Berkenbilt  <ejb@ql.org>
 
 	* 2.2.2: release

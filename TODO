@@ -1,5 +1,16 @@
+Next
+====
+
+ * Look for %PDF header somewhere within the first 1024 bytes of the
+   file.  Also accept headers of the form "%!PS−Adobe−N.n PDF−M.m".
+   See Implementation notes 13 and 14 in appendix H of the PDF 1.7
+   specification.  This is bug 3267974.
+
 General
 =======
+
+ * Update qpdf docs about non-ascii passwords.  See thread from
+   2010-12-07,08 for details.
 
  * Look at page splitting.  Subramanyam provided a test file; see
    ../misc/article-threads.pdf.  Email Q-Count: 431864 from
@@ -170,6 +181,10 @@ Index: QPDFWriter.cc
  * Based on an idea suggested by user "Atom Smasher", consider
    providing some mechanism to recover earlier versions of a file
    embedded prior to appended sections.
+
+ * From a suggestion in bug 3152169, consisder having an option to
+   re-encode inline images with an ASCII encoding.
+
 
 Splitting by Pages
 ==================
