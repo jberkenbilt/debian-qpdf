@@ -8,6 +8,7 @@
 #include <qpdf/QUtil.hh>
 #include <qpdf/QTC.hh>
 #include <qpdf/Pl_StdioFile.hh>
+#include <qpdf/Pl_Discard.hh>
 #include <qpdf/PointerHolder.hh>
 
 #include <qpdf/QPDF.hh>
@@ -96,7 +97,7 @@ Note that -- terminates parsing of encryption flags.\n\
 Either or both of the user password and the owner password may be\n\
 empty strings.\n\
 \n\
-key-length may be 40 or 128\n\
+key-length may be 40, 128, or 256\n\
 \n\
 Additional flags are dependent upon key length.\n\
 \n\
@@ -116,6 +117,11 @@ Additional flags are dependent upon key length.\n\
     --cleartext-metadata     prevents encryption of metadata\n\
     --use-aes=[yn]           indicates whether to use AES encryption\n\
     --force-V4               forces use of V=4 encryption handler\n\
+\n\
+  If 256, options are the same as 128 with these exceptions:\n\
+    --force-V4               this option is not available with 256-bit keys\n\
+    --use-aes                this option is always on with 256-bit keys\n\
+    --force-R5               forces use of deprecated R=5 encryption\n\
 \n\
     print-opt may be:\n\
 \n\
@@ -187,6 +193,9 @@ familiar with the PDF file format or who are PDF developers.\n\
 --qdf                     turns on \"QDF mode\" (below)\n\
 --min-version=version     sets the minimum PDF version of the output file\n\
 --force-version=version   forces this to be the PDF version of the output file\n\
+\n\
+Version numbers may be expressed as major.minor.extension-level, so 1.7.3\n\
+means PDF version 1.7 at extension level 3.\n\
 \n\
 Values for stream data options:\n\
 \n\
@@ -278,6 +287,9 @@ static std::string show_encryption_method(QPDF::encryption_method_e method)
         break;
       case QPDF::e_aes:
         result = "AESv2";
+        break;
+      case QPDF::e_aesv3:
+        result = "AESv3";
         break;
         // no default so gcc will warn for missing case
     }
@@ -481,7 +493,8 @@ parse_encrypt_options(
     bool& r2_print, bool& r2_modify, bool& r2_extract, bool& r2_annotate,
     bool& r3_accessibility, bool& r3_extract,
     qpdf_r3_print_e& r3_print, qpdf_r3_modify_e& r3_modify,
-    bool& force_V4, bool& cleartext_metadata, bool& use_aes)
+    bool& force_V4, bool& cleartext_metadata, bool& use_aes,
+    bool& force_R5)
 {
     if (cur_arg + 3 >= argc)
     {
@@ -498,9 +511,14 @@ parse_encrypt_options(
     {
 	keylen = 128;
     }
+    else if (len_str == "256")
+    {
+	keylen = 256;
+        use_aes = true;
+    }
     else
     {
-	usage("encryption key length must be 40 or 128");
+	usage("encryption key length must be 40, 128, or 256");
     }
     while (1)
     {
@@ -732,13 +750,28 @@ parse_encrypt_options(
 	    {
 		usage("--force-V4 does not take a parameter");
 	    }
-	    if (keylen == 40)
+	    if (keylen != 128)
 	    {
-		usage("--force-V4 is invalid for 40-bit keys");
+		usage("--force-V4 is invalid only for 128-bit keys");
 	    }
 	    else
 	    {
 		force_V4 = true;
+	    }
+	}
+	else if (strcmp(arg, "force-R5") == 0)
+	{
+	    if (parameter)
+	    {
+		usage("--force-R5 does not take a parameter");
+	    }
+	    if (keylen != 256)
+	    {
+		usage("--force-R5 is invalid only for 256-bit keys");
+	    }
+	    else
+	    {
+		force_R5 = true;
 	    }
 	}
 	else if (strcmp(arg, "use-aes") == 0)
@@ -761,10 +794,16 @@ parse_encrypt_options(
 	    {
 		usage("invalid -use-aes parameter");
 	    }
-	    if (keylen == 40)
+	    if ((keylen == 40) && result)
 	    {
 		usage("use-aes is invalid for 40-bit keys");
 	    }
+            else if ((keylen == 256) && (! result))
+            {
+                // qpdf would happily create files encrypted with RC4
+                // using /V=5, but Adobe reader can't read them.
+                usage("use-aes can't be disabled with 256-bit keys");
+            }
 	    else
 	    {
 		use_aes = result;
@@ -837,6 +876,21 @@ QPDFPageData::QPDFPageData(QPDF* qpdf, char const* range) :
     this->selected_pages = parse_numrange(range, (int)this->orig_pages.size());
 }
 
+static void parse_version(std::string const& full_version_string,
+                          std::string& version, int& extension_level)
+{
+    PointerHolder<char> vp(true, QUtil::copy_string(full_version_string));
+    char* v = vp.getPointer();
+    char* p1 = strchr(v, '.');
+    char* p2 = (p1 ? strchr(1 + p1, '.') : 0);
+    if (p2 && *(p2 + 1))
+    {
+        *p2++ = '\0';
+        extension_level = atoi(p2);
+    }
+    version = v;
+}
+
 int main(int argc, char* argv[])
 {
     whoami = QUtil::getWhoami(argv[0]);
@@ -862,7 +916,7 @@ int main(int argc, char* argv[])
 	//      12345678901234567890123456789012345678901234567890123456789012345678901234567890
 	std::cout
 	    << whoami << " version " << QPDF::QPDFVersion() << std::endl
-	    << "Copyright (c) 2005-2012 Jay Berkenbilt"
+	    << "Copyright (c) 2005-2013 Jay Berkenbilt"
 	    << std::endl
 	    << "This software may be distributed under the terms of version 2 of the"
 	    << std::endl
@@ -902,6 +956,7 @@ int main(int argc, char* argv[])
     qpdf_r3_print_e r3_print = qpdf_r3p_full;
     qpdf_r3_modify_e r3_modify = qpdf_r3m_all;
     bool force_V4 = false;
+    bool force_R5 = false;
     bool cleartext_metadata = false;
     bool use_aes = false;
 
@@ -985,7 +1040,7 @@ int main(int argc, char* argv[])
 		    user_password, owner_password, keylen,
 		    r2_print, r2_modify, r2_extract, r2_annotate,
 		    r3_accessibility, r3_extract, r3_print, r3_modify,
-		    force_V4, cleartext_metadata, use_aes);
+		    force_V4, cleartext_metadata, use_aes, force_R5);
 		encrypt = true;
                 decrypt = false;
                 copy_encryption = false;
@@ -1369,8 +1424,14 @@ int main(int argc, char* argv[])
 		std::cout << "checking " << infilename << std::endl;
 		try
 		{
-		    std::cout << "PDF Version: " << pdf.getPDFVersion()
-			      << std::endl;
+                    int extension_level = pdf.getExtensionLevel();
+		    std::cout << "PDF Version: " << pdf.getPDFVersion();
+                    if (extension_level > 0)
+                    {
+                        std::cout << " extension level "
+                                  << pdf.getExtensionLevel();
+                    }
+                    std::cout << std::endl;
 		    ::show_encryption(pdf);
 		    if (pdf.isLinearized())
 		    {
@@ -1381,12 +1442,14 @@ int main(int argc, char* argv[])
 		    else
 		    {
 			std::cout << "File is not linearized\n";
-			// calling flattenScalarReferences causes full
-			// traversal of file, so any structural errors
-			// would be exposed.
-			pdf.flattenScalarReferences();
-			// Also explicitly decode all streams.
-			pdf.decodeStreams();
+                        // Write the file no nowhere, uncompressing
+                        // streams.  This causes full file traversal
+                        // and decoding of all streams we can decode.
+                        QPDFWriter w(pdf);
+                        Pl_Discard discard;
+                        w.setOutputPipeline(&discard);
+                        w.setStreamDataMode(qpdf_s_uncompress);
+                        w.write();
 			okay = true;
 		    }
 		}
@@ -1585,6 +1648,23 @@ int main(int argc, char* argv[])
 			    r3_accessibility, r3_extract, r3_print, r3_modify);
 		    }
 		}
+		else if (keylen == 256)
+		{
+		    if (force_R5)
+                    {
+			w.setR5EncryptionParameters(
+			    user_password.c_str(), owner_password.c_str(),
+			    r3_accessibility, r3_extract, r3_print, r3_modify,
+			    !cleartext_metadata);
+		    }
+		    else
+		    {
+			w.setR6EncryptionParameters(
+			    user_password.c_str(), owner_password.c_str(),
+			    r3_accessibility, r3_extract, r3_print, r3_modify,
+			    !cleartext_metadata);
+		    }
+		}
 		else
 		{
 		    throw std::logic_error("bad encryption keylen");
@@ -1600,11 +1680,17 @@ int main(int argc, char* argv[])
 	    }
 	    if (! min_version.empty())
 	    {
-		w.setMinimumPDFVersion(min_version);
+                std::string version;
+                int extension_level = 0;
+                parse_version(min_version, version, extension_level);
+		w.setMinimumPDFVersion(version, extension_level);
 	    }
 	    if (! force_version.empty())
 	    {
-		w.forcePDFVersion(force_version);
+                std::string version;
+                int extension_level = 0;
+                parse_version(force_version, version, extension_level);
+		w.forcePDFVersion(version, extension_level);
 	    }
 	    w.write();
 	}

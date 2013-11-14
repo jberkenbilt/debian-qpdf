@@ -1,58 +1,21 @@
 General
 =======
 
- * See if I can support the encryption format used with /R 5 /V 5,
-   even though a qpdf-announce subscriber with an adobe.com email
-   address mentioned that this is deprecated.  There is also a new
-   encryption format coming in a future release, which may be better
-   to support.  As of the qpdf 3.0 release, the specification was not
-   publicly available yet.
+ * Improve the random number seed to make it more secure so that we
+   have stronger random numbers, particularly when multiple files are
+   generated in the same second.  This code may need to be
+   OS-specific.  Probably we should add a method in QUtil to seed with
+   a strong random number and call this automatically the first time
+   QUtil::random() is called.
 
  * Consider the possibility of doing something locale-aware to support
    non-ASCII passwords.  Update documentation if this is done.
-
- * Look for %PDF header somewhere within the first 1024 bytes of the
-   file.  Also accept headers of the form "%!PS−Adobe−N.n PDF−M.m".
-   See Implementation notes 13 and 14 in appendix H of the PDF 1.7
-   specification.  This is bug 3267974.
 
  * Consider impact of article threads on page splitting/merging.
    Subramanyam provided a test file; see ../misc/article-threads.pdf.
    Email Q-Count: 431864 from 2009-11-03.  Other things to consider:
    outlines, page labels, thumbnails, zones.  There are probably
    others.
-
- * See whether it's possible to remove the call to
-   flattenScalarReferences.  I can't easily figure out why I do it,
-   but removing it causes strange test failures in linearization.  I
-   would have to study the optimization and linearization code to
-   figure out why I added this to begin with and what in the code
-   assumes it's the case.  For enqueueObject and unparseChild in
-   QPDFWriter, simply removing the checks for indirect scalars seems
-   sufficient.  Looking back at the branch in the apex epub
-   repository, before flattening scalar references, there was special
-   case code in QPDFWriter to avoid writing out indirect nulls.  It's
-   still not obvious to me why I did it though.
-
-   To pursue this, remove the call to flattenScalarReferences in
-   QPDFWriter.cc and disable the logic_error exceptions for indirect
-   scalars.  Just search for flattenScalarReferences in QPDFWriter.cc
-   since the logic errors have comments that mention
-   flattenScalarReferences.  Then run the test suite.  Several files
-   that explicitly test flattening of scalar references fail, but the
-   indirect scalars are properly preserved and written.  But then
-   there are some linearized files that have a bunch of unreferenced
-   objects that contain scalars.  Need to figure out what these are
-   and why they're there.  Maybe they're objects that used to be
-   stream lengths.  Probably we just need to make sure don't traverse
-   through a stream's /Length stream when enqueueing stream
-   dictionaries.  This could potentially happen with any object that
-   QPDFWriter replaces when writing out files.  Such objects would be
-   orphaned in the newly written file.  This could be fixed, but it
-   may not be worth fixing.
-
-   If flattenScalarReferences is removed, a new method will be needed
-   for checking PDF files.
 
  * See if we can avoid preserving unreferenced objects in object
    streams even when preserving the object streams.
@@ -95,31 +58,30 @@ Index: QPDFWriter.cc
  }
 ------------------------------
 
- * Handle embedded files.  PDF Reference 1.7 section 3.10, "File
-   Specifications", discusses this.  Once we can definitely recognize
-   all embedded files in a document, we can update the encryption
-   code to handle it properly.  In QPDF_encryption.cc, search for
-   cf_file.  Remove exception thrown if cf_file is different from
-   cf_stream, and write code in the stream decryption section to use
-   cf_file instead of cf_stream.  In general, add interfaces to get
-   the list of embedded files and to extract them.  To handle general
-   embedded files associated with the whole document, follow root ->
-   /Names -> /EmbeddedFiles -> /Names to get to the file specification
-   dictionaries.  Then, in each file specification dictionary, follow
-   /EF -> /F to the actual stream.  There may be other places file
-   specification dictionaries may appear, and there are also /RF keys
-   with related files, so reread section 3.10 carefully.
+ * Provide APIs for embedded files.  See *attachments*.pdf in test
+   suite.  The private method findAttachmentStreams finds at least
+   cases for modern versions of Adobe Reader (>= 1.7, maybe earlier).
+   PDF Reference 1.7 section 3.10, "File Specifications", discusses
+   this.
+
+   A sourceforge user asks if qpdf can handle extracting and embedded
+   resources and references these tools, which may be useful as a
+   reference.
+
+   http://multivalent.sourceforge.net/Tools/pdf/Extract.html
+   http://multivalent.sourceforge.net/Tools/pdf/Embed.html
 
  * The description of Crypt filters is unclear with respect to how to
    use them to override /StmF for specific streams.  I'm not sure
    whether qpdf will do the right thing for any specific individual
-   streams that might have crypt filters.  The specification seems to
-   imply that only embedded file streams and metadata streams can have
-   crypt filters, and there are already special cases in the code to
-   handle those.  Most likely, it won't be a problem, but someday
-   someone may find a file that qpdf doesn't work on because of crypt
-   filters.  There is an example in the spec of using a crypt filter
-   on a metadata stream.
+   streams that might have crypt filters, but I believe it does based
+   on my testing of a limited subset.  The specification seems to imply
+   that only embedded file streams and metadata streams can have crypt
+   filters, and there are already special cases in the code to handle
+   those.  Most likely, it won't be a problem, but someday someone may
+   find a file that qpdf doesn't work on because of crypt filters.
+   There is an example in the spec of using a crypt filter on a
+   metadata stream.
 
    For now, we notice /Crypt filters and decode parameters consistent
    with the example in the PDF specification, and the right thing

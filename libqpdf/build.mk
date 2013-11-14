@@ -12,6 +12,7 @@ SRCS_libqpdf = \
 	libqpdf/FileInputSource.cc \
 	libqpdf/InputSource.cc \
 	libqpdf/MD5.cc \
+	libqpdf/OffsetInputSource.cc \
 	libqpdf/PCRE.cc \
 	libqpdf/Pipeline.cc \
 	libqpdf/Pl_AES_PDF.cc \
@@ -27,6 +28,7 @@ SRCS_libqpdf = \
 	libqpdf/Pl_PNGFilter.cc \
 	libqpdf/Pl_QPDFTokenizer.cc \
 	libqpdf/Pl_RC4.cc \
+	libqpdf/Pl_SHA2.cc \
 	libqpdf/Pl_StdioFile.cc \
 	libqpdf/QPDF.cc \
 	libqpdf/QPDFExc.cc \
@@ -53,18 +55,27 @@ SRCS_libqpdf = \
 	libqpdf/QUtil.cc \
 	libqpdf/RC4.cc \
 	libqpdf/qpdf-c.cc \
-	libqpdf/rijndael.cc
+	libqpdf/rijndael.cc \
+	libqpdf/sha2.c \
+	libqpdf/sha2big.c
 
 # -----
 
-OBJS_libqpdf = $(call src_to_lobj,$(SRCS_libqpdf))
+CCSRCS_libqpdf = $(filter %.cc,$(SRCS_libqpdf))
+CSRCS_libqpdf = $(filter %.c,$(SRCS_libqpdf))
+
+CCOBJS_libqpdf = $(call src_to_lobj,$(CCSRCS_libqpdf))
+COBJS_libqpdf = $(call c_src_to_lobj,$(CSRCS_libqpdf))
+OBJS_libqpdf = $(CCOBJS_libqpdf) $(COBJS_libqpdf)
 
 ifeq ($(GENDEPS),1)
 -include $(call lobj_to_dep,$(OBJS_libqpdf))
 endif
 
-$(OBJS_libqpdf): libqpdf/$(OUTPUT_DIR)/%.$(LOBJ): libqpdf/%.cc
+$(CCOBJS_libqpdf): libqpdf/$(OUTPUT_DIR)/%.$(LOBJ): libqpdf/%.cc
 	$(call libcompile,$<,$(INCLUDES_libqpdf))
+$(COBJS_libqpdf): libqpdf/$(OUTPUT_DIR)/%.$(LOBJ): libqpdf/%.c
+	$(call c_libcompile,$<,$(INCLUDES_libqpdf))
 
 # Last three arguments to makelib are CURRENT,REVISION,AGE.
 #
@@ -80,4 +91,4 @@ $(OBJS_libqpdf): libqpdf/$(OUTPUT_DIR)/%.$(LOBJ): libqpdf/%.cc
 # * Otherwise, increment REVISION
 
 $(TARGETS_libqpdf): $(OBJS_libqpdf)
-	$(call makelib,$(OBJS_libqpdf),$@,$(LDFLAGS),$(LIBS),9,0,1)
+	$(call makelib,$(OBJS_libqpdf),$@,$(LDFLAGS),$(LIBS),10,0,0)
