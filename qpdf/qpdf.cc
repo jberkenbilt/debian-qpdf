@@ -436,7 +436,9 @@ int main(int argc, char* argv[])
 	whoami += 3;
     }
 
-    if ((argc == 2) && (strcmp(argv[1], "--version") == 0))
+    if ((argc == 2) &&
+	((strcmp(argv[1], "--version") == 0) ||
+	 (strcmp(argv[1], "-version") == 0)))
     {
 	// make_dist looks for the line of code here that actually
 	// prints the version number, so read make_dist if you change
@@ -447,8 +449,8 @@ int main(int argc, char* argv[])
 	//               1         2         3         4         5         6         7         8
 	//      12345678901234567890123456789012345678901234567890123456789012345678901234567890
 	std::cout
-	    << whoami << " version 2.0.2" << std::endl
-	    << "Copyright (c) 2005-2008 Jay Berkenbilt"
+	    << whoami << " version 2.0.3" << std::endl
+	    << "Copyright (c) 2005-2009 Jay Berkenbilt"
 	    << std::endl
 	    << "This software may be distributed under the terms of version 2 of the"
 	    << std::endl
@@ -459,7 +461,9 @@ int main(int argc, char* argv[])
 	exit(0);
     }
 
-    if ((argc == 2) && (strcmp(argv[1], "--help") == 0))
+    if ((argc == 2) &&
+	((strcmp(argv[1], "--help") == 0) ||
+	 (strcmp(argv[1], "-help") == 0)))
     {
 	std::cout << help;
 	exit(0);
