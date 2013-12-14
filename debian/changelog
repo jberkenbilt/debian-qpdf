@@ -1,3 +1,9 @@
+qpdf (xxx) unstable; urgency=low
+
+  * Use dh-autoreconf.  (Closes: #732093)
+
+ --
+
 qpdf (5.0.1-1) unstable; urgency=low
 
   * New upstream release
