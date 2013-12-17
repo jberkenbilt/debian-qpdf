@@ -1,8 +1,10 @@
-qpdf (xxx) unstable; urgency=low
+qpdf (5.1.0-1) unstable; urgency=medium
 
-  * Use dh-autoreconf.  (Closes: #732093)
+  * New upstream release
+  * Use dh-autoreconf (Closes: #732093)
+  * Update stanards to 3.9.5.  No changes required.
 
- --
+ -- Jay Berkenbilt <qjb@debian.org>  Tue, 17 Dec 2013 15:50:11 -0500
 
 qpdf (5.0.1-1) unstable; urgency=low
 
