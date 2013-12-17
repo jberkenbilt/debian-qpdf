@@ -3,10 +3,15 @@
 
 #include <qpdf/QUtil.hh>
 #include <qpdf/PointerHolder.hh>
+#ifdef USE_INSECURE_RANDOM
+# include <qpdf/InsecureRandomDataProvider.hh>
+#endif
+#include <qpdf/SecureRandomDataProvider.hh>
 
 #include <cmath>
 #include <iomanip>
 #include <sstream>
+#include <stdexcept>
 #include <stdio.h>
 #include <errno.h>
 #include <ctype.h>
@@ -17,7 +22,6 @@
 #include <Windows.h>
 #include <direct.h>
 #include <io.h>
-#include <Wincrypt.h>
 #else
 #include <unistd.h>
 #endif
@@ -233,13 +237,9 @@ QUtil::setLineBuf(FILE* f)
 char*
 QUtil::getWhoami(char* argv0)
 {
-#ifdef _WIN32
-    char pathsep = '\\';
-#else
-    char pathsep = '/';
-#endif
     char* whoami = 0;
-    if ((whoami = strrchr(argv0, pathsep)) == NULL)
+    if (((whoami = strrchr(argv0, '/')) == NULL) &&
+        ((whoami = strrchr(argv0, '\\')) == NULL))
     {
 	whoami = argv0;
     }
@@ -247,13 +247,13 @@ QUtil::getWhoami(char* argv0)
     {
 	++whoami;
     }
-#ifdef _WIN32
+
     if ((strlen(whoami) > 4) &&
 	(strcmp(whoami + strlen(whoami) - 4, ".exe") == 0))
     {
 	whoami[strlen(whoami) - 4] = '\0';
     }
-#endif
+
     return whoami;
 }
 
@@ -262,6 +262,9 @@ QUtil::get_env(std::string const& var, std::string* value)
 {
     // This was basically ripped out of wxWindows.
 #ifdef _WIN32
+# ifdef NO_GET_ENVIRONMENT
+    return false;
+# else
     // first get the size of the buffer
     DWORD len = ::GetEnvironmentVariable(var.c_str(), NULL, 0);
     if (len == 0)
@@ -279,6 +282,7 @@ QUtil::get_env(std::string const& var, std::string* value)
     }
 
     return true;
+# endif
 #else
     char* p = getenv(var.c_str());
     if (p == 0)
@@ -378,38 +382,7 @@ QUtil::toUTF8(unsigned long uval)
     return result;
 }
 
-#ifdef USE_INSECURE_RANDOM
-
-long
-QUtil::random()
-{
-    static bool seeded_random = false;
-    if (! seeded_random)
-    {
-	// Seed the random number generator with something simple, but
-	// just to be interesting, don't use the unmodified current
-	// time.  It would be better if this were a more secure seed.
-        QUtil::srandom(QUtil::get_current_time() ^ 0xcccc);
-	seeded_random = true;
-    }
-
-#  ifdef HAVE_RANDOM
-    return ::random();
-#  else
-    return rand();
-#  endif
-}
-
-void
-QUtil::initializeWithRandomBytes(unsigned char* data, size_t len)
-{
-    for (size_t i = 0; i < len; ++i)
-    {
-        data[i] = static_cast<unsigned char>((QUtil::random() & 0xff0) >> 4);
-    }
-}
-
-#else
+// Random data support
 
 long
 QUtil::random()
@@ -421,65 +394,58 @@ QUtil::random()
     return result;
 }
 
-#ifdef _WIN32
-class WindowsCryptProvider
+static RandomDataProvider* random_data_provider = 0;
+
+#ifdef USE_INSECURE_RANDOM
+static RandomDataProvider* insecure_random_data_provider =
+    InsecureRandomDataProvider::getInstance();
+#else
+static RandomDataProvider* insecure_random_data_provider = 0;
+#endif
+static RandomDataProvider* secure_random_data_provider =
+    SecureRandomDataProvider::getInstance();
+
+static void
+initialize_random_data_provider()
 {
-  public:
-    WindowsCryptProvider()
+    if (random_data_provider == 0)
     {
-        if (! CryptAcquireContext(&crypt_prov, NULL, NULL, PROV_RSA_FULL, 0))
+        if (secure_random_data_provider)
         {
-            throw std::runtime_error("unable to acquire crypt context");
+            random_data_provider = secure_random_data_provider;
+        }
+        else if (insecure_random_data_provider)
+        {
+            random_data_provider = insecure_random_data_provider;
         }
     }
-    ~WindowsCryptProvider()
+    // QUtil.hh has comments indicating that getRandomDataProvider(),
+    // which calls this method, never returns null.
+    if (random_data_provider == 0)
     {
-        // Ignore error
-        CryptReleaseContext(crypt_prov, 0);
+        throw std::logic_error("QPDF has no random data provider");
     }
+}
 
-    HCRYPTPROV crypt_prov;
-};
-#endif
+void
+QUtil::setRandomDataProvider(RandomDataProvider* p)
+{
+    random_data_provider = p;
+}
+
+RandomDataProvider*
+QUtil::getRandomDataProvider()
+{
+    initialize_random_data_provider();
+    return random_data_provider;
+}
 
 void
 QUtil::initializeWithRandomBytes(unsigned char* data, size_t len)
 {
-#if defined(_WIN32)
-
-    // Optimization: make the WindowsCryptProvider static as long as
-    // it can be done in a thread-safe fashion.
-    WindowsCryptProvider c;
-    if (! CryptGenRandom(c.crypt_prov, len, reinterpret_cast<BYTE*>(data)))
-    {
-        throw std::runtime_error("unable to generate secure random data");
-    }
-
-#elif defined(RANDOM_DEVICE)
-
-    // Optimization: wrap the file open and close in a class so that
-    // the file is closed in a destructor, then make this static to
-    // keep the file handle open.  Only do this if it can be done in a
-    // thread-safe fashion.
-    FILE* f = QUtil::safe_fopen(RANDOM_DEVICE, "rb");
-    size_t fr = fread(data, 1, len, f);
-    fclose(f);
-    if (fr != len)
-    {
-        throw std::runtime_error(
-            "unable to read " +
-            QUtil::int_to_string(len) +
-            " bytes from " + std::string(RANDOM_DEVICE));
-    }
-
-#else
-
-#  error "Don't know how to generate secure random numbers on this platform.  See random number generation in the top-level README"
-
-#endif
+    initialize_random_data_provider();
+    random_data_provider->provideRandomData(data, len);
 }
-
-#endif
 
 void
 QUtil::srandom(unsigned int seed)

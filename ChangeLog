@@ -1,3 +1,59 @@
+2013-12-17  Jay Berkenbilt  <ejb@ql.org>
+
+	* 5.1.0: release
+
+2013-12-16  Jay Berkenbilt  <ejb@ql.org>
+
+	* Document and make explicit that passing null to
+	QUtil::setRandomDataProvider() resets the random data provider.
+
+	* Provide QUtil::getRandomDataProvider().
+
+2013-12-14  Jay Berkenbilt  <ejb@ql.org>
+
+	* Allow anyspace rather than just newline to follow xref header.
+	This allows qpdf to read a wider range of damaged files.
+
+2013-11-30  Jay Berkenbilt  <ejb@ql.org>
+
+	* Allow user-supplied random data provider to be used in place of
+	OS-provided or insecure random number generation.  See
+	documentation for 5.1.0 for details.
+
+	* Add configure option --enable-os-secure-random (enabled by
+	default).  Pass --disable-os-secure-random or define
+	SKIP_OS_SECURE_RANDOM to avoid attempts to use the operating
+	system-provided secure random number generation.  This can be
+	especially useful on Windows if you wish to avoid any dependency
+	on Microsoft's cryptography system.
+
+2013-11-29  Jay Berkenbilt  <ejb@ql.org>
+
+	* If NO_GET_ENVIRONMENT is #defined, for Windows only,
+	QUtil::get_env will always return false.  This was added to
+	support a user who needs to avoid calling GetEnvironmentVariable
+	from the Windows API.  QUtil::get_env is not used for any
+	functionality in qpdf and exists only to support the test suite
+	including test coverage support with QTC (part of qtest).
+
+	* Add /FS to msvc builds to allow parallel builds to work with
+	Visual C++ 2013.
+
+	* Add missing #include <algorithm> in some files that use std::min
+	and std::max.
+
+2013-11-21  Jay Berkenbilt  <ejb@ql.org>
+
+	* Change image comparison tests, which are disabled by default, to
+	use tiff files with 8 bits per sample rather than 4.  This works
+	around a bug in tiffcmp but also increases time and disk space for
+	image comparison tests.
+
+2013-10-28  Jay Berkenbilt  <ejb@ql.org>
+
+	* Fix MacOS compilation errors by adding a missing #include
+	<string> in a header file.
+
 2013-10-18  Jay Berkenbilt  <ejb@ql.org>
 
 	* 5.0.1: release

@@ -5,8 +5,8 @@
 <!ENTITY mdash "&#x2014;">
 <!ENTITY ndash "&#x2013;">
 <!ENTITY nbsp "&#xA0;">
-<!ENTITY swversion "5.0.1">
-<!ENTITY lastreleased "October 18, 2013">
+<!ENTITY swversion "5.1.0">
+<!ENTITY lastreleased "December 17, 2013">
 ]>
 <book>
  <bookinfo>
@@ -1851,6 +1851,31 @@ outfile.pdf</option>
     preserved as clear-text if it is that way in the original file.
    </para>
   </sect1>
+  <sect1 id="ref.random-numbers">
+   <title>Random Number Generation</title>
+   <para>
+    QPDF generates random numbers to support generation of encrypted
+    data.  Versions prior to 5.0.1 used <function>random</function> or
+    <function>rand</function> from <filename>stdlib</filename> to
+    generate random numbers.  Version 5.0.1, if available, used
+    operating system-provided secure random number generation instead,
+    enabling use of <filename>stdlib</filename> random number
+    generation only if enabled by a compile-time option.  Starting in
+    version 5.1.0, use of insecure random numbers was disabled unless
+    enabled at compile time.  Starting in version 5.1.0, it is also
+    possible for you to disable use of OS-provided secure random
+    numbers.  This is especially useful on Windows if you want to
+    avoid a dependency on Microsoft's cryptography API.  In this case,
+    you must provide your own random data provider.  Regardless of how
+    you compile qpdf, starting in version 5.1.0, it is possible for
+    you to provide your own random data provider at runtime.  This
+    would enable you to use some software-based secure pseudorandom
+    number generator and to avoid use of whatever the operating system
+    provides.  For details on how to do this, please refer to the
+    top-level README file in the source distribution and to comments
+    in <filename>QUtil.hh</filename>.
+   </para>
+  </sect1>
   <sect1 id="ref.adding-and-remove-pages">
    <title>Adding and Removing Pages</title>
    <para>
@@ -2640,6 +2665,43 @@ print "\n";
    <filename>ChangeLog</filename> in the source distribution.
   </para>
   <variablelist>
+   <varlistentry>
+    <term>5.1.0: December 17, 2013</term>
+    <listitem>
+     <itemizedlist>
+      <listitem>
+       <para>
+        Added runtime option
+        (<function>QUtil::setRandomDataProvider</function>) to supply
+        your own random data provider.  You can use this if you want
+        to avoid using the OS-provided secure random number generation
+        facility or stdlib's less secure version.  See comments in
+        include/qpdf/QUtil.hh for details.
+       </para>
+      </listitem>
+      <listitem>
+       <para>
+        Fixed image comparison tests to not create 12-bit-per-pixel
+        images since some versions of tiffcmp have bugs in comparing
+        them in some cases.  This increases the disk space required by
+        the image comparison tests, which are off by default anyway.
+       </para>
+      </listitem>
+      <listitem>
+       <para>
+        Introduce a number of small fixes for compilation on the
+        latest clang in MacOS and the latest Visual C++ in Windows.
+       </para>
+      </listitem>
+      <listitem>
+       <para>
+        Be able to handle broken files that end the xref table header
+        with a space instead of a newline.
+       </para>
+      </listitem>
+     </itemizedlist>
+    </listitem>
+   </varlistentry>
    <varlistentry>
     <term>5.0.1: October 18, 2013</term>
     <listitem>

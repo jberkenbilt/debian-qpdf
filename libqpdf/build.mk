@@ -11,6 +11,7 @@ SRCS_libqpdf = \
 	libqpdf/BufferInputSource.cc \
 	libqpdf/FileInputSource.cc \
 	libqpdf/InputSource.cc \
+	libqpdf/InsecureRandomDataProvider.cc \
 	libqpdf/MD5.cc \
 	libqpdf/OffsetInputSource.cc \
 	libqpdf/PCRE.cc \
@@ -57,6 +58,7 @@ SRCS_libqpdf = \
 	libqpdf/QTC.cc \
 	libqpdf/QUtil.cc \
 	libqpdf/RC4.cc \
+	libqpdf/SecureRandomDataProvider.cc \
 	libqpdf/qpdf-c.cc \
 	libqpdf/rijndael.cc \
 	libqpdf/sha2.c \
@@ -94,4 +96,4 @@ $(COBJS_libqpdf): libqpdf/$(OUTPUT_DIR)/%.$(LOBJ): libqpdf/%.c
 # * Otherwise, increment REVISION
 
 $(TARGETS_libqpdf): $(OBJS_libqpdf)
-	$(call makelib,$(OBJS_libqpdf),$@,$(LDFLAGS),$(LIBS),13,1,0)
+	$(call makelib,$(OBJS_libqpdf),$@,$(LDFLAGS),$(LIBS),14,0,1)

@@ -464,6 +464,7 @@ $td->runtest("object with zero offset",
              {$td->COMMAND => "qpdf --check zero-offset.pdf"},
              {$td->FILE => "zero-offset.out", $td->EXIT_STATUS => 3},
              $td->NORMALIZE_NEWLINES);
+# leading-junk also has a space instead of a newline after xref
 $td->runtest("check file with leading junk",
              {$td->COMMAND => "qpdf --check leading-junk.pdf"},
              {$td->FILE => "leading-junk.out", $td->EXIT_STATUS => 0},
@@ -2176,7 +2177,7 @@ sub compare_pdfs
 	$td->runtest("convert original file to image",
 		     {$td->COMMAND =>
 			  "(cd tif1;" .
-			  " gs 2>/dev/null -q -dNOPAUSE -sDEVICE=tiff12nc" .
+			  " gs 2>/dev/null -q -dNOPAUSE -sDEVICE=tiff24nc" .
 			  " -sOutputFile=a.tif - < ../$f1)"},
 		     {$td->STRING => "",
 		      $td->EXIT_STATUS => 0});
@@ -2195,7 +2196,7 @@ sub compare_pdfs
 	$td->runtest("convert new file to image",
 		     {$td->COMMAND =>
 			  "(cd tif2;" .
-			  " gs 2>/dev/null -q -dNOPAUSE -sDEVICE=tiff12nc" .
+			  " gs 2>/dev/null -q -dNOPAUSE -sDEVICE=tiff24nc" .
 			  " -sOutputFile=a.tif - < ../$f2)"},
 		     {$td->STRING => "",
 		      $td->EXIT_STATUS => 0});
