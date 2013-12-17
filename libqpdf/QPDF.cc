@@ -3,6 +3,7 @@
 
 #include <vector>
 #include <map>
+#include <algorithm>
 #include <string.h>
 #include <memory.h>
 
@@ -19,7 +20,7 @@
 #include <qpdf/QPDF_Null.hh>
 #include <qpdf/QPDF_Dictionary.hh>
 
-std::string QPDF::qpdf_version = "5.0.1";
+std::string QPDF::qpdf_version = "5.1.0";
 
 static char const* EMPTY_PDF =
     "%PDF-1.3\n"
@@ -486,7 +487,7 @@ QPDF::read_xref(qpdf_offset_t xref_offset)
 qpdf_offset_t
 QPDF::read_xrefTable(qpdf_offset_t xref_offset)
 {
-    PCRE xref_first_re("^\\s*(\\d+)\\s+(\\d+)");
+    PCRE xref_first_re("^\\s*(\\d+)\\s+(\\d+)\\s*");
     PCRE xref_entry_re("(?s:(^\\d{10}) (\\d{5}) ([fn])[ \r\n]{2}$)");
 
     std::vector<QPDFObjGen> deleted_items;
@@ -495,7 +496,10 @@ QPDF::read_xrefTable(qpdf_offset_t xref_offset)
     bool done = false;
     while (! done)
     {
-	std::string line = this->file->readLine(50);
+        char linebuf[51];
+        memset(linebuf, 0, sizeof(linebuf));
+        this->file->read(linebuf, sizeof(linebuf) - 1);
+	std::string line = linebuf;
 	PCRE::Match m1 = xref_first_re.match(line.c_str());
 	if (! m1)
 	{
@@ -504,6 +508,8 @@ QPDF::read_xrefTable(qpdf_offset_t xref_offset)
 			  "xref table", this->file->getLastOffset(),
 			  "xref syntax invalid");
 	}
+        file->seek(this->file->getLastOffset() + m1.getMatch(0).length(),
+                   SEEK_SET);
 	int obj = atoi(m1.getMatch(1).c_str());
 	int num = atoi(m1.getMatch(2).c_str());
 	static int const xref_entry_size = 20;

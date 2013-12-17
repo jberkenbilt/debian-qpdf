@@ -15,6 +15,8 @@
 #include <stdexcept>
 #include <stdio.h>
 
+class RandomDataProvider;
+
 namespace QUtil
 {
     // This is a collection of useful utility functions that don't
@@ -123,8 +125,37 @@ namespace QUtil
     QPDF_DLL
     void srandom(unsigned int seed);
 
+    // Initialize a buffer with random bytes.  By default, qpdf tries
+    // to use a secure random number source.  It can be configured at
+    // compile time to use an insecure random number source (from
+    // stdlib).  You can also call setRandomDataProvider with a
+    // RandomDataProvider, in which case this method will get its
+    // random bytes from that.
+
     QPDF_DLL
     void initializeWithRandomBytes(unsigned char* data, size_t len);
+
+    // Supply a random data provider.  If not supplied, depending on
+    // compile time options, qpdf will either use the operating
+    // system's secure random number source or an insecure random
+    // source from stdlib.  The caller is responsible for managing the
+    // memory for the RandomDataProvider.  This method modifies a
+    // static variable.  If you are providing your own random data
+    // provider, you should call this at the beginning of your program
+    // before creating any QPDF objects.  Passing a null to this
+    // method will reset the library back to whichever of the built-in
+    // random data handlers is appropriate basedon how qpdf was
+    // compiled.
+    QPDF_DLL
+    void setRandomDataProvider(RandomDataProvider*);
+
+    // This returns the random data provider that would be used the
+    // next time qpdf needs random data.  It will never return null.
+    // If no random data provider has been provided and the library
+    // was not compiled with any random data provider available, an
+    // exception will be thrown.
+    QPDF_DLL
+    RandomDataProvider* getRandomDataProvider();
 };
 
 #endif // __QUTIL_HH__

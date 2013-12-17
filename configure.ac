@@ -2,7 +2,7 @@ dnl Process this file with autoconf to produce a configure script.
 dnl This config.in requires autoconf 2.5 or greater.
 
 AC_PREREQ([2.68])
-AC_INIT([qpdf],[5.0.1])
+AC_INIT([qpdf],[5.1.0])
 
 AC_CONFIG_MACRO_DIR([m4])
 AC_CONFIG_FILES([autoconf.mk])
@@ -26,9 +26,24 @@ AC_ARG_ENABLE(insecure-random,
     fi], [qpdf_INSECURE_RANDOM=0])
 if test "$qpdf_INSECURE_RANDOM" = "1"; then
    AC_MSG_RESULT(yes)
-   AC_DEFINE([USE_INSECURE_RANDOM], [1], [Whether to use inscure random numbers])
+   AC_DEFINE([USE_INSECURE_RANDOM], [1], [Whether to use insecure random numbers])
 else
    AC_MSG_RESULT(no)
+fi
+
+AC_ARG_ENABLE(os-secure-random,
+   AS_HELP_STRING([--enable-os-secure-random],
+                  [whether to try to use OS-provided secure random numbers (default is yes)]),
+   [if test "$enableval" = "yes"; then
+      qpdf_OS_SECURE_RANDOM=1;
+    else
+      qpdf_OS_SECURE_RANDOM=0;
+    fi], [qpdf_OS_SECURE_RANDOM=1])
+if test "$qpdf_OS_SECURE_RANDOM" = "1"; then
+   AC_MSG_RESULT(yes)
+else
+   AC_MSG_RESULT(no)
+   AC_DEFINE([SKIP_OS_SECURE_RANDOM], [1], [Whether to suppres use of OS-provided secure random numbers])
 fi
 
 AX_RANDOM_DEVICE
@@ -71,7 +86,7 @@ if test "$BUILD_INTERNAL_LIBS" = "0"; then
    AC_SEARCH_LIBS(pcre_compile,pcre,,[MISSING_PCRE=1; MISSING_ANY=1])
 fi
 
-if test "x$qpdf_INSECURE_RANDOM" != "x1"; then
+if test "x$qpdf_OS_SECURE_RANDOM" = "x1"; then
   OLIBS=$LIBS
   LIBS="$LIBS Advapi32.lib"
   AC_MSG_CHECKING(for Advapi32 library)
@@ -200,7 +215,7 @@ if test "$BUILDRULES" = "msvc"; then
    dnl deprecated.  Removing these warnings helps people who want to
    dnl write applications based on qpdf that can be Windows 8
    dnl certified.
-   try_flags="/w14996"
+   try_flags="-w14996"
 else
    try_flags="-Wall"
 fi
@@ -234,7 +249,23 @@ if test "$BUILDRULES" != "msvc"; then
 fi
 
 if test "$BUILDRULES" = "msvc"; then
-   try_flags="/WX"
+   try_flags=-FS
+   AC_MSG_CHECKING(for whether $CC supports $try_flags)
+   oCFLAGS=$CFLAGS
+   CFLAGS="$CFLAGS $try_flags"
+   AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[]], [[int a = 1; int b = a; a = b;]])],
+                     [qpdf_USE_FS=1],[qpdf_USE_FS=0])
+   if test "$qpdf_USE_FS" = "1"; then
+      AC_MSG_RESULT(yes)
+      CXXFLAGS="$CXXFLAGS $try_flags"
+   else
+      AC_MSG_RESULT(no)
+      CFLAGS=$oCFLAGS
+   fi
+fi
+
+if test "$BUILDRULES" = "msvc"; then
+   try_flags="-WX"
 else
    try_flags="-Werror"
 fi

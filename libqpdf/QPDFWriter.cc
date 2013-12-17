@@ -19,6 +19,7 @@
 #include <qpdf/QPDF_Name.hh>
 #include <qpdf/QPDF_String.hh>
 
+#include <algorithm>
 #include <stdlib.h>
 
 QPDFWriter::QPDFWriter(QPDF& pdf) :
@@ -979,10 +980,6 @@ QPDFWriter::enqueueObject(QPDFObjectHandle object)
                 " another file.");
         }
 
-	if (object.isNull())
-	{
-	    // This is a place-holder object for an object stream
-	}
 	QPDFObjGen og = object.getObjGen();
 
 	if (obj_renumber.count(og) == 0)
@@ -2013,10 +2010,7 @@ QPDFWriter::prepareFileForWrite()
     // Do a traversal of the entire PDF file structure replacing all
     // indirect objects that QPDFWriter wants to be direct.  This
     // includes stream lengths, stream filtering parameters, and
-    // document extension level information.  Also replace all
-    // indirect null references with direct nulls.  This way, the only
-    // indirect nulls queued for output will be object stream place
-    // holders.
+    // document extension level information.
 
     std::list<QPDFObjectHandle> queue;
     queue.push_back(getTrimmedTrailer());
