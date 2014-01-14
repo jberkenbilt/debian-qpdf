@@ -20,7 +20,7 @@
 #include <qpdf/QPDF_Null.hh>
 #include <qpdf/QPDF_Dictionary.hh>
 
-std::string QPDF::qpdf_version = "5.1.0";
+std::string QPDF::qpdf_version = "5.1.1";
 
 static char const* EMPTY_PDF =
     "%PDF-1.3\n"
@@ -1753,6 +1753,11 @@ QPDF::reserveObjects(QPDFObjectHandle foreign, ObjCopier& obj_copier,
         if (obj_copier.visiting.find(foreign_og) != obj_copier.visiting.end())
         {
             QTC::TC("qpdf", "QPDF loop reserving objects");
+            return;
+        }
+        if (obj_copier.object_map.find(foreign_og) != obj_copier.object_map.end())
+        {
+            QTC::TC("qpdf", "QPDF already reserved object");
             return;
         }
         QTC::TC("qpdf", "QPDF copy indirect");
