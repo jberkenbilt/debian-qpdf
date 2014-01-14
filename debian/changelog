@@ -1,8 +1,14 @@
+qpdf (5.1.1-1) unstable; urgency=medium
+
+  * New upstream release.
+
+ -- Jay Berkenbilt <qjb@debian.org>  Tue, 14 Jan 2014 15:51:35 -0500
+
 qpdf (5.1.0-1) unstable; urgency=medium
 
   * New upstream release
   * Use dh-autoreconf (Closes: #732093)
-  * Update stanards to 3.9.5.  No changes required.
+  * Update standards to 3.9.5.  No changes required.
 
  -- Jay Berkenbilt <qjb@debian.org>  Tue, 17 Dec 2013 15:50:11 -0500
 
