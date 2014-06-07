@@ -2051,11 +2051,14 @@ QPDFWriter::prepareFileForWrite()
 	{
             bool is_stream = false;
             bool is_root = false;
+            bool filterable = false;
 	    QPDFObjectHandle dict = node;
 	    if (node.isStream())
 	    {
                 is_stream = true;
 		dict = node.getDict();
+                // See whether we are able to filter this stream.
+                filterable = node.pipeStreamData(0, true, false, false);
 	    }
             else if (pdf.getRoot().getObjectID() == node.getObjectID())
             {
@@ -2073,8 +2076,9 @@ QPDFWriter::prepareFileForWrite()
                 {
                     if (oh.isIndirect() &&
                         ((key == "/Length") ||
-                         (key == "/Filter") ||
-                         (key == "/DecodeParms")))
+                         (filterable &&
+                          ((key == "/Filter") ||
+                           (key == "/DecodeParms")))))
                     {
                         QTC::TC("qpdf", "QPDFWriter make stream key direct");
                         add_to_queue = false;
@@ -2447,7 +2451,7 @@ QPDFWriter::writeXRefStream(int xref_id, int max_id, qpdf_offset_t max_offset,
     qpdf_offset_t space_before_zero = xref_offset - 1;
 
     // field 1 contains offsets and object stream identifiers
-    int f1_size = std::max(bytesNeeded(max_offset),
+    int f1_size = std::max(bytesNeeded(max_offset + hint_length),
 			   bytesNeeded(max_id));
 
     // field 2 contains object stream indices
