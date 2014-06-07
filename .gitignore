@@ -1,3 +1,5 @@
+*.pdb
+.lineno
 aclocal.m4
 autoconf.mk
 autofiles.zip
@@ -11,6 +13,7 @@ doc/qpdf-manual.pdf
 doc/qpdf.1
 doc/zlib-flate.1
 examples/build/
+external-libs
 libqpdf.pc
 libqpdf/build/
 libqpdf/qpdf/qpdf-config.h

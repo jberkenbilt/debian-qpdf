@@ -1,3 +1,24 @@
+2014-06-07  Jay Berkenbilt  <ejb@ql.org>
+
+	* 5.1.2: release
+
+	* MS Visual C++ build: explicitly target Windows 5.0.1 (XP)
+
+	* New example program: pdf-split-pages: efficiently split PDF
+	files into individual pages.
+
+	* Bug fix: don't fail on files that contain streams where /Filter
+	or /DecodeParms references a stream. Before, qpdf would try to
+	convert these to direct objects, which would fail because of the
+	stream.
+
+2014-02-22  Jay Berkenbilt  <ejb@ql.org>
+
+	* Bug fix: if the last object in the first part of a linearized
+	file had an offset that was below 65536 by less than the size of
+	the hint stream, the xref stream was invalid and the resulting file
+	is not usable.  This is now fixed.
+
 2014-01-14  Jay Berkenbilt  <ejb@ql.org>
 
 	* 5.1.1: release
