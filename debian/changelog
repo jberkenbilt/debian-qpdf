@@ -1,3 +1,11 @@
+qpdf (5.1.2-3) experimental; urgency=medium
+
+  * Handle broken PDF files with missing /Type keys in their page
+    dictionary nodes. (Uploaded to experimental during debian freeze --
+    this is production-ready.)
+
+ -- Jay Berkenbilt <qjb@debian.org>  Mon, 29 Dec 2014 10:27:12 -0500
+
 qpdf (5.1.2-2) unstable; urgency=medium
 
   * Properly handle pages with no /Content in the page dictionary,
