@@ -1,3 +1,11 @@
+qpdf (5.1.3-1) unstable; urgency=medium
+
+  * New upstream release. Includes all previous patches.
+  * Update standards to 3.9.6. No changes required.
+  * Fix typo in package description. (Closes: #779192)
+
+ -- Jay Berkenbilt <qjb@debian.org>  Sun, 24 May 2015 17:47:05 -0400
+
 qpdf (5.1.2-3) experimental; urgency=medium
 
   * Handle broken PDF files with missing /Type keys in their page
