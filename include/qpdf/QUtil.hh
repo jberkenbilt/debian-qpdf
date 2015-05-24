@@ -1,4 +1,4 @@
-// Copyright (c) 2005-2014 Jay Berkenbilt
+// Copyright (c) 2005-2015 Jay Berkenbilt
 //
 // This file is part of qpdf.  This software may be distributed under
 // the terms of version 2 of the Artistic License which may be found
@@ -14,6 +14,7 @@
 #include <list>
 #include <stdexcept>
 #include <stdio.h>
+#include <time.h>
 
 class RandomDataProvider;
 
