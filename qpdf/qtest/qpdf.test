@@ -199,7 +199,7 @@ $td->runtest("remove page we don't have",
 show_ntests();
 # ----------
 $td->notify("--- Miscellaneous Tests ---");
-$n_tests += 72;
+$n_tests += 76;
 
 $td->runtest("qpdf version",
 	     {$td->COMMAND => "qpdf --version"},
@@ -553,6 +553,23 @@ $td->runtest("stream with indirect decode parms",
 $td->runtest("check file",
              {$td->FILE => "a.pdf"},
              {$td->FILE => "indirect-decode-parms-out.pdf"});
+
+$td->runtest("handle page no with contents",
+             {$td->COMMAND => "qpdf --show-pages page-no-content.pdf"},
+             {$td->FILE => "page-no-content.out", $td->EXIT_STATUS => 0},
+             $td->NORMALIZE_NEWLINES);
+$td->runtest("no type key for page nodes",
+             {$td->COMMAND => "qpdf --check no-pages-types.pdf"},
+             {$td->FILE => "no-pages-types.out", $td->EXIT_STATUS => 0},
+             $td->NORMALIZE_NEWLINES);
+$td->runtest("ensure arguments to R are direct",
+             {$td->COMMAND => "qpdf --check indirect-r-arg.pdf"},
+             {$td->FILE => "indirect-r-arg.out", $td->EXIT_STATUS => 2},
+             $td->NORMALIZE_NEWLINES);
+$td->runtest("detect loops in pages structure",
+             {$td->COMMAND => "qpdf --check pages-loop.pdf"},
+             {$td->FILE => "pages-loop.out", $td->EXIT_STATUS => 2},
+             $td->NORMALIZE_NEWLINES);
 
 show_ntests();
 # ----------
@@ -1976,7 +1993,7 @@ compare_pdfs("inline-images-cr.pdf", "a.pdf");
 show_ntests();
 # ----------
 $td->notify("--- fix-qdf Tests ---");
-$n_tests += 4;
+$n_tests += 5;
 
 for (my $n = 1; $n <= 2; ++$n)
 {
@@ -1990,6 +2007,10 @@ for (my $n = 1; $n <= 2; ++$n)
 		 {$td->FILE => "fix$n.qdf.out",
 		  $td->EXIT_STATUS => 0});
 }
+$td->runtest("fix-qdf with big object stream", # > 255 objects in a stream
+             {$td->COMMAND => "fix-qdf big-ostream.pdf"},
+             {$td->FILE => "big-ostream.pdf",
+              $td->EXIT_STATUS => 0});
 
 show_ntests();
 # ----------

@@ -56,14 +56,45 @@ void
 QPDF::getAllPagesInternal(QPDFObjectHandle cur_pages,
 			  std::vector<QPDFObjectHandle>& result)
 {
-    std::string type = cur_pages.getKey("/Type").getName();
+    std::set<QPDFObjGen> visited;
+    getAllPagesInternal2(cur_pages, result, visited);
+}
+
+void
+QPDF::getAllPagesInternal2(QPDFObjectHandle cur_pages,
+			  std::vector<QPDFObjectHandle>& result,
+                          std::set<QPDFObjGen>& visited)
+{
+    QPDFObjGen this_og = cur_pages.getObjGen();
+    if (visited.count(this_og) > 0)
+    {
+        throw QPDFExc(
+            qpdf_e_pages, this->file->getName(),
+            this->last_object_description, 0,
+            "Loop detected in /Pages structure (getAllPages)");
+    }
+    visited.insert(this_og);
+    std::string type;
+    QPDFObjectHandle type_key = cur_pages.getKey("/Type");
+    if (type_key.isName())
+    {
+        type = type_key.getName();
+    }
+    else if (cur_pages.hasKey("/Kids"))
+    {
+        type = "/Pages";
+    }
+    else
+    {
+        type = "/Page";
+    }
     if (type == "/Pages")
     {
 	QPDFObjectHandle kids = cur_pages.getKey("/Kids");
 	int n = kids.getArrayNItems();
 	for (int i = 0; i < n; ++i)
 	{
-	    getAllPagesInternal(kids.getArrayItem(i), result);
+	    getAllPagesInternal2(kids.getArrayItem(i), result, visited);
 	}
     }
     else if (type == "/Page")
@@ -77,6 +108,7 @@ QPDF::getAllPagesInternal(QPDFObjectHandle cur_pages,
 		      this->file->getLastOffset(),
 		      "invalid Type " + type + " in page tree");
     }
+    visited.erase(this_og);
 }
 
 void

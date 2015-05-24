@@ -1,3 +1,49 @@
+2015-05-24  Jay Berkenbilt  <ejb@ql.org>
+
+	* 5.1.3: release
+
+	* Bug fix: fix-qdf was not handling object streams with more than
+	255 objects in them.
+
+	* Handle Microsoft crypt provider initialization properly for case
+	where no keys have been previously created, such as in a fresh
+	Windows installation.
+
+	* Include time.h in QUtil.hh for time_t
+
+2015-02-21  Jay Berkenbilt  <ejb@ql.org>
+
+	* Detect loops in Pages structure. Thanks to Gynvael Coldwind and
+	Mateusz Jurczyk of the Google Security Team for providing a sample
+	file with this problem.
+
+	* Prevent buffer overrun when converting a password to an
+	encryption key. Thanks to Gynvael Coldwind and Mateusz Jurczyk of
+	the Google Security Team for providing a sample file with this
+	problem.
+
+	* Ensure that arguments to "R" when parsing the file are direct
+	objects before trying to resolve them. This prevents specially
+	crafted files from causing qpdf to crash with a stack overflow.
+	Thanks to Gynvael Coldwind and Mateusz Jurczyk of the Google
+	Security Team for providing a sample file with this problem.
+
+2014-12-01  Jay Berkenbilt  <ejb@ql.org>
+
+	* Some broken PDF files lack the required /Type key for /Page and
+	/Pages nodes in the page dictionary. QPDF now uses other methods
+	to figure out what kind of node it is looking at so that it can
+	handle those files. Original reported at
+	https://bugs.launchpad.net/ubuntu/+source/qpdf/+bug/1397413
+
+2014-11-14  Jay Berkenbilt  <ejb@ql.org>
+
+	* Bug fix: QPDFObjectHandle::getPageContents() no longer throws an
+	exception when called on a page that has no /Contents key in its
+	dictionary. This is allowed by the spec, and some software
+	packages generate files like this for pages that are blank in the
+	original.
+
 2014-06-07  Jay Berkenbilt  <ejb@ql.org>
 
 	* 5.1.2: release
