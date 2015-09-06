@@ -6,7 +6,67 @@ It was downloaded from http://sourceforge.net/projects/qpdf/
 Upstream Maintainers:
   Jay Berkenbilt <ejb@ql.org>
 
-Copyright (C) 2005-2013 Jay Berkenbilt
+For these files:
+
+libqpdf/sph/sph_sha2.h
+libqpdf/sph/sph_types.h
+libqpdf/sph/md_helper.c
+libqpdf/sha2big.c
+libqpdf/sha2.c
+
+the following copyright applies:
+
+----------------------------------------------------------------------
+Copyright (c) 2007-2010  Projet RNRT SAPHIR
+
+Permission is hereby granted, free of charge, to any person obtaining
+a copy of this software and associated documentation files (the
+"Software"), to deal in the Software without restriction, including
+without limitation the rights to use, copy, modify, merge, publish,
+distribute, sublicense, and/or sell copies of the Software, and to
+permit persons to whom the Software is furnished to do so, subject to
+the following conditions:
+
+The above copyright notice and this permission notice shall be
+included in all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+----------------------------------------------------------------------
+
+For the file libqpdf/MD5.cc, the following copyright applies:
+
+----------------------------------------------------------------------
+Copyright (C) 1991-2, RSA Data Security, Inc. Created 1991. All
+rights reserved.
+
+License to copy and use this software is granted provided that it
+is identified as the "RSA Data Security, Inc. MD5 Message-Digest
+Algorithm" in all material mentioning or referencing this software
+or this function.
+
+License is also granted to make and use derivative works provided
+that such works are identified as "derived from the RSA Data
+Security, Inc. MD5 Message-Digest Algorithm" in all material
+mentioning or referencing the derived work.
+
+RSA Data Security, Inc. makes no representations concerning either
+the merchantability of this software or the suitability of this
+software for any particular purpose. It is provided "as is"
+without express or implied warranty of any kind.
+
+These notices must be retained in any copies of any part of this
+documentation and/or software.
+----------------------------------------------------------------------
+
+For everything else, the following copyright applies:
+
+Copyright (C) 2005-2015 Jay Berkenbilt
 
 This software is distributed under the terms of version 2.0 of the
 Artistic license, the text of which appears below.
