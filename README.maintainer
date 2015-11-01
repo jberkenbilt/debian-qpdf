@@ -69,8 +69,9 @@ Release Reminders
  * Check TODO file to make sure all planned items for the release are
    done or retargeted.
 
- * Each year, update copyright notices.  Just do a case-insensitive
-   search for copyright.  Last updated: 2015.
+ * Each year, update copyright notices. Just do a case-insensitive
+   search for copyright. Don't forget copyright in manual. Also update
+   debian copyright in debian package. Last updated: 2015.
 
  * To construct a source distribution from a pristine checkout,
    make_dist does the following:
@@ -110,7 +111,6 @@ Release Reminders
 
  * Remember to update the web page including putting new documentation
    in the "files" subdirectory of the website on sourceforge.net.
-   Linearize the PDF version of the manual when copying it there.
 
  * Create a tag in the version control system, and make backups of the
    actual releases.  With git, use git tag -s to create a signed tag:

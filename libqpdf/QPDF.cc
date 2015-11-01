@@ -20,7 +20,7 @@
 #include <qpdf/QPDF_Null.hh>
 #include <qpdf/QPDF_Dictionary.hh>
 
-std::string QPDF::qpdf_version = "5.1.3";
+std::string QPDF::qpdf_version = "5.2.0";
 
 static char const* EMPTY_PDF =
     "%PDF-1.3\n"
@@ -488,7 +488,7 @@ qpdf_offset_t
 QPDF::read_xrefTable(qpdf_offset_t xref_offset)
 {
     PCRE xref_first_re("^\\s*(\\d+)\\s+(\\d+)\\s*");
-    PCRE xref_entry_re("(?s:(^\\d{10}) (\\d{5}) ([fn])[ \r\n]{2}$)");
+    PCRE xref_entry_re("(?s:(^\\d{10}) (\\d{5}) ([fn])\\s*$)");
 
     std::vector<QPDFObjGen> deleted_items;
 
@@ -512,8 +512,6 @@ QPDF::read_xrefTable(qpdf_offset_t xref_offset)
                    SEEK_SET);
 	int obj = atoi(m1.getMatch(1).c_str());
 	int num = atoi(m1.getMatch(2).c_str());
-	static int const xref_entry_size = 20;
-	char xref_entry[xref_entry_size + 1];
 	for (int i = obj; i < obj + num; ++i)
 	{
 	    if (i == 0)
@@ -521,9 +519,8 @@ QPDF::read_xrefTable(qpdf_offset_t xref_offset)
 		// This is needed by checkLinearization()
 		this->first_xref_item_offset = this->file->tell();
 	    }
-	    memset(xref_entry, 0, sizeof(xref_entry));
-	    this->file->read(xref_entry, xref_entry_size);
-	    PCRE::Match m2 = xref_entry_re.match(xref_entry);
+	    std::string xref_entry = this->file->readLine(30);
+	    PCRE::Match m2 = xref_entry_re.match(xref_entry.c_str());
 	    if (! m2)
 	    {
 		QTC::TC("qpdf", "QPDF invalid xref entry");
@@ -534,7 +531,7 @@ QPDF::read_xrefTable(qpdf_offset_t xref_offset)
 		    QUtil::int_to_string(i) + ")");
 	    }
 
-            // For xref_table, these will always be small enough to be ints 
+            // For xref_table, these will always be small enough to be ints
 	    qpdf_offset_t f1 = QUtil::string_to_ll(m2.getMatch(1).c_str());
 	    int f2 = atoi(m2.getMatch(2).c_str());
 	    char type = m2.getMatch(3).at(0);
