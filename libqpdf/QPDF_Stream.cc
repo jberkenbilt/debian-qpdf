@@ -9,6 +9,8 @@
 #include <qpdf/Pl_ASCII85Decoder.hh>
 #include <qpdf/Pl_ASCIIHexDecoder.hh>
 #include <qpdf/Pl_LZWDecoder.hh>
+#include <qpdf/Pl_RunLength.hh>
+#include <qpdf/Pl_DCT.hh>
 #include <qpdf/Pl_Count.hh>
 
 #include <qpdf/QTC.hh>
@@ -82,10 +84,10 @@ QPDF_Stream::getDict() const
 }
 
 PointerHolder<Buffer>
-QPDF_Stream::getStreamData()
+QPDF_Stream::getStreamData(qpdf_stream_decode_level_e decode_level)
 {
     Pl_Buffer buf("stream data buffer");
-    if (! pipeStreamData(&buf, true, false, false))
+    if (! pipeStreamData(&buf, 0, decode_level, false))
     {
 	throw std::logic_error("getStreamData called on unfilterable stream");
     }
@@ -97,7 +99,7 @@ PointerHolder<Buffer>
 QPDF_Stream::getRawStreamData()
 {
     Pl_Buffer buf("stream data buffer");
-    pipeStreamData(&buf, false, false, false);
+    pipeStreamData(&buf, 0, qpdf_dl_none, false);
     QTC::TC("qpdf", "QPDF_Stream getRawStreamData");
     return buf.getBuffer();
 }
@@ -178,6 +180,8 @@ QPDF_Stream::understandDecodeParams(
 
 bool
 QPDF_Stream::filterable(std::vector<std::string>& filters,
+                        bool& specialized_compression,
+                        bool& lossy_compression,
 			int& predictor, int& columns,
 			bool& early_code_change)
 {
@@ -235,9 +239,10 @@ QPDF_Stream::filterable(std::vector<std::string>& filters,
     if (! filters_okay)
     {
 	QTC::TC("qpdf", "QPDF_Stream invalid filter");
-	throw QPDFExc(qpdf_e_damaged_pdf, qpdf->getFilename(),
-		      "", this->offset,
-		      "stream filter type is not name or array");
+	warn(QPDFExc(qpdf_e_damaged_pdf, qpdf->getFilename(),
+                     "", this->offset,
+                     "stream filter type is not name or array"));
+        return false;
     }
 
     bool filterable = true;
@@ -253,11 +258,20 @@ QPDF_Stream::filterable(std::vector<std::string>& filters,
 	    filter = filter_abbreviations[filter];
 	}
 
-	if (! ((filter == "/Crypt") ||
-	       (filter == "/FlateDecode") ||
-	       (filter == "/LZWDecode") ||
-	       (filter == "/ASCII85Decode") ||
-	       (filter == "/ASCIIHexDecode")))
+        if (filter == "/RunLengthDecode")
+        {
+            specialized_compression = true;
+        }
+        else if (filter == "/DCTDecode")
+        {
+            specialized_compression = true;
+            lossy_compression = true;
+        }
+	else if (! ((filter == "/Crypt") ||
+                    (filter == "/FlateDecode") ||
+                    (filter == "/LZWDecode") ||
+                    (filter == "/ASCII85Decode") ||
+                    (filter == "/ASCIIHexDecode")))
 	{
 	    filterable = false;
 	}
@@ -300,12 +314,16 @@ QPDF_Stream::filterable(std::vector<std::string>& filters,
     // /Filters was empty has been seen in the wild.
     if ((filters.size() != 0) && (decode_parms.size() != filters.size()))
     {
-        // We should just issue a warning and treat this as not
-        // filterable.
-	throw QPDFExc(qpdf_e_damaged_pdf, qpdf->getFilename(),
-		      "", this->offset,
-		      "stream /DecodeParms length is"
-                      " inconsistent with filters");
+        warn(QPDFExc(qpdf_e_damaged_pdf, qpdf->getFilename(),
+                     "", this->offset,
+                     "stream /DecodeParms length is"
+                     " inconsistent with filters"));
+        filterable = false;
+    }
+
+    if (! filterable)
+    {
+        return false;
     }
 
     for (unsigned int i = 0; i < filters.size(); ++i)
@@ -345,16 +363,35 @@ QPDF_Stream::filterable(std::vector<std::string>& filters,
 }
 
 bool
-QPDF_Stream::pipeStreamData(Pipeline* pipeline, bool filter,
-			    bool normalize, bool compress)
+QPDF_Stream::pipeStreamData(Pipeline* pipeline,
+                            unsigned long encode_flags,
+                            qpdf_stream_decode_level_e decode_level,
+                            bool suppress_warnings)
 {
     std::vector<std::string> filters;
     int predictor = 1;
     int columns = 0;
     bool early_code_change = true;
+    bool specialized_compression = false;
+    bool lossy_compression = false;
+    bool filter = (! ((encode_flags == 0) && (decode_level == qpdf_dl_none)));
     if (filter)
     {
-	filter = filterable(filters, predictor, columns, early_code_change);
+	filter = filterable(filters, specialized_compression, lossy_compression,
+                            predictor, columns, early_code_change);
+        if ((decode_level < qpdf_dl_all) && lossy_compression)
+        {
+            filter = false;
+        }
+        if ((decode_level < qpdf_dl_specialized) && specialized_compression)
+        {
+            filter = false;
+        }
+        QTC::TC("qpdf", "QPDF_Stream special filters",
+                (! filter) ? 0 :
+                lossy_compression ? 1 :
+                specialized_compression ? 2 :
+                3);
     }
 
     if (pipeline == 0)
@@ -369,14 +406,14 @@ QPDF_Stream::pipeStreamData(Pipeline* pipeline, bool filter,
 
     if (filter)
     {
-	if (compress)
+	if (encode_flags & qpdf_ef_compress)
 	{
 	    pipeline = new Pl_Flate("compress object stream", pipeline,
 				    Pl_Flate::a_deflate);
 	    to_delete.push_back(pipeline);
 	}
 
-	if (normalize)
+	if (encode_flags & qpdf_ef_normalize)
 	{
 	    pipeline = new Pl_QPDFTokenizer("normalizer", pipeline);
 	    to_delete.push_back(pipeline);
@@ -421,6 +458,17 @@ QPDF_Stream::pipeStreamData(Pipeline* pipeline, bool filter,
 					     early_code_change);
 		to_delete.push_back(pipeline);
 	    }
+	    else if (filter == "/RunLengthDecode")
+	    {
+		pipeline = new Pl_RunLength("runlength decode", pipeline,
+                                            Pl_RunLength::a_decode);
+		to_delete.push_back(pipeline);
+	    }
+	    else if (filter == "/DCTDecode")
+	    {
+		pipeline = new Pl_DCT("DCT decode", pipeline);
+		to_delete.push_back(pipeline);
+	    }
 	    else
 	    {
 		throw std::logic_error(
@@ -454,7 +502,9 @@ QPDF_Stream::pipeStreamData(Pipeline* pipeline, bool filter,
             else
             {
                 QTC::TC("qpdf", "QPDF_Stream provider length mismatch");
-                throw std::logic_error(
+                // This would be caused by programmer error on the
+                // part of a library user, not by invalid input data.
+                throw std::runtime_error(
                     "stream data provider for " +
                     QUtil::int_to_string(this->objid) + " " +
                     QUtil::int_to_string(this->generation) +
@@ -480,9 +530,13 @@ QPDF_Stream::pipeStreamData(Pipeline* pipeline, bool filter,
     else
     {
 	QTC::TC("qpdf", "QPDF_Stream pipe original stream data");
-	QPDF::Pipe::pipeStreamData(this->qpdf, this->objid, this->generation,
-				   this->offset, this->length,
-				   this->stream_dict, pipeline);
+	if (! QPDF::Pipe::pipeStreamData(this->qpdf, this->objid, this->generation,
+                                         this->offset, this->length,
+                                         this->stream_dict, pipeline,
+                                         suppress_warnings))
+        {
+            filter = false;
+        }
     }
 
     return filter;
@@ -541,4 +595,10 @@ QPDF_Stream::replaceDict(QPDFObjectHandle new_dict)
     {
         this->length = 0;
     }
+}
+
+void
+QPDF_Stream::warn(QPDFExc const& e)
+{
+    QPDF::Warner::warn(this->qpdf, e);
 }

@@ -37,6 +37,144 @@ struct PageSpec
     char const* range;
 };
 
+struct RotationSpec
+{
+    RotationSpec(int angle = 0, bool relative = false) :
+        angle(angle),
+        relative(relative)
+    {
+    }
+
+    int angle;
+    bool relative;
+};
+
+struct Options
+{
+    Options() :
+        password(0),
+        linearize(false),
+        decrypt(false),
+        split_pages(0),
+        verbose(false),
+        copy_encryption(false),
+        encryption_file(0),
+        encryption_file_password(0),
+        encrypt(false),
+        keylen(0),
+        r2_print(true),
+        r2_modify(true),
+        r2_extract(true),
+        r2_annotate(true),
+        r3_accessibility(true),
+        r3_extract(true),
+        r3_print(qpdf_r3p_full),
+        r3_modify(qpdf_r3m_all),
+        force_V4(false),
+        force_R5(false),
+        cleartext_metadata(false),
+        use_aes(false),
+        stream_data_set(false),
+        stream_data_mode(qpdf_s_compress),
+        compress_streams(true),
+        compress_streams_set(false),
+        decode_level(qpdf_dl_generalized),
+        decode_level_set(false),
+        normalize_set(false),
+        normalize(false),
+        suppress_recovery(false),
+        object_stream_set(false),
+        object_stream_mode(qpdf_o_preserve),
+        ignore_xref_streams(false),
+        qdf_mode(false),
+        preserve_unreferenced_objects(false),
+        newline_before_endstream(false),
+        show_npages(false),
+        deterministic_id(false),
+        static_id(false),
+        static_aes_iv(false),
+        suppress_original_object_id(false),
+        show_encryption(false),
+        check_linearization(false),
+        show_linearization(false),
+        show_xref(false),
+        show_obj(0),
+        show_gen(0),
+        show_raw_stream_data(false),
+        show_filtered_stream_data(false),
+        show_pages(false),
+        show_page_images(false),
+        check(false),
+        require_outfile(true),
+        infilename(0),
+        outfilename(0)
+    {
+    }
+
+    char const* password;
+    bool linearize;
+    bool decrypt;
+    int split_pages;
+    bool  verbose;
+    bool copy_encryption;
+    char const* encryption_file;
+    char const* encryption_file_password;
+    bool encrypt;
+    std::string user_password;
+    std::string owner_password;
+    int keylen;
+    bool r2_print;
+    bool r2_modify;
+    bool r2_extract;
+    bool r2_annotate;
+    bool r3_accessibility;
+    bool r3_extract;
+    qpdf_r3_print_e r3_print;
+    qpdf_r3_modify_e r3_modify;
+    bool force_V4;
+    bool force_R5;
+    bool cleartext_metadata;
+    bool use_aes;
+    bool stream_data_set;
+    qpdf_stream_data_e stream_data_mode;
+    bool compress_streams;
+    bool compress_streams_set;
+    qpdf_stream_decode_level_e decode_level;
+    bool decode_level_set;
+    bool normalize_set;
+    bool normalize;
+    bool suppress_recovery;
+    bool object_stream_set;
+    qpdf_object_stream_e object_stream_mode;
+    bool ignore_xref_streams;
+    bool qdf_mode;
+    bool preserve_unreferenced_objects;
+    bool newline_before_endstream;
+    std::string min_version;
+    std::string force_version;
+    bool show_npages;
+    bool deterministic_id;
+    bool static_id;
+    bool static_aes_iv;
+    bool suppress_original_object_id;
+    bool show_encryption;
+    bool check_linearization;
+    bool show_linearization;
+    bool show_xref;
+    int show_obj;
+    int show_gen;
+    bool show_raw_stream_data;
+    bool show_filtered_stream_data;
+    bool show_pages;
+    bool show_page_images;
+    bool check;
+    std::vector<PageSpec> page_specs;
+    std::map<std::string, RotationSpec> rotations;
+    bool require_outfile;
+    char const* infilename;
+    char const* outfilename;
+};
+
 struct QPDFPageData
 {
     QPDFPageData(QPDF* qpdf, char const* range);
@@ -69,6 +207,10 @@ Usage: qpdf [ options ] { infilename | --empty } [ outfilename ]\n\
 \n\
 An option summary appears below.  Please see the documentation for details.\n\
 \n\
+If @filename appears anywhere in the command-line, each line of filename\n\
+will be interpreted as an argument. No interpolation is done. Line\n\
+terminators are stripped. @- can be specified to read from standard input.\n\
+\n\
 Note that when contradictory options are provided, whichever options are\n\
 provided last take precedence.\n\
 \n\
@@ -77,6 +219,7 @@ Basic Options\n\
 -------------\n\
 \n\
 --password=password     specify a password for accessing encrypted files\n\
+--verbose               provide additional informational output\n\
 --linearize             generated a linearized (web optimized) file\n\
 --copy-encryption=file  copy encryption parameters from specified file\n\
 --encryption-file-password=password\n\
@@ -85,6 +228,9 @@ Basic Options\n\
 --encrypt options --    generate an encrypted file\n\
 --decrypt               remove any encryption on the file\n\
 --pages options --      select specific pages from one or more files\n\
+--rotate=[+|-]angle:page-range\n\
+                        rotate each specified page 90, 180, or 270 degrees\n\
+--split-pages=[n]       write each output page to a separate file\n\
 \n\
 If none of --copy-encryption, --encrypt or --decrypt are given, qpdf will\n\
 preserve any encryption data associated with a file.\n\
@@ -93,6 +239,25 @@ Note that when copying encryption parameters from another file, all\n\
 parameters will be copied, including both user and owner passwords, even\n\
 if the user password is used to open the other file.  This works even if\n\
 the owner password is not known.\n\
+\n\
+The --rotate flag can be used to specify pages to rotate pages either\n\
+90, 180, or 270 degrees. The page range is specified in the same\n\
+format as with the --pages option, described below. Repeat the option\n\
+to rotate multiple groups of pages. If the angle is preceded by + or -,\n\
+it is added to or subtracted from the original rotation. Otherwise, the\n\
+rotation angle is set explicitly to the given value.\n\
+\n\
+If --split-pages is specified, each page is written to a separate output\n\
+file. File names are generated as follows:\n\
+* If the string %d appears in the output file name, it is replaced with a\n\
+  zero-padded page range starting from 1\n\
+* Otherwise, if the output file name ends in .pdf (case insensitive), a\n\
+  zero-padded page range, preceded by a dash, is inserted before the file\n\
+  extension\n\
+* Otherwise, the file name is appended with a zero-padded page range\n\
+  preceded by a dash.\n\
+Page ranges are single page numbers for single-page groups or first-last\n\
+for multipage groups.\n\
 \n\
 \n\
 Encryption Options\n\
@@ -198,10 +363,14 @@ the output file.  Mostly these are of use only to people who are very\n\
 familiar with the PDF file format or who are PDF developers.\n\
 \n\
 --stream-data=option      controls transformation of stream data (below)\n\
+--compress-streams=[yn]   controls whether to compress streams on output\n\
+--decode-level=option     controls how to filter streams from the input\n\
 --normalize-content=[yn]  enables or disables normalization of content streams\n\
 --suppress-recovery       prevents qpdf from attempting to recover damaged files\n\
 --object-streams=mode     controls handing of object streams\n\
 --ignore-xref-streams     tells qpdf to ignore any cross-reference streams\n\
+--preserve-unreferenced   preserve unreferenced objects\n\
+--newline-before-endstream  always put a newline before endstream\n\
 --qdf                     turns on \"QDF mode\" (below)\n\
 --min-version=version     sets the minimum PDF version of the output file\n\
 --force-version=version   forces this to be the PDF version of the output file\n\
@@ -220,6 +389,19 @@ Values for object stream mode:\n\
   preserve                  preserve original object streams (default)\n\
   disable                   don't write any object streams\n\
   generate                  use object streams wherever possible\n\
+\n\
+When --compress-streams=n is specified, this overrides the default behavior\n\
+of qpdf, which is to attempt compress uncompressed streams. Setting\n\
+stream data mode to uncompress or preserve has the same effect.\n\
+\n\
+The --decode-level parameter may be set to one of the following values:\n\
+  none              do not decode streams\n\
+  generalized       decode streams compressed with generalized filters\n\
+                    including LZW, Flate, and the ASCII encoding filters.\n\
+  specialized       additionally decode streams with non-lossy specialized\n\
+                    filters including RunLength\n\
+  all               additionally decode streams with lossy filters\n\
+                    including DCT (JPEG)\n\
 \n\
 In qdf mode, by default, content normalization is turned on, and the\n\
 stream data mode is set to uncompress.\n\
@@ -848,7 +1030,7 @@ parse_pages_options(
         {
             break;
         }
-        if (cur_arg + 2 >= argc)
+        if (cur_arg + 1 >= argc)
         {
             usage("insufficient arguments to --pages");
         }
@@ -950,6 +1132,1118 @@ static void parse_version(std::string const& full_version_string,
     version = v;
 }
 
+static void read_args_from_file(char const* filename,
+                                std::vector<PointerHolder<char> >& new_argv)
+{
+    std::list<std::string> lines;
+    if (strcmp(filename, "-") == 0)
+    {
+        QTC::TC("qpdf", "qpdf read args from stdin");
+        lines = QUtil::read_lines_from_file(std::cin);
+    }
+    else
+    {
+        QTC::TC("qpdf", "qpdf read args from file");
+        lines = QUtil::read_lines_from_file(filename);
+    }
+    for (std::list<std::string>::iterator iter = lines.begin();
+         iter != lines.end(); ++iter)
+    {
+        new_argv.push_back(
+            PointerHolder<char>(true, QUtil::copy_string((*iter).c_str())));
+    }
+}
+
+static void handle_help_version(int argc, char* argv[])
+{
+    if ((argc == 2) &&
+        ((strcmp(argv[1], "--version") == 0) ||
+         (strcmp(argv[1], "-version") == 0)))
+    {
+        // make_dist looks for the line of code here that actually
+        // prints the version number, so read make_dist if you change
+        // anything other than the version number.  Don't worry about
+        // the numbers.  That's just a guide to 80 columns so that the
+        // help message looks right on an 80-column display.
+
+        //               1         2         3         4         5         6         7         8
+        //      12345678901234567890123456789012345678901234567890123456789012345678901234567890
+        std::cout
+            << whoami << " version " << QPDF::QPDFVersion() << std::endl
+            << "Copyright (c) 2005-2017 Jay Berkenbilt"
+            << std::endl
+            << "This software may be distributed under the terms of version 2 of the"
+            << std::endl
+            << "Artistic License which may be found in the source distribution.  It is"
+            << std::endl
+            << "provided \"as is\" without express or implied warranty."
+            << std::endl;
+        exit(0);
+    }
+
+    if ((argc == 2) &&
+        ((strcmp(argv[1], "--help") == 0) ||
+         (strcmp(argv[1], "-help") == 0)))
+    {
+        std::cout << help;
+        exit(0);
+    }
+}
+
+static void parse_rotation_parameter(Options& o, std::string const& parameter)
+{
+    std::string angle_str;
+    std::string range;
+    size_t colon = parameter.find(':');
+    int relative = 0;
+    if (colon != std::string::npos)
+    {
+        if (colon > 0)
+        {
+            angle_str = parameter.substr(0, colon);
+            if (angle_str.length() > 0)
+            {
+                char first = angle_str.at(0);
+                if ((first == '+') || (first == '-'))
+                {
+                    relative = ((first == '+') ? 1 : -1);
+                    angle_str = angle_str.substr(1);
+                }
+                else if (! QUtil::is_digit(angle_str.at(0)))
+                {
+                    angle_str = "";
+                }
+            }
+        }
+        if (colon + 1 < parameter.length())
+        {
+            range = parameter.substr(colon + 1);
+        }
+    }
+    bool range_valid = false;
+    try
+    {
+        parse_numrange(range.c_str(), 0, true);
+        range_valid = true;
+    }
+    catch (std::runtime_error)
+    {
+        // ignore
+    }
+    if (range_valid &&
+        ((angle_str == "90") || (angle_str == "180") || (angle_str == "270")))
+    {
+        int angle = atoi(angle_str.c_str());
+        if (relative == -1)
+        {
+            angle = -angle;
+        }
+        o.rotations[range] = RotationSpec(angle, (relative != 0));
+    }
+    else
+    {
+        usage("invalid parameter to rotate: " + parameter);
+    }
+}
+
+static void parse_options(int argc, char* argv[], Options& o)
+{
+    for (int i = 1; i < argc; ++i)
+    {
+        char const* arg = argv[i];
+        if ((arg[0] == '-') && (strcmp(arg, "-") != 0))
+        {
+            ++arg;
+            if (arg[0] == '-')
+            {
+                // Be lax about -arg vs --arg
+                ++arg;
+            }
+            char* parameter = const_cast<char*>(strchr(arg, '='));
+            if (parameter)
+            {
+                *parameter++ = 0;
+            }
+
+            // Arguments that start with space are undocumented and
+            // are for use by the test suite.
+            if (strcmp(arg, " test-numrange") == 0)
+            {
+                test_numrange(parameter);
+                exit(0);
+            }
+            else if (strcmp(arg, "password") == 0)
+            {
+                if (parameter == 0)
+                {
+                    usage("--password must be given as --password=pass");
+                }
+                o.password = parameter;
+            }
+            else if (strcmp(arg, "empty") == 0)
+            {
+                o.infilename = "";
+            }
+            else if (strcmp(arg, "linearize") == 0)
+            {
+                o.linearize = true;
+            }
+            else if (strcmp(arg, "encrypt") == 0)
+            {
+                parse_encrypt_options(
+                    argc, argv, ++i,
+                    o.user_password, o.owner_password, o.keylen,
+                    o.r2_print, o.r2_modify, o.r2_extract, o.r2_annotate,
+                    o.r3_accessibility, o.r3_extract, o.r3_print, o.r3_modify,
+                    o.force_V4, o.cleartext_metadata, o.use_aes, o.force_R5);
+                o.encrypt = true;
+                o.decrypt = false;
+                o.copy_encryption = false;
+            }
+            else if (strcmp(arg, "decrypt") == 0)
+            {
+                o.decrypt = true;
+                o.encrypt = false;
+                o.copy_encryption = false;
+            }
+            else if (strcmp(arg, "copy-encryption") == 0)
+            {
+                if (parameter == 0)
+                {
+                    usage("--copy-encryption must be given as"
+                          "--copy_encryption=file");
+                }
+                o.encryption_file = parameter;
+                o.copy_encryption = true;
+                o.encrypt = false;
+                o.decrypt = false;
+            }
+            else if (strcmp(arg, "encryption-file-password") == 0)
+            {
+                if (parameter == 0)
+                {
+                    usage("--encryption-file-password must be given as"
+                          "--encryption-file-password=password");
+                }
+                o.encryption_file_password = parameter;
+            }
+            else if (strcmp(arg, "pages") == 0)
+            {
+                o.page_specs = parse_pages_options(argc, argv, ++i);
+                if (o.page_specs.empty())
+                {
+                    usage("--pages: no page specifications given");
+                }
+            }
+            else if (strcmp(arg, "rotate") == 0)
+            {
+                parse_rotation_parameter(o, parameter);
+            }
+            else if (strcmp(arg, "stream-data") == 0)
+            {
+                if (parameter == 0)
+                {
+                    usage("--stream-data must be given as"
+                          "--stream-data=option");
+                }
+                o.stream_data_set = true;
+                if (strcmp(parameter, "compress") == 0)
+                {
+                    o.stream_data_mode = qpdf_s_compress;
+                }
+                else if (strcmp(parameter, "preserve") == 0)
+                {
+                    o.stream_data_mode = qpdf_s_preserve;
+                }
+                else if (strcmp(parameter, "uncompress") == 0)
+                {
+                    o.stream_data_mode = qpdf_s_uncompress;
+                }
+                else
+                {
+                    usage("invalid stream-data option");
+                }
+            }
+            else if (strcmp(arg, "compress-streams") == 0)
+            {
+                o.compress_streams_set = true;
+                if (parameter && (strcmp(parameter, "y") == 0))
+                {
+                    o.compress_streams = true;
+                }
+                else if (parameter && (strcmp(parameter, "n") == 0))
+                {
+                    o.compress_streams = false;
+                }
+                else
+                {
+                    usage("--compress-streams must be given as"
+                          " --compress-streams=[yn]");
+                }
+            }
+            else if (strcmp(arg, "decode-level") == 0)
+            {
+                if (parameter == 0)
+                {
+                    usage("--decode-level must be given as"
+                          "--decode-level=option");
+                }
+                o.decode_level_set = true;
+                if (strcmp(parameter, "none") == 0)
+                {
+                    o.decode_level = qpdf_dl_none;
+                }
+                else if (strcmp(parameter, "generalized") == 0)
+                {
+                    o.decode_level = qpdf_dl_generalized;
+                }
+                else if (strcmp(parameter, "specialized") == 0)
+                {
+                    o.decode_level = qpdf_dl_specialized;
+                }
+                else if (strcmp(parameter, "all") == 0)
+                {
+                    o.decode_level = qpdf_dl_all;
+                }
+                else
+                {
+                    usage("invalid stream-data option");
+                }
+            }
+            else if (strcmp(arg, "normalize-content") == 0)
+            {
+                o.normalize_set = true;
+                if (parameter && (strcmp(parameter, "y") == 0))
+                {
+                    o.normalize = true;
+                }
+                else if (parameter && (strcmp(parameter, "n") == 0))
+                {
+                    o.normalize = false;
+                }
+                else
+                {
+                    usage("--normalize-content must be given as"
+                          " --normalize-content=[yn]");
+                }
+            }
+            else if (strcmp(arg, "suppress-recovery") == 0)
+            {
+                o.suppress_recovery = true;
+            }
+            else if (strcmp(arg, "object-streams") == 0)
+            {
+                if (parameter == 0)
+                {
+                    usage("--object-streams must be given as"
+                          " --object-streams=option");
+                }
+                o.object_stream_set = true;
+                if (strcmp(parameter, "disable") == 0)
+                {
+                    o.object_stream_mode = qpdf_o_disable;
+                }
+                else if (strcmp(parameter, "preserve") == 0)
+                {
+                    o.object_stream_mode = qpdf_o_preserve;
+                }
+                else if (strcmp(parameter, "generate") == 0)
+                {
+                    o.object_stream_mode = qpdf_o_generate;
+                }
+                else
+                {
+                    usage("invalid object stream mode");
+                }
+            }
+            else if (strcmp(arg, "ignore-xref-streams") == 0)
+            {
+                o.ignore_xref_streams = true;
+            }
+            else if (strcmp(arg, "qdf") == 0)
+            {
+                o.qdf_mode = true;
+            }
+            else if (strcmp(arg, "preserve-unreferenced") == 0)
+            {
+                o.preserve_unreferenced_objects = true;
+            }
+            else if (strcmp(arg, "newline-before-endstream") == 0)
+            {
+                o.newline_before_endstream = true;
+            }
+            else if (strcmp(arg, "min-version") == 0)
+            {
+                if (parameter == 0)
+                {
+                    usage("--min-version be given as"
+                          "--min-version=version");
+                }
+                o.min_version = parameter;
+            }
+            else if (strcmp(arg, "force-version") == 0)
+            {
+                if (parameter == 0)
+                {
+                    usage("--force-version be given as"
+                          "--force-version=version");
+                }
+                o.force_version = parameter;
+            }
+            else if (strcmp(arg, "split-pages") == 0)
+            {
+                int n = ((parameter == 0) ? 1 : atoi(parameter));
+                o.split_pages = n;
+            }
+            else if (strcmp(arg, "verbose") == 0)
+            {
+                o.verbose = true;
+            }
+            else if (strcmp(arg, "deterministic-id") == 0)
+            {
+                o.deterministic_id = true;
+            }
+            else if (strcmp(arg, "static-id") == 0)
+            {
+                o.static_id = true;
+            }
+            else if (strcmp(arg, "static-aes-iv") == 0)
+            {
+                o.static_aes_iv = true;
+            }
+            else if (strcmp(arg, "no-original-object-ids") == 0)
+            {
+                o.suppress_original_object_id = true;
+            }
+            else if (strcmp(arg, "show-encryption") == 0)
+            {
+                o.show_encryption = true;
+                o.require_outfile = false;
+            }
+            else if (strcmp(arg, "check-linearization") == 0)
+            {
+                o.check_linearization = true;
+                o.require_outfile = false;
+            }
+            else if (strcmp(arg, "show-linearization") == 0)
+            {
+                o.show_linearization = true;
+                o.require_outfile = false;
+            }
+            else if (strcmp(arg, "show-xref") == 0)
+            {
+                o.show_xref = true;
+                o.require_outfile = false;
+            }
+            else if (strcmp(arg, "show-object") == 0)
+            {
+                if (parameter == 0)
+                {
+                    usage("--show-object must be given as"
+                          " --show-object=obj[,gen]");
+                }
+                char* obj = parameter;
+                char* gen = obj;
+                if ((gen = strchr(obj, ',')) != 0)
+                {
+                    *gen++ = 0;
+                    o.show_gen = atoi(gen);
+                }
+                o.show_obj = atoi(obj);
+                o.require_outfile = false;
+            }
+            else if (strcmp(arg, "raw-stream-data") == 0)
+            {
+                o.show_raw_stream_data = true;
+            }
+            else if (strcmp(arg, "filtered-stream-data") == 0)
+            {
+                o.show_filtered_stream_data = true;
+            }
+            else if (strcmp(arg, "show-npages") == 0)
+            {
+                o.show_npages = true;
+                o.require_outfile = false;
+            }
+            else if (strcmp(arg, "show-pages") == 0)
+            {
+                o.show_pages = true;
+                o.require_outfile = false;
+            }
+            else if (strcmp(arg, "with-images") == 0)
+            {
+                o.show_page_images = true;
+            }
+            else if (strcmp(arg, "check") == 0)
+            {
+                o.check = true;
+                o.require_outfile = false;
+            }
+            else
+            {
+                usage(std::string("unknown option --") + arg);
+            }
+        }
+        else if (o.infilename == 0)
+        {
+            o.infilename = arg;
+        }
+        else if (o.outfilename == 0)
+        {
+            o.outfilename = arg;
+        }
+        else
+        {
+            usage(std::string("unknown argument ") + arg);
+        }
+    }
+
+    if (o.infilename == 0)
+    {
+        usage("an input file name is required");
+    }
+    else if (o.require_outfile && (o.outfilename == 0))
+    {
+        usage("an output file name is required; use - for standard output");
+    }
+    else if ((! o.require_outfile) && (o.outfilename != 0))
+    {
+        usage("no output file may be given for this option");
+    }
+
+    if (o.require_outfile && (strcmp(o.outfilename, "-") == 0) &&
+        o.split_pages)
+    {
+        usage("--split-pages may not be used when writing to standard output");
+    }
+
+    if (QUtil::same_file(o.infilename, o.outfilename))
+    {
+        QTC::TC("qpdf", "qpdf same file error");
+        usage("input file and output file are the same; this would cause input file to be lost");
+    }
+}
+
+static void set_qpdf_options(QPDF& pdf, Options& o)
+{
+    if (o.ignore_xref_streams)
+    {
+        pdf.setIgnoreXRefStreams(true);
+    }
+    if (o.suppress_recovery)
+    {
+        pdf.setAttemptRecovery(false);
+    }
+}
+
+static void do_check(QPDF& pdf, Options& o, int& exit_code)
+{
+    // Code below may set okay to false but not to true.
+    // We assume okay until we prove otherwise but may
+    // continue to perform additional checks after finding
+    // errors.
+    bool okay = true;
+    std::cout << "checking " << o.infilename << std::endl;
+    try
+    {
+        int extension_level = pdf.getExtensionLevel();
+        std::cout << "PDF Version: " << pdf.getPDFVersion();
+        if (extension_level > 0)
+        {
+            std::cout << " extension level "
+                      << pdf.getExtensionLevel();
+        }
+        std::cout << std::endl;
+        show_encryption(pdf);
+        if (pdf.isLinearized())
+        {
+            std::cout << "File is linearized\n";
+            if (! pdf.checkLinearization())
+            {
+                // any errors are reported by checkLinearization()
+                okay = false;
+            }
+        }
+        else
+        {
+            std::cout << "File is not linearized\n";
+        }
+
+        // Write the file no nowhere, uncompressing
+        // streams.  This causes full file traversal and
+        // decoding of all streams we can decode.
+        QPDFWriter w(pdf);
+        Pl_Discard discard;
+        w.setOutputPipeline(&discard);
+        w.setDecodeLevel(qpdf_dl_all);
+        w.write();
+
+        // Parse all content streams
+        std::vector<QPDFObjectHandle> pages = pdf.getAllPages();
+        DiscardContents discard_contents;
+        int pageno = 0;
+        for (std::vector<QPDFObjectHandle>::iterator iter =
+                 pages.begin();
+             iter != pages.end(); ++iter)
+        {
+            ++pageno;
+            try
+            {
+                QPDFObjectHandle::parseContentStream(
+                    (*iter).getKey("/Contents"),
+                    &discard_contents);
+            }
+            catch (QPDFExc& e)
+            {
+                okay = false;
+                std::cout << "page " << pageno << ": "
+                          << e.what() << std::endl;
+            }
+        }
+    }
+    catch (std::exception& e)
+    {
+        std::cout << e.what() << std::endl;
+        okay = false;
+    }
+    if (okay)
+    {
+        if (! pdf.getWarnings().empty())
+        {
+            exit_code = EXIT_WARNING;
+        }
+        else
+        {
+            std::cout << "No syntax or stream encoding errors"
+                      << " found; the file may still contain"
+                      << std::endl
+                      << "errors that qpdf cannot detect"
+                      << std::endl;
+        }
+    }
+    else
+    {
+        exit_code = EXIT_ERROR;
+    }
+}
+
+static void do_show_obj(QPDF& pdf, Options& o, int& exit_code)
+{
+    QPDFObjectHandle obj = pdf.getObjectByID(o.show_obj, o.show_gen);
+    if (obj.isStream())
+    {
+        if (o.show_raw_stream_data || o.show_filtered_stream_data)
+        {
+            bool filter = o.show_filtered_stream_data;
+            if (filter &&
+                (! obj.pipeStreamData(0, 0, qpdf_dl_all)))
+            {
+                QTC::TC("qpdf", "qpdf unable to filter");
+                std::cerr << "Unable to filter stream data."
+                          << std::endl;
+                exit_code = EXIT_ERROR;
+            }
+            else
+            {
+                QUtil::binary_stdout();
+                Pl_StdioFile out("stdout", stdout);
+                obj.pipeStreamData(
+                    &out,
+                    (filter && o.normalize) ? qpdf_ef_normalize : 0,
+                    filter ? qpdf_dl_all : qpdf_dl_none);
+            }
+        }
+        else
+        {
+            std::cout
+                << "Object is stream.  Dictionary:" << std::endl
+                << obj.getDict().unparseResolved() << std::endl;
+        }
+    }
+    else
+    {
+        std::cout << obj.unparseResolved() << std::endl;
+    }
+}
+
+static void do_show_pages(QPDF& pdf, Options& o)
+{
+    if (o.show_page_images)
+    {
+        pdf.pushInheritedAttributesToPage();
+    }
+    std::vector<QPDFObjectHandle> pages = pdf.getAllPages();
+    int pageno = 0;
+    for (std::vector<QPDFObjectHandle>::iterator iter =
+             pages.begin();
+         iter != pages.end(); ++iter)
+    {
+        QPDFObjectHandle& page = *iter;
+        ++pageno;
+
+        std::cout << "page " << pageno << ": "
+                  << page.getObjectID() << " "
+                  << page.getGeneration() << " R" << std::endl;
+        if (o.show_page_images)
+        {
+            std::map<std::string, QPDFObjectHandle> images =
+                page.getPageImages();
+            if (! images.empty())
+            {
+                std::cout << "  images:" << std::endl;
+                for (std::map<std::string,
+                         QPDFObjectHandle>::iterator
+                         iter = images.begin();
+                     iter != images.end(); ++iter)
+                {
+                    std::string const& name = (*iter).first;
+                    QPDFObjectHandle image = (*iter).second;
+                    QPDFObjectHandle dict = image.getDict();
+                    int width =
+                        dict.getKey("/Width").getIntValue();
+                    int height =
+                        dict.getKey("/Height").getIntValue();
+                    std::cout << "    " << name << ": "
+                              << image.unparse()
+                              << ", " << width << " x " << height
+                              << std::endl;
+                }
+            }
+        }
+
+        std::cout << "  content:" << std::endl;
+        std::vector<QPDFObjectHandle> content =
+            page.getPageContents();
+        for (std::vector<QPDFObjectHandle>::iterator iter =
+                 content.begin();
+             iter != content.end(); ++iter)
+        {
+            std::cout << "    " << (*iter).unparse() << std::endl;
+        }
+    }
+}
+
+static void do_inspection(QPDF& pdf, Options& o)
+{
+    int exit_code = 0;
+    if (o.check)
+    {
+        do_check(pdf, o, exit_code);
+    }
+    if (o.show_npages)
+    {
+        QTC::TC("qpdf", "qpdf npages");
+        std::cout << pdf.getRoot().getKey("/Pages").
+            getKey("/Count").getIntValue() << std::endl;
+    }
+    if (o.show_encryption)
+    {
+        show_encryption(pdf);
+    }
+    if (o.check_linearization)
+    {
+        if (pdf.checkLinearization())
+        {
+            std::cout << o.infilename << ": no linearization errors"
+                      << std::endl;
+        }
+        else
+        {
+            exit_code = EXIT_ERROR;
+        }
+    }
+    if (o.show_linearization)
+    {
+        if (pdf.isLinearized())
+        {
+            pdf.showLinearizationData();
+        }
+        else
+        {
+            std::cout << o.infilename << " is not linearized"
+                      << std::endl;
+        }
+    }
+    if (o.show_xref)
+    {
+        pdf.showXRefTable();
+    }
+    if (o.show_obj > 0)
+    {
+        do_show_obj(pdf, o, exit_code);
+    }
+    if (o.show_pages)
+    {
+        do_show_pages(pdf, o);
+    }
+    if (exit_code)
+    {
+        exit(exit_code);
+    }
+}
+
+static void handle_page_specs(QPDF& pdf, Options& o,
+                              std::vector<PointerHolder<QPDF> >& page_heap)
+{
+    // Parse all page specifications and translate them into lists of
+    // actual pages.
+
+    // Create a QPDF object for each file that we may take pages from.
+    std::map<std::string, QPDF*> page_spec_qpdfs;
+    page_spec_qpdfs[o.infilename] = &pdf;
+    std::vector<QPDFPageData> parsed_specs;
+    for (std::vector<PageSpec>::iterator iter = o.page_specs.begin();
+         iter != o.page_specs.end(); ++iter)
+    {
+        PageSpec& page_spec = *iter;
+        if (page_spec_qpdfs.count(page_spec.filename) == 0)
+        {
+            // Open the PDF file and store the QPDF object. Throw a
+            // PointerHolder to the qpdf into a heap so that it
+            // survives through writing the output but gets cleaned up
+            // automatically at the end. Do not canonicalize the file
+            // name. Using two different paths to refer to the same
+            // file is a document workaround for duplicating a page.
+            // If you are using this an example of how to do this with
+            // the API, you can just create two different QPDF objects
+            // to the same underlying file with the same path to
+            // achieve the same affect.
+            PointerHolder<QPDF> qpdf_ph = new QPDF();
+            page_heap.push_back(qpdf_ph);
+            QPDF* qpdf = qpdf_ph.getPointer();
+            char const* password = page_spec.password;
+            if (o.encryption_file && (password == 0) &&
+                (page_spec.filename == o.encryption_file))
+            {
+                QTC::TC("qpdf", "qpdf pages encryption password");
+                password = o.encryption_file_password;
+            }
+            qpdf->processFile(
+                page_spec.filename.c_str(), password);
+            page_spec_qpdfs[page_spec.filename] = qpdf;
+        }
+
+        // Read original pages from the PDF, and parse the page range
+        // associated with this occurrence of the file.
+        parsed_specs.push_back(
+            QPDFPageData(page_spec_qpdfs[page_spec.filename],
+                         page_spec.range));
+    }
+
+    // Clear all pages out of the primary QPDF's pages tree but leave
+    // the objects in place in the file so they can be re-added
+    // without changing their object numbers. This enables other
+    // things in the original file, such as outlines, to continue to
+    // work.
+    std::vector<QPDFObjectHandle> orig_pages = pdf.getAllPages();
+    for (std::vector<QPDFObjectHandle>::iterator iter =
+             orig_pages.begin();
+         iter != orig_pages.end(); ++iter)
+    {
+        pdf.removePage(*iter);
+    }
+
+    // Add all the pages from all the files in the order specified.
+    // Keep track of any pages from the original file that we are
+    // selecting.
+    std::set<int> selected_from_orig;
+    for (std::vector<QPDFPageData>::iterator iter =
+             parsed_specs.begin();
+         iter != parsed_specs.end(); ++iter)
+    {
+        QPDFPageData& page_data = *iter;
+        for (std::vector<int>::iterator pageno_iter =
+                 page_data.selected_pages.begin();
+             pageno_iter != page_data.selected_pages.end();
+             ++pageno_iter)
+        {
+            // Pages are specified from 1 but numbered from 0 in the
+            // vector
+            int pageno = *pageno_iter - 1;
+            pdf.addPage(page_data.orig_pages.at(pageno), false);
+            if (page_data.qpdf == &pdf)
+            {
+                // This is a page from the original file. Keep track
+                // of the fact that we are using it.
+                selected_from_orig.insert(pageno);
+            }
+        }
+    }
+
+    // Delete page objects for unused page in primary. This prevents
+    // those objects from being preserved by being referred to from
+    // other places, such as the outlines dictionary.
+    for (size_t pageno = 0; pageno < orig_pages.size(); ++pageno)
+    {
+        if (selected_from_orig.count(pageno) == 0)
+        {
+            pdf.replaceObject(orig_pages.at(pageno).getObjGen(),
+                              QPDFObjectHandle::newNull());
+        }
+    }
+}
+
+static void handle_rotations(QPDF& pdf, Options& o)
+{
+    std::vector<QPDFObjectHandle> pages = pdf.getAllPages();
+    int npages = static_cast<int>(pages.size());
+    for (std::map<std::string, RotationSpec>::iterator iter =
+             o.rotations.begin();
+         iter != o.rotations.end(); ++iter)
+    {
+        std::string const& range = (*iter).first;
+        RotationSpec const& rspec = (*iter).second;
+        std::vector<int> to_rotate = parse_numrange(range.c_str(), npages);
+        for (std::vector<int>::iterator i2 = to_rotate.begin();
+             i2 != to_rotate.end(); ++i2)
+        {
+            int pageno = *i2 - 1;
+            if ((pageno >= 0) && (pageno < npages))
+            {
+                pages.at(pageno).rotatePage(rspec.angle, rspec.relative);
+            }
+        }
+    }
+}
+
+static void set_encryption_options(QPDF& pdf, Options& o, QPDFWriter& w)
+{
+    int R = 0;
+    if (o.keylen == 40)
+    {
+        R = 2;
+    }
+    else if (o.keylen == 128)
+    {
+        if (o.force_V4 || o.cleartext_metadata || o.use_aes)
+        {
+            R = 4;
+        }
+        else
+        {
+            R = 3;
+        }
+    }
+    else if (o.keylen == 256)
+    {
+        if (o.force_R5)
+        {
+            R = 5;
+        }
+        else
+        {
+            R = 6;
+        }
+    }
+    else
+    {
+        throw std::logic_error("bad encryption keylen");
+    }
+    if ((R > 3) && (o.r3_accessibility == false))
+    {
+        std::cerr << whoami
+                  << ": -accessibility=n is ignored for modern"
+                  << " encryption formats" << std::endl;
+    }
+    switch (R)
+    {
+      case 2:
+        w.setR2EncryptionParameters(
+            o.user_password.c_str(), o.owner_password.c_str(),
+            o.r2_print, o.r2_modify, o.r2_extract, o.r2_annotate);
+        break;
+      case 3:
+        w.setR3EncryptionParameters(
+            o.user_password.c_str(), o.owner_password.c_str(),
+            o.r3_accessibility, o.r3_extract, o.r3_print, o.r3_modify);
+        break;
+      case 4:
+        w.setR4EncryptionParameters(
+            o.user_password.c_str(), o.owner_password.c_str(),
+            o.r3_accessibility, o.r3_extract, o.r3_print, o.r3_modify,
+            !o.cleartext_metadata, o.use_aes);
+        break;
+      case 5:
+        w.setR5EncryptionParameters(
+            o.user_password.c_str(), o.owner_password.c_str(),
+            o.r3_accessibility, o.r3_extract, o.r3_print, o.r3_modify,
+            !o.cleartext_metadata);
+        break;
+      case 6:
+        w.setR6EncryptionParameters(
+            o.user_password.c_str(), o.owner_password.c_str(),
+            o.r3_accessibility, o.r3_extract, o.r3_print, o.r3_modify,
+            !o.cleartext_metadata);
+        break;
+      default:
+        throw std::logic_error("bad encryption R value");
+        break;
+    }
+}
+
+static void set_writer_options(QPDF& pdf, Options& o, QPDFWriter& w)
+{
+    if (o.qdf_mode)
+    {
+        w.setQDFMode(true);
+    }
+    if (o.preserve_unreferenced_objects)
+    {
+        w.setPreserveUnreferencedObjects(true);
+    }
+    if (o.newline_before_endstream)
+    {
+        w.setNewlineBeforeEndstream(true);
+    }
+    if (o.normalize_set)
+    {
+        w.setContentNormalization(o.normalize);
+    }
+    if (o.stream_data_set)
+    {
+        w.setStreamDataMode(o.stream_data_mode);
+    }
+    if (o.compress_streams_set)
+    {
+        w.setCompressStreams(o.compress_streams);
+    }
+    if (o.decode_level_set)
+    {
+        w.setDecodeLevel(o.decode_level);
+    }
+    if (o.decrypt)
+    {
+        w.setPreserveEncryption(false);
+    }
+    if (o.deterministic_id)
+    {
+        w.setDeterministicID(true);
+    }
+    if (o.static_id)
+    {
+        w.setStaticID(true);
+    }
+    if (o.static_aes_iv)
+    {
+        w.setStaticAesIV(true);
+    }
+    if (o.suppress_original_object_id)
+    {
+        w.setSuppressOriginalObjectIDs(true);
+    }
+    if (o.copy_encryption)
+    {
+        QPDF encryption_pdf;
+        encryption_pdf.processFile(
+            o.encryption_file, o.encryption_file_password);
+        w.copyEncryptionParameters(encryption_pdf);
+    }
+    if (o.encrypt)
+    {
+        set_encryption_options(pdf, o, w);
+    }
+    if (o.linearize)
+    {
+        w.setLinearization(true);
+    }
+    if (o.object_stream_set)
+    {
+        w.setObjectStreamMode(o.object_stream_mode);
+    }
+    if (! o.min_version.empty())
+    {
+        std::string version;
+        int extension_level = 0;
+        parse_version(o.min_version, version, extension_level);
+        w.setMinimumPDFVersion(version, extension_level);
+    }
+    if (! o.force_version.empty())
+    {
+        std::string version;
+        int extension_level = 0;
+        parse_version(o.force_version, version, extension_level);
+        w.forcePDFVersion(version, extension_level);
+    }
+}
+
+static void write_outfile(QPDF& pdf, Options& o)
+{
+    if (o.split_pages)
+    {
+        // Generate output file pattern
+        std::string before;
+        std::string after;
+        size_t len = strlen(o.outfilename);
+        char* num_spot = strstr(const_cast<char*>(o.outfilename), "%d");
+        if (num_spot != 0)
+        {
+            QTC::TC("qpdf", "qpdf split-pages %d");
+            before = std::string(o.outfilename, (num_spot - o.outfilename));
+            after = num_spot + 2;
+        }
+        else if ((len >= 4) &&
+                 (QUtil::strcasecmp(o.outfilename + len - 4, ".pdf") == 0))
+        {
+            QTC::TC("qpdf", "qpdf split-pages .pdf");
+            before = std::string(o.outfilename, len - 4) + "-";
+            after = o.outfilename + len - 4;
+        }
+        else
+        {
+            QTC::TC("qpdf", "qpdf split-pages other");
+            before = std::string(o.outfilename) + "-";
+        }
+
+        std::vector<QPDFObjectHandle> const& pages = pdf.getAllPages();
+        int pageno_len = QUtil::int_to_string(pages.size()).length();
+        unsigned int num_pages = pages.size();
+        for (unsigned int i = 0; i < num_pages; i += o.split_pages)
+        {
+            unsigned int first = i + 1;
+            unsigned int last = i + o.split_pages;
+            if (last > num_pages)
+            {
+                last = num_pages;
+            }
+            QPDF outpdf;
+            outpdf.emptyPDF();
+            for (unsigned int pageno = first; pageno <= last; ++pageno)
+            {
+                QPDFObjectHandle page = pages.at(pageno - 1);
+                outpdf.addPage(page, false);
+            }
+            std::string page_range = QUtil::int_to_string(first, pageno_len);
+            if (o.split_pages > 1)
+            {
+                page_range += "-" + QUtil::int_to_string(last, pageno_len);
+            }
+            std::string outfile = before + page_range + after;
+            QPDFWriter w(outpdf, outfile.c_str());
+            set_writer_options(outpdf, o, w);
+            w.write();
+            if (o.verbose)
+            {
+                std::cout << whoami << ": wrote file " << outfile << std::endl;
+            }
+        }
+    }
+    else
+    {
+        if (strcmp(o.outfilename, "-") == 0)
+        {
+            o.outfilename = 0;
+        }
+        QPDFWriter w(pdf, o.outfilename);
+        set_writer_options(pdf, o, w);
+        w.write();
+        if (o.verbose && o.outfilename)
+        {
+            std::cout << whoami << ": wrote file "
+                      << o.outfilename << std::endl;
+        }
+    }
+}
+
 int main(int argc, char* argv[])
 {
     whoami = QUtil::getWhoami(argv[0]);
@@ -961,880 +2255,68 @@ int main(int argc, char* argv[])
 	whoami += 3;
     }
 
-    if ((argc == 2) &&
-	((strcmp(argv[1], "--version") == 0) ||
-	 (strcmp(argv[1], "-version") == 0)))
-    {
-	// make_dist looks for the line of code here that actually
-	// prints the version number, so read make_dist if you change
-	// anything other than the version number.  Don't worry about
-	// the numbers.  That's just a guide to 80 columns so that the
-	// help message looks right on an 80-column display.
+    handle_help_version(argc, argv);
 
-	//               1         2         3         4         5         6         7         8
-	//      12345678901234567890123456789012345678901234567890123456789012345678901234567890
-	std::cout
-	    << whoami << " version " << QPDF::QPDFVersion() << std::endl
-	    << "Copyright (c) 2005-2015 Jay Berkenbilt"
-	    << std::endl
-	    << "This software may be distributed under the terms of version 2 of the"
-	    << std::endl
-	    << "Artistic License which may be found in the source distribution.  It is"
-	    << std::endl
-	    << "provided \"as is\" without express or implied warranty."
-	    << std::endl;
-	exit(0);
-    }
-
-    if ((argc == 2) &&
-	((strcmp(argv[1], "--help") == 0) ||
-	 (strcmp(argv[1], "-help") == 0)))
-    {
-	std::cout << help;
-	exit(0);
-    }
-
-    char const* password = 0;
-    bool linearize = false;
-    bool decrypt = false;
-
-    bool copy_encryption = false;
-    char const* encryption_file = 0;
-    char const* encryption_file_password = 0;
-
-    bool encrypt = false;
-    std::string user_password;
-    std::string owner_password;
-    int keylen = 0;
-    bool r2_print = true;
-    bool r2_modify = true;
-    bool r2_extract = true;
-    bool r2_annotate = true;
-    bool r3_accessibility = true;
-    bool r3_extract = true;
-    qpdf_r3_print_e r3_print = qpdf_r3p_full;
-    qpdf_r3_modify_e r3_modify = qpdf_r3m_all;
-    bool force_V4 = false;
-    bool force_R5 = false;
-    bool cleartext_metadata = false;
-    bool use_aes = false;
-
-    bool stream_data_set = false;
-    qpdf_stream_data_e stream_data_mode = qpdf_s_compress;
-    bool normalize_set = false;
-    bool normalize = false;
-    bool suppress_recovery = false;
-    bool object_stream_set = false;
-    qpdf_object_stream_e object_stream_mode = qpdf_o_preserve;
-    bool ignore_xref_streams = false;
-    bool qdf_mode = false;
-    std::string min_version;
-    std::string force_version;
-
-    bool show_npages = false;
-    bool deterministic_id = false;
-    bool static_id = false;
-    bool static_aes_iv = false;
-    bool suppress_original_object_id = false;
-    bool show_encryption = false;
-    bool check_linearization = false;
-    bool show_linearization = false;
-    bool show_xref = false;
-    int show_obj = 0;
-    int show_gen = 0;
-    bool show_raw_stream_data = false;
-    bool show_filtered_stream_data = false;
-    bool show_pages = false;
-    bool show_page_images = false;
-    bool check = false;
-
-    std::vector<PageSpec> page_specs;
-
-    bool require_outfile = true;
-    char const* infilename = 0;
-    char const* outfilename = 0;
-
+    // Support reading arguments from files. Create a new argv. Ensure
+    // that argv itself as well as all its contents are automatically
+    // deleted by using PointerHolder objects to back the pointers in
+    // argv.
+    std::vector<PointerHolder<char> > new_argv;
+    new_argv.push_back(PointerHolder<char>(true, QUtil::copy_string(argv[0])));
     for (int i = 1; i < argc; ++i)
     {
-	char const* arg = argv[i];
-	if ((arg[0] == '-') && (strcmp(arg, "-") != 0))
-	{
-	    ++arg;
-	    if (arg[0] == '-')
-	    {
-		// Be lax about -arg vs --arg
-		++arg;
-	    }
-	    char* parameter = const_cast<char*>(strchr(arg, '='));
-	    if (parameter)
-	    {
-		*parameter++ = 0;
-	    }
+        if ((strlen(argv[i]) > 1) && (argv[i][0] == '@'))
+        {
+            read_args_from_file(1+argv[i], new_argv);
+        }
+        else
+        {
+            new_argv.push_back(
+                PointerHolder<char>(true, QUtil::copy_string(argv[i])));
+        }
+    }
+    PointerHolder<char*> argv_ph(true, new char*[1+new_argv.size()]);
+    argv = argv_ph.getPointer();
+    for (size_t i = 0; i < new_argv.size(); ++i)
+    {
+        argv[i] = new_argv.at(i).getPointer();
+    }
+    argc = static_cast<int>(new_argv.size());
+    argv[argc] = 0;
 
-            // Arguments that start with space are undocumented and
-            // are for use by the test suite.
-            if (strcmp(arg, " test-numrange") == 0)
-            {
-                test_numrange(parameter);
-                exit(0);
-            }
-            else if (strcmp(arg, "password") == 0)
-	    {
-		if (parameter == 0)
-		{
-		    usage("--password must be given as --password=pass");
-		}
-		password = parameter;
-	    }
-            else if (strcmp(arg, "empty") == 0)
-            {
-                infilename = "";
-            }
-	    else if (strcmp(arg, "linearize") == 0)
-	    {
-		linearize = true;
-	    }
-	    else if (strcmp(arg, "encrypt") == 0)
-	    {
-		parse_encrypt_options(
-		    argc, argv, ++i,
-		    user_password, owner_password, keylen,
-		    r2_print, r2_modify, r2_extract, r2_annotate,
-		    r3_accessibility, r3_extract, r3_print, r3_modify,
-		    force_V4, cleartext_metadata, use_aes, force_R5);
-		encrypt = true;
-                decrypt = false;
-                copy_encryption = false;
-	    }
-	    else if (strcmp(arg, "decrypt") == 0)
-	    {
-		decrypt = true;
-                encrypt = false;
-                copy_encryption = false;
-	    }
-            else if (strcmp(arg, "copy-encryption") == 0)
-            {
-		if (parameter == 0)
-		{
-		    usage("--copy-encryption must be given as"
-			  "--copy_encryption=file");
-		}
-                encryption_file = parameter;
-                copy_encryption = true;
-                encrypt = false;
-                decrypt = false;
-            }
-            else if (strcmp(arg, "encryption-file-password") == 0)
-            {
-		if (parameter == 0)
-		{
-		    usage("--encryption-file-password must be given as"
-			  "--encryption-file-password=password");
-		}
-                encryption_file_password = parameter;
-            }
-            else if (strcmp(arg, "pages") == 0)
-            {
-		page_specs = parse_pages_options(argc, argv, ++i);
-                if (page_specs.empty())
-                {
-                    usage("--pages: no page specifications given");
-                }
-            }
-	    else if (strcmp(arg, "stream-data") == 0)
-	    {
-		if (parameter == 0)
-		{
-		    usage("--stream-data must be given as"
-			  "--stream-data=option");
-		}
-		stream_data_set = true;
-		if (strcmp(parameter, "compress") == 0)
-		{
-		    stream_data_mode = qpdf_s_compress;
-		}
-		else if (strcmp(parameter, "preserve") == 0)
-		{
-		    stream_data_mode = qpdf_s_preserve;
-		}
-		else if (strcmp(parameter, "uncompress") == 0)
-		{
-		    stream_data_mode = qpdf_s_uncompress;
-		}
-		else
-		{
-		    usage("invalid stream-data option");
-		}
-	    }
-	    else if (strcmp(arg, "normalize-content") == 0)
-	    {
-		if ((parameter == 0) || (*parameter == '\0'))
-		{
-		    usage("--normalize-content must be given as"
-			  " --normalize-content=[yn]");
-		}
-		normalize_set = true;
-		normalize = (parameter[0] == 'y');
-	    }
-	    else if (strcmp(arg, "suppress-recovery") == 0)
-	    {
-		suppress_recovery = true;
-	    }
-	    else if (strcmp(arg, "object-streams") == 0)
-	    {
-		if (parameter == 0)
-		{
-		    usage("--object-streams must be given as"
-			  " --object-streams=option");
-		}
-		object_stream_set = true;
-		if (strcmp(parameter, "disable") == 0)
-		{
-		    object_stream_mode = qpdf_o_disable;
-		}
-		else if (strcmp(parameter, "preserve") == 0)
-		{
-		    object_stream_mode = qpdf_o_preserve;
-		}
-		else if (strcmp(parameter, "generate") == 0)
-		{
-		    object_stream_mode = qpdf_o_generate;
-		}
-		else
-		{
-		    usage("invalid object stream mode");
-		}
-	    }
-	    else if (strcmp(arg, "ignore-xref-streams") == 0)
-	    {
-		ignore_xref_streams = true;
-	    }
-	    else if (strcmp(arg, "qdf") == 0)
-	    {
-		qdf_mode = true;
-	    }
-	    else if (strcmp(arg, "min-version") == 0)
-	    {
-		if (parameter == 0)
-		{
-		    usage("--min-version be given as"
-			  "--min-version=version");
-		}
-		min_version = parameter;
-	    }
-	    else if (strcmp(arg, "force-version") == 0)
-	    {
-		if (parameter == 0)
-		{
-		    usage("--force-version be given as"
-			  "--force-version=version");
-		}
-		force_version = parameter;
-	    }
-	    else if (strcmp(arg, "deterministic-id") == 0)
-	    {
-		deterministic_id = true;
-	    }
-	    else if (strcmp(arg, "static-id") == 0)
-	    {
-		static_id = true;
-	    }
-	    else if (strcmp(arg, "static-aes-iv") == 0)
-	    {
-		static_aes_iv = true;
-	    }
-	    else if (strcmp(arg, "no-original-object-ids") == 0)
-	    {
-		suppress_original_object_id = true;
-	    }
-	    else if (strcmp(arg, "show-encryption") == 0)
-	    {
-		show_encryption = true;
-		require_outfile = false;
-	    }
-	    else if (strcmp(arg, "check-linearization") == 0)
-	    {
-		check_linearization = true;
-		require_outfile = false;
-	    }
-	    else if (strcmp(arg, "show-linearization") == 0)
-	    {
-		show_linearization = true;
-		require_outfile = false;
-	    }
-	    else if (strcmp(arg, "show-xref") == 0)
-	    {
-		show_xref = true;
-		require_outfile = false;
-	    }
-	    else if (strcmp(arg, "show-object") == 0)
-	    {
-		if (parameter == 0)
-		{
-		    usage("--show-object must be given as"
-			  " --show-object=obj[,gen]");
-		}
-		char* obj = parameter;
-		char* gen = obj;
-		if ((gen = strchr(obj, ',')) != 0)
-		{
-		    *gen++ = 0;
-		    show_gen = atoi(gen);
-		}
-		show_obj = atoi(obj);
-		require_outfile = false;
-	    }
-	    else if (strcmp(arg, "raw-stream-data") == 0)
-	    {
-		show_raw_stream_data = true;
-	    }
-	    else if (strcmp(arg, "filtered-stream-data") == 0)
-	    {
-		show_filtered_stream_data = true;
-	    }
-            else if (strcmp(arg, "show-npages") == 0)
-            {
-                show_npages = true;
-                require_outfile = false;
-            }
-	    else if (strcmp(arg, "show-pages") == 0)
-	    {
-		show_pages = true;
-		require_outfile = false;
-	    }
-	    else if (strcmp(arg, "with-images") == 0)
-	    {
-		show_page_images = true;
-	    }
-	    else if (strcmp(arg, "check") == 0)
-	    {
-		check = true;
-		require_outfile = false;
-	    }
-	    else
-	    {
-		usage(std::string("unknown option --") + arg);
-	    }
-	}
-	else if (infilename == 0)
-	{
-	    infilename = arg;
-	}
-	else if (outfilename == 0)
-	{
-	    outfilename = arg;
-	}
-	else
-	{
-	    usage(std::string("unknown argument ") + arg);
-	}
-    }
-
-    if (infilename == 0)
-    {
-	usage("an input file name is required");
-    }
-    else if (require_outfile && (outfilename == 0))
-    {
-	usage("an output file name is required; use - for standard output");
-    }
-    else if ((! require_outfile) && (outfilename != 0))
-    {
-	usage("no output file may be given for this option");
-    }
+    Options o;
+    parse_options(argc, argv, o);
 
     try
     {
 	QPDF pdf;
-        QPDF encryption_pdf;
-	if (ignore_xref_streams)
-	{
-	    pdf.setIgnoreXRefStreams(true);
-	}
-	if (suppress_recovery)
-	{
-	    pdf.setAttemptRecovery(false);
-	}
-        if (strcmp(infilename, "") == 0)
+        set_qpdf_options(pdf, o);
+        if (strcmp(o.infilename, "") == 0)
         {
             pdf.emptyPDF();
         }
         else
         {
-            pdf.processFile(infilename, password);
+            pdf.processFile(o.infilename, o.password);
         }
-	if (outfilename == 0)
+
+        std::vector<PointerHolder<QPDF> > page_heap;
+        if (! o.page_specs.empty())
+        {
+            handle_page_specs(pdf, o, page_heap);
+        }
+        if (! o.rotations.empty())
+        {
+            handle_rotations(pdf, o);
+        }
+
+	if (o.outfilename == 0)
 	{
-            if (show_npages)
-            {
-                QTC::TC("qpdf", "qpdf npages");
-                std::cout << pdf.getRoot().getKey("/Pages").
-                    getKey("/Count").getIntValue() << std::endl;
-            }
-	    if (show_encryption)
-	    {
-		::show_encryption(pdf);
-	    }
-	    if (check_linearization)
-	    {
-		if (pdf.checkLinearization())
-		{
-		    std::cout << infilename << ": no linearization errors"
-			      << std::endl;
-		}
-		else
-		{
-		    exit(EXIT_ERROR);
-		}
-	    }
-	    if (show_linearization)
-	    {
-		if (pdf.isLinearized())
-		{
-		    pdf.showLinearizationData();
-		}
-		else
-		{
-		    std::cout << infilename << " is not linearized"
-			      << std::endl;
-		}
-	    }
-	    if (show_xref)
-	    {
-		pdf.showXRefTable();
-	    }
-	    if (show_obj > 0)
-	    {
-		QPDFObjectHandle obj = pdf.getObjectByID(show_obj, show_gen);
-		if (obj.isStream())
-		{
-		    if (show_raw_stream_data || show_filtered_stream_data)
-		    {
-			bool filter = show_filtered_stream_data;
-			if (filter &&
-			    (! obj.pipeStreamData(0, true, false, false)))
-			{
-			    QTC::TC("qpdf", "qpdf unable to filter");
-			    std::cerr << "Unable to filter stream data."
-				      << std::endl;
-			    exit(EXIT_ERROR);
-			}
-			else
-			{
-			    QUtil::binary_stdout();
-			    Pl_StdioFile out("stdout", stdout);
-			    obj.pipeStreamData(&out, filter, normalize, false);
-			}
-		    }
-		    else
-		    {
-			std::cout
-			    << "Object is stream.  Dictionary:" << std::endl
-			    << obj.getDict().unparseResolved() << std::endl;
-		    }
-		}
-		else
-		{
-		    std::cout << obj.unparseResolved() << std::endl;
-		}
-	    }
-	    if (show_pages)
-	    {
-                if (show_page_images)
-                {
-                    pdf.pushInheritedAttributesToPage();
-                }
-		std::vector<QPDFObjectHandle> pages = pdf.getAllPages();
-		int pageno = 0;
-		for (std::vector<QPDFObjectHandle>::iterator iter =
-			 pages.begin();
-		     iter != pages.end(); ++iter)
-		{
-		    QPDFObjectHandle& page = *iter;
-		    ++pageno;
-
-		    std::cout << "page " << pageno << ": "
-			      << page.getObjectID() << " "
-			      << page.getGeneration() << " R" << std::endl;
-		    if (show_page_images)
-		    {
-			std::map<std::string, QPDFObjectHandle> images =
-			    page.getPageImages();
-			if (! images.empty())
-			{
-			    std::cout << "  images:" << std::endl;
-			    for (std::map<std::string,
-				     QPDFObjectHandle>::iterator
-				     iter = images.begin();
-				 iter != images.end(); ++iter)
-			    {
-				std::string const& name = (*iter).first;
-				QPDFObjectHandle image = (*iter).second;
-				QPDFObjectHandle dict = image.getDict();
-				int width =
-				    dict.getKey("/Width").getIntValue();
-				int height =
-				    dict.getKey("/Height").getIntValue();
-				std::cout << "    " << name << ": "
-					  << image.unparse()
-					  << ", " << width << " x " << height
-					  << std::endl;
-			    }
-			}
-		    }
-
-		    std::cout << "  content:" << std::endl;
-		    std::vector<QPDFObjectHandle> content =
-			page.getPageContents();
-		    for (std::vector<QPDFObjectHandle>::iterator iter =
-			     content.begin();
-			 iter != content.end(); ++iter)
-		    {
-			std::cout << "    " << (*iter).unparse() << std::endl;
-		    }
-		}
-	    }
-	    if (check)
-	    {
-                // Code below may set okay to false but not to true.
-                // We assume okay until we prove otherwise but may
-                // continue to perform additional checks after finding
-                // errors.
-		bool okay = true;
-		std::cout << "checking " << infilename << std::endl;
-		try
-		{
-                    int extension_level = pdf.getExtensionLevel();
-		    std::cout << "PDF Version: " << pdf.getPDFVersion();
-                    if (extension_level > 0)
-                    {
-                        std::cout << " extension level "
-                                  << pdf.getExtensionLevel();
-                    }
-                    std::cout << std::endl;
-		    ::show_encryption(pdf);
-		    if (pdf.isLinearized())
-		    {
-			std::cout << "File is linearized\n";
-			if (! pdf.checkLinearization())
-                        {
-                            // any errors are reported by checkLinearization()
-                            okay = false;
-                        }
-		    }
-		    else
-		    {
-			std::cout << "File is not linearized\n";
-                    }
-
-                    // Write the file no nowhere, uncompressing
-                    // streams.  This causes full file traversal and
-                    // decoding of all streams we can decode.
-                    QPDFWriter w(pdf);
-                    Pl_Discard discard;
-                    w.setOutputPipeline(&discard);
-                    w.setStreamDataMode(qpdf_s_uncompress);
-                    w.write();
-
-                    // Parse all content streams
-                    std::vector<QPDFObjectHandle> pages = pdf.getAllPages();
-                    DiscardContents discard_contents;
-                    int pageno = 0;
-                    for (std::vector<QPDFObjectHandle>::iterator iter =
-                             pages.begin();
-                         iter != pages.end(); ++iter)
-                    {
-                        ++pageno;
-                        try
-                        {
-                            QPDFObjectHandle::parseContentStream(
-                                (*iter).getKey("/Contents"),
-                                &discard_contents);
-                        }
-                        catch (QPDFExc& e)
-                        {
-                            okay = false;
-                            std::cout << "page " << pageno << ": "
-                                      << e.what() << std::endl;
-                        }
-                    }
-		}
-		catch (std::exception& e)
-		{
-		    std::cout << e.what() << std::endl;
-                    okay = false;
-		}
-		if (okay)
-		{
-		    if (! pdf.getWarnings().empty())
-		    {
-			exit(EXIT_WARNING);
-		    }
-		    else
-		    {
-			std::cout << "No syntax or stream encoding errors"
-				  << " found; the file may still contain"
-				  << std::endl
-				  << "errors that qpdf cannot detect"
-				  << std::endl;
-		    }
-		}
-                else
-                {
-                    exit(EXIT_ERROR);
-                }
-	    }
+            do_inspection(pdf, o);
 	}
 	else
 	{
-            std::vector<PointerHolder<QPDF> > page_heap;
-            if (! page_specs.empty())
-            {
-                // Parse all page specifications and translate them
-                // into lists of actual pages.
-
-                // Create a QPDF object for each file that we may take
-                // pages from.
-                std::map<std::string, QPDF*> page_spec_qpdfs;
-                page_spec_qpdfs[infilename] = &pdf;
-                std::vector<QPDFPageData> parsed_specs;
-                for (std::vector<PageSpec>::iterator iter = page_specs.begin();
-                     iter != page_specs.end(); ++iter)
-                {
-                    PageSpec& page_spec = *iter;
-                    if (page_spec_qpdfs.count(page_spec.filename) == 0)
-                    {
-                        // Open the PDF file and store the QPDF
-                        // object.  Throw a PointerHolder to the qpdf
-                        // into a heap so that it survives through
-                        // writing the output but gets cleaned up
-                        // automatically at the end.  Do not
-                        // canonicalize the file name.  Using two
-                        // different paths to refer to the same file
-                        // is a document workaround for duplicating a
-                        // page.  If you are using this an example of
-                        // how to do this with the API, you can just
-                        // create two different QPDF objects to the
-                        // same underlying file with the same path to
-                        // achieve the same affect.
-                        PointerHolder<QPDF> qpdf_ph = new QPDF();
-                        page_heap.push_back(qpdf_ph);
-                        QPDF* qpdf = qpdf_ph.getPointer();
-                        char const* password = page_spec.password;
-                        if (encryption_file && (password == 0) &&
-                            (page_spec.filename == encryption_file))
-                        {
-                            QTC::TC("qpdf", "qpdf pages encryption password");
-                            password = encryption_file_password;
-                        }
-                        qpdf->processFile(
-                            page_spec.filename.c_str(), password);
-                        page_spec_qpdfs[page_spec.filename] = qpdf;
-                    }
-
-                    // Read original pages from the PDF, and parse the
-                    // page range associated with this occurrence of
-                    // the file.
-                    parsed_specs.push_back(
-                        QPDFPageData(page_spec_qpdfs[page_spec.filename],
-                                     page_spec.range));
-                }
-
-                // Clear all pages out of the primary QPDF's pages
-                // tree but leave the objects in place in the file so
-                // they can be re-added without changing their object
-                // numbers.  This enables other things in the original
-                // file, such as outlines, to continue to work.
-                std::vector<QPDFObjectHandle> orig_pages = pdf.getAllPages();
-                for (std::vector<QPDFObjectHandle>::iterator iter =
-                         orig_pages.begin();
-                     iter != orig_pages.end(); ++iter)
-                {
-                    pdf.removePage(*iter);
-                }
-
-                // Add all the pages from all the files in the order
-                // specified.  Keep track of any pages from the
-                // original file that we are selecting.
-                std::set<int> selected_from_orig;
-                for (std::vector<QPDFPageData>::iterator iter =
-                         parsed_specs.begin();
-                     iter != parsed_specs.end(); ++iter)
-                {
-                    QPDFPageData& page_data = *iter;
-                    for (std::vector<int>::iterator pageno_iter =
-                             page_data.selected_pages.begin();
-                         pageno_iter != page_data.selected_pages.end();
-                         ++pageno_iter)
-                    {
-                        // Pages are specified from 1 but numbered
-                        // from 0 in the vector
-                        int pageno = *pageno_iter - 1;
-                        pdf.addPage(page_data.orig_pages.at(pageno), false);
-                        if (page_data.qpdf == &pdf)
-                        {
-                            // This is a page from the original file.
-                            // Keep track of the fact that we are
-                            // using it.
-                            selected_from_orig.insert(pageno);
-                        }
-                    }
-                }
-
-                // Delete page objects for unused page in primary.
-                // This prevents those objects from being preserved by
-                // being referred to from other places, such as the
-                // outlines dictionary.
-                for (size_t pageno = 0; pageno < orig_pages.size(); ++pageno)
-                {
-                    if (selected_from_orig.count(pageno) == 0)
-                    {
-                        pdf.replaceObject(orig_pages.at(pageno).getObjGen(),
-                                          QPDFObjectHandle::newNull());
-                    }
-                }
-            }
-
-	    if (strcmp(outfilename, "-") == 0)
-	    {
-		outfilename = 0;
-	    }
-	    QPDFWriter w(pdf, outfilename);
-	    if (qdf_mode)
-	    {
-		w.setQDFMode(true);
-	    }
-	    if (normalize_set)
-	    {
-		w.setContentNormalization(normalize);
-	    }
-	    if (stream_data_set)
-	    {
-		w.setStreamDataMode(stream_data_mode);
-	    }
-	    if (decrypt)
-	    {
-		w.setPreserveEncryption(false);
-	    }
-            if (deterministic_id)
-            {
-                w.setDeterministicID(true);
-            }
-	    if (static_id)
-	    {
-		w.setStaticID(true);
-	    }
-	    if (static_aes_iv)
-	    {
-		w.setStaticAesIV(true);
-	    }
-	    if (suppress_original_object_id)
-	    {
-		w.setSuppressOriginalObjectIDs(true);
-	    }
-            if (copy_encryption)
-            {
-                encryption_pdf.processFile(
-                    encryption_file, encryption_file_password);
-                w.copyEncryptionParameters(encryption_pdf);
-            }
-	    if (encrypt)
-	    {
-                int R = 0;
-		if (keylen == 40)
-		{
-                    R = 2;
-		}
-		else if (keylen == 128)
-		{
-		    if (force_V4 || cleartext_metadata || use_aes)
-		    {
-                        R = 4;
-		    }
-		    else
-		    {
-                        R = 3;
-		    }
-		}
-		else if (keylen == 256)
-		{
-		    if (force_R5)
-                    {
-                        R = 5;
-		    }
-		    else
-		    {
-                        R = 6;
-		    }
-		}
-		else
-		{
-		    throw std::logic_error("bad encryption keylen");
-		}
-                if ((R > 3) && (r3_accessibility == false))
-                {
-                    std::cerr << whoami
-                              << ": -accessibility=n is ignored for modern"
-                              << " encryption formats" << std::endl;
-                }
-                switch (R)
-                {
-                  case 2:
-		    w.setR2EncryptionParameters(
-			user_password.c_str(), owner_password.c_str(),
-			r2_print, r2_modify, r2_extract, r2_annotate);
-                    break;
-                  case 3:
-                    w.setR3EncryptionParameters(
-                        user_password.c_str(), owner_password.c_str(),
-                        r3_accessibility, r3_extract, r3_print, r3_modify);
-                    break;
-                  case 4:
-                    w.setR4EncryptionParameters(
-                        user_password.c_str(), owner_password.c_str(),
-                        r3_accessibility, r3_extract, r3_print, r3_modify,
-                        !cleartext_metadata, use_aes);
-                    break;
-                  case 5:
-                    w.setR5EncryptionParameters(
-                        user_password.c_str(), owner_password.c_str(),
-                        r3_accessibility, r3_extract, r3_print, r3_modify,
-                        !cleartext_metadata);
-                    break;
-                  case 6:
-                    w.setR6EncryptionParameters(
-                        user_password.c_str(), owner_password.c_str(),
-                        r3_accessibility, r3_extract, r3_print, r3_modify,
-                        !cleartext_metadata);
-                    break;
-                  default:
-		    throw std::logic_error("bad encryption R value");
-                    break;
-                }
-	    }
-	    if (linearize)
-	    {
-		w.setLinearization(true);
-	    }
-	    if (object_stream_set)
-	    {
-		w.setObjectStreamMode(object_stream_mode);
-	    }
-	    if (! min_version.empty())
-	    {
-                std::string version;
-                int extension_level = 0;
-                parse_version(min_version, version, extension_level);
-		w.setMinimumPDFVersion(version, extension_level);
-	    }
-	    if (! force_version.empty())
-	    {
-                std::string version;
-                int extension_level = 0;
-                parse_version(force_version, version, extension_level);
-		w.forcePDFVersion(version, extension_level);
-	    }
-	    w.write();
+            write_outfile(pdf, o);
 	}
 	if (! pdf.getWarnings().empty())
 	{

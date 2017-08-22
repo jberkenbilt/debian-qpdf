@@ -4,16 +4,19 @@ BINS_libtests = \
 	bits \
 	buffer \
 	concatenate \
+	dct_compress \
+	dct_uncompress \
 	flate \
 	hex \
+	input_source \
 	lzw \
 	md5 \
-	pcre \
 	png_filter \
 	pointer_holder \
 	qutil \
 	random \
 	rc4 \
+	runlength \
 	sha2
 
 TARGETS_libtests = $(foreach B,$(BINS_libtests),libtests/$(OUTPUT_DIR)/$(call binname,$(B)))

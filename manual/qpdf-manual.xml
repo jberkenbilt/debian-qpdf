@@ -5,8 +5,8 @@
 <!ENTITY mdash "&#x2014;">
 <!ENTITY ndash "&#x2013;">
 <!ENTITY nbsp "&#xA0;">
-<!ENTITY swversion "6.0.0">
-<!ENTITY lastreleased "November 10, 2015">
+<!ENTITY swversion "7.0.b1">
+<!ENTITY lastreleased "August 22, 2017">
 ]>
 <book>
  <bookinfo>
@@ -16,7 +16,7 @@
    <firstname>Jay</firstname><surname>Berkenbilt</surname>
   </author>
   <copyright>
-   <year>2005&ndash;2015</year>
+   <year>2005&ndash;2017</year>
    <holder>Jay Berkenbilt</holder>
   </copyright>
  </bookinfo>
@@ -87,14 +87,14 @@
   <title>Building and Installing QPDF</title>
   <para>
    This chapter describes how to build and install qpdf.  Please see
-   also the <filename>README</filename> and
+   also the <filename>README.md</filename> and
    <filename>INSTALL</filename> files in the source distribution.
   </para>
   <sect1 id="ref.prerequisites">
    <title>System Requirements</title>
    <para>
-    The qpdf package has relatively few external dependencies.  In
-    order to build qpdf, the following packages are required:
+    The qpdf package has few external dependencies. In order to build
+    qpdf, the following packages are required:
     <itemizedlist>
      <listitem>
       <para>
@@ -103,7 +103,10 @@
      </listitem>
      <listitem>
       <para>
-       pcre: <ulink url="http://www.pcre.org/">http://www.pcre.org/</ulink>
+       jpeg: <ulink
+       url="http://www.ijg.org/files/">http://www.ijg.org/files/</ulink>
+       or <ulink
+       url="https://libjpeg-turbo.org/">https://libjpeg-turbo.org/</ulink>
       </para>
      </listitem>
      <listitem>
@@ -207,17 +210,17 @@ make
     configured.  You can also set the value of
     <varname>DESTDIR</varname> during installation to install to a
     temporary location, as is common with many open source packages.
-    Please see also the <filename>README</filename> and
+    Please see also the <filename>README.md</filename> and
     <filename>INSTALL</filename> files in the source distribution.
    </para>
    <para>
     Building on Windows is a little bit more complicated.  For
-    details, please see <filename>README-windows.txt</filename> in the
+    details, please see <filename>README-windows.md</filename> in the
     source distribution.  You can also download a binary distribution
     for Windows.  There is a port of qpdf to Visual C++ version 6 in
     the <filename>contrib</filename> area generously contributed by
     Jian Ma.  This is also discussed in more detail in
-    <filename>README-windows.txt</filename>.
+    <filename>README-windows.md</filename>.
    </para>
    <para>
     There are some other things you can do with the build.  Although
@@ -255,6 +258,14 @@ make
     linkend="ref.page-selection"/>.
    </para>
    <para>
+    If <option>@filename</option> appears anywhere in the
+    command-line, it will be read line by line, and each line will be
+    treated as a command-line argument. The <option>@-</option> option
+    allows arguments to be read from standard input. This allows qpdf
+    to be invoked with an arbitrary number of arbitrarily long
+    arguments.
+   </para>
+   <para>
     <option>outfilename</option> does not have to be seekable, even
     when generating linearized files.  Specifying
     &ldquo;<option>--</option>&rdquo; as <option>outfilename</option>
@@ -278,6 +289,15 @@ make
       <listitem>
        <para>
         Specifies a password for accessing encrypted files.
+       </para>
+      </listitem>
+     </varlistentry>
+     <varlistentry>
+      <term><option>--verbose</option></term>
+      <listitem>
+       <para>
+        Increase verbosity of output. For now, this just prints some
+        indication of any file that it creates.
        </para>
       </listitem>
      </varlistentry>
@@ -337,12 +357,105 @@ make
       </listitem>
      </varlistentry>
      <varlistentry>
+      <term><option>--rotate=[+|-]angle:page-range</option></term>
+      <listitem>
+       <para>
+        Apply rotation to specified pages. The
+        <option>page-range</option> portion of the option value has
+        the same format as page ranges in <xref
+        linkend="ref.page-selection"/>. The <option>angle</option>
+        portion of the parameter may be either 90, 180, or 270. If
+        preceded by <option>+</option> or <option>-</option>, the
+        angle is added to or subtracted from the specified pages'
+        original rotations. Otherwise the pages' rotations are set to
+        the exact value. For example, the command <command>qpdf in.pdf
+        out.pdf --rotate=+90:2,4,6 --rotate=180:7-8</command> would
+        rotate pages 2, 4, and 6 90 degrees clockwise from their
+        original rotation and force the rotation of pages 7 through 9
+        to 180 degrees regardless of their original rotation.
+       </para>
+      </listitem>
+     </varlistentry>
+     <varlistentry>
       <term><option>--pages options --</option></term>
       <listitem>
        <para>
         Select specific pages from one or more input files.  See <xref
         linkend="ref.page-selection"/> for details on how to do page
         selection (splitting and merging).
+       </para>
+      </listitem>
+     </varlistentry>
+     <varlistentry>
+      <term><option>--split-pages=[n]</option></term>
+      <listitem>
+       <para>
+        Write each group of <option>n</option> pages to a separate
+        output file. If <option>n</option> is not specified, create
+        single pages. Output file names are generated as follows:
+        <itemizedlist>
+         <listitem>
+          <para>
+           If the string <literal>%d</literal> appears in the output
+           file name, it is replaced with a range of zero-padded page
+           numbers starting from 1.
+          </para>
+         </listitem>
+         <listitem>
+          <para>
+           Otherwise, if the output file name ends in
+           <filename>.pdf</filename> (case insensitive), a zero-padded
+           page range, preceded by a dash, is inserted before the file
+           extension.
+          </para>
+         </listitem>
+         <listitem>
+          <para>
+           Otherwise, the file name is appended with a zero-padded
+           page range preceded by a dash.
+          </para>
+         </listitem>
+        </itemizedlist>
+       </para>
+       <para>
+        Page ranges are a single number in the case of single-page
+        groups or two numbers separated by a dash otherwise.
+        For example, if <filename>infile.pdf</filename> has 12 pages
+        <itemizedlist>
+         <listitem>
+          <para>
+           <command>qpdf --split-pages infile.pdf %d-out</command>
+           would generate files <filename>01-out</filename> through
+           <filename>12-out</filename>
+          </para>
+         </listitem>
+         <listitem>
+          <para>
+           <command>qpdf --split-pages=2 infile.pdf
+           outfile.pdf</command> would generate files
+           <filename>outfile-01-02.pdf</filename> through
+           <filename>outfile-11-12.pdf</filename>
+          </para>
+         </listitem>
+         <listitem>
+          <para>
+           <command>qpdf --split-pages infile.pdf
+           something.else</command> would generate files
+           <filename>something.else-01</filename> through
+           <filename>something.else-12</filename>
+          </para>
+         </listitem>
+        </itemizedlist>
+       </para>
+       <para>
+        Note that outlines, threads, and other global features of the
+        original PDF file are not preserved. For each page of output,
+        this option creates an empty PDF and copies a single page from
+        the output into it. If you require the global data, you will
+        have to run <command>qpdf</command> with the
+        <option>--pages</option> option once for each file. Using
+        <option>--split-pages</option> is much faster if you don't
+        require the global data.
        </para>
       </listitem>
      </varlistentry>
@@ -668,8 +781,8 @@ make
     <itemizedlist>
      <listitem>
       <para>
-       <literal>1,3,5-9,15-12</literal>: pages 1, 2, 3, 5, 6, 7, 8,
-       9, 15, 14, 13, and 12.
+       <literal>1,3,5-9,15-12</literal>: pages 1, 3, 5, 6, 7, 8,
+       9, 15, 14, 13, and 12 in that order.
       </para>
      </listitem>
      <listitem>
@@ -740,28 +853,90 @@ outfile.pdf</option>
     developers.  The following options are available:
     <variablelist>
      <varlistentry>
-      <term><option>--stream-data=<replaceable>option</replaceable></option></term>
+      <term><option>--compress-streams=<replaceable>[yn]</replaceable></option></term>
       <listitem>
        <para>
-        Controls transformation of stream data.  The value of
-        <option><replaceable>option</replaceable></option> may be one
-        of the following:
+        By default, or with <option>--compress-streams=y</option>,
+        qpdf will compress any stream with no other filters applied to
+        it with the <literal>/FlateDecode</literal> filter when it
+        writes it. To suppress this behavior and preserve uncompressed
+        streams as uncompressed, use
+        <option>--compress-streams=n</option>.
+       </para>
+      </listitem>
+     </varlistentry>
+     <varlistentry>
+      <term><option>--decode-level=<replaceable>option</replaceable></option></term>
+      <listitem>
+       <para>
+        Controls which streams qpdf tries to decode. The default is
+        <option>generalized</option>. The following options are
+        available:
         <itemizedlist>
          <listitem>
           <para>
-           <option>compress</option>: recompress stream data when
-           possible (default)
+           <option>none</option>: do not attempt to decode any streams
           </para>
          </listitem>
          <listitem>
           <para>
-           <option>preserve</option>: leave all stream data as is
+           <option>generalized</option>: decode streams filtered with
+           supported generalized filters: <option>/LZWDecode</option>,
+           <option>/FlateDecode</option>,
+           <option>/ASCII85Decode</option>, and
+           <option>/ASCIIHexDecode</option>
+          </para>
+         </listitem>
+         <listitem>
+          <para>
+           <option>specialized</option>: in addition to generalized,
+           decode streams with supported non-lossy specialized
+           filters; currently this is just <option>/RunLengthDecode</option>
+          </para>
+         </listitem>
+         <listitem>
+          <para>
+           <option>all</option>: in addition to generalized and
+           specialized, decode streams with supported lossy filters;
+           currently this is just <option>/DCTDecode</option> (JPEG)
+          </para>
+         </listitem>
+        </itemizedlist>
+       </para>
+      </listitem>
+     </varlistentry>
+     <varlistentry>
+      <term><option>--stream-data=<replaceable>option</replaceable></option></term>
+      <listitem>
+       <para>
+        Controls transformation of stream data. This option predates
+        the <option>--compress-streams</option> and
+        <option>--decode-level</option> options. Those options can be
+        used to achieve the same affect with more control. The value
+        of <option><replaceable>option</replaceable></option> may be
+        one of the following:
+        <itemizedlist>
+         <listitem>
+          <para>
+           <option>compress</option>: recompress stream data when
+           possible (default); equivalent to
+           <option>--compress-streams=y</option>
+           <option>--decode-level=generalized</option>
+          </para>
+         </listitem>
+         <listitem>
+          <para>
+           <option>preserve</option>: leave all stream data as is;
+           equivalent to <option>--compress-streams=n</option>
+           <option>--decode-level=none</option>
           </para>
          </listitem>
          <listitem>
           <para>
            <option>uncompress</option>: uncompress stream data when
-           possible
+           possible; equivalent to
+           <option>--compress-streams=n</option>
+           <option>--decode-level=generalized</option>
           </para>
          </listitem>
         </itemizedlist>
@@ -818,6 +993,42 @@ outfile.pdf</option>
       <listitem>
        <para>
         Tells qpdf to ignore any cross-reference streams.
+       </para>
+      </listitem>
+     </varlistentry>
+     <varlistentry>
+      <term><option>--preserve-unreferenced</option></term>
+      <listitem>
+       <para>
+        Tells qpdf to preserve objects that are not referenced when
+        writing the file. Ordinarily any object that is not referenced
+        in a traversal of the document from the trailer dictionary
+        will be discarded. This may be useful in working with some
+        damaged files or inspecting files with known unreferenced
+        objects.
+       </para>
+       <para>
+        This flag is ignored for linearized files and has the effect
+        of causing objects in the new file to be written in order by
+        object ID from the original file. This does not mean that
+        object numbers will be the same since qpdf may create stream
+        lengths as direct or indirect differently from the original
+        file, and the original file may have gaps in its numbering.
+       </para>
+      </listitem>
+     </varlistentry>
+     <varlistentry>
+      <term><option>--newline-before-endstream</option></term>
+      <listitem>
+       <para>
+        Tells qpdf to insert a newline before the
+        <literal>endstream</literal> keyword, not counted in the
+        length, after any stream content even if the last character of
+        the stream was a newline. This may result in two newlines in
+        some cases. This is a requirement of PDF/A. While qpdf doesn't
+        specifically know how to generate PDF/A-compliant PDFs, this
+        at least prevents it from removing compliance on already
+        compliant files.
        </para>
       </listitem>
      </varlistentry>
@@ -1340,7 +1551,7 @@ outfile.pdf</option>
     of the qpdf library's public interface.  The best source of
     documentation on the library itself is reading comments in
     <filename>include/qpdf/QPDF.hh</filename>,
-    <filename>include/qpdf/QDFWriter.hh</filename>, and
+    <filename>include/qpdf/QPDFWriter.hh</filename>, and
     <filename>include/qpdf/QPDFObjectHandle.hh</filename>.
    </para>
    <para>
@@ -1351,7 +1562,7 @@ outfile.pdf</option>
    </para>
    <para>
     When linking against the qpdf static library, you may also need to
-    specify <literal>-lpcre -lz</literal> on your link command.  If
+    specify <literal>-lz -ljpeg</literal> on your link command. If
     your system understands how to read libtool
     <filename>.la</filename> files, this may not be necessary.
    </para>
@@ -1891,7 +2102,7 @@ outfile.pdf</option>
     would enable you to use some software-based secure pseudorandom
     number generator and to avoid use of whatever the operating system
     provides.  For details on how to do this, please refer to the
-    top-level README file in the source distribution and to comments
+    top-level README.md file in the source distribution and to comments
     in <filename>QUtil.hh</filename>.
    </para>
   </sect1>
@@ -1945,24 +2156,26 @@ outfile.pdf</option>
     Version 3.0 of qpdf introduced the ability to copy objects into a
     <classname>QPDF</classname> object from a different
     <classname>QPDF</classname> object, which we refer to as
-    <firstterm>foreign objects</firstterm>.  This allows arbitrary
-    merging of PDF files.  The <command>qpdf</command> command-line
-    tool provides limited support for basic page selection, including
-    merging in pages from other files, but the library's API makes it
-    possible to implement arbitrarily complex merging operations.  The
-    main method for copying foreign objects is
-    <function>QPDF::copyForeignObject</function>.  This takes an
+    <firstterm>foreign objects</firstterm>. This allows arbitrary
+    merging of PDF files. The &ldquo;from&rdquo;
+    <classname>QPDF</classname> object must remain valid after the
+    copy as discussed in the note below. The <command>qpdf</command>
+    command-line tool provides limited support for basic page
+    selection, including merging in pages from other files, but the
+    library's API makes it possible to implement arbitrarily complex
+    merging operations. The main method for copying foreign objects is
+    <function>QPDF::copyForeignObject</function>. This takes an
     indirect object from another <classname>QPDF</classname> and
     copies it recursively into this object while preserving all object
-    structure, including circular references.  This means you can add
-    a direct object that you create from scratch to a
+    structure, including circular references. This means you can add a
+    direct object that you create from scratch to a
     <classname>QPDF</classname> object with
     <function>QPDF::makeIndirectObject</function>, and you can add an
     indirect object from another file with
-    <function>QPDF::copyForeignObject</function>.  The fact that
+    <function>QPDF::copyForeignObject</function>. The fact that
     <function>QPDF::makeIndirectObject</function> does not
     automatically detect a foreign object and copy it is an explicit
-    design decision.  Copying a foreign object seems like a
+    design decision. Copying a foreign object seems like a
     sufficiently significant thing to do that it should be done
     explicitly.
    </para>
@@ -1973,6 +2186,14 @@ outfile.pdf</option>
     <function>QPDF::makeIndirectObject</function>, this method
     automatically distinguishes between indirect objects in the
     current file, foreign objects, and direct objects.
+   </para>
+   <para>
+    Please note: when you copy objects from one
+    <classname>QPDF</classname> to another, the source
+    <classname>QPDF</classname> object must remain valid until you
+    have finished with the destination object. This is because the
+    original object is still used to retrieve any referenced stream
+    data from the copied object.
    </para>
   </sect1>
   <sect1 id="ref.rewriting">
@@ -3035,7 +3256,7 @@ print "\n";
            converts numbers to strings.  This is largely invisible to
            users, but it does trigger a bug in some older versions of
            mingw-w64's C++ library.  See
-           <filename>README-windows.txt</filename> in the source
+           <filename>README-windows.md</filename> in the source
            distribution if you think this may affect you.  The copy of
            the DLL distributed with qpdf's binary distribution is not
            affected by this problem.
@@ -3456,7 +3677,7 @@ print "\n";
         not needed to verify a correct build or port of qpdf.  They
         are needed only when changing the actual PDF output generated
         by qpdf.  You should enable them if you are making deep
-        changes to qpdf itself.  See <filename>README</filename> for
+        changes to qpdf itself.  See <filename>README.md</filename> for
         details.
        </para>
       </listitem>
@@ -3465,7 +3686,7 @@ print "\n";
         Large file tests are off by default but can be turned on with
         <command>./configure</command> or by setting an environment
         variable before running the test suite.  See
-        <filename>README</filename> for details.
+        <filename>README.md</filename> for details.
        </para>
       </listitem>
       <listitem>

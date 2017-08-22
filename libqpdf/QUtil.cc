@@ -11,6 +11,7 @@
 #include <cmath>
 #include <iomanip>
 #include <sstream>
+#include <fstream>
 #include <stdexcept>
 #include <stdio.h>
 #include <errno.h>
@@ -19,11 +20,12 @@
 #include <string.h>
 #include <fcntl.h>
 #ifdef _WIN32
-#include <Windows.h>
+#include <windows.h>
 #include <direct.h>
 #include <io.h>
 #else
 #include <unistd.h>
+#include <sys/stat.h>
 #endif
 
 std::string
@@ -164,7 +166,7 @@ QUtil::seek(FILE* stream, qpdf_offset_t offset, int whence)
 #elif HAVE_FSEEKO64
     return fseeko64(stream, offset, whence);
 #else
-# ifdef _MSC_VER
+# if defined _MSC_VER || defined __BORLANDC__
     return _fseeki64(stream, offset, whence);
 # else
     return fseek(stream, static_cast<long>(offset), whence);
@@ -180,12 +182,61 @@ QUtil::tell(FILE* stream)
 #elif HAVE_FSEEKO64
     return static_cast<qpdf_offset_t>(ftello64(stream));
 #else
-# ifdef _MSC_VER
+# if defined _MSC_VER || defined __BORLANDC__
     return _ftelli64(stream);
 # else
     return static_cast<qpdf_offset_t>(ftell(stream));
 # endif
 #endif
+}
+
+bool
+QUtil::same_file(char const* name1, char const* name2)
+{
+    if ((name1 == 0) || (strlen(name1) == 0) ||
+        (name2 == 0) || (strlen(name2) == 0))
+    {
+        return false;
+    }
+#ifdef _WIN32
+    HANDLE fh1 = CreateFile(name1, GENERIC_READ, FILE_SHARE_READ,
+                            NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+    HANDLE fh2 = CreateFile(name2, GENERIC_READ, FILE_SHARE_READ,
+                            NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+    BY_HANDLE_FILE_INFORMATION fi1;
+    BY_HANDLE_FILE_INFORMATION fi2;
+    bool same = false;
+    if ((fh1 != INVALID_HANDLE_VALUE) &&
+        (fh2 != INVALID_HANDLE_VALUE) &&
+        GetFileInformationByHandle(fh1, &fi1) &&
+        GetFileInformationByHandle(fh2, &fi2) &&
+        (fi1.dwVolumeSerialNumber == fi2.dwVolumeSerialNumber) &&
+        (fi1.nFileIndexLow == fi2.nFileIndexLow) &&
+        (fi1.nFileIndexHigh == fi2.nFileIndexHigh))
+    {
+        same = true;
+    }
+    if (fh1 != INVALID_HANDLE_VALUE)
+    {
+        CloseHandle(fh1);
+    }
+    if (fh2 != INVALID_HANDLE_VALUE)
+    {
+        CloseHandle(fh2);
+    }
+    return same;
+#else
+    struct stat st1;
+    struct stat st2;
+    if ((stat(name1, &st1) == 0) &&
+        (stat(name2, &st2) == 0) &&
+        (st1.st_ino == st2.st_ino) &&
+        (st1.st_dev == st2.st_dev))
+    {
+        return true;
+    }
+#endif
+    return false;
 }
 
 char*
@@ -454,5 +505,127 @@ QUtil::srandom(unsigned int seed)
     ::srandom(seed);
 #else
     srand(seed);
+#endif
+}
+
+bool
+QUtil::is_hex_digit(char ch)
+{
+    return (ch && (strchr("0123456789abcdefABCDEF", ch) != 0));
+}
+
+bool
+QUtil::is_space(char ch)
+{
+    return (ch && (strchr(" \f\n\r\t\v", ch) != 0));
+}
+
+bool
+QUtil::is_digit(char ch)
+{
+    return ((ch >= '0') && (ch <= '9'));
+}
+
+bool
+QUtil::is_number(char const* p)
+{
+    // ^[\+\-]?(\.\d+|\d+(\.\d+)?)$
+    if (! *p)
+    {
+        return false;
+    }
+    if ((*p == '-') || (*p == '+'))
+    {
+        ++p;
+    }
+    bool found_dot = false;
+    bool found_digit = false;
+    for (; *p; ++p)
+    {
+        if (*p == '.')
+        {
+            if (found_dot)
+            {
+                // only one dot
+                return false;
+            }
+            if (! *(p+1))
+            {
+                // dot can't be last
+                return false;
+            }
+            found_dot = true;
+        }
+        else if (QUtil::is_digit(*p))
+        {
+            found_digit = true;
+        }
+        else
+        {
+            return false;
+        }
+    }
+    return found_digit;
+}
+
+std::list<std::string>
+QUtil::read_lines_from_file(char const* filename)
+{
+    std::ifstream in(filename, std::ios_base::binary);
+    if (! in.is_open())
+    {
+        throw_system_error(std::string("open ") + filename);
+    }
+    std::list<std::string> lines = read_lines_from_file(in);
+    in.close();
+    return lines;
+}
+
+std::list<std::string>
+QUtil::read_lines_from_file(std::istream& in)
+{
+    std::list<std::string> result;
+    std::string* buf = 0;
+
+    char c;
+    while (in.get(c))
+    {
+	if (buf == 0)
+	{
+	    result.push_back("");
+	    buf = &(result.back());
+	    buf->reserve(80);
+	}
+
+	if (buf->capacity() == buf->size())
+	{
+	    buf->reserve(buf->capacity() * 2);
+	}
+	if (c == '\n')
+	{
+            // Remove any carriage return that preceded the
+            // newline and discard the newline
+            if ((! buf->empty()) && ((*(buf->rbegin())) == '\r'))
+            {
+                buf->erase(buf->length() - 1);
+            }
+	    buf = 0;
+	}
+	else
+	{
+	    buf->append(1, c);
+	}
+    }
+
+    return result;
+}
+
+int
+QUtil::strcasecmp(char const *s1, char const *s2)
+{
+#ifdef _WIN32
+    return _stricmp(s1, s2);
+#else
+    return ::strcasecmp(s1, s2);
 #endif
 }

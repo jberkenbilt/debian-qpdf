@@ -1,53 +1,21 @@
-Small, command-line tool only enhancements to do soon
-=====================================================
+Before final 7.0.0
+==================
 
- * Handle input file = output file as a special case. See issue 29.
-   Behavior: detect if output file is the same as one of the input
-   files. If so, refuse to operate unless --allow-overwrite is
-   specified. In that case, write to a temporary file and, if there
-   are no errors or warnings, rename the temporary output file over
-   the input file. If rename fails, delete the temporary file.
+ * Update C API
 
- * Consider providing alternative methods for specifying passwords.
-   The methods should be general enough to use for both encryption and
-   decryption passwords. Example methods could be reading the password
-   from a file, a file descriptor, or prompting. Prompting should
-   never be done with being specifically requested though; we don't
-   want to create a situation where running qpdf might block waiting
-   for input where it previously did not. Test case: encrypt an
-   encrypted file with the output file having different user/owner
-   passwords. Make sure we have a predictable way to read all three
-   passwords (input, output user, output owner). Maybe we have
-   something like --password-source=<method>:<which>,... where method could
-   be file=/path, fd=n, or prompt and which could be one of input,
-   user, owner. If a password source is provided for input, it takes
-   precedence over --password if specified later on the command line.
-   If a password source is specified for output passwords, the
-   corresponding passwords must be '-'. If more than one password is
-   read from the same source, passwords are newline separated.
-   Trailing newlines are ignored. Example:
+ * Create release notes
 
-   qpdf --password-source=fd=3:input,owner a.pdf b.pdf
+Soon
+====
 
-   would read two lines from file descriptor 3. The first would the
-   password for reading a.pdf, and the second would be the owner
-   password for b.pdf. The encryption arguments would specify the
-   actual user password for b.pdf and - as the owner password.
-
-   qpdf --password-source=file=/tmp/a:input --password=source=prompt:user,owner
-
-   would read the input file from /tmp/a and would prompt twice: one
-   for the user password and once for the owner password.
-
- * Consider adding "uninstall" target to makefile. It should only
-   uninstall what it installed, which means that you must run
-   uninstall from the version you ran install with. It would only be
-   supported for the toolchains that support the install target
-   (libtool).
-
-
-6.1.0
-=====
+ * Consider whether there should be a mode in which QPDFObjectHandle
+   returns nulls for operations on the wrong type instead of asserting
+   the type. The way things are wired up now, this would have to be a
+   global flag. Probably it makes sense to make that be the default
+   behavior and to add a static method in QPDFObjectHandle and
+   command-line flag that enables the stricter behavior globally for
+   easier debugging. For cases where we have enough information to do
+   so, we could still warn when not in strict mode.
 
  * Add method to push inheritable resources to a single page by
    walking up and copying without overwrite.  Above logic will also be
@@ -56,13 +24,6 @@ Small, command-line tool only enhancements to do soon
    effective resources for a page without modifying the page and then
    implement both changes in terms of that method.
 
- * Provide an option for QPDFWriter to preserve unreferenced objects
-   when writing out a file.
-
- * Look at all the exceptions and error conditions in QPDF_stream and
-   figure out which ones should be converted to warnings and treating
-   the stream as not filterable.
-
  * Support user-pluggable stream filters.  This would enable external
    code to provide interpretation for filters that are missing from
    qpdf.  Make it possible for user-provided fitlers to override
@@ -70,47 +31,27 @@ Small, command-line tool only enhancements to do soon
    prioritized so that we can poll all registered filters to see
    whether they are capable of filtering a particular stream.
 
- * If possible, consider adding RLE, CCITT3, CCITT4, or any other easy
-   filters.  For some reference code that we probably can't use but
-   may be handy anyway, see
+ * If possible, consider adding CCITT3, CCITT4, or any other easy
+   filters. For some reference code that we probably can't use but may
+   be handy anyway, see
    http://partners.adobe.com/public/developer/ps/sdk/index_archive.html
 
  * If possible, support the following types of broken files:
 
-    - Files that lack %%EOF at the end but otherwise have a valid
-      startxref near the end
-
     - Files that have no whitespace token after "endobj" such that
       endobj collides with the start of the next object
 
-    - Files with individual corrupted streams.  Just leave the streams
-      unfiltered after giving a warning, or maybe do something else
-      like applying as many of the filters as possible, etc.
-      QPDFWriter can have some kind of retry mechanism on streams
-      where filtering fails after filterable returns true.
-
-    - Files whose PDF header is malformed, perhaps with no version
-      number (as literally %PDF-a.b).  Maybe keep track of features to
-      try to infer a version based on encryption formats and object
-      streams.
-
-    - For really hard errors like corrupted streams where there is
-      virtually guaranteed to be loss, maybe require an additional
-      option to tell qpdf that it's okay to continue and treat those
-      as warnings.  Probably need separate options for each type of
-      error plus a generic tryReallyHard kind of method that enables
-      them all.  Then the qpdf command-line tool can have a single
-      flag that enables all supported aggressive recovery techniques.
-
     - See ../misc/broken-files
-
 
 
 General
 =======
 
- * Implement automated testing for binary compatibility and add to
-   release checklist.
+ * Consider adding "uninstall" target to makefile. It should only
+   uninstall what it installed, which means that you must run
+   uninstall from the version you ran install with. It would only be
+   supported for the toolchains that support the install target
+   (libtool).
 
  * Figure out how to find Visual Studio in Windows registry and see if
    I can get it to work with make so I can simplify creation of
@@ -305,4 +246,7 @@ Index: QPDFWriter.cc
    re-encode inline images with an ASCII encoding.
 
  * From github issue 2, provide more in-depth output for examining
-   hint stream contents.
+   hint stream contents. Consider adding on option to provide a
+   human-readable dump of linearization hint tables. This should
+   include improving the 'overflow reading bit stream' message as
+   reported in issue #2.

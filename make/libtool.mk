@@ -102,6 +102,7 @@ endef
 # Usage: $(call makebin,objs,binary,ldflags,libs)
 define makebin
 	$(LIBTOOL) --mode=link $(CXX) $(CXXFLAGS) $(1) -o $(2) $(4) $(3)
+	if [ "$(VALGRIND)" = 1 ]; then make/valgrind-wrap $(2); fi
 endef
 
 # Install target
@@ -126,7 +127,11 @@ install: all
 	cp include/qpdf/*.h $(DESTDIR)$(includedir)/qpdf
 	cp include/qpdf/*.hh $(DESTDIR)$(includedir)/qpdf
 	cp doc/stylesheet.css $(DESTDIR)$(docdir)
-	cp doc/qpdf-manual.html $(DESTDIR)$(docdir)
-	cp doc/qpdf-manual.pdf $(DESTDIR)$(docdir)
-	cp doc/*.1 $(DESTDIR)$(mandir)/man1
 	cp libqpdf.pc $(DESTDIR)$(libdir)/pkgconfig
+	if [ -f doc/qpdf-manual.html ]; then \
+		cp doc/qpdf-manual.html $(DESTDIR)$(docdir); \
+	fi
+	if [ -f doc/qpdf-manual.pdf ]; then \
+		cp doc/qpdf-manual.pdf $(DESTDIR)$(docdir); \
+	fi
+	cp doc/*.1 $(DESTDIR)$(mandir)/man1

@@ -1,4 +1,4 @@
-// Copyright (c) 2005-2015 Jay Berkenbilt
+// Copyright (c) 2005-2017 Jay Berkenbilt
 //
 // This file is part of qpdf.  This software may be distributed under
 // the terms of version 2 of the Artistic License which may be found
@@ -138,7 +138,9 @@ class QPDFTokenizer
     // exception thrown if there is an error.
     QPDF_DLL
     Token readToken(PointerHolder<InputSource> input,
-                    std::string const& context);
+                    std::string const& context,
+                    bool allow_bad = false,
+                    size_t max_len = 0);
 
   private:
     void reset();

@@ -4,22 +4,13 @@
 // it's not worth the risk of including it in case it may accidentally
 // be used.
 
-#include <qpdf/PCRE.hh>
 #include <qpdf/QTC.hh>
 #include <qpdf/QPDFExc.hh>
+#include <qpdf/QUtil.hh>
 
 #include <stdexcept>
 #include <string.h>
-
-// See note above about ctype.
-static bool is_hex_digit(char ch)
-{
-    return (strchr("0123456789abcdefABCDEF", ch) != 0);
-}
-static bool is_space(char ch)
-{
-    return (strchr(" \f\n\r\t\v", ch) != 0);
-}
+#include <cstdlib>
 
 QPDFTokenizer::QPDFTokenizer() :
     pound_special_in_name(true),
@@ -59,8 +50,6 @@ QPDFTokenizer::reset()
 void
 QPDFTokenizer::resolveLiteral()
 {
-    PCRE num_re("^[\\+\\-]?(?:\\.\\d+|\\d+(?:\\.\\d+)?)$");
-
     if ((val.length() > 0) && (val.at(0) == '/'))
     {
         type = tt_name;
@@ -74,7 +63,7 @@ QPDFTokenizer::resolveLiteral()
             if ((*p == '#') && this->pound_special_in_name)
             {
                 if (p[1] && p[2] &&
-                    is_hex_digit(p[1]) && is_hex_digit(p[2]))
+                    QUtil::is_hex_digit(p[1]) && QUtil::is_hex_digit(p[2]))
                 {
                     char num[3];
                     num[0] = p[1];
@@ -110,7 +99,7 @@ QPDFTokenizer::resolveLiteral()
         }
         val = nval;
     }
-    else if (num_re.match(val.c_str()))
+    else if (QUtil::is_number(val.c_str()))
     {
         if (val.find('.') != std::string::npos)
         {
@@ -404,7 +393,7 @@ QPDFTokenizer::presentCharacter(char ch)
 	    }
 	    val = nval;
 	}
-	else if (is_hex_digit(ch))
+	else if (QUtil::is_hex_digit(ch))
 	{
 	    val += ch;
 	}
@@ -486,7 +475,9 @@ QPDFTokenizer::betweenTokens()
 
 QPDFTokenizer::Token
 QPDFTokenizer::readToken(PointerHolder<InputSource> input,
-                         std::string const& context)
+                         std::string const& context,
+                         bool allow_bad,
+                         size_t max_len)
 {
     qpdf_offset_t offset = input->tell();
     Token token;
@@ -511,12 +502,20 @@ QPDFTokenizer::readToken(PointerHolder<InputSource> input,
 	}
 	else
 	{
-	    if (is_space(static_cast<unsigned char>(ch)) &&
+	    if (QUtil::is_space(static_cast<unsigned char>(ch)) &&
 		(input->getLastOffset() == offset))
 	    {
 		++offset;
 	    }
 	    presentCharacter(ch);
+            if (max_len && (raw_val.length() >= max_len) &&
+                (this->state != st_token_ready))
+            {
+                // terminate this token now
+                QTC::TC("qpdf", "QPDFTokenizer block long token");
+                this->type = tt_bad;
+                this->state = st_token_ready;
+            }
 	}
     }
 
@@ -525,13 +524,20 @@ QPDFTokenizer::readToken(PointerHolder<InputSource> input,
 	input->unreadCh(char_to_unread);
     }
 
+    input->setLastOffset(offset);
+
     if (token.getType() == tt_bad)
     {
-	throw QPDFExc(qpdf_e_damaged_pdf, input->getName(),
-		      context, offset, token.getErrorMessage());
+        if (allow_bad)
+        {
+            QTC::TC("qpdf", "QPDFTokenizer allowing bad token");
+        }
+        else
+        {
+            throw QPDFExc(qpdf_e_damaged_pdf, input->getName(),
+                          context, offset, token.getErrorMessage());
+        }
     }
-
-    input->setLastOffset(offset);
 
     return token;
 }
