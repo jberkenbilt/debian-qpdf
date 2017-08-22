@@ -1,5 +1,4 @@
 ignored-scope: libtests
-QPDF lindict searching after null 0
 QPDF err expected endobj 0
 QPDF err wrong objid/generation 0
 QPDF check objid 1
@@ -10,7 +9,6 @@ QPDF hint table length direct 0
 QPDF P absent in lindict 0
 QPDF P present in lindict 0
 QPDF expected n n obj 0
-QPDF lindict found newline 0
 QPDF /L mismatch 0
 QPDF err /T mismatch 0
 QPDF err /O mismatch 0
@@ -61,7 +59,6 @@ QPDF trailer size not integer 0
 QPDF trailer prev not integer 0
 QPDFObjectHandle bad brace 0
 QPDFObjectHandle bad array close 0
-QPDFObjectHandle dictionary odd number of elements 0
 QPDF stream without length 0
 QPDF stream length not integer 0
 QPDF missing endstream 0
@@ -124,7 +121,7 @@ qpdf-c qpdf_next_warning returned warning 0
 qpdf-c called qpdf_set_suppress_warnings 0
 qpdf-c called qpdf_set_ignore_xref_streams 0
 qpdf-c called qpdf_set_attempt_recovery 0
-qpdf-c called qpdf_read 3
+qpdf-c called qpdf_read 2
 qpdf-c called qpdf_get_pdf_version 0
 qpdf-c called qpdf_get_user_password 0
 qpdf-c called qpdf_is_linearized 0
@@ -140,7 +137,7 @@ qpdf-c called qpdf_set_preserve_encryption 0
 qpdf-c called qpdf_set_r2_encryption_parameters 0
 qpdf-c called qpdf_set_r3_encryption_parameters 0
 qpdf-c called qpdf_set_linearization 0
-qpdf-c called qpdf_write 3
+qpdf-c called qpdf_write 1
 qpdf-c called qpdf_allow_accessibility 0
 qpdf-c called qpdf_allow_extract_all 0
 qpdf-c called qpdf_allow_print_low_res 0
@@ -273,3 +270,30 @@ QPDFWriter standard deterministic ID 1
 QPDFWriter linearized deterministic ID 1
 QPDFWriter deterministic with no data 0
 qpdf-c called qpdf_set_deterministic_ID 0
+QPDFObjectHandle indirect with 0 objid 0
+QPDF object id 0 0
+QPDF recursion loop in resolve 0
+QPDFObjectHandle treat word as string 0
+QPDFObjectHandle found fake 1
+QPDFObjectHandle no val for last key 0
+QPDF resolve failure to null 0
+QPDFWriter preserve unreferenced standard 0
+QPDFObjectHandle non-stream in parsecontent 0
+QPDFObjectHandle errors in parsecontent 0
+QPDF stream with non-space 0
+qpdf same file error 0
+qpdf read args from stdin 0
+qpdf read args from file 0
+qpdf split-pages %d 0
+qpdf split-pages .pdf 0
+qpdf split-pages other 0
+QPDFTokenizer allowing bad token 0
+QPDF ignore first space in xref entry 0
+QPDF ignore first extra space in xref entry 0
+QPDF ignore second extra space in xref entry 0
+QPDF ignore length error xref entry 0
+QPDF_encryption pad short parameter 0
+QPDFWriter ignore self-referential object stream 0
+QPDFObjectHandle found old angle 1
+QPDF_Stream special filters 3
+QPDFTokenizer block long token 0

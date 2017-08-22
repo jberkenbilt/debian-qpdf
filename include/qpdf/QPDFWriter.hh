@@ -1,4 +1,4 @@
-// Copyright (c) 2005-2015 Jay Berkenbilt
+// Copyright (c) 2005-2017 Jay Berkenbilt
 //
 // This file is part of qpdf.  This software may be distributed under
 // the terms of version 2 of the Artistic License which may be found
@@ -24,6 +24,7 @@
 
 #include <qpdf/Constants.h>
 
+#include <qpdf/QPDFObjectHandle.hh>
 #include <qpdf/QPDFObjGen.hh>
 #include <qpdf/QPDFXRefEntry.hh>
 
@@ -33,7 +34,6 @@
 #include <qpdf/Buffer.hh>
 
 class QPDF;
-class QPDFObjectHandle;
 class Pl_Count;
 class Pl_MD5;
 
@@ -118,13 +118,69 @@ class QPDFWriter
     QPDF_DLL
     void setObjectStreamMode(qpdf_object_stream_e);
 
-    // Set value of stream data mode.  In uncompress mode, we attempt
-    // to uncompress any stream that we can.  In preserve mode, we
-    // preserve any filtering applied to streams.  In compress mode,
-    // if we can apply all filters and the stream is not already
-    // optimally compressed, recompress the stream.
+    // Set value of stream data mode. This is an older interface.
+    // Instead of using this, prefer setCompressStreams() and
+    // setDecodeLevel(). This method is retained for compatibility,
+    // but it does not cover the full range of available
+    // configurations. The mapping between this and the new methods is
+    // as follows:
+    //
+    // qpdf_s_uncompress:
+    //   setCompressStreams(false)
+    //   setDecodeLevel(qpdf_dl_generalized)
+    // qpdf_s_preserve:
+    //   setCompressStreams(false)
+    //   setDecodeLevel(qpdf_dl_none)
+    // qpdf_s_compress:
+    //   setCompressStreams(true)
+    //   setDecodeLevel(qpdf_dl_generalized)
+    //
+    // The default is qpdf_s_compress.
     QPDF_DLL
     void setStreamDataMode(qpdf_stream_data_e);
+
+    // If true, compress any uncompressed streams when writing them.
+    // Metadata streams are a special case and are not compressed even
+    // if this is true. This is true by default for QPDFWriter. If you
+    // want QPDFWriter to leave uncompressed streams uncompressed,
+    // pass false to this method.
+    QPDF_DLL
+    void setCompressStreams(bool);
+
+    // When QPDFWriter encounters streams, this parameter controls the
+    // behavior with respect to attempting to apply any filters to the
+    // streams when copying to the output. The decode levels are as
+    // follows:
+    //
+    // qpdf_dl_none: Do not attempt to apply any filters. Streams
+    // remain as they appear in the original file. Note that
+    // uncompressed streams may still be compressed on output. You can
+    // disable that by calling setCompressStreams(false).
+    //
+    // qpdf_dl_generalized: This is the default. QPDFWriter will apply
+    // LZWDecode, ASCII85Decode, ASCIIHexDecode, and FlateDecode
+    // filters on the input. When combined with
+    // setCompressStreams(true), which the default, the effect of this
+    // is that streams filtered with these older and less efficient
+    // filters will be recompressed with the Flate filter. As a
+    // special case, if a stream is already compressed with
+    // FlateDecode and setCompressStreams is enabled, the original
+    // compressed data will be preserved.
+    //
+    // qpdf_dl_specialized: In addition to uncompressing the
+    // generalized compression formats, supported non-lossy
+    // compression will also be be decoded. At present, this includes
+    // the RunLengthDecode filter.
+    //
+    // qpdf_dl_all: In addition to generalized and non-lossy
+    // specialized filters, supported lossy compression filters will
+    // be applied. At present, this includes DCTDecode (JPEG)
+    // compression. Note that compressing the resulting data with
+    // DCTDecode again will accumulate loss, so avoid multiple
+    // compression and decompression cycles. This is mostly useful for
+    // retrieving image data.
+    QPDF_DLL
+    void setDecodeLevel(qpdf_stream_decode_level_e);
 
     // Set value of content stream normalization.  The default is
     // "false".  If true, we attempt to normalize newlines inside of
@@ -143,6 +199,17 @@ class QPDFWriter
     // lengths.
     QPDF_DLL
     void setQDFMode(bool);
+
+    // Preserve unreferenced objects. The default behavior is to
+    // discard any object that is not visited during a traversal of
+    // the object structure from the trailer.
+    QPDF_DLL
+    void setPreserveUnreferencedObjects(bool);
+
+    // Always write a newline before the endstream keyword. This helps
+    // with PDF/A compliance, though it is not sufficient for it.
+    QPDF_DLL
+    void setNewlineBeforeEndstream(bool);
 
     // Set the minimum PDF version.  If the PDF version of the input
     // file (or previously set minimum version) is less than the
@@ -286,6 +353,16 @@ class QPDFWriter
     QPDF_DLL
     void setLinearization(bool);
 
+    // Create PCLm output. This is only useful for clients that know
+    // how to create PCLm files. If a file is structured exactly as
+    // PCLm requires, this call will tell QPDFWriter to write the PCLm
+    // header, create certain unreferenced streams required by the
+    // standard, and write the objects in the required order. Calling
+    // this on an ordinary PDF serves no purpose. There is no
+    // command-line argument that causes this method to be called.
+    QPDF_DLL
+    void setPCLm(bool);
+
     QPDF_DLL
     void write();
 
@@ -297,7 +374,6 @@ class QPDFWriter
 
     enum trailer_e { t_normal, t_lin_first, t_lin_second };
 
-    void init();
     int bytesNeeded(unsigned long long n);
     void writeBinary(unsigned long long val, unsigned int bytes);
     void writeString(std::string const& str);
@@ -348,6 +424,8 @@ class QPDFWriter
     void closeObject(int objid);
     QPDFObjectHandle getTrimmedTrailer();
     void prepareFileForWrite();
+    void enqueueObjectsStandard();
+    void enqueueObjectsPCLm();
     void writeStandard();
     void writeLinearized();
     void enqueuePart(std::vector<QPDFObjectHandle>& part);
@@ -404,66 +482,88 @@ class QPDFWriter
     void discardGeneration(std::map<QPDFObjGen, int> const& in,
                            std::map<int, int>& out);
 
-    QPDF& pdf;
-    char const* filename;
-    FILE* file;
-    bool close_file;
-    Pl_Buffer* buffer_pipeline;
-    Buffer* output_buffer;
-    bool normalize_content_set;
-    bool normalize_content;
-    bool stream_data_mode_set;
-    qpdf_stream_data_e stream_data_mode;
-    bool qdf_mode;
-    bool static_id;
-    bool suppress_original_object_ids;
-    bool direct_stream_lengths;
-    bool encrypted;
-    bool preserve_encryption;
-    bool linearized;
-    qpdf_object_stream_e object_stream_mode;
-    std::string encryption_key;
-    bool encrypt_metadata;
-    bool encrypt_use_aes;
-    std::map<std::string, std::string> encryption_dictionary;
-    int encryption_V;
-    int encryption_R;
+    class Members
+    {
+        friend class QPDFWriter;
 
-    std::string id1;		// for /ID key of
-    std::string id2;		// trailer dictionary
-    std::string final_pdf_version;
-    int final_extension_level;
-    std::string min_pdf_version;
-    int min_extension_level;
-    std::string forced_pdf_version;
-    int forced_extension_level;
-    std::string extra_header_text;
-    int encryption_dict_objid;
-    std::string cur_data_key;
-    std::list<PointerHolder<Pipeline> > to_delete;
-    Pl_Count* pipeline;
-    std::list<QPDFObjectHandle> object_queue;
-    std::map<QPDFObjGen, int> obj_renumber;
-    std::map<int, QPDFXRefEntry> xref;
-    std::map<int, qpdf_offset_t> lengths;
-    int next_objid;
-    int cur_stream_length_id;
-    size_t cur_stream_length;
-    bool added_newline;
-    int max_ostream_index;
-    std::set<QPDFObjGen> normalized_streams;
-    std::map<QPDFObjGen, int> page_object_to_seq;
-    std::map<QPDFObjGen, int> contents_to_page_seq;
-    std::map<QPDFObjGen, int> object_to_object_stream;
-    std::map<int, std::set<QPDFObjGen> > object_stream_to_objects;
-    std::list<Pipeline*> pipeline_stack;
-    bool deterministic_id;
-    Pl_MD5* md5_pipeline;
-    std::string deterministic_id_data;
+      public:
+        ~Members();
 
-    // For linearization only
-    std::map<int, int> obj_renumber_no_gen;
-    std::map<int, int> object_to_object_stream_no_gen;
+      private:
+        Members(QPDF& pdf);
+        Members(Members const&);
+
+        QPDF& pdf;
+        char const* filename;
+        FILE* file;
+        bool close_file;
+        Pl_Buffer* buffer_pipeline;
+        Buffer* output_buffer;
+        bool normalize_content_set;
+        bool normalize_content;
+        bool compress_streams;
+        bool compress_streams_set;
+        qpdf_stream_decode_level_e stream_decode_level;
+        bool stream_decode_level_set;
+        bool qdf_mode;
+        bool preserve_unreferenced_objects;
+        bool newline_before_endstream;
+        bool static_id;
+        bool suppress_original_object_ids;
+        bool direct_stream_lengths;
+        bool encrypted;
+        bool preserve_encryption;
+        bool linearized;
+        bool pclm;
+        qpdf_object_stream_e object_stream_mode;
+        std::string encryption_key;
+        bool encrypt_metadata;
+        bool encrypt_use_aes;
+        std::map<std::string, std::string> encryption_dictionary;
+        int encryption_V;
+        int encryption_R;
+
+        std::string id1;		// for /ID key of
+        std::string id2;		// trailer dictionary
+        std::string final_pdf_version;
+        int final_extension_level;
+        std::string min_pdf_version;
+        int min_extension_level;
+        std::string forced_pdf_version;
+        int forced_extension_level;
+        std::string extra_header_text;
+        int encryption_dict_objid;
+        std::string cur_data_key;
+        std::list<PointerHolder<Pipeline> > to_delete;
+        Pl_Count* pipeline;
+        std::list<QPDFObjectHandle> object_queue;
+        std::map<QPDFObjGen, int> obj_renumber;
+        std::map<int, QPDFXRefEntry> xref;
+        std::map<int, qpdf_offset_t> lengths;
+        int next_objid;
+        int cur_stream_length_id;
+        size_t cur_stream_length;
+        bool added_newline;
+        int max_ostream_index;
+        std::set<QPDFObjGen> normalized_streams;
+        std::map<QPDFObjGen, int> page_object_to_seq;
+        std::map<QPDFObjGen, int> contents_to_page_seq;
+        std::map<QPDFObjGen, int> object_to_object_stream;
+        std::map<int, std::set<QPDFObjGen> > object_stream_to_objects;
+        std::list<Pipeline*> pipeline_stack;
+        bool deterministic_id;
+        Pl_MD5* md5_pipeline;
+        std::string deterministic_id_data;
+
+        // For linearization only
+        std::map<int, int> obj_renumber_no_gen;
+        std::map<int, int> object_to_object_stream_no_gen;
+    };
+
+    // Keep all member variables inside the Members object, which we
+    // dynamically allocate. This makes it possible to add new private
+    // members without breaking binary compatibility.
+    PointerHolder<Members> m;
 };
 
 #endif // __QPDFWRITER_HH__

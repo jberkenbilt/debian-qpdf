@@ -76,11 +76,10 @@ Pl_Flate::handleData(unsigned char* data, int len, int flush)
 
         // deflateInit and inflateInit are macros that use old-style
         // casts.
-#ifdef __GNUC__
-# if ((__GNUC__ * 100) + __GNUC_MINOR__) >= 406
+#if ((defined(__GNUC__) && ((__GNUC__ * 100) + __GNUC_MINOR__) >= 406) || \
+     defined(__clang__))
 #       pragma GCC diagnostic push
 #       pragma GCC diagnostic ignored "-Wold-style-cast"
-# endif
 #endif
 	if (this->action == a_deflate)
 	{
@@ -90,10 +89,9 @@ Pl_Flate::handleData(unsigned char* data, int len, int flush)
 	{
 	    err = inflateInit(&zstream);
 	}
-#ifdef __GNUC__
-# if ((__GNUC__ * 100) + __GNUC_MINOR__) >= 406
+#if ((defined(__GNUC__) && ((__GNUC__ * 100) + __GNUC_MINOR__) >= 406) || \
+     defined(__clang__))
 #       pragma GCC diagnostic pop
-# endif
 #endif
 
 	checkError("Init", err);
@@ -157,28 +155,36 @@ Pl_Flate::handleData(unsigned char* data, int len, int flush)
 void
 Pl_Flate::finish()
 {
-    if (this->outbuf)
+    try
     {
-	if (this->initialized)
-	{
-	    z_stream& zstream = *(static_cast<z_stream*>(this->zdata));
-	    unsigned char buf[1];
-	    buf[0] = '\0';
-	    handleData(buf, 0, Z_FINISH);
-	    int err = Z_OK;
-	    if (action == a_deflate)
-	    {
-		err = deflateEnd(&zstream);
-	    }
-	    else
-	    {
-		err = inflateEnd(&zstream);
-	    }
-	    checkError("End", err);
-	}
+        if (this->outbuf)
+        {
+            if (this->initialized)
+            {
+                z_stream& zstream = *(static_cast<z_stream*>(this->zdata));
+                unsigned char buf[1];
+                buf[0] = '\0';
+                handleData(buf, 0, Z_FINISH);
+                int err = Z_OK;
+                if (action == a_deflate)
+                {
+                    err = deflateEnd(&zstream);
+                }
+                else
+                {
+                    err = inflateEnd(&zstream);
+                }
+                checkError("End", err);
+            }
 
-	delete [] this->outbuf;
-	this->outbuf = 0;
+            delete [] this->outbuf;
+            this->outbuf = 0;
+        }
+    }
+    catch (std::exception& e)
+    {
+        this->getNext()->finish();
+        throw e;
     }
     this->getNext()->finish();
 }

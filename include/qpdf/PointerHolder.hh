@@ -1,4 +1,4 @@
-// Copyright (c) 2005-2015 Jay Berkenbilt
+// Copyright (c) 2005-2017 Jay Berkenbilt
 //
 // This file is part of qpdf.  This software may be distributed under
 // the terms of version 2 of the Artistic License which may be found
@@ -69,8 +69,7 @@ class PointerHolder
     };
 
   public:
-    // "tracing" is not used but is kept for interface backward compatbility
-    PointerHolder(T* pointer = 0, bool tracing = false)
+    PointerHolder(T* pointer = 0)
 	{
 	    this->init(new Data(pointer, false));
 	}

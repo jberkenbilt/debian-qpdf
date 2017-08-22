@@ -1,4 +1,4 @@
-// Copyright (c) 2005-2015 Jay Berkenbilt
+// Copyright (c) 2005-2017 Jay Berkenbilt
 //
 // This file is part of qpdf.  This software may be distributed under
 // the terms of version 2 of the Artistic License which may be found
@@ -73,6 +73,9 @@ namespace QUtil
     int seek(FILE* stream, qpdf_offset_t offset, int whence);
     QPDF_DLL
     qpdf_offset_t tell(FILE* stream);
+
+    QPDF_DLL
+    bool same_file(char const* name1, char const* name2);
 
     QPDF_DLL
     char* copy_string(std::string const&);
@@ -157,6 +160,29 @@ namespace QUtil
     // exception will be thrown.
     QPDF_DLL
     RandomDataProvider* getRandomDataProvider();
+
+    QPDF_DLL
+    std::list<std::string> read_lines_from_file(char const* filename);
+    QPDF_DLL
+    std::list<std::string> read_lines_from_file(std::istream&);
+
+    QPDF_DLL
+    int strcasecmp(char const *, char const *);
+
+    // These routines help the tokenizer recognize certain character
+    // classes without using ctype, which we avoid because of locale
+    // considerations.
+    QPDF_DLL
+    bool is_hex_digit(char);
+
+    QPDF_DLL
+    bool is_space(char);
+
+    QPDF_DLL
+    bool is_digit(char);
+
+    QPDF_DLL
+    bool is_number(char const*);
 };
 
 #endif // __QUTIL_HH__

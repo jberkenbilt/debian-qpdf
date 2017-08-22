@@ -3,11 +3,11 @@
 #include <qpdf/qpdf-config.h>
 #include <qpdf/QUtil.hh>
 #ifdef _WIN32
-# include <Windows.h>
+# include <windows.h>
 # include <direct.h>
 # include <io.h>
 # ifndef SKIP_OS_SECURE_RANDOM
-#  include <Wincrypt.h>
+#  include <wincrypt.h>
 # endif
 #endif
 
@@ -48,18 +48,16 @@ class WindowsCryptProvider
                                  PROV_RSA_FULL,
                                  0))
         {
-#ifdef __GNUC__
-# if ((__GNUC__ * 100) + __GNUC_MINOR__) >= 406
+#if ((defined(__GNUC__) && ((__GNUC__ * 100) + __GNUC_MINOR__) >= 406) || \
+     defined(__clang__))
 #           pragma GCC diagnostic push
 #           pragma GCC diagnostic ignored "-Wold-style-cast"
 #           pragma GCC diagnostic ignored "-Wsign-compare"
-# endif
 #endif
             if (GetLastError() == NTE_BAD_KEYSET)
-#ifdef __GNUC__
-# if ((__GNUC__ * 100) + __GNUC_MINOR__) >= 406
+#if ((defined(__GNUC__) && ((__GNUC__ * 100) + __GNUC_MINOR__) >= 406) || \
+     defined(__clang__))
 #           pragma GCC diagnostic pop
-# endif
 #endif
             {
                 if (! CryptAcquireContext(&crypt_prov,
@@ -120,7 +118,7 @@ SecureRandomDataProvider::provideRandomData(unsigned char* data, size_t len)
 
 #else
 
-#  error "Don't know how to generate secure random numbers on this platform.  See random number generation in the top-level README"
+#  error "Don't know how to generate secure random numbers on this platform.  See random number generation in the top-level README.md"
 
 #endif
 }

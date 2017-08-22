@@ -314,15 +314,15 @@ void runtest(int n, char const* filename1, char const* arg2)
 	    std::cout.flush();
 	    QUtil::binary_stdout();
 	    PointerHolder<Pl_StdioFile> out = new Pl_StdioFile("raw", stdout);
-	    qtest.pipeStreamData(out.getPointer(), false, false, false);
+	    qtest.pipeStreamData(out.getPointer(), 0, qpdf_dl_none);
 
 	    std::cout << std::endl << "Uncompressed stream data:" << std::endl;
-	    if (qtest.pipeStreamData(0, true, false, false))
+	    if (qtest.pipeStreamData(0, 0, qpdf_dl_all))
 	    {
 		std::cout.flush();
 		QUtil::binary_stdout();
 		out = new Pl_StdioFile("filtered", stdout);
-		qtest.pipeStreamData(out.getPointer(), true, false, false);
+		qtest.pipeStreamData(out.getPointer(), 0, qpdf_dl_all);
 		std::cout << std::endl << "End of stream data" << std::endl;
 	    }
 	    else
@@ -362,7 +362,7 @@ void runtest(int n, char const* filename1, char const* arg2)
 	QPDFObjectHandle contents = page.getKey("/Contents");
 	QUtil::binary_stdout();
 	PointerHolder<Pl_StdioFile> out = new Pl_StdioFile("filtered", stdout);
-	contents.pipeStreamData(out.getPointer(), true, false, false);
+	contents.pipeStreamData(out.getPointer(), 0, qpdf_dl_generalized);
     }
     else if (n == 3)
     {
@@ -375,7 +375,8 @@ void runtest(int n, char const* filename1, char const* arg2)
 	    QUtil::binary_stdout();
 	    PointerHolder<Pl_StdioFile> out =
 		new Pl_StdioFile("tokenized stream", stdout);
-	    stream.pipeStreamData(out.getPointer(), true, true, false);
+	    stream.pipeStreamData(out.getPointer(),
+                                  qpdf_ef_normalize, qpdf_dl_generalized);
 	}
     }
     else if (n == 4)
@@ -497,7 +498,7 @@ void runtest(int n, char const* filename1, char const* arg2)
 	    throw std::logic_error("test 6 run on file with no metadata");
 	}
 	Pl_Buffer bufpl("buffer");
-	metadata.pipeStreamData(&bufpl, false, false, false);
+	metadata.pipeStreamData(&bufpl, 0, qpdf_dl_none);
 	Buffer* buf = bufpl.getBuffer();
 	unsigned char const* data = buf->getBuffer();
 	bool cleartext = false;
@@ -567,7 +568,7 @@ void runtest(int n, char const* filename1, char const* arg2)
 	    qstream.getStreamData();
 	    std::cout << "oops -- getStreamData didn't throw" << std::endl;
 	}
-	catch (std::logic_error const& e)
+        catch (std::exception const& e)
 	{
 	    std::cout << "exception: " << e.what() << std::endl;
 	}
@@ -1277,7 +1278,7 @@ void runtest(int n, char const* filename1, char const* arg2)
                 QPDFObjectHandle stream = item.getKey("/EF").getKey("/F");
                 Pl_Buffer p1("buffer");
                 Pl_Flate p2("compress", &p1, Pl_Flate::a_inflate);
-                stream.pipeStreamData(&p2, false, false, false);
+                stream.pipeStreamData(&p2, 0, qpdf_dl_none);
                 PointerHolder<Buffer> buf = p1.getBuffer();
                 std::string data = std::string(
                     reinterpret_cast<char const*>(buf->getBuffer()),
@@ -1308,6 +1309,42 @@ void runtest(int n, char const* filename1, char const* arg2)
         {
             std::cout << qtest.getArrayItem(i).unparseResolved() << std::endl;
         }
+    }
+    else if (n == 39)
+    {
+        // Display image filter and color set for each image on each page
+        std::vector<QPDFObjectHandle> pages = pdf.getAllPages();
+        int pageno = 0;
+        for (std::vector<QPDFObjectHandle>::iterator p_iter =
+                 pages.begin();
+             p_iter != pages.end(); ++p_iter)
+        {
+            std::cout << "page " << ++pageno << std::endl;
+	    std::map<std::string, QPDFObjectHandle> images =
+		(*p_iter).getPageImages();
+	    for (std::map<std::string, QPDFObjectHandle>::iterator i_iter =
+		     images.begin(); i_iter != images.end(); ++i_iter)
+	    {
+                QPDFObjectHandle image_dict = (*i_iter).second.getDict();
+                std::cout << "filter: "
+                          << image_dict.getKey("/Filter").unparseResolved()
+                          << ", color space: "
+                          << image_dict.getKey("/ColorSpace").unparseResolved()
+                          << std::endl;
+            }
+        }
+    }
+    else if (n == 40)
+    {
+        // Write PCLm. This requires specially crafted PDF files. This
+        // feature was implemented by Sahil Arora
+        // <sahilarora.535@gmail.com> as part of a Google Summer of
+        // Code project in 2017.
+        assert(arg2 != 0);
+        QPDFWriter w(pdf, arg2);
+        w.setPCLm(true);
+        w.setStaticID(true);
+        w.write();
     }
     else
     {

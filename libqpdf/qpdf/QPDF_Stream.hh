@@ -22,9 +22,11 @@ class QPDF_Stream: public QPDFObject
     QPDFObjectHandle getDict() const;
 
     // See comments in QPDFObjectHandle.hh for these methods.
-    bool pipeStreamData(Pipeline*, bool filter,
-			bool normalize, bool compress);
-    PointerHolder<Buffer> getStreamData();
+    bool pipeStreamData(Pipeline*,
+                        unsigned long encode_flags,
+                        qpdf_stream_decode_level_e decode_level,
+                        bool suppress_warnings);
+    PointerHolder<Buffer> getStreamData(qpdf_stream_decode_level_e);
     PointerHolder<Buffer> getRawStreamData();
     void replaceStreamData(PointerHolder<Buffer> data,
 			   QPDFObjectHandle const& filter,
@@ -51,7 +53,9 @@ class QPDF_Stream: public QPDFObject
         std::string const& filter, QPDFObjectHandle decode_params,
         int& predictor, int& columns, bool& early_code_change);
     bool filterable(std::vector<std::string>& filters,
+                    bool& specialized_compression, bool& lossy_compression,
 		    int& predictor, int& columns, bool& early_code_change);
+    void warn(QPDFExc const& e);
 
     QPDF* qpdf;
     int objid;

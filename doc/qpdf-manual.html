@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>QPDF Manual</title><link rel="stylesheet" type="text/css" href="stylesheet.css" /><meta name="generator" content="DocBook XSL Stylesheets V1.78.1" /></head><body><div class="book"><div class="titlepage"><div><div><h1 class="title"><a id="idm46047645134224"></a>QPDF Manual</h1></div><div><h2 class="subtitle">For QPDF Version 6.0.0, November 10, 2015</h2></div><div><div class="author"><h3 class="author"><span class="firstname">Jay</span> <span class="surname">Berkenbilt</span></h3></div></div><div><p class="copyright">Copyright © 2005–2015 Jay Berkenbilt</p></div></div><hr /></div><div class="toc"><p><strong>Table of Contents</strong></p><dl class="toc"><dt><span class="preface"><a href="#acknowledgments">General Information</a></span></dt><dt><span class="chapter"><a href="#ref.overview">1. What is QPDF?</a></span></dt><dt><span class="chapter"><a href="#ref.installing">2. Building and Installing QPDF</a></span></dt><dd><dl><dt><span class="sect1"><a href="#ref.prerequisites">2.1. System Requirements</a></span></dt><dt><span class="sect1"><a href="#ref.building">2.2. Build Instructions</a></span></dt></dl></dd><dt><span class="chapter"><a href="#ref.using">3. Running QPDF</a></span></dt><dd><dl><dt><span class="sect1"><a href="#ref.invocation">3.1. Basic Invocation</a></span></dt><dt><span class="sect1"><a href="#ref.basic-options">3.2. Basic Options</a></span></dt><dt><span class="sect1"><a href="#ref.encryption-options">3.3. Encryption Options</a></span></dt><dt><span class="sect1"><a href="#ref.page-selection">3.4. Page Selection Options</a></span></dt><dt><span class="sect1"><a href="#ref.advanced-transformation">3.5. Advanced Transformation Options</a></span></dt><dt><span class="sect1"><a href="#ref.testing-options">3.6. Testing, Inspection, and Debugging Options</a></span></dt></dl></dd><dt><span class="chapter"><a href="#ref.qdf">4. QDF Mode</a></span></dt><dt><span class="chapter"><a href="#ref.using-library">5. Using the QPDF Library</a></span></dt><dt><span class="chapter"><a href="#ref.design">6. Design and Library Notes</a></span></dt><dd><dl><dt><span class="sect1"><a href="#ref.design.intro">6.1. Introduction</a></span></dt><dt><span class="sect1"><a href="#ref.design-goals">6.2. Design Goals</a></span></dt><dt><span class="sect1"><a href="#ref.casting">6.3. Casting Policy</a></span></dt><dt><span class="sect1"><a href="#ref.encryption">6.4. Encryption</a></span></dt><dt><span class="sect1"><a href="#ref.random-numbers">6.5. Random Number Generation</a></span></dt><dt><span class="sect1"><a href="#ref.adding-and-remove-pages">6.6. Adding and Removing Pages</a></span></dt><dt><span class="sect1"><a href="#ref.reserved-objects">6.7. Reserving Object Numbers</a></span></dt><dt><span class="sect1"><a href="#ref.foreign-objects">6.8. Copying Objects From Other PDF Files</a></span></dt><dt><span class="sect1"><a href="#ref.rewriting">6.9. Writing PDF Files</a></span></dt><dt><span class="sect1"><a href="#ref.filtered-streams">6.10. Filtered Streams</a></span></dt></dl></dd><dt><span class="chapter"><a href="#ref.linearization">7. Linearization</a></span></dt><dd><dl><dt><span class="sect1"><a href="#ref.linearization-strategy">7.1. Basic Strategy for Linearization</a></span></dt><dt><span class="sect1"><a href="#ref.linearized.preparation">7.2. Preparing For Linearization</a></span></dt><dt><span class="sect1"><a href="#ref.optimization">7.3. Optimization</a></span></dt><dt><span class="sect1"><a href="#ref.linearization.writing">7.4. Writing Linearized Files</a></span></dt><dt><span class="sect1"><a href="#ref.linearization-data">7.5. Calculating Linearization Data</a></span></dt><dt><span class="sect1"><a href="#ref.linearization-issues">7.6. Known Issues with Linearization</a></span></dt><dt><span class="sect1"><a href="#ref.linearization-debugging">7.7. Debugging Note</a></span></dt></dl></dd><dt><span class="chapter"><a href="#ref.object-and-xref-streams">8. Object and Cross-Reference Streams</a></span></dt><dd><dl><dt><span class="sect1"><a href="#ref.object-streams">8.1. Object Streams</a></span></dt><dt><span class="sect1"><a href="#ref.xref-streams">8.2. Cross-Reference Streams</a></span></dt><dd><dl><dt><span class="sect2"><a href="#ref.xref-stream-data">8.2.1. Cross-Reference Stream Data</a></span></dt></dl></dd><dt><span class="sect1"><a href="#ref.object-streams-linearization">8.3. Implications for Linearized Files</a></span></dt><dt><span class="sect1"><a href="#ref.object-stream-implementation">8.4. Implementation Notes</a></span></dt></dl></dd><dt><span class="appendix"><a href="#ref.release-notes">A. Release Notes</a></span></dt><dt><span class="appendix"><a href="#ref.upgrading-to-2.1">B. Upgrading from 2.0 to 2.1</a></span></dt><dt><span class="appendix"><a href="#ref.upgrading-to-3.0">C. Upgrading to 3.0</a></span></dt><dt><span class="appendix"><a href="#ref.upgrading-to-4.0">D. Upgrading to 4.0</a></span></dt></dl></div><div class="preface"><div class="titlepage"><div><div><h1 class="title"><a id="acknowledgments"></a>General Information</h1></div></div></div><p>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>QPDF Manual</title><link rel="stylesheet" type="text/css" href="stylesheet.css" /><meta name="generator" content="DocBook XSL Stylesheets V1.79.1" /></head><body><div class="book"><div class="titlepage"><div><div><h1 class="title"><a id="idm1"></a>QPDF Manual</h1></div><div><h2 class="subtitle">For QPDF Version 7.0.b1, August 22, 2017</h2></div><div><div class="author"><h3 class="author"><span class="firstname">Jay</span> <span class="surname">Berkenbilt</span></h3></div></div><div><p class="copyright">Copyright © 2005–2017 Jay Berkenbilt</p></div></div><hr /></div><div class="toc"><p><strong>Table of Contents</strong></p><dl class="toc"><dt><span class="preface"><a href="#acknowledgments">General Information</a></span></dt><dt><span class="chapter"><a href="#ref.overview">1. What is QPDF?</a></span></dt><dt><span class="chapter"><a href="#ref.installing">2. Building and Installing QPDF</a></span></dt><dd><dl><dt><span class="sect1"><a href="#ref.prerequisites">2.1. System Requirements</a></span></dt><dt><span class="sect1"><a href="#ref.building">2.2. Build Instructions</a></span></dt></dl></dd><dt><span class="chapter"><a href="#ref.using">3. Running QPDF</a></span></dt><dd><dl><dt><span class="sect1"><a href="#ref.invocation">3.1. Basic Invocation</a></span></dt><dt><span class="sect1"><a href="#ref.basic-options">3.2. Basic Options</a></span></dt><dt><span class="sect1"><a href="#ref.encryption-options">3.3. Encryption Options</a></span></dt><dt><span class="sect1"><a href="#ref.page-selection">3.4. Page Selection Options</a></span></dt><dt><span class="sect1"><a href="#ref.advanced-transformation">3.5. Advanced Transformation Options</a></span></dt><dt><span class="sect1"><a href="#ref.testing-options">3.6. Testing, Inspection, and Debugging Options</a></span></dt></dl></dd><dt><span class="chapter"><a href="#ref.qdf">4. QDF Mode</a></span></dt><dt><span class="chapter"><a href="#ref.using-library">5. Using the QPDF Library</a></span></dt><dt><span class="chapter"><a href="#ref.design">6. Design and Library Notes</a></span></dt><dd><dl><dt><span class="sect1"><a href="#ref.design.intro">6.1. Introduction</a></span></dt><dt><span class="sect1"><a href="#ref.design-goals">6.2. Design Goals</a></span></dt><dt><span class="sect1"><a href="#ref.casting">6.3. Casting Policy</a></span></dt><dt><span class="sect1"><a href="#ref.encryption">6.4. Encryption</a></span></dt><dt><span class="sect1"><a href="#ref.random-numbers">6.5. Random Number Generation</a></span></dt><dt><span class="sect1"><a href="#ref.adding-and-remove-pages">6.6. Adding and Removing Pages</a></span></dt><dt><span class="sect1"><a href="#ref.reserved-objects">6.7. Reserving Object Numbers</a></span></dt><dt><span class="sect1"><a href="#ref.foreign-objects">6.8. Copying Objects From Other PDF Files</a></span></dt><dt><span class="sect1"><a href="#ref.rewriting">6.9. Writing PDF Files</a></span></dt><dt><span class="sect1"><a href="#ref.filtered-streams">6.10. Filtered Streams</a></span></dt></dl></dd><dt><span class="chapter"><a href="#ref.linearization">7. Linearization</a></span></dt><dd><dl><dt><span class="sect1"><a href="#ref.linearization-strategy">7.1. Basic Strategy for Linearization</a></span></dt><dt><span class="sect1"><a href="#ref.linearized.preparation">7.2. Preparing For Linearization</a></span></dt><dt><span class="sect1"><a href="#ref.optimization">7.3. Optimization</a></span></dt><dt><span class="sect1"><a href="#ref.linearization.writing">7.4. Writing Linearized Files</a></span></dt><dt><span class="sect1"><a href="#ref.linearization-data">7.5. Calculating Linearization Data</a></span></dt><dt><span class="sect1"><a href="#ref.linearization-issues">7.6. Known Issues with Linearization</a></span></dt><dt><span class="sect1"><a href="#ref.linearization-debugging">7.7. Debugging Note</a></span></dt></dl></dd><dt><span class="chapter"><a href="#ref.object-and-xref-streams">8. Object and Cross-Reference Streams</a></span></dt><dd><dl><dt><span class="sect1"><a href="#ref.object-streams">8.1. Object Streams</a></span></dt><dt><span class="sect1"><a href="#ref.xref-streams">8.2. Cross-Reference Streams</a></span></dt><dd><dl><dt><span class="sect2"><a href="#ref.xref-stream-data">8.2.1. Cross-Reference Stream Data</a></span></dt></dl></dd><dt><span class="sect1"><a href="#ref.object-streams-linearization">8.3. Implications for Linearized Files</a></span></dt><dt><span class="sect1"><a href="#ref.object-stream-implementation">8.4. Implementation Notes</a></span></dt></dl></dd><dt><span class="appendix"><a href="#ref.release-notes">A. Release Notes</a></span></dt><dt><span class="appendix"><a href="#ref.upgrading-to-2.1">B. Upgrading from 2.0 to 2.1</a></span></dt><dt><span class="appendix"><a href="#ref.upgrading-to-3.0">C. Upgrading to 3.0</a></span></dt><dt><span class="appendix"><a href="#ref.upgrading-to-4.0">D. Upgrading to 4.0</a></span></dt></dl></div><div class="preface"><div class="titlepage"><div><div><h1 class="title"><a id="acknowledgments"></a>General Information</h1></div></div></div><p>
    QPDF is a program that does structural, content-preserving
    transformations on PDF files.  QPDF's website is located at <a class="ulink" href="http://qpdf.sourceforge.net/" target="_top">http://qpdf.sourceforge.net/</a>.
    QPDF's source code is hosted on github at <a class="ulink" href="https://github.com/qpdf/qpdf" target="_top">https://github.com/qpdf/qpdf</a>.
@@ -48,15 +48,16 @@
    web-optimize them, or perform other transformations of that type.
   </p></div><div class="chapter"><div class="titlepage"><div><div><h1 class="title"><a id="ref.installing"></a>Chapter 2. Building and Installing QPDF</h1></div></div></div><div class="toc"><p><strong>Table of Contents</strong></p><dl class="toc"><dt><span class="sect1"><a href="#ref.prerequisites">2.1. System Requirements</a></span></dt><dt><span class="sect1"><a href="#ref.building">2.2. Build Instructions</a></span></dt></dl></div><p>
    This chapter describes how to build and install qpdf.  Please see
-   also the <code class="filename">README</code> and
+   also the <code class="filename">README.md</code> and
    <code class="filename">INSTALL</code> files in the source distribution.
   </p><div class="sect1"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a id="ref.prerequisites"></a>2.1. System Requirements</h2></div></div></div><p>
-    The qpdf package has relatively few external dependencies.  In
-    order to build qpdf, the following packages are required:
+    The qpdf package has few external dependencies. In order to build
+    qpdf, the following packages are required:
     </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
        zlib: <a class="ulink" href="http://www.zlib.net/" target="_top">http://www.zlib.net/</a>
       </p></li><li class="listitem"><p>
-       pcre: <a class="ulink" href="http://www.pcre.org/" target="_top">http://www.pcre.org/</a>
+       jpeg: <a class="ulink" href="http://www.ijg.org/files/" target="_top">http://www.ijg.org/files/</a>
+       or <a class="ulink" href="https://libjpeg-turbo.org/" target="_top">https://libjpeg-turbo.org/</a>
       </p></li><li class="listitem"><p>
        gnu make 3.81 or newer: <a class="ulink" href="http://www.gnu.org/software/make" target="_top">http://www.gnu.org/software/make</a>
       </p></li><li class="listitem"><p>
@@ -128,16 +129,16 @@ make
     configured.  You can also set the value of
     <code class="varname">DESTDIR</code> during installation to install to a
     temporary location, as is common with many open source packages.
-    Please see also the <code class="filename">README</code> and
+    Please see also the <code class="filename">README.md</code> and
     <code class="filename">INSTALL</code> files in the source distribution.
    </p><p>
     Building on Windows is a little bit more complicated.  For
-    details, please see <code class="filename">README-windows.txt</code> in the
+    details, please see <code class="filename">README-windows.md</code> in the
     source distribution.  You can also download a binary distribution
     for Windows.  There is a port of qpdf to Visual C++ version 6 in
     the <code class="filename">contrib</code> area generously contributed by
     Jian Ma.  This is also discussed in more detail in
-    <code class="filename">README-windows.txt</code>.
+    <code class="filename">README-windows.md</code>.
    </p><p>
     There are some other things you can do with the build.  Although
     qpdf uses <span class="application">autoconf</span>, it does not use
@@ -164,6 +165,13 @@ make
     normal use case for using <code class="option">--empty</code> would be if you
     were going to add pages from another source, as discussed in <a class="xref" href="#ref.page-selection" title="3.4. Page Selection Options">Section 3.4, “Page Selection Options”</a>.
    </p><p>
+    If <code class="option">@filename</code> appears anywhere in the
+    command-line, it will be read line by line, and each line will be
+    treated as a command-line argument. The <code class="option">@-</code> option
+    allows arguments to be read from standard input. This allows qpdf
+    to be invoked with an arbitrary number of arbitrarily long
+    arguments.
+   </p><p>
     <code class="option">outfilename</code> does not have to be seekable, even
     when generating linearized files.  Specifying
     “<code class="option">--</code>” as <code class="option">outfilename</code>
@@ -178,6 +186,9 @@ make
     commonly needed transformations.
     </p><div class="variablelist"><dl class="variablelist"><dt><span class="term"><code class="option">--password=password</code></span></dt><dd><p>
         Specifies a password for accessing encrypted files.
+       </p></dd><dt><span class="term"><code class="option">--verbose</code></span></dt><dd><p>
+        Increase verbosity of output. For now, this just prints some
+        indication of any file that it creates.
        </p></dd><dt><span class="term"><code class="option">--linearize</code></span></dt><dd><p>
         Causes generation of a linearized (web-optimized) output file.
        </p></dd><dt><span class="term"><code class="option">--copy-encryption=file</code></span></dt><dd><p>
@@ -202,9 +213,67 @@ make
        </p></dd><dt><span class="term"><code class="option">--decrypt</code></span></dt><dd><p>
         Removes any encryption on the file.  A password must be
         supplied if the file is password protected.
+       </p></dd><dt><span class="term"><code class="option">--rotate=[+|-]angle:page-range</code></span></dt><dd><p>
+        Apply rotation to specified pages. The
+        <code class="option">page-range</code> portion of the option value has
+        the same format as page ranges in <a class="xref" href="#ref.page-selection" title="3.4. Page Selection Options">Section 3.4, “Page Selection Options”</a>. The <code class="option">angle</code>
+        portion of the parameter may be either 90, 180, or 270. If
+        preceded by <code class="option">+</code> or <code class="option">-</code>, the
+        angle is added to or subtracted from the specified pages'
+        original rotations. Otherwise the pages' rotations are set to
+        the exact value. For example, the command <span class="command"><strong>qpdf in.pdf
+        out.pdf --rotate=+90:2,4,6 --rotate=180:7-8</strong></span> would
+        rotate pages 2, 4, and 6 90 degrees clockwise from their
+        original rotation and force the rotation of pages 7 through 9
+        to 180 degrees regardless of their original rotation.
        </p></dd><dt><span class="term"><code class="option">--pages options --</code></span></dt><dd><p>
         Select specific pages from one or more input files.  See <a class="xref" href="#ref.page-selection" title="3.4. Page Selection Options">Section 3.4, “Page Selection Options”</a> for details on how to do page
         selection (splitting and merging).
+       </p></dd><dt><span class="term"><code class="option">--split-pages=[n]</code></span></dt><dd><p>
+        Write each group of <code class="option">n</code> pages to a separate
+        output file. If <code class="option">n</code> is not specified, create
+        single pages. Output file names are generated as follows:
+        </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+           If the string <code class="literal">%d</code> appears in the output
+           file name, it is replaced with a range of zero-padded page
+           numbers starting from 1.
+          </p></li><li class="listitem"><p>
+           Otherwise, if the output file name ends in
+           <code class="filename">.pdf</code> (case insensitive), a zero-padded
+           page range, preceded by a dash, is inserted before the file
+           extension.
+          </p></li><li class="listitem"><p>
+           Otherwise, the file name is appended with a zero-padded
+           page range preceded by a dash.
+          </p></li></ul></div><p>
+       </p><p>
+        Page ranges are a single number in the case of single-page
+        groups or two numbers separated by a dash otherwise.
+        For example, if <code class="filename">infile.pdf</code> has 12 pages
+        </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+           <span class="command"><strong>qpdf --split-pages infile.pdf %d-out</strong></span>
+           would generate files <code class="filename">01-out</code> through
+           <code class="filename">12-out</code>
+          </p></li><li class="listitem"><p>
+           <span class="command"><strong>qpdf --split-pages=2 infile.pdf
+           outfile.pdf</strong></span> would generate files
+           <code class="filename">outfile-01-02.pdf</code> through
+           <code class="filename">outfile-11-12.pdf</code>
+          </p></li><li class="listitem"><p>
+           <span class="command"><strong>qpdf --split-pages infile.pdf
+           something.else</strong></span> would generate files
+           <code class="filename">something.else-01</code> through
+           <code class="filename">something.else-12</code>
+          </p></li></ul></div><p>
+       </p><p>
+        Note that outlines, threads, and other global features of the
+        original PDF file are not preserved. For each page of output,
+        this option creates an empty PDF and copies a single page from
+        the output into it. If you require the global data, you will
+        have to run <span class="command"><strong>qpdf</strong></span> with the
+        <code class="option">--pages</code> option once for each file. Using
+        <code class="option">--split-pages</code> is much faster if you don't
+        require the global data.
        </p></dd></dl></div><p>
    </p><p>
     Password-protected files may be opened by specifying a password.
@@ -393,8 +462,8 @@ make
    </p><p>
     Example page ranges:
     </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
-       <code class="literal">1,3,5-9,15-12</code>: pages 1, 2, 3, 5, 6, 7, 8,
-       9, 15, 14, 13, and 12.
+       <code class="literal">1,3,5-9,15-12</code>: pages 1, 3, 5, 6, 7, 8,
+       9, 15, 14, 13, and 12 in that order.
       </p></li><li class="listitem"><p>
        <code class="literal">z-1</code>: all pages in the document in reverse
       </p></li></ul></div><p>
@@ -453,18 +522,55 @@ outfile.pdf</code>
     creates the output file.  Mostly these are of use only to people
     who are very familiar with the PDF file format or who are PDF
     developers.  The following options are available:
-    </p><div class="variablelist"><dl class="variablelist"><dt><span class="term"><code class="option">--stream-data=<em class="replaceable"><code>option</code></em></code></span></dt><dd><p>
-        Controls transformation of stream data.  The value of
-        <code class="option"><em class="replaceable"><code>option</code></em></code> may be one
-        of the following:
+    </p><div class="variablelist"><dl class="variablelist"><dt><span class="term"><code class="option">--compress-streams=<em class="replaceable"><code>[yn]</code></em></code></span></dt><dd><p>
+        By default, or with <code class="option">--compress-streams=y</code>,
+        qpdf will compress any stream with no other filters applied to
+        it with the <code class="literal">/FlateDecode</code> filter when it
+        writes it. To suppress this behavior and preserve uncompressed
+        streams as uncompressed, use
+        <code class="option">--compress-streams=n</code>.
+       </p></dd><dt><span class="term"><code class="option">--decode-level=<em class="replaceable"><code>option</code></em></code></span></dt><dd><p>
+        Controls which streams qpdf tries to decode. The default is
+        <code class="option">generalized</code>. The following options are
+        available:
+        </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+           <code class="option">none</code>: do not attempt to decode any streams
+          </p></li><li class="listitem"><p>
+           <code class="option">generalized</code>: decode streams filtered with
+           supported generalized filters: <code class="option">/LZWDecode</code>,
+           <code class="option">/FlateDecode</code>,
+           <code class="option">/ASCII85Decode</code>, and
+           <code class="option">/ASCIIHexDecode</code>
+          </p></li><li class="listitem"><p>
+           <code class="option">specialized</code>: in addition to generalized,
+           decode streams with supported non-lossy specialized
+           filters; currently this is just <code class="option">/RunLengthDecode</code>
+          </p></li><li class="listitem"><p>
+           <code class="option">all</code>: in addition to generalized and
+           specialized, decode streams with supported lossy filters;
+           currently this is just <code class="option">/DCTDecode</code> (JPEG)
+          </p></li></ul></div><p>
+       </p></dd><dt><span class="term"><code class="option">--stream-data=<em class="replaceable"><code>option</code></em></code></span></dt><dd><p>
+        Controls transformation of stream data. This option predates
+        the <code class="option">--compress-streams</code> and
+        <code class="option">--decode-level</code> options. Those options can be
+        used to achieve the same affect with more control. The value
+        of <code class="option"><em class="replaceable"><code>option</code></em></code> may be
+        one of the following:
         </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
            <code class="option">compress</code>: recompress stream data when
-           possible (default)
+           possible (default); equivalent to
+           <code class="option">--compress-streams=y</code>
+           <code class="option">--decode-level=generalized</code>
           </p></li><li class="listitem"><p>
-           <code class="option">preserve</code>: leave all stream data as is
+           <code class="option">preserve</code>: leave all stream data as is;
+           equivalent to <code class="option">--compress-streams=n</code>
+           <code class="option">--decode-level=none</code>
           </p></li><li class="listitem"><p>
            <code class="option">uncompress</code>: uncompress stream data when
-           possible
+           possible; equivalent to
+           <code class="option">--compress-streams=n</code>
+           <code class="option">--decode-level=generalized</code>
           </p></li></ul></div><p>
        </p></dd><dt><span class="term"><code class="option">--normalize-content=[yn]</code></span></dt><dd><p>
         Enables or disables normalization of content streams.
@@ -485,6 +591,29 @@ outfile.pdf</code>
           </p></li></ul></div><p>
        </p></dd><dt><span class="term"><code class="option">--ignore-xref-streams</code></span></dt><dd><p>
         Tells qpdf to ignore any cross-reference streams.
+       </p></dd><dt><span class="term"><code class="option">--preserve-unreferenced</code></span></dt><dd><p>
+        Tells qpdf to preserve objects that are not referenced when
+        writing the file. Ordinarily any object that is not referenced
+        in a traversal of the document from the trailer dictionary
+        will be discarded. This may be useful in working with some
+        damaged files or inspecting files with known unreferenced
+        objects.
+       </p><p>
+        This flag is ignored for linearized files and has the effect
+        of causing objects in the new file to be written in order by
+        object ID from the original file. This does not mean that
+        object numbers will be the same since qpdf may create stream
+        lengths as direct or indirect differently from the original
+        file, and the original file may have gaps in its numbering.
+       </p></dd><dt><span class="term"><code class="option">--newline-before-endstream</code></span></dt><dd><p>
+        Tells qpdf to insert a newline before the
+        <code class="literal">endstream</code> keyword, not counted in the
+        length, after any stream content even if the last character of
+        the stream was a newline. This may result in two newlines in
+        some cases. This is a requirement of PDF/A. While qpdf doesn't
+        specifically know how to generate PDF/A-compliant PDFs, this
+        at least prevents it from removing compliance on already
+        compliant files.
        </p></dd><dt><span class="term"><code class="option">--qdf</code></span></dt><dd><p>
         Turns on QDF mode.  For additional information on QDF, please
         see <a class="xref" href="#ref.qdf" title="Chapter 4. QDF Mode">Chapter 4, <em>QDF Mode</em></a>.
@@ -820,7 +949,7 @@ outfile.pdf</code>
     of the qpdf library's public interface.  The best source of
     documentation on the library itself is reading comments in
     <code class="filename">include/qpdf/QPDF.hh</code>,
-    <code class="filename">include/qpdf/QDFWriter.hh</code>, and
+    <code class="filename">include/qpdf/QPDFWriter.hh</code>, and
     <code class="filename">include/qpdf/QPDFObjectHandle.hh</code>.
    </p><p>
     All header files are installed in the <code class="filename">include/qpdf</code> directory.  It
@@ -829,7 +958,7 @@ outfile.pdf</code>
     <code class="filename">include/qpdf</code> to your include path.
    </p><p>
     When linking against the qpdf static library, you may also need to
-    specify <code class="literal">-lpcre -lz</code> on your link command.  If
+    specify <code class="literal">-lz -ljpeg</code> on your link command. If
     your system understands how to read libtool
     <code class="filename">.la</code> files, this may not be necessary.
    </p><p>
@@ -985,7 +1114,7 @@ outfile.pdf</code>
     password-protected files.  QPDF does not enforce encryption
     parameters and will treat user and owner passwords equivalently.
     Either password may be used to access an encrypted file.
-    <a href="#ftn.idm46047638973168" class="footnote" id="idm46047638973168"><sup class="footnote">[1]</sup></a>
+    <a href="#ftn.idm792" class="footnote" id="idm792"><sup class="footnote">[1]</sup></a>
     <code class="classname">QPDF</code> will allow recovery of a user password
     given an owner password.  The input PDF file must be seekable.
     (Output files written by <code class="classname">QPDFWriter</code> need
@@ -1276,7 +1405,7 @@ outfile.pdf</code>
     would enable you to use some software-based secure pseudorandom
     number generator and to avoid use of whatever the operating system
     provides.  For details on how to do this, please refer to the
-    top-level README file in the source distribution and to comments
+    top-level README.md file in the source distribution and to comments
     in <code class="filename">QUtil.hh</code>.
    </p></div><div class="sect1"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a id="ref.adding-and-remove-pages"></a>6.6. Adding and Removing Pages</h2></div></div></div><p>
     While qpdf's API has supported adding and modifying objects for
@@ -1317,24 +1446,26 @@ outfile.pdf</code>
     Version 3.0 of qpdf introduced the ability to copy objects into a
     <code class="classname">QPDF</code> object from a different
     <code class="classname">QPDF</code> object, which we refer to as
-    <em class="firstterm">foreign objects</em>.  This allows arbitrary
-    merging of PDF files.  The <span class="command"><strong>qpdf</strong></span> command-line
-    tool provides limited support for basic page selection, including
-    merging in pages from other files, but the library's API makes it
-    possible to implement arbitrarily complex merging operations.  The
-    main method for copying foreign objects is
-    <code class="function">QPDF::copyForeignObject</code>.  This takes an
+    <em class="firstterm">foreign objects</em>. This allows arbitrary
+    merging of PDF files. The “from”
+    <code class="classname">QPDF</code> object must remain valid after the
+    copy as discussed in the note below. The <span class="command"><strong>qpdf</strong></span>
+    command-line tool provides limited support for basic page
+    selection, including merging in pages from other files, but the
+    library's API makes it possible to implement arbitrarily complex
+    merging operations. The main method for copying foreign objects is
+    <code class="function">QPDF::copyForeignObject</code>. This takes an
     indirect object from another <code class="classname">QPDF</code> and
     copies it recursively into this object while preserving all object
-    structure, including circular references.  This means you can add
-    a direct object that you create from scratch to a
+    structure, including circular references. This means you can add a
+    direct object that you create from scratch to a
     <code class="classname">QPDF</code> object with
     <code class="function">QPDF::makeIndirectObject</code>, and you can add an
     indirect object from another file with
-    <code class="function">QPDF::copyForeignObject</code>.  The fact that
+    <code class="function">QPDF::copyForeignObject</code>. The fact that
     <code class="function">QPDF::makeIndirectObject</code> does not
     automatically detect a foreign object and copy it is an explicit
-    design decision.  Copying a foreign object seems like a
+    design decision. Copying a foreign object seems like a
     sufficiently significant thing to do that it should be done
     explicitly.
    </p><p>
@@ -1344,6 +1475,13 @@ outfile.pdf</code>
     <code class="function">QPDF::makeIndirectObject</code>, this method
     automatically distinguishes between indirect objects in the
     current file, foreign objects, and direct objects.
+   </p><p>
+    Please note: when you copy objects from one
+    <code class="classname">QPDF</code> to another, the source
+    <code class="classname">QPDF</code> object must remain valid until you
+    have finished with the destination object. This is because the
+    original object is still used to retrieve any referenced stream
+    data from the copied object.
    </p></div><div class="sect1"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a id="ref.rewriting"></a>6.9. Writing PDF Files</h2></div></div></div><p>
     The qpdf library supports file writing of
     <code class="classname">QPDF</code> objects to PDF files through the
@@ -1463,7 +1601,7 @@ outfile.pdf</code>
     filter should write to whatever type of output is required.  The
     <code class="classname">QPDF</code> class has an interface to write raw or
     filtered stream contents to a given pipeline.
-   </p></div><div class="footnotes"><br /><hr style="width:100; text-align:left;margin-left: 0" /><div id="ftn.idm46047638973168" class="footnote"><p><a href="#idm46047638973168" class="para"><sup class="para">[1] </sup></a>
+   </p></div><div class="footnotes"><br /><hr style="width:100; text-align:left;margin-left: 0" /><div id="ftn.idm792" class="footnote"><p><a href="#idm792" class="para"><sup class="para">[1] </sup></a>
       As pointed out earlier, the intention is not for qpdf to be used
       to bypass security on files. but as any open source PDF consumer
       may be easily modified to bypass basic PDF document security,
@@ -2015,7 +2153,7 @@ print "\n";
            converts numbers to strings.  This is largely invisible to
            users, but it does trigger a bug in some older versions of
            mingw-w64's C++ library.  See
-           <code class="filename">README-windows.txt</code> in the source
+           <code class="filename">README-windows.md</code> in the source
            distribution if you think this may affect you.  The copy of
            the DLL distributed with qpdf's binary distribution is not
            affected by this problem.
@@ -2277,13 +2415,13 @@ print "\n";
         not needed to verify a correct build or port of qpdf.  They
         are needed only when changing the actual PDF output generated
         by qpdf.  You should enable them if you are making deep
-        changes to qpdf itself.  See <code class="filename">README</code> for
+        changes to qpdf itself.  See <code class="filename">README.md</code> for
         details.
        </p></li><li class="listitem"><p>
         Large file tests are off by default but can be turned on with
         <span class="command"><strong>./configure</strong></span> or by setting an environment
         variable before running the test suite.  See
-        <code class="filename">README</code> for details.
+        <code class="filename">README.md</code> for details.
        </p></li><li class="listitem"><p>
         When qpdf's test suite fails, failures are not printed to the
         terminal anymore by default.  Instead, find them in

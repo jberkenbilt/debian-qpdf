@@ -1,4 +1,4 @@
-/* Copyright (c) 2005-2015 Jay Berkenbilt
+/* Copyright (c) 2005-2017 Jay Berkenbilt
  *
  * This file is part of qpdf.  This software may be distributed under
  * the terms of version 2 of the Artistic License which may be found
@@ -14,16 +14,27 @@
 class FileInputSource: public InputSource
 {
   public:
+    QPDF_DLL
     FileInputSource();
+    QPDF_DLL
     void setFilename(char const* filename);
+    QPDF_DLL
     void setFile(char const* description, FILE* filep, bool close_file);
+    QPDF_DLL
     virtual ~FileInputSource();
+    QPDF_DLL
     virtual qpdf_offset_t findAndSkipNextEOL();
+    QPDF_DLL
     virtual std::string const& getName() const;
+    QPDF_DLL
     virtual qpdf_offset_t tell();
+    QPDF_DLL
     virtual void seek(qpdf_offset_t offset, int whence);
+    QPDF_DLL
     virtual void rewind();
+    QPDF_DLL
     virtual size_t read(char* buffer, size_t length);
+    QPDF_DLL
     virtual void unreadCh(char ch);
 
   private:
