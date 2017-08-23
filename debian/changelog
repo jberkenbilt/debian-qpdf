@@ -1,13 +1,16 @@
-qpdf (7.0.0-1) unstable; urgency=medium
+qpdf (7.0~b1-2) experimental; urgency=medium
 
-  * New upstream release. This release has many enhancements and fixes
-    many bugs. For details, please see the release notes in the
-    documentation, which is available in /usr/share/doc/qpdf. There are
-    also several CVE fixes: CVE-2017-11624, CVE-2017-11625,
-    CVE-2017-11626, CVE-2017-11627, CVE-2017-9208, CVE-2017-9209,
-    CVE-2017-9210. (Closes: #863390, #871320, #825246)
+  * No code changes from previous upload other than noting that several
+    bugs are closed. I left this out of the earlier changelog. This
+    release has many enhancements and fixes many bugs. There are also
+    several CVE fixes: CVE-2017-11624, CVE-2017-11625, CVE-2017-11626,
+    CVE-2017-11627, CVE-2017-9208, CVE-2017-9209, CVE-2017-9210. (Closes:
+    #863390, #871320, #825246). A full listing of the changes in this
+    version will be included in the release notes of the final 7.0.0
+    release.
+  * Change build dependency for libjpeg-dev to leave only virtual package.
 
- --
+ -- Jay Berkenbilt <qjb@debian.org>  Wed, 23 Aug 2017 12:19:47 -0400
 
 qpdf (7.0~b1-1) experimental; urgency=medium
 
