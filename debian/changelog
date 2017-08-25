@@ -1,3 +1,9 @@
+qpdf (7.0~b1-3) experimental; urgency=medium
+
+  * Redo debian rules to use dh over cdbs.
+
+ --
+
 qpdf (7.0~b1-2) experimental; urgency=medium
 
   * No code changes from previous upload other than noting that several
