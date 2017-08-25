@@ -1,8 +1,9 @@
 qpdf (7.0~b1-3) experimental; urgency=medium
 
   * Redo debian rules to use dh over cdbs.
+  * 7.0~b1 closes several bugs. (Closes: #863390, #871320, #825246)
 
- --
+ -- Jay Berkenbilt <qjb@debian.org>  Thu, 24 Aug 2017 21:40:57 -0400
 
 qpdf (7.0~b1-2) experimental; urgency=medium
 
@@ -10,10 +11,9 @@ qpdf (7.0~b1-2) experimental; urgency=medium
     bugs are closed. I left this out of the earlier changelog. This
     release has many enhancements and fixes many bugs. There are also
     several CVE fixes: CVE-2017-11624, CVE-2017-11625, CVE-2017-11626,
-    CVE-2017-11627, CVE-2017-9208, CVE-2017-9209, CVE-2017-9210. (Closes:
-    #863390, #871320, #825246). A full listing of the changes in this
-    version will be included in the release notes of the final 7.0.0
-    release.
+    CVE-2017-11627, CVE-2017-9208, CVE-2017-9209, CVE-2017-9210. A full
+    listing of the changes in this version will be included in the release
+    notes of the final 7.0.0 release.
   * Change build dependency for libjpeg-dev to leave only virtual package.
 
  -- Jay Berkenbilt <qjb@debian.org>  Wed, 23 Aug 2017 12:19:47 -0400
