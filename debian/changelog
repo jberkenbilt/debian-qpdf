@@ -1,3 +1,9 @@
+qpdf (7.0.0-1) unstable; urgency=medium
+
+  * New upstream release.
+
+ -- Jay Berkenbilt <qjb@debian.org>  Fri, 15 Sep 2017 23:12:59 -0400
+
 qpdf (7.0~b1-3) experimental; urgency=medium
 
   * Redo debian rules to use dh over cdbs.
