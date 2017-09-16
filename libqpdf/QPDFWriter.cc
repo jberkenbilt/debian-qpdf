@@ -661,8 +661,10 @@ QPDFWriter::disableIncompatibleEncryption(int major, int minor,
     }
     else
     {
-	int V = atoi(this->m->encryption_dictionary["/V"].c_str());
-	int R = atoi(this->m->encryption_dictionary["/R"].c_str());
+	int V = QUtil::string_to_int(
+            this->m->encryption_dictionary["/V"].c_str());
+	int R = QUtil::string_to_int(
+            this->m->encryption_dictionary["/R"].c_str());
 	if (compareVersions(major, minor, 1, 4) < 0)
 	{
 	    if ((V > 1) || (R > 2))
@@ -705,12 +707,12 @@ void
 QPDFWriter::parseVersion(std::string const& version,
 			 int& major, int& minor) const
 {
-    major = atoi(version.c_str());
+    major = QUtil::string_to_int(version.c_str());
     minor = 0;
     size_t p = version.find('.');
     if ((p != std::string::npos) && (version.length() > p))
     {
-	minor = atoi(version.substr(p + 1).c_str());
+	minor = QUtil::string_to_int(version.substr(p + 1).c_str());
     }
     std::string tmp = QUtil::int_to_string(major) + "." +
 	QUtil::int_to_string(minor);
@@ -1621,7 +1623,7 @@ QPDFWriter::unparseObject(QPDFObjectHandle object, int level,
                      ((filter && compress) ? qpdf_ef_compress : 0)),
                     (filter
                      ? (uncompress ? qpdf_dl_all : this->m->stream_decode_level)
-                     : qpdf_dl_none));
+                     : qpdf_dl_none), false, (attempt == 1));
             popPipelineStack(&stream_data);
             if (filter && (! filtered))
             {

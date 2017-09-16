@@ -1,3 +1,39 @@
+2017-09-15  Jay Berkenbilt  <ejb@ql.org>
+
+	* 7.0.0: release
+
+2017-09-12  Jay Berkenbilt  <ejb@ql.org>
+
+	* Relicense qpdf under version 2.0 of the Apache License rather
+	than version 2.0 of the Artistic License. Both are fine, but the
+	Apache License is in more widespread use, and I like it a little
+	better than Artistic-2.0. It is my intention that there be no
+	change in what you can or can't do with qpdf. Versions of qpdf
+	prior to version 7 were released under the terms of version 2.0 of
+	the Artistic License. At your option, you may continue to consider
+	qpdf to be licensed under those terms. Please see the manual for
+	additional information.
+
+	* Improve the error message that is issued when QPDFWriter
+	encounters a stream that can't be decoded. In particular, mention
+	that the stream will be copied without filtering to avoid data
+	loss.
+
+	* Add new methods to the C API to correspond to new additions to
+	QPDFWriter:
+	- qpdf_set_compress_streams
+	- qpdf_set_decode_level
+	- qpdf_set_preserve_unreferenced_objects
+	- qpdf_set_newline_before_endstream
+
+2017-08-25  Jay Berkenbilt  <ejb@ql.org>
+
+	* Re-implement parser iteratively to avoid stack overflow on very
+	deeply nested arrays and dictionaries. Fixes #146.
+
+	* Detect infinite loop while finding additional xref tables. Fixes
+	#149.
+
 2017-08-22  Jay Berkenbilt  <ejb@ql.org>
 
 	* 7.0.b1: release

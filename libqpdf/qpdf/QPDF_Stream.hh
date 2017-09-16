@@ -25,7 +25,7 @@ class QPDF_Stream: public QPDFObject
     bool pipeStreamData(Pipeline*,
                         unsigned long encode_flags,
                         qpdf_stream_decode_level_e decode_level,
-                        bool suppress_warnings);
+                        bool suppress_warnings, bool will_retry);
     PointerHolder<Buffer> getStreamData(qpdf_stream_decode_level_e);
     PointerHolder<Buffer> getRawStreamData();
     void replaceStreamData(PointerHolder<Buffer> data,
@@ -42,6 +42,9 @@ class QPDF_Stream: public QPDFObject
     // object ID and generation are 0.  It is used by QPDFObjectHandle
     // when adding streams to files.
     void setObjGen(int objid, int generation);
+
+  protected:
+    virtual void releaseResolved();
 
   private:
     static std::map<std::string, std::string> filter_abbreviations;

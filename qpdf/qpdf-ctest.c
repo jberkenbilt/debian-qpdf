@@ -228,6 +228,7 @@ static void test06(char const* infile,
     qpdf_set_object_stream_mode(qpdf, qpdf_o_generate);
     qpdf_write(qpdf);
     report_errors();
+    free(buf);
 }
 
 static void test07(char const* infile,
@@ -439,6 +440,50 @@ static void test19(char const* infile,
     report_errors();
 }
 
+static void test20(char const* infile,
+		   char const* password,
+		   char const* outfile,
+		   char const* outfile2)
+{
+    qpdf_read(qpdf, infile, password);
+    qpdf_init_write(qpdf, outfile);
+    qpdf_set_static_ID(qpdf, QPDF_TRUE);
+    qpdf_set_static_aes_IV(qpdf, QPDF_TRUE);
+    qpdf_set_compress_streams(qpdf, QPDF_FALSE);
+    qpdf_set_decode_level(qpdf, qpdf_dl_specialized);
+    qpdf_write(qpdf);
+    report_errors();
+}
+
+static void test21(char const* infile,
+		   char const* password,
+		   char const* outfile,
+		   char const* outfile2)
+{
+    qpdf_read(qpdf, infile, password);
+    qpdf_init_write(qpdf, outfile);
+    qpdf_set_static_ID(qpdf, QPDF_TRUE);
+    qpdf_set_static_aes_IV(qpdf, QPDF_TRUE);
+    qpdf_set_preserve_unreferenced_objects(qpdf, QPDF_TRUE);
+    qpdf_write(qpdf);
+    report_errors();
+}
+
+static void test22(char const* infile,
+		   char const* password,
+		   char const* outfile,
+		   char const* outfile2)
+{
+    qpdf_read(qpdf, infile, password);
+    qpdf_init_write(qpdf, outfile);
+    qpdf_set_static_ID(qpdf, QPDF_TRUE);
+    qpdf_set_static_aes_IV(qpdf, QPDF_TRUE);
+    qpdf_set_compress_streams(qpdf, QPDF_FALSE);
+    qpdf_set_newline_before_endstream(qpdf, QPDF_TRUE);
+    qpdf_write(qpdf);
+    report_errors();
+}
+
 int main(int argc, char* argv[])
 {
     char* p = 0;
@@ -498,6 +543,9 @@ int main(int argc, char* argv[])
 	  (n == 17) ? test17 :
 	  (n == 18) ? test18 :
 	  (n == 19) ? test19 :
+	  (n == 20) ? test20 :
+	  (n == 21) ? test21 :
+	  (n == 22) ? test22 :
 	  0);
 
     if (fn == 0)

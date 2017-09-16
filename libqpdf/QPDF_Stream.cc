@@ -45,6 +45,13 @@ QPDF_Stream::~QPDF_Stream()
 }
 
 void
+QPDF_Stream::releaseResolved()
+{
+    this->stream_provider = 0;
+    QPDFObjectHandle::ReleaseResolver::releaseResolved(this->stream_dict);
+}
+
+void
 QPDF_Stream::setObjGen(int objid, int generation)
 {
     if (! ((this->objid == 0) && (this->generation == 0)))
@@ -87,7 +94,7 @@ PointerHolder<Buffer>
 QPDF_Stream::getStreamData(qpdf_stream_decode_level_e decode_level)
 {
     Pl_Buffer buf("stream data buffer");
-    if (! pipeStreamData(&buf, 0, decode_level, false))
+    if (! pipeStreamData(&buf, 0, decode_level, false, false))
     {
 	throw std::logic_error("getStreamData called on unfilterable stream");
     }
@@ -99,7 +106,7 @@ PointerHolder<Buffer>
 QPDF_Stream::getRawStreamData()
 {
     Pl_Buffer buf("stream data buffer");
-    pipeStreamData(&buf, 0, qpdf_dl_none, false);
+    pipeStreamData(&buf, 0, qpdf_dl_none, false, false);
     QTC::TC("qpdf", "QPDF_Stream getRawStreamData");
     return buf.getBuffer();
 }
@@ -366,7 +373,7 @@ bool
 QPDF_Stream::pipeStreamData(Pipeline* pipeline,
                             unsigned long encode_flags,
                             qpdf_stream_decode_level_e decode_level,
-                            bool suppress_warnings)
+                            bool suppress_warnings, bool will_retry)
 {
     std::vector<std::string> filters;
     int predictor = 1;
@@ -533,7 +540,8 @@ QPDF_Stream::pipeStreamData(Pipeline* pipeline,
 	if (! QPDF::Pipe::pipeStreamData(this->qpdf, this->objid, this->generation,
                                          this->offset, this->length,
                                          this->stream_dict, pipeline,
-                                         suppress_warnings))
+                                         suppress_warnings,
+                                         will_retry))
         {
             filter = false;
         }

@@ -19,7 +19,7 @@
 #include <qpdf/QPDF_Null.hh>
 #include <qpdf/QPDF_Dictionary.hh>
 
-std::string QPDF::qpdf_version = "7.0.b1";
+std::string QPDF::qpdf_version = "7.0.0";
 
 static char const* EMPTY_PDF =
     "%PDF-1.3\n"
@@ -440,8 +440,8 @@ QPDF::reconstruct_xref(QPDFExc& e)
                     (t3 == QPDFTokenizer::Token(QPDFTokenizer::tt_word, "obj")))
                 {
                     in_obj = true;
-                    int obj = atoi(t1.getValue().c_str());
-                    int gen = atoi(t2.getValue().c_str());
+                    int obj = QUtil::string_to_int(t1.getValue().c_str());
+                    int gen = QUtil::string_to_int(t2.getValue().c_str());
                     insertXrefEntry(obj, 1, token_start, gen, true);
                 }
             }
@@ -491,8 +491,10 @@ void
 QPDF::read_xref(qpdf_offset_t xref_offset)
 {
     std::map<int, int> free_table;
+    std::set<qpdf_offset_t> visited;
     while (xref_offset)
     {
+        visited.insert(xref_offset);
         char buf[7];
         memset(buf, 0, sizeof(buf));
 	this->m->file->seek(xref_offset, SEEK_SET);
@@ -520,6 +522,10 @@ QPDF::read_xref(qpdf_offset_t xref_offset)
 	{
 	    xref_offset = read_xrefStream(xref_offset);
 	}
+        if (visited.count(xref_offset) != 0)
+        {
+            xref_offset = 0;
+        }
     }
 
     if (! this->m->trailer.isInitialized())
@@ -604,8 +610,8 @@ QPDF::parse_xrefFirst(std::string const& line,
         ++p;
     }
     bytes = p - start;
-    obj = atoi(obj_str.c_str());
-    num = atoi(num_str.c_str());
+    obj = QUtil::string_to_int(obj_str.c_str());
+    num = QUtil::string_to_int(num_str.c_str());
     return true;
 }
 
@@ -700,7 +706,7 @@ QPDF::parse_xrefEntry(std::string const& line,
     }
 
     f1 = QUtil::string_to_ll(f1_str.c_str());
-    f2 = atoi(f2_str.c_str());
+    f2 = QUtil::string_to_int(f2_str.c_str());
 
     return true;
 }
@@ -1564,8 +1570,8 @@ QPDF::readObjectAtOffset(bool try_recovery,
 			  this->m->last_object_description, offset,
 			  "expected n n obj");
 	}
-	objid = atoi(tobjid.getValue().c_str());
-	generation = atoi(tgen.getValue().c_str());
+	objid = QUtil::string_to_int(tobjid.getValue().c_str());
+	generation = QUtil::string_to_int(tgen.getValue().c_str());
 
         if (objid == 0)
         {
@@ -1849,7 +1855,7 @@ QPDF::resolveObjectsInStream(int obj_stream_number)
 			  "expected integer in object stream header");
 	}
 
-	int num = atoi(tnum.getValue().c_str());
+	int num = QUtil::string_to_int(tnum.getValue().c_str());
 	int offset = QUtil::string_to_ll(toffset.getValue().c_str());
 	offsets[num] = offset + first;
     }
@@ -2376,7 +2382,8 @@ QPDF::pipeStreamData(int objid, int generation,
 		     qpdf_offset_t offset, size_t length,
 		     QPDFObjectHandle stream_dict,
 		     Pipeline* pipeline,
-                     bool suppress_warnings)
+                     bool suppress_warnings,
+                     bool will_retry)
 {
     bool success = false;
     std::vector<PointerHolder<Pipeline> > to_delete;
@@ -2424,6 +2431,13 @@ QPDF::pipeStreamData(int objid, int generation,
                          "error decoding stream data for object " +
                          QUtil::int_to_string(objid) + " " +
                          QUtil::int_to_string(generation) + ": " + e.what()));
+            if (will_retry)
+            {
+                warn(QPDFExc(qpdf_e_damaged_pdf, this->m->file->getName(),
+                             "", this->m->file->getLastOffset(),
+                             "stream will be re-processed without"
+                             " filtering to avoid data loss"));
+            }
         }
     }
     if (! success)
