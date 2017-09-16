@@ -1,9 +1,23 @@
 // Copyright (c) 2005-2017 Jay Berkenbilt
 //
-// This file is part of qpdf.  This software may be distributed under
-// the terms of version 2 of the Artistic License which may be found
-// in the source distribution.  It is provided "as is" without express
-// or implied warranty.
+// This file is part of qpdf.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//   http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+//
+// Versions of qpdf prior to version 7 were released under the terms
+// of version 2.0 of the Artistic License. At your option, you may
+// continue to consider qpdf to be licensed under those terms. Please
+// see the manual for additional information.
 
 #ifndef __QPDFOBJECTHANDLE_HH__
 #define __QPDFOBJECTHANDLE_HH__
@@ -420,12 +434,21 @@ class QPDFObjectHandle
     // configured filters. QPDFWriter handles this by attempting to
     // get the stream data without filtering, but callers should
     // consider a false return value when decode_level is not
-    // qpdf_dl_none to be a potential loss of data.
+    // qpdf_dl_none to be a potential loss of data. If you intend to
+    // retry in that case, pass true as the value of will_retry. This
+    // changes the warning issued by the library to indicate that the
+    // operation will be retried without filtering to avoid data loss.
     QPDF_DLL
     bool pipeStreamData(Pipeline*,
                         unsigned long encode_flags,
                         qpdf_stream_decode_level_e decode_level,
                         bool suppress_warnings = false);
+    QPDF_DLL
+    bool pipeStreamData(Pipeline*,
+                        unsigned long encode_flags,
+                        qpdf_stream_decode_level_e decode_level,
+                        bool suppress_warnings,
+                        bool will_retry);
 
     // Legacy pipeStreamData. This maps to the the flags-based
     // pipeStreamData as follows:
@@ -597,6 +620,7 @@ class QPDFObjectHandle
     {
 	friend class QPDF_Dictionary;
 	friend class QPDF_Array;
+        friend class QPDF_Stream;
       private:
 	static void releaseResolved(QPDFObjectHandle& o)
 	{
@@ -652,6 +676,16 @@ class QPDFObjectHandle
     QPDFObjectHandle(QPDF*, int objid, int generation);
     QPDFObjectHandle(QPDFObject*);
 
+    enum parser_state_e
+    {
+        st_top,
+        st_start,
+        st_stop,
+        st_eof,
+        st_dictionary,
+        st_array
+    };
+
     // Private object factory methods
     static QPDFObjectHandle newIndirect(QPDF*, int objid, int generation);
     static QPDFObjectHandle newStream(
@@ -667,7 +701,6 @@ class QPDFObjectHandle
         std::string const& object_description,
         QPDFTokenizer& tokenizer, bool& empty,
         StringDecrypter* decrypter, QPDF* context,
-        bool in_array, bool in_dictionary,
         bool content_stream);
     static void parseContentStream_internal(
         PointerHolder<Buffer> stream_data,

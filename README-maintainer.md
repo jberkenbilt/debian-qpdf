@@ -1,5 +1,9 @@
 # Release Reminders
 
+* For debugging:
+  ```
+  ./configure CFLAGS="-g" CXXFLAGS="-g" --enable-werror --disable-shared
+  ```
 * Test for binary compatibility. The easiest way to do this is to check out the last release, run the test suite, check out the new release, run `make build_libqpdf`, check out the old release, and run `make check NO_REBUILD=1`.
 * When making a release, always remember to run large file tests and image comparison tests (`--enable-test-compare-images` `--with-large-file-test-path=/path`). For Windows, use a Windows style path, not an MSYS path for large files. For a major release, consider running a spelling checker over the source code to catch errors in variable names, strings, and comments. Use `ispell -p ispell-words`.
 * Run tests with sanitize address enabled:
@@ -9,16 +13,11 @@
      LDFLAGS="-fsanitize=address" \
      --enable-werror --disable-shared
   ```
-  As of gcc 6.3.0, this exposes some good things but appears to also have some false positive leak reports. Valgrind is more reliable but also may miss some things that this catches.
-* Consider running tests with latest gcc and/or valgrind. To test with valgrind:
-  ```
-  ./configure --disable-shared
-  make -j8 -k VALGRIND=1
-  make -k check NO_REBUILD=1
-  ```
-  This moves each binary into a subdirectory and replaces it with a link to make/exec-z. See make/exec-z.
+  The test suite should run clean with this. This seems to be more reliable than valgrind.
+* Test with clang. Pass `CC=clang CXX=clang++` to `./configure`.
 * Check all open issues in the sourceforge trackers and on github.
 * If any interfaces were added or changed, check C API to see whether changes are appropriate there as well.  If necessary, review the casting policy in the manual, and ensure that integer types are properly handled.
+* Avoid atoi. Use QUtil::string_to_int instead. It does overflow/underflow checking.
 * Remember to avoid using `operator[]` with `std::string` or `std::vector`. Instead, use `at()`. See README-hardening.md for details.
 * Increment shared library version information as needed (`LT_*` in `configure.ac`)
 * Update release notes in manual. Look at diffs and ChangeLog.
@@ -78,7 +77,7 @@ If building or editing documentation, configure with `--enable-doc-maintenance`.
 
 If you want to run `make maintainer-clean`, `make distclean`, or `make autofiles.zip` and you haven't run `./configure`, you can pass `CLEAN=1` to make on the command line to prevent it from complaining about configure not having been run.
 
-If you want to run checks without rerunning the build, pass `NO_REBUILD=1` to make. This can be useful for special testing scenarios such as valgrind or binary compatibility.
+If you want to run checks without rerunning the build, pass `NO_REBUILD=1` to make. This can be useful for special testing scenarios such as validation of memory fixes or binary compatibility.
 
 # Local Windows Testing Procedure
 

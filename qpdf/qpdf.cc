@@ -1127,7 +1127,7 @@ static void parse_version(std::string const& full_version_string,
     if (p2 && *(p2 + 1))
     {
         *p2++ = '\0';
-        extension_level = atoi(p2);
+        extension_level = QUtil::string_to_int(p2);
     }
     version = v;
 }
@@ -1170,13 +1170,37 @@ static void handle_help_version(int argc, char* argv[])
         //      12345678901234567890123456789012345678901234567890123456789012345678901234567890
         std::cout
             << whoami << " version " << QPDF::QPDFVersion() << std::endl
+            << std::endl
             << "Copyright (c) 2005-2017 Jay Berkenbilt"
             << std::endl
-            << "This software may be distributed under the terms of version 2 of the"
+            << "QPDF is licensed under the Apache License, Version 2.0 (the \"License\");"
             << std::endl
-            << "Artistic License which may be found in the source distribution.  It is"
+            << "not use this file except in compliance with the License."
             << std::endl
-            << "provided \"as is\" without express or implied warranty."
+            << "You may obtain a copy of the License at"
+            << std::endl
+            << std::endl
+            << "  http://www.apache.org/licenses/LICENSE-2.0"
+            << std::endl
+            << std::endl
+            << "Unless required by applicable law or agreed to in writing, software"
+            << std::endl
+            << "distributed under the License is distributed on an \"AS IS\" BASIS,"
+            << std::endl
+            << "WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied."
+            << std::endl
+            << "See the License for the specific language governing permissions and"
+            << std::endl
+            << "limitations under the License."
+            << std::endl
+            << std::endl
+            << "Versions of qpdf prior to version 7 were released under the terms"
+            << std::endl
+            << "of version 2.0 of the Artistic License. At your option, you may"
+            << std::endl
+            << "continue to consider qpdf to be licensed under those terms. Please"
+            << std::endl
+            << "see the manual for additional information."
             << std::endl;
         exit(0);
     }
@@ -1233,7 +1257,7 @@ static void parse_rotation_parameter(Options& o, std::string const& parameter)
     if (range_valid &&
         ((angle_str == "90") || (angle_str == "180") || (angle_str == "270")))
     {
-        int angle = atoi(angle_str.c_str());
+        int angle = QUtil::string_to_int(angle_str.c_str());
         if (relative == -1)
         {
             angle = -angle;
@@ -1337,6 +1361,11 @@ static void parse_options(int argc, char* argv[], Options& o)
             }
             else if (strcmp(arg, "rotate") == 0)
             {
+                if (parameter == 0)
+                {
+                    usage("--rotate must be given as"
+                          " --rotate=[+|-]angle:page-range");
+                }
                 parse_rotation_parameter(o, parameter);
             }
             else if (strcmp(arg, "stream-data") == 0)
@@ -1492,7 +1521,8 @@ static void parse_options(int argc, char* argv[], Options& o)
             }
             else if (strcmp(arg, "split-pages") == 0)
             {
-                int n = ((parameter == 0) ? 1 : atoi(parameter));
+                int n = ((parameter == 0) ? 1 :
+                         QUtil::string_to_int(parameter));
                 o.split_pages = n;
             }
             else if (strcmp(arg, "verbose") == 0)
@@ -1547,9 +1577,9 @@ static void parse_options(int argc, char* argv[], Options& o)
                 if ((gen = strchr(obj, ',')) != 0)
                 {
                     *gen++ = 0;
-                    o.show_gen = atoi(gen);
+                    o.show_gen = QUtil::string_to_int(gen);
                 }
-                o.show_obj = atoi(obj);
+                o.show_obj = QUtil::string_to_int(obj);
                 o.require_outfile = false;
             }
             else if (strcmp(arg, "raw-stream-data") == 0)
