@@ -4,7 +4,6 @@
   ```
   ./configure CFLAGS="-g" CXXFLAGS="-g" --enable-werror --disable-shared
   ```
-* Test for binary compatibility. The easiest way to do this is to check out the last release, run the test suite, check out the new release, run `make build_libqpdf`, check out the old release, and run `make check NO_REBUILD=1`.
 * When making a release, always remember to run large file tests and image comparison tests (`--enable-test-compare-images` `--with-large-file-test-path=/path`). For Windows, use a Windows style path, not an MSYS path for large files. For a major release, consider running a spelling checker over the source code to catch errors in variable names, strings, and comments. Use `ispell -p ispell-words`.
 * Run tests with sanitize address enabled:
   ```
@@ -20,6 +19,7 @@
 * Avoid atoi. Use QUtil::string_to_int instead. It does overflow/underflow checking.
 * Remember to avoid using `operator[]` with `std::string` or `std::vector`. Instead, use `at()`. See README-hardening.md for details.
 * Increment shared library version information as needed (`LT_*` in `configure.ac`)
+* Test for binary compatibility. The easiest way to do this is to check out the last release, run the test suite, check out the new release, run `./autogen.mk; ./configure --enable-werror; make build_libqpdf`, check out the old release, and run `make check NO_REBUILD=1`.
 * Update release notes in manual. Look at diffs and ChangeLog.
 * Add a release entry to ChangeLog.
 * Make sure version numbers are consistent in the following locations:
@@ -29,7 +29,7 @@
   `make_dist` verifies this consistency.
 * Update release date in `manual/qpdf-manual.xml`.  Remember to ensure that the entities at the top of the document are consistent with the release notes for both version and release date.
 * Check `TODO` file to make sure all planned items for the release are done or retargeted.
-* Each year, update copyright notices. Just do a case-insensitive search for copyright. Don't forget copyright in manual. Also update debian copyright in debian package. Last updated: 2017.
+* Each year, update copyright notices. Just do a case-insensitive search for copyright. Don't forget copyright in manual. Also update debian copyright in debian package. Last updated: 2018.
 * To construct a source distribution from a pristine checkout, `make_dist` does the following:
   ```
   ./autogen.sh
