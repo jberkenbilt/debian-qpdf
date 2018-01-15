@@ -8,7 +8,7 @@ export DEB_BUILD_MAINT_OPTIONS = hardening=+all
 export DEB_MAKE_CHECK_TARGET = check
 
 %:
-	dh $@ --with autoreconf --with autotools-dev
+	dh $@
 
 override_dh_compress:
 	dh_compress --exclude=qpdf-manual --exclude=.css --exclude examples/

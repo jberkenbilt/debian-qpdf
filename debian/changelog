@@ -1,3 +1,10 @@
+qpdf (7.1.0-1) unstable; urgency=medium
+
+  * New upstream release.
+  * Update standards to 4.1.3. No changes required.
+
+ -- Jay Berkenbilt <qjb@debian.org>  Sun, 14 Jan 2018 22:22:11 -0500
+
 qpdf (7.0.0-1) unstable; urgency=medium
 
   * New upstream release.
