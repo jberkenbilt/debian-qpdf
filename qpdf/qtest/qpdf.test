@@ -240,7 +240,7 @@ foreach my $d (@bug_tests)
 show_ntests();
 # ----------
 $td->notify("--- Miscellaneous Tests ---");
-$n_tests += 86;
+$n_tests += 87;
 
 $td->runtest("qpdf version",
 	     {$td->COMMAND => "qpdf --version"},
@@ -314,7 +314,7 @@ foreach my $file (qw(short-id long-id))
 		 $td->NORMALIZE_NEWLINES);
 
     $td->runtest("check $file.pdf",
-		 {$td->COMMAND => "qpdf --check a.pdf"},
+		 {$td->COMMAND => "qpdf --check --show-encryption-key a.pdf"},
 		 {$td->FILE => "$file-check.out",
 		  $td->EXIT_STATUS => 0},
 		 $td->NORMALIZE_NEWLINES);
@@ -681,6 +681,12 @@ $td->runtest("short /O or /U",
              {$td->COMMAND =>
                   "qpdf --password=19723102477 --check short-O-U.pdf"},
              {$td->FILE => "short-O-U.out",
+              $td->EXIT_STATUS => 0},
+             $td->NORMALIZE_NEWLINES);
+
+$td->runtest("stream with tiff predictor",
+             {$td->COMMAND => "qpdf --check tiff-predictor.pdf"},
+             {$td->FILE => "tiff-predictor.out",
               $td->EXIT_STATUS => 0},
              $td->NORMALIZE_NEWLINES);
 
@@ -2238,6 +2244,21 @@ $td->runtest("copy of unfilterable with crypt",
               $td->EXIT_STATUS => 0},
              $td->NORMALIZE_NEWLINES);
 
+# Raw encryption key
+my @enc_key = (['user', '--password=user3'],
+               ['owner', '--password=owner3'],
+               ['hex', '--password-is-hex-key --password=35ea16a48b6a3045133b69ac0906c2e8fb0a2cc97903ae17b51a5786ebdba020']);
+$n_tests += scalar(@enc_key);
+foreach my $d (@enc_key)
+{
+    my ($description, $pass) = @$d;
+    $td->runtest("use/show encryption key ($description)",
+                 {$td->COMMAND =>
+                      "qpdf --check --show-encryption-key c-r5-in.pdf $pass"},
+             {$td->FILE => "c-r5-key-$description.out", $td->EXIT_STATUS => 0},
+             $td->NORMALIZE_NEWLINES);
+}
+
 show_ntests();
 # ----------
 $td->notify("--- Content Preservation Tests ---");
@@ -2334,6 +2355,29 @@ $td->runtest("convert inline-images to qdf",
 	     {$td->STRING => "", $td->EXIT_STATUS => 0});
 
 compare_pdfs("inline-images.pdf", "a.pdf");
+
+show_ntests();
+
+
+# ----------
+$td->notify("--- PNG filtering Tests ---");
+$n_tests += 2;
+$n_compare_pdfs += 1;
+
+# The PDF file was submitted on bug #83 on github. All the PNG filters
+# are exercised. The test suite does not exercise PNG predictors with
+# LZW because I don't have a way to create such a file, but it's very
+# likely that it will work since the handling of the PNG filters is
+# separate from the regular decompression.
+$td->runtest("decode png-filtering",
+	     {$td->COMMAND => "qpdf --static-id" .
+                  " --compress-streams=n --decode-level=generalized" .
+		  " png-filters.pdf a.pdf"},
+	     {$td->STRING => "", $td->EXIT_STATUS => 0});
+$td->runtest("check output",
+	     {$td->FILE => "a.pdf"},
+	     {$td->FILE => "png-filters-decoded.pdf"});
+compare_pdfs("png-filters.pdf", "a.pdf");
 
 show_ntests();
 # ----------

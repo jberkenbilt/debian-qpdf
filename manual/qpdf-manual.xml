@@ -5,8 +5,8 @@
 <!ENTITY mdash "&#x2014;">
 <!ENTITY ndash "&#x2013;">
 <!ENTITY nbsp "&#xA0;">
-<!ENTITY swversion "7.0.0">
-<!ENTITY lastreleased "September 15, 2017">
+<!ENTITY swversion "7.1.0">
+<!ENTITY lastreleased "January 14, 2018">
 ]>
 <book>
  <bookinfo>
@@ -16,7 +16,7 @@
    <firstname>Jay</firstname><surname>Berkenbilt</surname>
   </author>
   <copyright>
-   <year>2005&ndash;2017</year>
+   <year>2005&ndash;2018</year>
    <holder>Jay Berkenbilt</holder>
   </copyright>
  </bookinfo>
@@ -375,6 +375,35 @@ make
        <para>
         Removes any encryption on the file.  A password must be
         supplied if the file is password protected.
+       </para>
+      </listitem>
+     </varlistentry>
+     <varlistentry>
+      <term><option>--password-is-hex-key</option></term>
+      <listitem>
+       <para>
+        Overrides the usual computation/retrieval of the PDF file's
+        encryption key from user/owner password with an explicit
+        specification of the encryption key. When this option is
+        specified, the argument to the <option>--password</option>
+        option is interpreted as a hexadecimal-encoded key value. This
+        only applies to the password used to open the main input file.
+        It does not apply to other files opened by
+        <option>--pages</option> or other options or to files being
+        written.
+       </para>
+       <para>
+        Most users will never have a need for this option, and no
+        standard viewers support this mode of operation, but it can be
+        useful for forensic or investigatory purposes. For example, if
+        a PDF file is encrypted with an unknown password, a
+        brute-force attack using the key directly is sometimes more
+        efficient than one using the password. Also, if a file is
+        heavily damaged, it may be possible to derive the encryption
+        key and recover parts of the file using it directly. To expose
+        the encryption key used by an encrypted file that you can open
+        normally, use the <option>--show-encryption-key</option>
+        option.
        </para>
       </listitem>
      </varlistentry>
@@ -865,6 +894,56 @@ outfile.pdf</option>
     to be bothered with.
    </para>
   </sect1>
+  <sect1 id="ref.advanced-parsing">
+   <title>Advanced Parsing Options</title>
+   <para>
+    These options control aspects of how qpdf reads PDF files. Mostly
+    these are of use to people who are working with damaged files.
+    There is little reason to use these options unless you are trying
+    to solve specific problems. The following options are available:
+    <variablelist>
+     <varlistentry>
+      <term><option>--suppress-recovery</option></term>
+      <listitem>
+       <para>
+        Prevents qpdf from attempting to recover damaged files.
+       </para>
+      </listitem>
+     </varlistentry>
+     <varlistentry>
+      <term><option>--ignore-xref-streams</option></term>
+      <listitem>
+       <para>
+        Tells qpdf to ignore any cross-reference streams.
+       </para>
+      </listitem>
+     </varlistentry>
+    </variablelist>
+   </para>
+   <para>
+    Ordinarily, qpdf will attempt to recover from certain types of
+    errors in PDF files.  These include errors in the cross-reference
+    table, certain types of object numbering errors, and certain types
+    of stream length errors.  Sometimes, qpdf may think it has
+    recovered but may not have actually recovered, so care should be
+    taken when using this option as some data loss is possible.  The
+    <option>--suppress-recovery</option> option will prevent qpdf from
+    attempting recovery.  In this case, it will fail on the first
+    error that it encounters.
+   </para>
+   <para>
+    Ordinarily, qpdf reads cross-reference streams when they are
+    present in a PDF file.  If <option>--ignore-xref-streams</option>
+    is specified, qpdf will ignore any cross-reference streams for
+    hybrid PDF files.  The purpose of hybrid files is to make some
+    content available to viewers that are not aware of cross-reference
+    streams.  It is almost never desirable to ignore them.  The only
+    time when you might want to use this feature is if you are testing
+    creation of hybrid PDF files and wish to see how a PDF consumer
+    that doesn't understand object and cross-reference streams would
+    interpret such a file.
+   </para>
+  </sect1>
   <sect1 id="ref.advanced-transformation">
    <title>Advanced Transformation Options</title>
    <para>
@@ -976,14 +1055,6 @@ outfile.pdf</option>
       </listitem>
      </varlistentry>
      <varlistentry>
-      <term><option>--suppress-recovery</option></term>
-      <listitem>
-       <para>
-        Prevents qpdf from attempting to recover damaged files.
-       </para>
-      </listitem>
-     </varlistentry>
-     <varlistentry>
       <term><option>--object-streams=<replaceable>mode</replaceable></option></term>
       <listitem>
        <para>
@@ -1009,14 +1080,6 @@ outfile.pdf</option>
           </para>
          </listitem>
         </itemizedlist>
-       </para>
-      </listitem>
-     </varlistentry>
-     <varlistentry>
-      <term><option>--ignore-xref-streams</option></term>
-      <listitem>
-       <para>
-        Tells qpdf to ignore any cross-reference streams.
        </para>
       </listitem>
      </varlistentry>
@@ -1143,17 +1206,6 @@ outfile.pdf</option>
     You should not use this for &ldquo;production&rdquo; PDF files.
    </para>
    <para>
-    Ordinarily, qpdf will attempt to recover from certain types of
-    errors in PDF files.  These include errors in the cross-reference
-    table, certain types of object numbering errors, and certain types
-    of stream length errors.  Sometimes, qpdf may think it has
-    recovered but may not have actually recovered, so care should be
-    taken when using this option as some data loss is possible.  The
-    <option>--suppress-recovery</option> option will prevent qpdf from
-    attempting recovery.  In this case, it will fail on the first
-    error that it encounters.
-   </para>
-   <para>
     Object streams, also known as compressed objects, were introduced
     into the PDF specification at version 1.5, corresponding to
     Acrobat 6.  Some older PDF viewers may not support files with
@@ -1176,18 +1228,6 @@ outfile.pdf</option>
     though they may not be readable by older viewers.  In this mode,
     qpdf will also make sure the PDF version number in the header is
     at least 1.5.
-   </para>
-   <para>
-    Ordinarily, qpdf reads cross-reference streams when they are
-    present in a PDF file.  If <option>--ignore-xref-streams</option>
-    is specified, qpdf will ignore any cross-reference streams for
-    hybrid PDF files.  The purpose of hybrid files is to make some
-    content available to viewers that are not aware of cross-reference
-    streams.  It is almost never desirable to ignore them.  The only
-    time when you might want to use this feature is if you are testing
-    creation of hybrid PDF files and wish to see how a PDF consumer
-    that doesn't understand object and cross-reference streams would
-    interpret such a file.
    </para>
    <para>
     The <option>--qdf</option> flag turns on QDF mode, which changes
@@ -1270,6 +1310,24 @@ outfile.pdf</option>
        <para>
         Shows document encryption parameters.  Also shows the
         document's user password if the owner password is given.
+       </para>
+      </listitem>
+     </varlistentry>
+     <varlistentry>
+      <term><option>--show-encryption-key</option></term>
+      <listitem>
+       <para>
+        When encryption information is being displayed, as when
+        <option>--check</option> or <option>--show-encryption</option>
+        is given, display the computed or retrieved encryption key as
+        a hexadecimal string. This value is not ordinarily useful to
+        users, but it can be used as the argument to
+        <option>--password</option> if the
+        <option>--password-is-hex-key</option> is specified. Note
+        that, when PDF files are encrypted, passwords and other
+        metadata are used only to compute an encryption key, and the
+        encryption key is what is actually used for encryption. This
+        enables retrieval of that key.
        </para>
       </listitem>
      </varlistentry>
@@ -2924,6 +2982,50 @@ print "\n";
    <filename>ChangeLog</filename> in the source distribution.
   </para>
   <variablelist>
+   <varlistentry>
+    <term>7.1.0: January 14, 2018</term>
+    <listitem>
+     <itemizedlist>
+      <listitem>
+       <para>
+        PDF files contain streams that may be compressed with various
+        compression algorithms which, in some cases, may be enhanced
+        by various predictor functions. Previously only the PNG up
+        predictor was supported. In this version, all the PNG
+        predictors as well as the TIFF predictor are supported. This
+        increases the range of files that qpdf is able to handle.
+       </para>
+      </listitem>
+      <listitem>
+       <para>
+        QPDF now allows a raw encryption key to be specified in place
+        of a password when opening encrypted files, and will
+        optionally display the encryption key used by a file. This is
+        a non-standard operation, but it can be useful in certain
+        situations. Please see the discussion of
+        <option>--password-is-hex-key</option> in <xref
+        linkend="ref.basic-options"/> or the comments around
+        <function>QPDF::setPasswordIsHexKey</function> in
+        <filename>QPDF.hh</filename> for additional details.
+       </para>
+      </listitem>
+      <listitem>
+       <para>
+        Bug fix: numbers ending with a trailing decimal point are now
+        properly recognized as numbers.
+       </para>
+      </listitem>
+      <listitem>
+       <para>
+        Bug fix: when building qpdf from source on some platforms
+        (especially MacOS), the build could get confused by older
+        versions of qpdf installed on the system. This has been
+        corrected.
+       </para>
+      </listitem>
+     </itemizedlist>
+    </listitem>
+   </varlistentry>
    <varlistentry>
     <term>7.0.0: September 15, 2017</term>
     <listitem>

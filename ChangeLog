@@ -1,3 +1,54 @@
+2018-01-14  Jay Berkenbilt  <ejb@ql.org>
+
+	* 7.1.0: release
+
+	* Allow raw encryption key to be specified in libary and command
+	line with the QPDF::setPasswordIsHexKey method and
+	--password-is-hex-key option. Allow encryption key to be displayed
+	with --show-encryption-key option. Thanks to Didier Stevens
+	<didier.stevens@gmail.com> for the idea and contribution of one
+	implementation of this idea. See his blog post at
+	https://blog.didierstevens.com/2017/12/28/cracking-encrypted-pdfs-part-3/
+	for a discussion of using this for cracking encrypted PDFs. I hope
+	that a future release of qpdf will include some additional
+	recovery options that may also make use of this capability.
+
+2018-01-13  Jay Berkenbilt  <ejb@ql.org>
+
+	* Fix lexical error: the PDF specification allows floating point
+	numbers to end with ".". Fixes #165.
+
+	* Fix link order in the build to avoid conflicts when building
+	from source while an older version of qpdf is installed. Fixes #158.
+
+	* Add support for TIFF predictor for LZW and Flate streams. Now
+	all predictor functions are supported. Fixes #171.
+
+2017-12-25  Jay Berkenbilt  <ejb@ql.org>
+
+	* Clarify documentation around options that control parsing but
+	not output creation. Two options: --suppress-recovery and
+	--ignore-xref-streams, were documented in the "Advanced
+	Transformation Options" section of the manual and --help output
+	even though they are not related to output. These are now
+	described in a separate section called "Advanced Parsing Options."
+
+	* Implement remaining PNG filters for decode. Prior versions could
+	decode only the "up" filter. Now all PNG filters (sub, up,
+	average, Paeth, optimal) are supported for decoding. Thanks to
+	Tobias Hoffmann for providing a test PDF file that has images with
+	all PNG filters along with different numbers of bits per sample
+	and samples per pixel, and thanks to Casey Rojas for providing
+	implementations of the remaining PNG filters.
+
+	The implementation of the remaining PNG filters changed the
+	interface to the private Pl_PNGFilter class, but this class's
+	header file is not in the installation, and there is no public
+	interface to the class. Within the library, the class is never
+	allocated on the stack; it is only ever dynamically allocated. As
+	such, this does not actually break binary compatibility of the
+	library.
+
 2017-09-15  Jay Berkenbilt  <ejb@ql.org>
 
 	* 7.0.0: release

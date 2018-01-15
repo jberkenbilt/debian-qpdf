@@ -4,28 +4,22 @@
 // This pipeline applies or reverses the application of a PNG filter
 // as described in the PNG specification.
 
-// NOTE: In its initial implementation, it only encodes and decodes
-// filters "none" and "up".  The primary motivation of this code is to
-// encode and decode PDF 1.5+ XRef streams which are often encoded
-// with Flate predictor 12, which corresponds to the PNG up filter.
-// At present, the bytes_per_pixel parameter is ignored, and an
-// exception is thrown if any row of the file has a filter of other
-// than 0 or 2.  Finishing the implementation would not be difficult.
-// See chapter 6 of the PNG specification for a description of the
-// filter algorithms.
+// NOTE: In its current implementation, this filter always encodes
+// using the "up" filter, but it decodes all the filters.
 
 #include <qpdf/Pipeline.hh>
 
 class Pl_PNGFilter: public Pipeline
 {
   public:
-    // Encoding is not presently supported
+    // Encoding is only partially supported
     enum action_e { a_encode, a_decode };
 
     QPDF_DLL
     Pl_PNGFilter(char const* identifier, Pipeline* next,
 		 action_e action, unsigned int columns,
-		 unsigned int bytes_per_pixel);
+                 unsigned int samples_per_pixel = 1,
+                 unsigned int bits_per_sample = 8);
     QPDF_DLL
     virtual ~Pl_PNGFilter();
 
@@ -35,12 +29,18 @@ class Pl_PNGFilter: public Pipeline
     virtual void finish();
 
   private:
+    void decodeSub();
+    void decodeUp();
+    void decodeAverage();
+    void decodePaeth();
     void processRow();
     void encodeRow();
     void decodeRow();
+    int PaethPredictor(int a, int b, int c);
 
     action_e action;
-    unsigned int columns;
+    unsigned int bytes_per_row;
+    unsigned int bytes_per_pixel;
     unsigned char* cur_row;
     unsigned char* prev_row;
     unsigned char* buf1;

@@ -19,7 +19,7 @@
 #include <qpdf/QPDF_Null.hh>
 #include <qpdf/QPDF_Dictionary.hh>
 
-std::string QPDF::qpdf_version = "7.0.0";
+std::string QPDF::qpdf_version = "7.1.0";
 
 static char const* EMPTY_PDF =
     "%PDF-1.3\n"
@@ -75,6 +75,7 @@ QPDF::QPDFVersion()
 }
 
 QPDF::Members::Members() :
+    provided_password_is_hex_key(false),
     encrypted(false),
     encryption_initialized(false),
     ignore_xref_streams(false),
@@ -169,6 +170,12 @@ QPDF::processInputSource(PointerHolder<InputSource> source,
 {
     this->m->file = source;
     parse(password);
+}
+
+void
+QPDF::setPasswordIsHexKey(bool val)
+{
+    this->m->provided_password_is_hex_key = val;
 }
 
 void
@@ -1006,7 +1013,7 @@ QPDF::processXRefStream(qpdf_offset_t xref_offset, QPDFObjectHandle& xref_obj)
     // that this multiplication does not cause an overflow.
     size_t expected_size = entry_size * num_entries;
 
-    PointerHolder<Buffer> bp = xref_obj.getStreamData();
+    PointerHolder<Buffer> bp = xref_obj.getStreamData(qpdf_dl_specialized);
     size_t actual_size = bp->getSize();
 
     if (expected_size != actual_size)
@@ -1837,7 +1844,7 @@ QPDF::resolveObjectsInStream(int obj_stream_number)
 
     std::map<int, int> offsets;
 
-    PointerHolder<Buffer> bp = obj_stream.getStreamData();
+    PointerHolder<Buffer> bp = obj_stream.getStreamData(qpdf_dl_specialized);
     PointerHolder<InputSource> input = new BufferInputSource(
 	"object stream " + QUtil::int_to_string(obj_stream_number),
 	bp.getPointer());

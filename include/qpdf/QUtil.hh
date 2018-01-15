@@ -1,4 +1,4 @@
-// Copyright (c) 2005-2017 Jay Berkenbilt
+// Copyright (c) 2005-2018 Jay Berkenbilt
 //
 // This file is part of qpdf.
 //
@@ -103,6 +103,14 @@ namespace QUtil
     // string will be twice as long as the input string.
     QPDF_DLL
     std::string hex_encode(std::string const&);
+
+    // Returns a string that is the result of decoding the input
+    // string. The input string may consist of mixed case hexadecimal
+    // digits. Any characters that are not hexadecimal digits will be
+    // silently ignored. If there are an odd number of hexadecimal
+    // digits, a trailing 0 will be assumed.
+    QPDF_DLL
+    std::string hex_decode(std::string const&);
 
     // Set stdin, stdout to binary mode
     QPDF_DLL

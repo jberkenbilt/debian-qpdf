@@ -11,8 +11,8 @@ BINS_libtests = \
 	input_source \
 	lzw \
 	md5 \
-	png_filter \
 	pointer_holder \
+	predictors \
 	qutil \
 	random \
 	rc4 \
@@ -43,4 +43,4 @@ $(foreach B,$(BINS_libtests),$(eval \
 
 $(foreach B,$(BINS_libtests),$(eval \
   libtests/$(OUTPUT_DIR)/$(call binname,$(B)): $(OBJS_$(B)) ; \
-	$(call makebin,$(OBJS_$(B)),$$@,$(LDFLAGS) $(LDFLAGS_libqpdf),$(LIBS) $(LIBS_libqpdf))))
+	$(call makebin,$(OBJS_$(B)),$$@,$(LDFLAGS_libqpdf) $(LDFLAGS),$(LIBS) $(LIBS_libqpdf))))

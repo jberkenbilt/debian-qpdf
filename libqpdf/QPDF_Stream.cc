@@ -4,6 +4,7 @@
 #include <qpdf/Pipeline.hh>
 #include <qpdf/Pl_Flate.hh>
 #include <qpdf/Pl_PNGFilter.hh>
+#include <qpdf/Pl_TIFFPredictor.hh>
 #include <qpdf/Pl_RC4.hh>
 #include <qpdf/Pl_Buffer.hh>
 #include <qpdf/Pl_ASCII85Decoder.hh>
@@ -96,7 +97,9 @@ QPDF_Stream::getStreamData(qpdf_stream_decode_level_e decode_level)
     Pl_Buffer buf("stream data buffer");
     if (! pipeStreamData(&buf, 0, decode_level, false, false))
     {
-	throw std::logic_error("getStreamData called on unfilterable stream");
+	throw QPDFExc(qpdf_e_unsupported, qpdf->getFilename(),
+                      "", this->offset,
+                      "getStreamData called on unfilterable stream");
     }
     QTC::TC("qpdf", "QPDF_Stream getStreamData");
     return buf.getBuffer();
@@ -114,7 +117,9 @@ QPDF_Stream::getRawStreamData()
 bool
 QPDF_Stream::understandDecodeParams(
     std::string const& filter, QPDFObjectHandle decode_obj,
-    int& predictor, int& columns, bool& early_code_change)
+    int& predictor, int& columns,
+    int& colors, int& bits_per_component,
+    bool& early_code_change)
 {
     bool filterable = true;
     std::set<std::string> keys = decode_obj.getKeys();
@@ -122,13 +127,15 @@ QPDF_Stream::understandDecodeParams(
          iter != keys.end(); ++iter)
     {
         std::string const& key = *iter;
-        if ((filter == "/FlateDecode") && (key == "/Predictor"))
+        if (((filter == "/FlateDecode") || (filter == "/LZWDecode")) &&
+            (key == "/Predictor"))
         {
             QPDFObjectHandle predictor_obj = decode_obj.getKey(key);
             if (predictor_obj.isInteger())
             {
                 predictor = predictor_obj.getIntValue();
-                if (! ((predictor == 1) || (predictor == 12)))
+                if (! ((predictor == 1) || (predictor == 2) ||
+                       ((predictor >= 10) && (predictor <= 15))))
                 {
                     filterable = false;
                 }
@@ -155,12 +162,26 @@ QPDF_Stream::understandDecodeParams(
                 filterable = false;
             }
         }
-        else if (key == "/Columns")
+        else if ((key == "/Columns") ||
+                 (key == "/Colors") ||
+                 (key == "/BitsPerComponent"))
         {
-            QPDFObjectHandle columns_obj = decode_obj.getKey(key);
-            if (columns_obj.isInteger())
+            QPDFObjectHandle param_obj = decode_obj.getKey(key);
+            if (param_obj.isInteger())
             {
-                columns = columns_obj.getIntValue();
+                int val = param_obj.getIntValue();
+                if (key == "/Columns")
+                {
+                    columns = val;
+                }
+                else if (key == "/Colors")
+                {
+                    colors = val;
+                }
+                else if (key == "/BitsPerComponent")
+                {
+                    bits_per_component = val;
+                }
             }
             else
             {
@@ -190,6 +211,7 @@ QPDF_Stream::filterable(std::vector<std::string>& filters,
                         bool& specialized_compression,
                         bool& lossy_compression,
 			int& predictor, int& columns,
+                        int& colors, int& bits_per_component,
 			bool& early_code_change)
 {
     if (filter_abbreviations.empty())
@@ -295,6 +317,8 @@ QPDF_Stream::filterable(std::vector<std::string>& filters,
     // Initialize values to their defaults as per the PDF spec
     predictor = 1;
     columns = 0;
+    colors = 1;
+    bits_per_component = 8;
     early_code_change = true;
 
     // See if we can support any decode parameters that are specified.
@@ -344,7 +368,8 @@ QPDF_Stream::filterable(std::vector<std::string>& filters,
         {
             if (! understandDecodeParams(
                     filters.at(i), decode_item,
-                    predictor, columns, early_code_change))
+                    predictor, columns, colors, bits_per_component,
+                    early_code_change))
             {
                 filterable = false;
             }
@@ -378,6 +403,8 @@ QPDF_Stream::pipeStreamData(Pipeline* pipeline,
     std::vector<std::string> filters;
     int predictor = 1;
     int columns = 0;
+    int colors = 1;
+    int bits_per_component = 8;
     bool early_code_change = true;
     bool specialized_compression = false;
     bool lossy_compression = false;
@@ -385,7 +412,9 @@ QPDF_Stream::pipeStreamData(Pipeline* pipeline,
     if (filter)
     {
 	filter = filterable(filters, specialized_compression, lossy_compression,
-                            predictor, columns, early_code_change);
+                            predictor, columns,
+                            colors, bits_per_component,
+                            early_code_change);
         if ((decode_level < qpdf_dl_all) && lossy_compression)
         {
             filter = false;
@@ -430,21 +459,33 @@ QPDF_Stream::pipeStreamData(Pipeline* pipeline,
 	     iter != filters.rend(); ++iter)
 	{
 	    std::string const& filter = *iter;
+
+            if ((filter == "/FlateDecode") || (filter == "/LZWDecode"))
+            {
+                if ((predictor >= 10) && (predictor <= 15))
+                {
+                    QTC::TC("qpdf", "QPDF_Stream PNG filter");
+                    pipeline = new Pl_PNGFilter(
+                        "png decode", pipeline, Pl_PNGFilter::a_decode,
+                        columns, colors, bits_per_component);
+                    to_delete.push_back(pipeline);
+                }
+                else if (predictor == 2)
+                {
+                    QTC::TC("qpdf", "QPDF_Stream TIFF predictor");
+                    pipeline = new Pl_TIFFPredictor(
+                        "tiff decode", pipeline, Pl_TIFFPredictor::a_decode,
+                        columns, colors, bits_per_component);
+                    to_delete.push_back(pipeline);
+                }
+            }
+
 	    if (filter == "/Crypt")
 	    {
 		// Ignore -- handled by pipeStreamData
 	    }
 	    else if (filter == "/FlateDecode")
 	    {
-		if (predictor == 12)
-		{
-		    QTC::TC("qpdf", "QPDF_Stream PNG filter");
-		    pipeline = new Pl_PNGFilter(
-			"png decode", pipeline, Pl_PNGFilter::a_decode,
-			columns, 0 /* not used */);
-		    to_delete.push_back(pipeline);
-		}
-
 		pipeline = new Pl_Flate("stream inflate",
 					pipeline, Pl_Flate::a_inflate);
 		to_delete.push_back(pipeline);
