@@ -19,7 +19,7 @@
 #include <qpdf/QPDF_Null.hh>
 #include <qpdf/QPDF_Dictionary.hh>
 
-std::string QPDF::qpdf_version = "7.1.0";
+std::string QPDF::qpdf_version = "7.1.1";
 
 static char const* EMPTY_PDF =
     "%PDF-1.3\n"
@@ -1692,7 +1692,8 @@ QPDF::readObjectAtOffset(bool try_recovery,
 	    else
 	    {
 		throw QPDFExc(qpdf_e_damaged_pdf, this->m->file->getName(),
-			      this->m->last_object_description, offset,
+			      this->m->last_object_description,
+                              this->m->file->tell(),
 			      "EOF after endobj");
 	    }
 	}
