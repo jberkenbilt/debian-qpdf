@@ -1,7 +1,7 @@
 Source: qpdf
 Section: libs
 Priority: optional
-Build-Depends: debhelper (>> 9~), dh-autoreconf, autotools-dev, libjpeg-dev, zlib1g-dev
+Build-Depends: debhelper (>> 10~), libjpeg-dev, zlib1g-dev
 Maintainer: Jay Berkenbilt <qjb@debian.org>
 Standards-Version: 4.1.3
 Homepage: http://qpdf.sourceforge.net

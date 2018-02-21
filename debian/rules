@@ -13,9 +13,6 @@ export DEB_MAKE_CHECK_TARGET = check
 override_dh_compress:
 	dh_compress --exclude=qpdf-manual --exclude=.css --exclude examples/
 
-override_dh_auto_build:
-	dh_auto_build --parallel
-
 override_dh_auto_clean:
 	make distclean CLEAN=1
 
@@ -25,7 +22,8 @@ override_dh_auto_configure:
 	  --enable-show-failed-test-output
 
 override_dh_install:
-	dh_install --list-missing -X.la
+	dh_install
+	dh_missing --list-missing -X.la
 	mkdir -p debian/libqpdf-dev/usr/share/doc/libqpdf-dev/examples
 	cp -p examples/*.cc examples/*.c \
 		debian/libqpdf-dev/usr/share/doc/libqpdf-dev/examples
