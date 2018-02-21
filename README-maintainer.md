@@ -27,6 +27,17 @@
   * libqpdf/QPDF.cc
   * manual/qpdf-manual.xml
   `make_dist` verifies this consistency.
+* Generate a signed AppImage using the docker image in appimage. Arguments to the docker container are arguments to git clone. The build should be made off the exact commit that will be officially tagged as the release but built prior to tagging the release.
+Example:
+  ```
+  cd appimage
+  docker build -t qpdfbuild .
+  rm -rf /tmp/build
+  mkdir -p /tmp/build
+  cp -rLp ~/.gnupg/. /tmp/build/.gnupg
+  docker run --privileged -ti --rm -v /tmp/build:/tmp/build qpdfbuild https://github.com/jberkenbilt/qpdf -b work
+  ```
+  Rename the AppImage in appimage/build to qpdf-<version>-x86_64.AppImage and include it in the set of files to be released.
 * Update release date in `manual/qpdf-manual.xml`.  Remember to ensure that the entities at the top of the document are consistent with the release notes for both version and release date.
 * Check `TODO` file to make sure all planned items for the release are done or retargeted.
 * Each year, update copyright notices. Just do a case-insensitive search for copyright. Don't forget copyright in manual. Also update debian copyright in debian package. Last updated: 2018.
@@ -42,14 +53,14 @@
   rm -rf /tmp/qpdf-x.y.z
   git archive --prefix=qpdf-x.y.z/ HEAD . | (cd /tmp; tar xf -)
   ```
-  From the parent of that directory, run `make_dist` with the directory as an argument.  Remember to have fop in your path.  For internally testing releases, you can run make_dist with the `--no-tests` option.
+  From the parent of that directory, run `qpdf-x.y.z/make_dist`.  Remember to have fop in your path.  For internally testing releases, you can run make_dist with the `--no-tests` option.
 * To create a source release of external libs, do an export from the version control system into a directory called `qpdf-external-libs` and just make a zip file of the result called `qpdf-external-libs-src.zip`.  See the README.txt file there for information on creating binary external libs releases. Run this from the external-libs repository:
   ```
   git archive --prefix=external-libs/ HEAD . | (cd /tmp; tar xf -)
   cd /tmp
   zip -r qpdf-external-libs-src.zip external-libs
   ```
-* To create Windows binary releases, extract the qpdf source distribution in Windows (MSYS2 + MSVC).  From the extracted directory, extract the binary distribution of the external libraries.  Run ./make_windows_releases from there.
+* To create Windows binary releases, extract the qpdf source distribution in Windows (MSYS2 + MSVC).  From the extracted directory, extract the binary distribution of the external libraries.  Run ./make_windows_releases simultaneously in 32-bit and 64-windows from there.
 * Before releasing, rebuild and test debian package.
 * Remember to copy `README-what-to-download.md` separately onto the download area.
 * Remember to update the web page including putting new documentation in the `files` subdirectory of the website on sourceforge.net.
@@ -58,6 +69,12 @@
   git tag -s release-qpdf-$version HEAD -m"qpdf $version"
   ```
 * When releasing on sourceforge, `external-libs` distributions go in `external-libs/yyyymmdd`, and qpdf distributions go in `qpdf/vvv`. Make the source package the default for all but Windows, and make the 32-bit mingw build the default for Windows.
+* Prepare and archive all release files. Files should be the source package, Windows binaries, AppImage, checksum files, and signature files.
+* Create a github release after pushing the tag. `gcurl` is an alias that includes the auth token.
+  ```
+  url=$(gcurl -s -XPOST https://api.github.com/repos/qpdf/qpdf/releases -d'{"tag_name": "release-qpdf-$version", "name": "qpdf $version", "draft": true, "body": "test *body* text"}' | jq -r '.url')
+  ```
+* Upload files to sourceforge and github. Publish the github release. Release notes can be added to the github release manually. Publish a news item manually on sourceforge. Email the qpdf-announce list.
 
 # General Build Stuff
 
