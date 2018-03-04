@@ -1,3 +1,18 @@
+2018-03-04  Jay Berkenbilt  <ejb@ql.org>
+
+	* 8.0.1: release
+
+	* On the command line when specifying page ranges, support
+	preceding a page number by "r" to indicate that it should be
+	counted from the end. For example, the range r3-r1 would indicate
+	the last three pages of a document.
+
+2018-03-03  Jay Berkenbilt  <ejb@ql.org>
+
+	* Ignore zlib data check errors while uncompressing streams. This
+	is consistent with behaviors of other readers and enables handling
+	of some incorrectly written zlib strems. Fixes #191.
+
 2018-02-25  Jay Berkenbilt  <ejb@ql.org>
 
 	* 8.0.0: release

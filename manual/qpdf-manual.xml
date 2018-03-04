@@ -5,8 +5,8 @@
 <!ENTITY mdash "&#x2014;">
 <!ENTITY ndash "&#x2013;">
 <!ENTITY nbsp "&#xA0;">
-<!ENTITY swversion "8.0.0">
-<!ENTITY lastreleased "February 25, 2018">
+<!ENTITY swversion "8.0.1">
+<!ENTITY lastreleased "March 4, 2018">
 ]>
 <book>
  <bookinfo>
@@ -818,13 +818,15 @@ make
    </para>
    <para>
     The page range is a set of numbers separated by commas, ranges of
-    numbers separated dashes, or combinations of those.  The character
-    &ldquo;z&rdquo; represents the last page.  Pages can appear in any
-    order.  Ranges can appear with a high number followed by a low
-    number, which causes the pages to appear in reverse.  Repeating a
-    number will cause an error, but you can use the workaround
-    discussed above should you really want to include the same page
-    twice.
+    numbers separated dashes, or combinations of those. The character
+    &ldquo;z&rdquo; represents the last page. A number preceded by an
+    &ldquo;r&rdquo; indicates to count from the end, so
+    <literal>r3-r1</literal> would be the last three pages of the
+    document. Pages can appear in any order. Ranges can appear with a
+    high number followed by a low number, which causes the pages to
+    appear in reverse. Repeating a number will cause an error, but you
+    can use the workaround discussed above should you really want to
+    include the same page twice.
    </para>
    <para>
     Example page ranges:
@@ -838,6 +840,17 @@ make
      <listitem>
       <para>
        <literal>z-1</literal>: all pages in the document in reverse
+      </para>
+     </listitem>
+     <listitem>
+      <para>
+       <literal>r3-r1</literal>: the last three pages of the document
+      </para>
+     </listitem>
+     <listitem>
+      <para>
+       <literal>r1-r3</literal>: the last three pages of the document
+       in reverse order
       </para>
      </listitem>
     </itemizedlist>
@@ -3050,6 +3063,30 @@ print "\n";
   </para>
   <variablelist>
    <varlistentry>
+    <term>8.0.1: March 4, 2018</term>
+    <listitem>
+     <itemizedlist>
+      <listitem>
+       <para>
+        Disregard data check errors when uncompressing
+        <option>/FlateDecode</option> streams. This is consistent with
+        most other PDF readers and allows qpdf to recover data from
+        another class of malformed PDF files.
+       </para>
+      </listitem>
+      <listitem>
+       <para>
+        On the command line when specifying page ranges, support
+        preceding a page number by &ldquo;r&rdquo; to indicate that it
+        should be counted from the end. For example, the range
+        <literal>r3-r1</literal> would indicate the last three pages
+        of a document.
+       </para>
+      </listitem>
+     </itemizedlist>
+    </listitem>
+   </varlistentry>
+   <varlistentry>
     <term>8.0.0: February 25, 2018</term>
     <listitem>
      <itemizedlist>
@@ -4613,11 +4650,11 @@ print "\n";
       <listitem>
        <para>
         This is the first version of qpdf to include Windows support.
-        On Windows, it is possible to build a DLL.  Additionally, a
+        On Windows, it is possible to build a DLL. Additionally, a
         partial C-language API has been introduced, which makes it
-        possible to call qpdf functions from non-C++ environments.  I
-        am very grateful to <!-- Žarko Gajić --> Zarko Gagic (<ulink
-        url="http://delphi.about.com/">http://delphi.about.com/</ulink>)
+        possible to call qpdf functions from non-C++ environments. I
+        am very grateful to Žarko <!-- Gajić --> Gajic (<ulink
+        url="http://zarko-gajic.iz.hr/">http://zarko-gajic.iz.hr/</ulink>)
         for tirelessly testing numerous pre-release versions of this
         DLL and providing many excellent suggestions on improving the
         interface.
@@ -4630,13 +4667,13 @@ print "\n";
       </listitem>
       <listitem>
        <para>
-        Zarko Gajic has written a Delphi wrapper for qpdf, which can
-        be downloaded from qpdf's download side.  Zarko's Delphi
+        Žarko Gajic has written a Delphi wrapper for qpdf, which can
+        be downloaded from qpdf's download side.  Žarko's Delphi
         wrapper is released with the same licensing terms as qpdf
         itself and comes with this disclaimer: &ldquo;Delphi wrapper
-        unit <filename>qpdf.pas</filename> created by Zarko Gajic
+        unit <filename>qpdf.pas</filename> created by Žarko Gajic
         (<ulink
-        url="http://delphi.about.com/">http://delphi.about.com/</ulink>).
+        url="http://zarko-gajic.iz.hr/">http://zarko-gajic.iz.hr/</ulink>).
         Use at your own risk and for whatever purpose you want.  No
         support is provided.  Sample code is provided.&rdquo;
        </para>
