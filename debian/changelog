@@ -1,3 +1,9 @@
+qpdf (8.0.1-1) unstable; urgency=medium
+
+  * New upstream release.
+
+ -- Jay Berkenbilt <qjb@debian.org>  Sun, 04 Mar 2018 08:40:53 -0500
+
 qpdf (8.0.0-1) unstable; urgency=medium
 
   * New upstream release.
