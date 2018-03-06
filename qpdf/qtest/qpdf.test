@@ -921,6 +921,34 @@ $td->runtest("check output",
 
 show_ntests();
 # ----------
+$td->notify("--- Page with no contents ---");
+$n_tests += 7;
+
+$td->runtest("check no contents",
+             {$td->COMMAND => "qpdf --check no-contents.pdf"},
+             {$td->FILE => "no-contents-check.out", $td->EXIT_STATUS => 0},
+             $td->NORMALIZE_NEWLINES);
+
+foreach my $arg ('--qdf', '--coalesce-contents', '')
+{
+    $td->runtest("convert no contents ($arg)",
+                 {$td->COMMAND =>
+                      "qpdf $arg --static-id no-contents.pdf a.pdf"},
+                 {$td->STRING => "", $td->EXIT_STATUS => 0});
+
+    my $suf = $arg;
+    $suf =~ s/--//;
+    if ($suf eq '')
+    {
+        $suf = "none";
+    }
+    $td->runtest("check output",
+                 {$td->FILE => "a.pdf"},
+                 {$td->FILE => "no-contents-$suf.pdf"});
+}
+
+show_ntests();
+# ----------
 $td->notify("--- Token filters ---");
 $n_tests += 2;
 
@@ -1400,7 +1428,7 @@ $td->runtest("C API: no recovery",
 show_ntests();
 # ----------
 $td->notify("--- Recovery Tests ---");
-$n_tests += @badfiles + 7;
+$n_tests += @badfiles + 9;
 
 # Recovery tests.  These are mostly after-the-fact -- when recovery
 # was implemented, some degree of recovery was possible on many of the
@@ -1468,6 +1496,17 @@ $td->runtest("recoverable xref errors",
              {$td->FILE => "xref-errors.out",
               $td->EXIT_STATUS => 3},
              $td->NORMALIZE_NEWLINES);
+
+$td->runtest("xref loop with append",
+             {$td->COMMAND =>
+                  "qpdf --deterministic-id append-xref-loop.pdf a.pdf"},
+             {$td->FILE => "append-xref-loop.out",
+              $td->EXIT_STATUS => 3},
+             $td->NORMALIZE_NEWLINES);
+
+$td->runtest("check output",
+	     {$td->FILE => "a.pdf"},
+	     {$td->FILE => "append-xref-loop-fixed.pdf"});
 
 show_ntests();
 # ----------
