@@ -1,3 +1,10 @@
+qpdf (8.0.2-3) unstable; urgency=medium
+
+  * Add patch for CVE-2018-9918 from upstream commit
+    b4d6cf6836ce025ba1811b7bbec52680c7204223. (Closes: #895443)
+
+ -- Jay Berkenbilt <qjb@debian.org>  Sun, 15 Apr 2018 16:24:12 -0400
+
 qpdf (8.0.2-2) unstable; urgency=medium
 
   * Update debhelper dependency to 10.3 for dh_missing. (Closes: #893581)
