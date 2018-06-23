@@ -7,11 +7,14 @@
 
 #include <qpdf/QUtil.hh>
 #include <qpdf/QTC.hh>
+#include <qpdf/ClosedFileInputSource.hh>
 #include <qpdf/Pl_StdioFile.hh>
 #include <qpdf/Pl_Discard.hh>
 #include <qpdf/PointerHolder.hh>
 
 #include <qpdf/QPDF.hh>
+#include <qpdf/QPDFPageDocumentHelper.hh>
+#include <qpdf/QPDFPageObjectHelper.hh>
 #include <qpdf/QPDFExc.hh>
 
 #include <qpdf/QPDFWriter.hh>
@@ -57,6 +60,7 @@ struct Options
         decrypt(false),
         split_pages(0),
         verbose(false),
+        progress(false),
         copy_encryption(false),
         encryption_file(0),
         encryption_file_password(0),
@@ -89,6 +93,7 @@ struct Options
         ignore_xref_streams(false),
         qdf_mode(false),
         preserve_unreferenced_objects(false),
+        preserve_unreferenced_page_resources(false),
         newline_before_endstream(false),
         coalesce_contents(false),
         show_npages(false),
@@ -118,7 +123,8 @@ struct Options
     bool linearize;
     bool decrypt;
     int split_pages;
-    bool  verbose;
+    bool verbose;
+    bool progress;
     bool copy_encryption;
     char const* encryption_file;
     char const* encryption_file_password;
@@ -153,6 +159,7 @@ struct Options
     bool ignore_xref_streams;
     bool qdf_mode;
     bool preserve_unreferenced_objects;
+    bool preserve_unreferenced_page_resources;
     bool newline_before_endstream;
     std::string linearize_pass1;
     bool coalesce_contents;
@@ -184,8 +191,9 @@ struct Options
 
 struct QPDFPageData
 {
-    QPDFPageData(QPDF* qpdf, char const* range);
+    QPDFPageData(std::string const& filename, QPDF* qpdf, char const* range);
 
+    std::string filename;
     QPDF* qpdf;
     std::vector<QPDFObjectHandle> orig_pages;
     std::vector<int> selected_pages;
@@ -198,6 +206,29 @@ class DiscardContents: public QPDFObjectHandle::ParserCallbacks
     virtual void handleObject(QPDFObjectHandle) {}
     virtual void handleEOF() {}
 };
+
+class ProgressReporter: public QPDFWriter::ProgressReporter
+{
+  public:
+    ProgressReporter(char const* filename) :
+        filename(filename)
+    {
+    }
+    virtual ~ProgressReporter()
+    {
+    }
+
+    virtual void reportProgress(int);
+  private:
+    std::string filename;
+};
+
+void
+ProgressReporter::reportProgress(int percentage)
+{
+    std::cout << whoami << ": " << filename << ": write progress: "
+              << percentage << "%" << std::endl;
+}
 
 // Note: let's not be too noisy about documenting the fact that this
 // software purposely fails to enforce the distinction between user
@@ -230,6 +261,7 @@ Basic Options\n\
 --help                  show command-line argument help\n\
 --password=password     specify a password for accessing encrypted files\n\
 --verbose               provide additional informational output\n\
+--progress              give progress indicators while writing output\n\
 --linearize             generated a linearized (web optimized) file\n\
 --copy-encryption=file  copy encryption parameters from specified file\n\
 --encryption-file-password=password\n\
@@ -239,9 +271,14 @@ Basic Options\n\
 --decrypt               remove any encryption on the file\n\
 --password-is-hex-key   treat primary password option as a hex-encoded key\n\
 --pages options --      select specific pages from one or more files\n\
---rotate=[+|-]angle:page-range\n\
-                        rotate each specified page 90, 180, or 270 degrees\n\
+--rotate=[+|-]angle[:page-range]\n\
+                        rotate each specified page 90, 180, or 270 degrees;\n\
+                        rotate all pages if no page range is given\n\
 --split-pages=[n]       write each output page to a separate file\n\
+\n\
+Note that you can use the @filename or @- syntax for any argument at any\n\
+point in the command. This provides a good way to specify a password without\n\
+having to explicitly put it on the command line.\n\
 \n\
 If none of --copy-encryption, --encrypt or --decrypt are given, qpdf will\n\
 preserve any encryption data associated with a file.\n\
@@ -396,6 +433,8 @@ familiar with the PDF file format or who are PDF developers.\n\
 --normalize-content=[yn]  enables or disables normalization of content streams\n\
 --object-streams=mode     controls handing of object streams\n\
 --preserve-unreferenced   preserve unreferenced objects\n\
+--preserve-unreferenced-resources\n\
+                          preserve unreferenced page resources\n\
 --newline-before-endstream  always put a newline before endstream\n\
 --coalesce-contents       force all pages' content to be a single stream\n\
 --qdf                     turns on \"QDF mode\" (below)\n\
@@ -1175,7 +1214,10 @@ static void test_numrange(char const* range)
     }
 }
 
-QPDFPageData::QPDFPageData(QPDF* qpdf, char const* range) :
+QPDFPageData::QPDFPageData(std::string const& filename,
+                           QPDF* qpdf,
+                           char const* range) :
+    filename(filename),
     qpdf(qpdf),
     orig_pages(qpdf->getAllPages())
 {
@@ -1297,24 +1339,32 @@ static void parse_rotation_parameter(Options& o, std::string const& parameter)
         if (colon > 0)
         {
             angle_str = parameter.substr(0, colon);
-            if (angle_str.length() > 0)
-            {
-                char first = angle_str.at(0);
-                if ((first == '+') || (first == '-'))
-                {
-                    relative = ((first == '+') ? 1 : -1);
-                    angle_str = angle_str.substr(1);
-                }
-                else if (! QUtil::is_digit(angle_str.at(0)))
-                {
-                    angle_str = "";
-                }
-            }
         }
         if (colon + 1 < parameter.length())
         {
             range = parameter.substr(colon + 1);
         }
+    }
+    else
+    {
+        angle_str = parameter;
+    }
+    if (angle_str.length() > 0)
+    {
+        char first = angle_str.at(0);
+        if ((first == '+') || (first == '-'))
+        {
+            relative = ((first == '+') ? 1 : -1);
+            angle_str = angle_str.substr(1);
+        }
+        else if (! QUtil::is_digit(angle_str.at(0)))
+        {
+            angle_str = "";
+        }
+    }
+    if (range.empty())
+    {
+        range = "1-z";
     }
     bool range_valid = false;
     try
@@ -1573,6 +1623,10 @@ static void parse_options(int argc, char* argv[], Options& o)
             {
                 o.preserve_unreferenced_objects = true;
             }
+            else if (strcmp(arg, "preserve-unreferenced-resources") == 0)
+            {
+                o.preserve_unreferenced_page_resources = true;
+            }
             else if (strcmp(arg, "newline-before-endstream") == 0)
             {
                 o.newline_before_endstream = true;
@@ -1617,6 +1671,10 @@ static void parse_options(int argc, char* argv[], Options& o)
             else if (strcmp(arg, "verbose") == 0)
             {
                 o.verbose = true;
+            }
+            else if (strcmp(arg, "progress") == 0)
+            {
+                o.progress = true;
             }
             else if (strcmp(arg, "deterministic-id") == 0)
             {
@@ -1734,10 +1792,23 @@ static void parse_options(int argc, char* argv[], Options& o)
         usage("no output file may be given for this option");
     }
 
-    if (o.require_outfile && (strcmp(o.outfilename, "-") == 0) &&
-        o.split_pages)
+    if (o.require_outfile && (strcmp(o.outfilename, "-") == 0))
     {
-        usage("--split-pages may not be used when writing to standard output");
+        if (o.split_pages)
+        {
+            usage("--split-pages may not be used when"
+                  " writing to standard output");
+        }
+        if (o.verbose)
+        {
+            usage("--verbose may not be used when"
+                  " writing to standard output");
+        }
+        if (o.progress)
+        {
+            usage("--progress may not be used when"
+                  " writing to standard output");
+        }
     }
 
     if (QUtil::same_file(o.infilename, o.outfilename))
@@ -1806,17 +1877,19 @@ static void do_check(QPDF& pdf, Options& o, int& exit_code)
         w.write();
 
         // Parse all content streams
-        std::vector<QPDFObjectHandle> pages = pdf.getAllPages();
+        QPDFPageDocumentHelper dh(pdf);
+        std::vector<QPDFPageObjectHelper> pages = dh.getAllPages();
         DiscardContents discard_contents;
         int pageno = 0;
-        for (std::vector<QPDFObjectHandle>::iterator iter =
+        for (std::vector<QPDFPageObjectHelper>::iterator iter =
                  pages.begin();
              iter != pages.end(); ++iter)
         {
+            QPDFPageObjectHelper& page(*iter);
             ++pageno;
             try
             {
-                (*iter).parsePageContents(&discard_contents);
+                page.parsePageContents(&discard_contents);
             }
             catch (QPDFExc& e)
             {
@@ -1893,17 +1966,18 @@ static void do_show_obj(QPDF& pdf, Options& o, int& exit_code)
 
 static void do_show_pages(QPDF& pdf, Options& o)
 {
+    QPDFPageDocumentHelper dh(pdf);
     if (o.show_page_images)
     {
-        pdf.pushInheritedAttributesToPage();
+        dh.pushInheritedAttributesToPage();
     }
-    std::vector<QPDFObjectHandle> pages = pdf.getAllPages();
+    std::vector<QPDFPageObjectHelper> pages = dh.getAllPages();
     int pageno = 0;
-    for (std::vector<QPDFObjectHandle>::iterator iter =
-             pages.begin();
+    for (std::vector<QPDFPageObjectHelper>::iterator iter = pages.begin();
          iter != pages.end(); ++iter)
     {
-        QPDFObjectHandle& page = *iter;
+        QPDFPageObjectHelper& ph(*iter);
+        QPDFObjectHandle page = ph.getObjectHandle();
         ++pageno;
 
         std::cout << "page " << pageno << ": "
@@ -1912,7 +1986,7 @@ static void do_show_pages(QPDF& pdf, Options& o)
         if (o.show_page_images)
         {
             std::map<std::string, QPDFObjectHandle> images =
-                page.getPageImages();
+                ph.getPageImages();
             if (! images.empty())
             {
                 std::cout << "  images:" << std::endl;
@@ -1938,7 +2012,7 @@ static void do_show_pages(QPDF& pdf, Options& o)
 
         std::cout << "  content:" << std::endl;
         std::vector<QPDFObjectHandle> content =
-            page.getPageContents();
+            ph.getPageContents();
         for (std::vector<QPDFObjectHandle>::iterator iter =
                  content.begin();
              iter != content.end(); ++iter)
@@ -2009,10 +2083,11 @@ static void do_inspection(QPDF& pdf, Options& o)
 
 static void handle_transformations(QPDF& pdf, Options& o)
 {
+    QPDFPageDocumentHelper dh(pdf);
     if (o.coalesce_contents)
     {
-        std::vector<QPDFObjectHandle> pages = pdf.getAllPages();
-        for (std::vector<QPDFObjectHandle>::iterator iter = pages.begin();
+        std::vector<QPDFPageObjectHelper> pages = dh.getAllPages();
+        for (std::vector<QPDFPageObjectHelper>::iterator iter = pages.begin();
              iter != pages.end(); ++iter)
         {
             (*iter).coalesceContentStreams();
@@ -2056,16 +2131,35 @@ static void handle_page_specs(QPDF& pdf, Options& o,
                 QTC::TC("qpdf", "qpdf pages encryption password");
                 password = o.encryption_file_password;
             }
-            qpdf->processFile(
-                page_spec.filename.c_str(), password);
+            if (o.verbose)
+            {
+                std::cout << whoami << ": processing "
+                          << page_spec.filename << std::endl;
+            }
+            qpdf->processInputSource(
+                new ClosedFileInputSource(
+                    page_spec.filename.c_str()), password);
             page_spec_qpdfs[page_spec.filename] = qpdf;
         }
 
         // Read original pages from the PDF, and parse the page range
         // associated with this occurrence of the file.
         parsed_specs.push_back(
-            QPDFPageData(page_spec_qpdfs[page_spec.filename],
+            QPDFPageData(page_spec.filename,
+                         page_spec_qpdfs[page_spec.filename],
                          page_spec.range));
+    }
+
+    if (! o.preserve_unreferenced_page_resources)
+    {
+        for (std::map<std::string, QPDF*>::iterator iter =
+                 page_spec_qpdfs.begin();
+             iter != page_spec_qpdfs.end(); ++iter)
+        {
+            QPDFPageDocumentHelper dh(*((*iter).second));
+            dh.pushInheritedAttributesToPage();
+            dh.removeUnreferencedResources();
+        }
     }
 
     // Clear all pages out of the primary QPDF's pages tree but leave
@@ -2073,12 +2167,19 @@ static void handle_page_specs(QPDF& pdf, Options& o,
     // without changing their object numbers. This enables other
     // things in the original file, such as outlines, to continue to
     // work.
-    std::vector<QPDFObjectHandle> orig_pages = pdf.getAllPages();
-    for (std::vector<QPDFObjectHandle>::iterator iter =
+    if (o.verbose)
+    {
+        std::cout << whoami
+                  << ": removing unreferenced pages from primary input"
+                  << std::endl;
+    }
+    QPDFPageDocumentHelper dh(pdf);
+    std::vector<QPDFPageObjectHelper> orig_pages = dh.getAllPages();
+    for (std::vector<QPDFPageObjectHelper>::iterator iter =
              orig_pages.begin();
          iter != orig_pages.end(); ++iter)
     {
-        pdf.removePage(*iter);
+        dh.removePage(*iter);
     }
 
     // Add all the pages from all the files in the order specified.
@@ -2090,6 +2191,11 @@ static void handle_page_specs(QPDF& pdf, Options& o,
          iter != parsed_specs.end(); ++iter)
     {
         QPDFPageData& page_data = *iter;
+        if (o.verbose)
+        {
+            std::cout << whoami << ": adding pages from "
+                      << page_data.filename << std::endl;
+        }
         for (std::vector<int>::iterator pageno_iter =
                  page_data.selected_pages.begin();
              pageno_iter != page_data.selected_pages.end();
@@ -2098,7 +2204,7 @@ static void handle_page_specs(QPDF& pdf, Options& o,
             // Pages are specified from 1 but numbered from 0 in the
             // vector
             int pageno = *pageno_iter - 1;
-            pdf.addPage(page_data.orig_pages.at(pageno), false);
+            dh.addPage(page_data.orig_pages.at(pageno), false);
             if (page_data.qpdf == &pdf)
             {
                 // This is a page from the original file. Keep track
@@ -2115,15 +2221,17 @@ static void handle_page_specs(QPDF& pdf, Options& o,
     {
         if (selected_from_orig.count(pageno) == 0)
         {
-            pdf.replaceObject(orig_pages.at(pageno).getObjGen(),
-                              QPDFObjectHandle::newNull());
+            pdf.replaceObject(
+                orig_pages.at(pageno).getObjectHandle().getObjGen(),
+                QPDFObjectHandle::newNull());
         }
     }
 }
 
 static void handle_rotations(QPDF& pdf, Options& o)
 {
-    std::vector<QPDFObjectHandle> pages = pdf.getAllPages();
+    QPDFPageDocumentHelper dh(pdf);
+    std::vector<QPDFPageObjectHelper> pages = dh.getAllPages();
     int npages = static_cast<int>(pages.size());
     for (std::map<std::string, RotationSpec>::iterator iter =
              o.rotations.begin();
@@ -2306,6 +2414,10 @@ static void set_writer_options(QPDF& pdf, Options& o, QPDFWriter& w)
         parse_version(o.force_version, version, extension_level);
         w.forcePDFVersion(version, extension_level);
     }
+    if (o.progress && o.outfilename)
+    {
+        w.registerProgressReporter(new ProgressReporter(o.outfilename));
+    }
 }
 
 static void write_outfile(QPDF& pdf, Options& o)
@@ -2336,6 +2448,12 @@ static void write_outfile(QPDF& pdf, Options& o)
             before = std::string(o.outfilename) + "-";
         }
 
+        if (! o.preserve_unreferenced_page_resources)
+        {
+            QPDFPageDocumentHelper dh(pdf);
+            dh.pushInheritedAttributesToPage();
+            dh.removeUnreferencedResources();
+        }
         std::vector<QPDFObjectHandle> const& pages = pdf.getAllPages();
         int pageno_len = QUtil::int_to_string(pages.size()).length();
         unsigned int num_pages = pages.size();
@@ -2378,7 +2496,7 @@ static void write_outfile(QPDF& pdf, Options& o)
         QPDFWriter w(pdf, o.outfilename);
         set_writer_options(pdf, o, w);
         w.write();
-        if (o.verbose && o.outfilename)
+        if (o.verbose)
         {
             std::cout << whoami << ": wrote file "
                       << o.outfilename << std::endl;

@@ -554,6 +554,42 @@ QPDFObjectHandle::getArrayItem(int n)
     return result;
 }
 
+bool
+QPDFObjectHandle::isRectangle()
+{
+    if (! isArray())
+    {
+        return false;
+    }
+    if (getArrayNItems() != 4)
+    {
+        return false;
+    }
+    for (size_t i = 0; i < 4; ++i)
+    {
+        if (! getArrayItem(i).isNumber())
+        {
+            return false;
+        }
+    }
+    return true;
+}
+
+
+QPDFObjectHandle::Rectangle
+QPDFObjectHandle::getArrayAsRectangle()
+{
+    Rectangle result;
+    if (isRectangle())
+    {
+        result = Rectangle(getArrayItem(0).getNumericValue(),
+                           getArrayItem(1).getNumericValue(),
+                           getArrayItem(2).getNumericValue(),
+                           getArrayItem(3).getNumericValue());
+    }
+    return result;
+}
+
 std::vector<QPDFObjectHandle>
 QPDFObjectHandle::getArrayAsVector()
 {
@@ -1185,6 +1221,20 @@ QPDFObjectHandle::unparseResolved()
     return this->m->obj->unparse();
 }
 
+std::string
+QPDFObjectHandle::unparseBinary()
+{
+    if (this->isString())
+    {
+        return dynamic_cast<QPDF_String*>(
+            this->m->obj.getPointer())->unparse(true);
+    }
+    else
+    {
+        return unparse();
+    }
+}
+
 QPDFObjectHandle
 QPDFObjectHandle::parse(std::string const& object_str,
                         std::string const& object_description)
@@ -1240,10 +1290,9 @@ QPDFObjectHandle::pipeContentStreams(
         if (! stream.pipeStreamData(p, 0, qpdf_dl_specialized))
         {
             QTC::TC("qpdf", "QPDFObjectHandle errors in parsecontent");
-            warn(stream.getOwningQPDF(),
-                 QPDFExc(qpdf_e_damaged_pdf, "content stream",
-                         description, 0,
-                         "errors while decoding content stream"));
+            throw QPDFExc(qpdf_e_damaged_pdf, "content stream",
+                          description, 0,
+                          "errors while decoding content stream");
         }
     }
 }
@@ -1487,12 +1536,26 @@ QPDFObjectHandle::parseInternal(PointerHolder<InputSource> input,
 
 	  case QPDFTokenizer::tt_array_open:
 	  case QPDFTokenizer::tt_dict_open:
-            olist_stack.push_back(std::vector<QPDFObjectHandle>());
-            state = st_start;
-            offset_stack.push_back(input->tell());
-            state_stack.push_back(
-                (token.getType() == QPDFTokenizer::tt_array_open) ?
-                st_array : st_dictionary);
+            if (olist_stack.size() > 500)
+            {
+		QTC::TC("qpdf", "QPDFObjectHandle too deep");
+                warn(context,
+                     QPDFExc(qpdf_e_damaged_pdf, input->getName(),
+                             object_description,
+                             input->getLastOffset(),
+                             "ignoring excessively deeply nested data structure"));
+                object = newNull();
+                state = st_top;
+            }
+            else
+            {
+                olist_stack.push_back(std::vector<QPDFObjectHandle>());
+                state = st_start;
+                offset_stack.push_back(input->tell());
+                state_stack.push_back(
+                    (token.getType() == QPDFTokenizer::tt_array_open) ?
+                    st_array : st_dictionary);
+            }
 	    break;
 
 	  case QPDFTokenizer::tt_bool:
@@ -1796,6 +1859,12 @@ QPDFObjectHandle::newString(std::string const& str)
 }
 
 QPDFObjectHandle
+QPDFObjectHandle::newUnicodeString(std::string const& utf8_str)
+{
+    return QPDFObjectHandle(QPDF_String::new_utf16(utf8_str));
+}
+
+QPDFObjectHandle
 QPDFObjectHandle::newOperator(std::string const& value)
 {
     return QPDFObjectHandle(new QPDF_Operator(value));
@@ -1817,6 +1886,23 @@ QPDFObjectHandle
 QPDFObjectHandle::newArray(std::vector<QPDFObjectHandle> const& items)
 {
     return QPDFObjectHandle(new QPDF_Array(items));
+}
+
+QPDFObjectHandle
+QPDFObjectHandle::newArray(Rectangle const& rect)
+{
+    std::vector<QPDFObjectHandle> items;
+    items.push_back(newReal(rect.llx));
+    items.push_back(newReal(rect.lly));
+    items.push_back(newReal(rect.urx));
+    items.push_back(newReal(rect.ury));
+    return newArray(items);
+}
+
+QPDFObjectHandle
+QPDFObjectHandle::newFromRectangle(Rectangle const& rect)
+{
+    return newArray(rect);
 }
 
 QPDFObjectHandle
@@ -1938,11 +2024,14 @@ QPDFObjectHandle::shallowCopy()
         new_obj = *this;
     }
 
+    std::set<QPDFObjGen> visited;
+    new_obj.copyObject(visited, false);
     return new_obj;
 }
 
 void
-QPDFObjectHandle::makeDirectInternal(std::set<int>& visited)
+QPDFObjectHandle::copyObject(std::set<QPDFObjGen>& visited,
+                             bool cross_indirect)
 {
     assertInitialized();
 
@@ -1953,17 +2042,17 @@ QPDFObjectHandle::makeDirectInternal(std::set<int>& visited)
 	    "attempt to make a stream into a direct object");
     }
 
-    int cur_objid = this->m->objid;
-    if (cur_objid != 0)
+    QPDFObjGen cur_og(this->m->objid, this->m->generation);
+    if (cur_og.getObj() != 0)
     {
-	if (visited.count(cur_objid))
+	if (visited.count(cur_og))
 	{
 	    QTC::TC("qpdf", "QPDFObjectHandle makeDirect loop");
 	    throw std::runtime_error(
 		"loop detected while converting object from "
 		"indirect to direct");
 	}
-	visited.insert(cur_objid);
+	visited.insert(cur_og);
     }
 
     if (isReserved())
@@ -2018,7 +2107,10 @@ QPDFObjectHandle::makeDirectInternal(std::set<int>& visited)
 	for (int i = 0; i < n; ++i)
 	{
 	    items.push_back(getArrayItem(i));
-	    items.back().makeDirectInternal(visited);
+            if (cross_indirect || (! items.back().isIndirect()))
+            {
+                items.back().copyObject(visited, cross_indirect);
+            }
 	}
 	new_obj = new QPDF_Array(items);
     }
@@ -2031,7 +2123,10 @@ QPDFObjectHandle::makeDirectInternal(std::set<int>& visited)
 	     iter != keys.end(); ++iter)
 	{
 	    items[*iter] = getKey(*iter);
-	    items[*iter].makeDirectInternal(visited);
+            if (cross_indirect || (! items[*iter].isIndirect()))
+            {
+                items[*iter].copyObject(visited, cross_indirect);
+            }
 	}
 	new_obj = new QPDF_Dictionary(items);
     }
@@ -2043,17 +2138,17 @@ QPDFObjectHandle::makeDirectInternal(std::set<int>& visited)
 
     this->m->obj = new_obj;
 
-    if (cur_objid)
+    if (cur_og.getObj())
     {
-	visited.erase(cur_objid);
+	visited.erase(cur_og);
     }
 }
 
 void
 QPDFObjectHandle::makeDirect()
 {
-    std::set<int> visited;
-    makeDirectInternal(visited);
+    std::set<QPDFObjGen> visited;
+    copyObject(visited, true);
 }
 
 void
@@ -2089,7 +2184,8 @@ QPDFObjectHandle::typeWarning(char const* expected_type,
 }
 
 void
-QPDFObjectHandle::objectWarning(std::string const& warning)
+QPDFObjectHandle::warnIfPossible(std::string const& warning,
+                                 bool throw_if_no_description)
 {
     QPDF* context = 0;
     std::string description;
@@ -2101,10 +2197,16 @@ QPDFObjectHandle::objectWarning(std::string const& warning)
                  "", description, 0,
                  warning));
     }
-    else
+    else if (throw_if_no_description)
     {
         throw std::logic_error(warning);
     }
+}
+
+void
+QPDFObjectHandle::objectWarning(std::string const& warning)
+{
+    warnIfPossible(warning, true);
 }
 
 void
