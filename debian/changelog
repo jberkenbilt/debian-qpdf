@@ -1,3 +1,10 @@
+qpdf (8.1.0-1) unstable; urgency=medium
+
+  * New upstream release.
+  * Includes fix for CVE-2018-9918
+
+ -- Jay Berkenbilt <qjb@debian.org>  Sat, 23 Jun 2018 09:17:28 -0400
+
 qpdf (8.0.2-3) unstable; urgency=medium
 
   * Add patch for CVE-2018-9918 from upstream commit
