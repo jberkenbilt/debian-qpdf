@@ -9,6 +9,7 @@ SRCS_libqpdf = \
 	libqpdf/BitWriter.cc \
 	libqpdf/Buffer.cc \
 	libqpdf/BufferInputSource.cc \
+	libqpdf/ClosedFileInputSource.cc \
 	libqpdf/ContentNormalizer.cc \
 	libqpdf/FileInputSource.cc \
 	libqpdf/InputSource.cc \
@@ -35,10 +36,15 @@ SRCS_libqpdf = \
 	libqpdf/Pl_StdioFile.cc \
 	libqpdf/Pl_TIFFPredictor.cc \
 	libqpdf/QPDF.cc \
+	libqpdf/QPDFAcroFormDocumentHelper.cc \
+	libqpdf/QPDFAnnotationObjectHelper.cc \
 	libqpdf/QPDFExc.cc \
+	libqpdf/QPDFFormFieldObjectHelper.cc \
 	libqpdf/QPDFObjGen.cc \
 	libqpdf/QPDFObject.cc \
 	libqpdf/QPDFObjectHandle.cc \
+	libqpdf/QPDFPageDocumentHelper.cc \
+	libqpdf/QPDFPageObjectHelper.cc \
 	libqpdf/QPDFTokenizer.cc \
 	libqpdf/QPDFWriter.cc \
 	libqpdf/QPDFXRefEntry.cc \

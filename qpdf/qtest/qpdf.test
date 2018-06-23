@@ -84,13 +84,62 @@ flush_tiff_cache();
 
 show_ntests();
 # ----------
-$td->notify("--- PDF Doc Encoding ---");
-$n_tests += 1;
+$td->notify("--- Character Encoding ---");
+$n_tests += 3;
 
 $td->runtest("PDF doc encoding to Unicode",
 	     {$td->COMMAND => "test_pdf_doc_encoding pdf-doc-to-utf8.in"},
 	     {$td->FILE => "pdf-doc-to-utf8.out", $td->EXIT_STATUS => 0},
 	     $td->NORMALIZE_NEWLINES);
+$td->runtest("UTF-16 encoding",
+	     {$td->COMMAND => "test_pdf_unicode unicode.in"},
+	     {$td->FILE => "unicode.out", $td->EXIT_STATUS => 0},
+	     $td->NORMALIZE_NEWLINES);
+$td->runtest("UTF-16 encoding errors",
+	     {$td->COMMAND => "test_pdf_unicode unicode-errors.in"},
+	     {$td->FILE => "unicode-errors.out", $td->EXIT_STATUS => 0},
+	     $td->NORMALIZE_NEWLINES);
+
+show_ntests();
+# ----------
+$td->notify("--- Form Tests ---");
+
+my @form_tests = (
+    'minimal',
+    'form-empty-from-odt',
+    'form-mod1',
+    # Atril (MATE Document Viewer) 1.20.1 dumps appearance streams
+    # when modifying form fields, leaving /NeedAppearances true.
+    'form-filled-with-atril',
+    'form-bad-fields-array',
+    'form-errors',
+    );
+
+$n_tests += scalar(@form_tests) + 2;
+
+# Many of the form*.pdf files were created by converting the
+# LibreOffice document storage/form.odt to PDF and then manually
+# modifying the resulting PDF in various ways. That file would be good
+# starting point for generation of more complex forms should that be
+# required in the future. The file storage/form.pdf is a direct export
+# from LibreOffice with no modifications.
+
+foreach my $f (@form_tests)
+{
+    $td->runtest("form test: $f",
+                 {$td->COMMAND => "test_driver 43 $f.pdf"},
+                 {$td->FILE => "form-$f.out", $td->EXIT_STATUS => 0},
+                 $td->NORMALIZE_NEWLINES);
+}
+
+$td->runtest("fill fields",
+             {$td->COMMAND => "test_driver 44 form-no-need-appearances.pdf"},
+             {$td->FILE => "form-no-need-appearances.out",
+                  $td->EXIT_STATUS => 0},
+             $td->NORMALIZE_NEWLINES);
+$td->runtest("compare files",
+             {$td->FILE => "a.pdf"},
+             {$td->FILE => "form-no-need-appearances-filled.pdf"});
 
 show_ntests();
 # ----------
@@ -236,6 +285,7 @@ my @bug_tests = (
     ["148", "free memory on bad flate", 2],
     ["149", "xref prev pointer loop", 3],
     ["150", "integer overflow", 2],
+    ["202", "even more deeply nested dictionary", 2],
     );
 $n_tests += scalar(@bug_tests);
 foreach my $d (@bug_tests)
@@ -403,7 +453,7 @@ $td->runtest("check output",
 show_ntests();
 # ----------
 $td->notify("--- ID and Encryption Parameter Issues ---");
-$n_tests += 12;
+$n_tests += 13;
 
 # Encrypt files whose /ID strings are other than 32 bytes long (bug
 # 2991412). Also linearize these files, which was reported in a
@@ -456,6 +506,19 @@ $td->runtest("short /O or /U",
              {$td->COMMAND =>
                   "qpdf --password=19723102477 --check short-O-U.pdf"},
              {$td->FILE => "short-O-U.out",
+              $td->EXIT_STATUS => 0},
+             $td->NORMALIZE_NEWLINES);
+
+# A file was sent to me privately as part of issue 212. This file was
+# encrypted and had /R=3 and /V=1 and was using a 40-bit key. qpdf was
+# failing to work properly on files with /R=3 and 40-bit keys. The
+# test file is not this private file, but the encryption parameters
+# were copied from it. Like the bug file, qpdf < 8.1 can't decrypt it.
+$td->runtest("/R 3 with 40-bit key",
+             {$td->COMMAND =>
+                  "qpdf --password=623 --check --show-encryption-key" .
+                  " encrypted-40-bit-R3.pdf"},
+             {$td->FILE => "encrypted-40-bit-R3.out",
               $td->EXIT_STATUS => 0},
              $td->NORMALIZE_NEWLINES);
 
@@ -725,7 +788,7 @@ $td->runtest("parse split content stream",
 $td->runtest("split content stream errors",
              {$td->COMMAND => "qpdf --check split-content-stream-errors.pdf"},
              {$td->FILE => "split-content-stream-errors.out",
-              $td->EXIT_STATUS => 3},
+              $td->EXIT_STATUS => 2},
              $td->NORMALIZE_NEWLINES);
 
 show_ntests();
@@ -963,7 +1026,7 @@ $td->runtest("check output",
 show_ntests();
 # ----------
 $td->notify("--- Newline before endstream ---");
-$n_tests += 10;
+$n_tests += 12;
 
 # From issue 133, http://verapdf.org/software/ is an open source
 # package that can verify PDF/A compliance. This could potentially be
@@ -974,6 +1037,8 @@ foreach my $d (
     ['--qdf', 'qdf', 'qdf'],
     ['--newline-before-endstream', 'newline', 'nl'],
     ['--qdf --newline-before-endstream', 'newline and qdf', 'nl-qdf'],
+    ['--object-streams=generate --newline-before-endstream',
+     'newline and object streams', 'nl-objstm'],
     )
 {
     my ($flags, $description, $suffix) = @$d;
@@ -1013,7 +1078,7 @@ my @sp_cases = (
     [11, 'pdf extension', '', 'split-out.Pdf'],
     [4, 'fallback', '--pages 11-pages.pdf 1-3 minimal.pdf --', 'split-out'],
     );
-$n_tests += 5;
+$n_tests += 9;
 for (@sp_cases)
 {
     $n_tests += 1 + $_->[0];
@@ -1035,6 +1100,17 @@ $td->runtest("no split-pages to stdout",
              {$td->COMMAND => "qpdf --split-pages 11-pages.pdf -"},
              {$td->FILE => "split-pages-stdout.out", $td->EXIT_STATUS => 2},
              $td->NORMALIZE_NEWLINES);
+
+$td->runtest("split page with shared resources",
+             {$td->COMMAND => "qpdf --qdf --static-id --split-pages=4".
+                  " shared-images.pdf split-out-shared.pdf"},
+             {$td->STRING => "", $td->EXIT_STATUS => 0});
+foreach my $i (qw(01-04 05-08 09-10))
+{
+    $td->runtest("check output ($i)",
+                 {$td->FILE => "split-out-shared-$i.pdf"},
+                 {$td->FILE => "shared-split-$i.pdf"});
+}
 
 foreach my $d (@sp_cases)
 {
@@ -1072,7 +1148,7 @@ foreach my $d (@sp_cases)
 show_ntests();
 # ----------
 $td->notify("--- Rotate Pages ---");
-$n_tests += 2;
+$n_tests += 4;
 # Do absolute, positive, and negative on ranges that include
 # inherited and non-inherited.
 # Pages 11-15 inherit /Rotate 90
@@ -1088,6 +1164,14 @@ $td->runtest("page rotation",
 $td->runtest("check output",
              {$td->FILE => "a.pdf"},
              {$td->FILE => "rotated.pdf"});
+
+$td->runtest("rotate all pages",
+             {$td->COMMAND =>
+                  "qpdf --static-id --rotate=180 minimal.pdf a.pdf"},
+             {$td->STRING => "", $td->EXIT_STATUS => 0});
+$td->runtest("check output",
+             {$td->FILE => "a.pdf"},
+             {$td->FILE => "minimal-rotated.pdf"});
 
 show_ntests();
 # ----------
@@ -1149,7 +1233,7 @@ foreach my $d (@nrange_tests)
 show_ntests();
 # ----------
 $td->notify("--- Merging and Splitting ---");
-$n_tests += 8;
+$n_tests += 16;
 
 # Select pages from the same file multiple times including selecting
 # twice from an encrypted file and specifying the password only the
@@ -1164,8 +1248,10 @@ my $pages_options = "--pages page-labels-and-outlines.pdf 1,3,5-7,z" .
 
 $td->runtest("merge three files",
              {$td->COMMAND => "qpdf page-labels-and-outlines.pdf a.pdf" .
-                  " $pages_options --static-id"},
-             {$td->STRING => "", $td->EXIT_STATUS => 0});
+                  " $pages_options --static-id --verbose --progress",
+                  $td->FILTER => "perl filter-progress.pl"},
+             {$td->FILE => "verbose-merge.out", $td->EXIT_STATUS => 0},
+             $td->NORMALIZE_NEWLINES);
 # Manually verified about this file: make sure that outline entries
 # that pointed to pages that were preserved still work in the copy,
 # and verify that all pages are as expected.  page-labels-and-outlines
@@ -1204,6 +1290,52 @@ $td->runtest("merge with implicit ranges",
 $td->runtest("check output",
              {$td->FILE => "a.pdf"},
              {$td->FILE => "merge-implicit-ranges.pdf"});
+
+$td->runtest("split with shared resources",
+             {$td->COMMAND =>
+                  "qpdf --qdf --static-id" .
+                  " shared-images.pdf --pages" .
+                  " shared-images.pdf 1,3" .
+                  " ./shared-images.pdf 1,2 -- a.pdf"},
+             {$td->STRING => "", $td->EXIT_STATUS => 0});
+$td->runtest("check output",
+             {$td->FILE => "a.pdf"},
+             {$td->FILE => "shared-images-pages-out.pdf"});
+
+$td->runtest("shared resources relevant errors",
+             {$td->COMMAND =>
+                  "qpdf --qdf --static-id" .
+                  " shared-images-errors.pdf --pages" .
+                  " shared-images-errors.pdf 2 -- a.pdf"},
+             {$td->FILE => "shared-images-errors-2.out",
+                  $td->EXIT_STATUS => 3},
+             $td->NORMALIZE_NEWLINES);
+$td->runtest("check output",
+             {$td->FILE => "a.pdf"},
+             {$td->FILE => "shared-images-errors-2-out.pdf"});
+
+$td->runtest("shared resources irrelevant errors",
+             {$td->COMMAND =>
+                  "qpdf --qdf --static-id" .
+                  " shared-images-errors.pdf --pages" .
+                  " shared-images-errors.pdf 1 -- a.pdf"},
+             {$td->FILE => "shared-images-errors-1.out",
+                  $td->EXIT_STATUS => 3},
+             $td->NORMALIZE_NEWLINES);
+$td->runtest("check output",
+             {$td->FILE => "a.pdf"},
+             {$td->FILE => "shared-images-errors-1-out.pdf"});
+
+$td->runtest("don't remove shared resources",
+             {$td->COMMAND =>
+                  "qpdf --qdf --static-id --preserve-unreferenced-resources" .
+                  " shared-images.pdf --pages" .
+                  " shared-images.pdf 1,3 -- a.pdf"},
+             {$td->STRING => "", $td->EXIT_STATUS => 0});
+$td->runtest("check output",
+             {$td->FILE => "a.pdf"},
+             {$td->FILE => "shared-images-errors-1-3-out.pdf"});
+
 show_ntests();
 # ----------
 $td->notify("--- PDF From Scratch ---");
