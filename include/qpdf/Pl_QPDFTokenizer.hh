@@ -19,8 +19,8 @@
 // continue to consider qpdf to be licensed under those terms. Please
 // see the manual for additional information.
 
-#ifndef __PL_QPDFTOKENIZER_HH__
-#define __PL_QPDFTOKENIZER_HH__
+#ifndef PL_QPDFTOKENIZER_HH
+#define PL_QPDFTOKENIZER_HH
 
 #include <qpdf/Pipeline.hh>
 
@@ -44,11 +44,15 @@ class Pl_QPDFTokenizer: public Pipeline
     // Whatever pipeline is provided as "next" will be set as the
     // pipeline that the token filter writes to. If next is not
     // provided, any output written by the filter will be discarded.
+    QPDF_DLL
     Pl_QPDFTokenizer(char const* identifier,
                      QPDFObjectHandle::TokenFilter* filter,
                      Pipeline* next = 0);
+    QPDF_DLL
     virtual ~Pl_QPDFTokenizer();
+    QPDF_DLL
     virtual void write(unsigned char* buf, size_t len);
+    QPDF_DLL
     virtual void finish();
 
   private:
@@ -60,6 +64,7 @@ class Pl_QPDFTokenizer: public Pipeline
         friend class Pl_QPDFTokenizer;
 
       public:
+        QPDF_DLL
         ~Members();
 
       private:
@@ -75,4 +80,4 @@ class Pl_QPDFTokenizer: public Pipeline
     PointerHolder<Members> m;
 };
 
-#endif // __PL_QPDFTOKENIZER_HH__
+#endif // PL_QPDFTOKENIZER_HH

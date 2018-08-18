@@ -19,38 +19,40 @@
 // continue to consider qpdf to be licensed under those terms. Please
 // see the manual for additional information.
 
-#ifndef PL_RUNLENGTH_HH
-#define PL_RUNLENGTH_HH
+#ifndef QPDFSYSTEMERROR_HH
+#define QPDFSYSTEMERROR_HH
 
-#include <qpdf/Pipeline.hh>
+#include <qpdf/DLL.h>
+#include <qpdf/Types.h>
 
-class Pl_RunLength: public Pipeline
+#include <qpdf/Constants.h>
+#include <string>
+#include <stdexcept>
+
+class QPDFSystemError: public std::runtime_error
 {
   public:
-    enum action_e { a_encode, a_decode };
+    QPDF_DLL
+    QPDFSystemError(std::string const& description,
+                    int system_errno);
+    QPDF_DLL
+    virtual ~QPDFSystemError() throw ();
+
+    // To get a complete error string, call what(), provided by
+    // std::exception.  The accessors below return the original values
+    // used to create the exception.
 
     QPDF_DLL
-    Pl_RunLength(char const* identifier, Pipeline* next,
-                 action_e action);
+    std::string const& getDescription() const;
     QPDF_DLL
-    virtual ~Pl_RunLength();
-
-    QPDF_DLL
-    virtual void write(unsigned char* data, size_t len);
-    QPDF_DLL
-    virtual void finish();
+    int getErrno() const;
 
   private:
-    void encode(unsigned char* data, size_t len);
-    void decode(unsigned char* data, size_t len);
-    void flush_encode();
+    static std::string createWhat(std::string const& description,
+				  int system_errno);
 
-    enum state_e { st_top, st_copying, st_run };
-
-    action_e action;
-    state_e state;
-    unsigned char buf[128];
-    unsigned int length;
+    std::string description;
+    int system_errno;
 };
 
-#endif // PL_RUNLENGTH_HH
+#endif // QPDFSYSTEMERROR_HH

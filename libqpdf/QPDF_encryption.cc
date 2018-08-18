@@ -437,11 +437,10 @@ QPDF::compute_encryption_key_from_password(
 	md5.encodeDataIncrementally(bytes, 4);
     }
     MD5::Digest digest;
-    iterate_md5_digest(md5, digest, ((data.getR() >= 3) ? 50 : 0),
-                       data.getLengthBytes());
-    return std::string(reinterpret_cast<char*>(digest),
-                       std::min(static_cast<int>(sizeof(digest)),
-                                data.getLengthBytes()));
+    int key_len = std::min(static_cast<int>(sizeof(digest)),
+                           data.getLengthBytes());
+    iterate_md5_digest(md5, digest, ((data.getR() >= 3) ? 50 : 0), key_len);
+    return std::string(reinterpret_cast<char*>(digest), key_len);
 }
 
 static void
@@ -464,8 +463,9 @@ compute_O_rc4_key(std::string const& user_password,
     md5.encodeDataIncrementally(
 	pad_or_truncate_password_V4(password).c_str(), key_bytes);
     MD5::Digest digest;
-    iterate_md5_digest(md5, digest, ((data.getR() >= 3) ? 50 : 0),
-                       data.getLengthBytes());
+    int key_len = std::min(static_cast<int>(sizeof(digest)),
+                           data.getLengthBytes());
+    iterate_md5_digest(md5, digest, ((data.getR() >= 3) ? 50 : 0), key_len);
     memcpy(key, digest, OU_key_bytes_V4);
 }
 
@@ -1124,6 +1124,7 @@ QPDF::decryptString(std::string& str, int objid, int generation)
 	    // To avoid repeated warnings, reset cf_string.  Assume
 	    // we'd want to use AES if V == 4.
 	    this->m->cf_string = e_aes;
+            use_aes = true;
 	    break;
 	}
     }
@@ -1396,7 +1397,7 @@ QPDF::isEncrypted(int& R, int& P, int& V,
 	R = Rkey.getIntValue();
         V = Vkey.getIntValue();
         stream_method = this->m->cf_stream;
-        string_method = this->m->cf_stream;
+        string_method = this->m->cf_string;
         file_method = this->m->cf_file;
 	return true;
     }
