@@ -75,10 +75,7 @@ QPDFWriter::Members::~Members()
     {
 	fclose(file);
     }
-    if (output_buffer)
-    {
-	delete output_buffer;
-    }
+    delete output_buffer;
 }
 
 QPDFWriter::QPDFWriter(QPDF& pdf) :
@@ -3357,9 +3354,10 @@ QPDFWriter::indicateProgress(bool decrement, bool finished)
                                 this->m->events_expected)));
         this->m->progress_reporter->reportProgress(percentage);
     }
+    int increment = std::max(1, (this->m->events_expected / 100));
     while (this->m->events_seen >= this->m->next_progress_report)
     {
-        this->m->next_progress_report += (this->m->events_expected / 100);
+        this->m->next_progress_report += increment;
     }
 }
 

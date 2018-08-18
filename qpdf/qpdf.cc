@@ -61,6 +61,7 @@ struct Options
         split_pages(0),
         verbose(false),
         progress(false),
+        suppress_warnings(false),
         copy_encryption(false),
         encryption_file(0),
         encryption_file_password(0),
@@ -125,6 +126,7 @@ struct Options
     int split_pages;
     bool verbose;
     bool progress;
+    bool suppress_warnings;
     bool copy_encryption;
     char const* encryption_file;
     char const* encryption_file_password;
@@ -262,6 +264,7 @@ Basic Options\n\
 --password=password     specify a password for accessing encrypted files\n\
 --verbose               provide additional informational output\n\
 --progress              give progress indicators while writing output\n\
+--no-warn               suppress warnings\n\
 --linearize             generated a linearized (web optimized) file\n\
 --copy-encryption=file  copy encryption parameters from specified file\n\
 --encryption-file-password=password\n\
@@ -515,8 +518,9 @@ page content stream.  This attempt will be made even if it is not a\n\
 page content stream, in which case it will produce unusable results.\n\
 \n\
 Ordinarily, qpdf exits with a status of 0 on success or a status of 2\n\
-if any errors occurred.  In --check mode, if there were warnings but not\n\
-errors, qpdf exits with a status of 3.\n\
+if any errors occurred.  If there were warnings but not errors, qpdf\n\
+exits with a status of 3. If warnings would have been issued but --no-warn\n\
+was given, an exit status of 3 is still used.\n\
 \n";
 
 void usage(std::string const& msg)
@@ -773,7 +777,7 @@ static std::vector<int> parse_numrange(char const* range, int max,
             }
         }
     }
-    catch (std::runtime_error e)
+    catch (std::runtime_error const& e)
     {
         if (throw_error)
         {
@@ -1372,7 +1376,7 @@ static void parse_rotation_parameter(Options& o, std::string const& parameter)
         parse_numrange(range.c_str(), 0, true);
         range_valid = true;
     }
-    catch (std::runtime_error)
+    catch (std::runtime_error const&)
     {
         // ignore
     }
@@ -1676,6 +1680,10 @@ static void parse_options(int argc, char* argv[], Options& o)
             {
                 o.progress = true;
             }
+            else if (strcmp(arg, "no-warn") == 0)
+            {
+                o.suppress_warnings = true;
+            }
             else if (strcmp(arg, "deterministic-id") == 0)
             {
                 o.deterministic_id = true;
@@ -1831,6 +1839,10 @@ static void set_qpdf_options(QPDF& pdf, Options& o)
     if (o.password_is_hex_key)
     {
         pdf.setPasswordIsHexKey(true);
+    }
+    if (o.suppress_warnings)
+    {
+        pdf.setSuppressWarnings(true);
     }
 }
 
@@ -2103,6 +2115,7 @@ static void handle_page_specs(QPDF& pdf, Options& o,
 
     // Create a QPDF object for each file that we may take pages from.
     std::map<std::string, QPDF*> page_spec_qpdfs;
+    std::map<std::string, ClosedFileInputSource*> page_spec_cfis;
     page_spec_qpdfs[o.infilename] = &pdf;
     std::vector<QPDFPageData> parsed_specs;
     for (std::vector<PageSpec>::iterator iter = o.page_specs.begin();
@@ -2136,10 +2149,14 @@ static void handle_page_specs(QPDF& pdf, Options& o,
                 std::cout << whoami << ": processing "
                           << page_spec.filename << std::endl;
             }
-            qpdf->processInputSource(
-                new ClosedFileInputSource(
-                    page_spec.filename.c_str()), password);
+            ClosedFileInputSource* cis =
+                new ClosedFileInputSource(page_spec.filename.c_str());
+            PointerHolder<InputSource> is(cis);
+            cis->stayOpen(true);
+            qpdf->processInputSource(is, password);
+            cis->stayOpen(false);
             page_spec_qpdfs[page_spec.filename] = qpdf;
+            page_spec_cfis[page_spec.filename] = cis;
         }
 
         // Read original pages from the PDF, and parse the page range
@@ -2156,9 +2173,20 @@ static void handle_page_specs(QPDF& pdf, Options& o,
                  page_spec_qpdfs.begin();
              iter != page_spec_qpdfs.end(); ++iter)
         {
+            std::string const& filename = (*iter).first;
+            ClosedFileInputSource* cis = 0;
+            if (page_spec_cfis.count(filename))
+            {
+                cis = page_spec_cfis[filename];
+                cis->stayOpen(true);
+            }
             QPDFPageDocumentHelper dh(*((*iter).second));
             dh.pushInheritedAttributesToPage();
             dh.removeUnreferencedResources();
+            if (cis)
+            {
+                cis->stayOpen(false);
+            }
         }
     }
 
@@ -2204,7 +2232,17 @@ static void handle_page_specs(QPDF& pdf, Options& o,
             // Pages are specified from 1 but numbered from 0 in the
             // vector
             int pageno = *pageno_iter - 1;
+            ClosedFileInputSource* cis = 0;
+            if (page_spec_cfis.count(page_data.filename))
+            {
+                cis = page_spec_cfis[page_data.filename];
+                cis->stayOpen(true);
+            }
             dh.addPage(page_data.orig_pages.at(pageno), false);
+            if (cis)
+            {
+                cis->stayOpen(false);
+            }
             if (page_data.qpdf == &pdf)
             {
                 // This is a page from the original file. Keep track
@@ -2581,9 +2619,14 @@ int main(int argc, char* argv[])
 	}
 	if (! pdf.getWarnings().empty())
 	{
-	    std::cerr << whoami << ": operation succeeded with warnings;"
-		      << " resulting file may have some problems" << std::endl;
-	    exit(EXIT_WARNING);
+            if (! o.suppress_warnings)
+            {
+                std::cerr << whoami << ": operation succeeded with warnings;"
+                          << " resulting file may have some problems"
+                          << std::endl;
+            }
+            // Still exit with warning code even if warnings were suppressed.
+            exit(EXIT_WARNING);
 	}
     }
     catch (std::exception& e)
