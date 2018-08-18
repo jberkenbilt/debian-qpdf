@@ -1,3 +1,10 @@
+qpdf (8.2.0-1) unstable; urgency=medium
+
+  * New upstream release.
+  * Includes documentation fixes reported as debian bug. (Closes: #902642)
+
+ -- Jay Berkenbilt <qjb@debian.org>  Fri, 17 Aug 2018 21:32:53 -0400
+
 qpdf (8.1.0-1) unstable; urgency=medium
 
   * New upstream release.
