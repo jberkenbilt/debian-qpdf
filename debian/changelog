@@ -1,8 +1,10 @@
 qpdf (8.2.1-1) unstable; urgency=medium
 
   * New upstream release.
+  * Change interpreter path for fix-qdf to not use /usr/bin/env
+  * Update standards version to 4.2.0
 
- -- Jay Berkenbilt <qjb@debian.org>  Sat, 18 Aug 2018 11:11:31 -0400
+ -- Jay Berkenbilt <qjb@debian.org>  Sat, 18 Aug 2018 11:21:48 -0400
 
 qpdf (8.2.0-1) unstable; urgency=medium
 
