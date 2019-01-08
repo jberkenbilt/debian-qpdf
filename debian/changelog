@@ -1,3 +1,10 @@
+qpdf (8.3.0-1) unstable; urgency=medium
+
+  * New upstream release.
+  * Install bash and zsh completion files.
+
+ -- Jay Berkenbilt <qjb@debian.org>  Mon, 07 Jan 2019 18:47:47 -0500
+
 qpdf (8.2.1-1) unstable; urgency=medium
 
   * New upstream release.
