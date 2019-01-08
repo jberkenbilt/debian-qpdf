@@ -27,4 +27,10 @@ override_dh_install:
 	cp -p examples/*.cc examples/*.c \
 		debian/libqpdf-dev/usr/share/doc/libqpdf-dev/examples
 	cp -p README.md debian/libqpdf-dev/usr/share/doc/libqpdf-dev/README.md
+	mkdir -p debian/qpdf/usr/share/bash-completion/completions
+	cp completions/bash/qpdf \
+		debian/qpdf/usr/share/bash-completion/completions/qpdf
+	mkdir -p debian/qpdf/usr/share/zsh/vendor-completions
+	cp completions/zsh/_qpdf \
+		debian/qpdf/usr/share/zsh/vendor-completions/_qpdf
 	dh_missing --list-missing -X.la
