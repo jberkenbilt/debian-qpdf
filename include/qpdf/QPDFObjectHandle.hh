@@ -1,4 +1,4 @@
-// Copyright (c) 2005-2018 Jay Berkenbilt
+// Copyright (c) 2005-2019 Jay Berkenbilt
 //
 // This file is part of qpdf.
 //
@@ -198,6 +198,38 @@ class QPDFObjectHandle
         double ury;
     };
 
+    // Convenience object for transformation matrices
+    class Matrix
+    {
+      public:
+        Matrix() :
+            a(0.0),
+            b(0.0),
+            c(0.0),
+            d(0.0),
+            e(0.0),
+            f(0.0)
+        {
+        }
+        Matrix(double a, double b, double c,
+               double d, double e, double f) :
+            a(a),
+            b(b),
+            c(c),
+            d(d),
+            e(e),
+            f(f)
+        {
+        }
+
+        double a;
+        double b;
+        double c;
+        double d;
+        double e;
+        double f;
+    };
+
     QPDF_DLL
     QPDFObjectHandle();
     QPDF_DLL
@@ -254,6 +286,12 @@ class QPDFObjectHandle
     bool isScalar();
 
     // Public factory methods
+
+    // Wrap an object in an array if it is not already an array. This
+    // is a helper for cases in which something in a PDF may either be
+    // a single item or an array of items, which is a common idiom.
+    QPDF_DLL
+    QPDFObjectHandle wrapInArray();
 
     // Construct an object of any type from a string representation of
     // the object.  Throws QPDFExc with an empty filename and an
@@ -362,6 +400,8 @@ class QPDFObjectHandle
     QPDF_DLL
     static QPDFObjectHandle newArray(Rectangle const&);
     QPDF_DLL
+    static QPDFObjectHandle newArray(Matrix const&);
+    QPDF_DLL
     static QPDFObjectHandle newDictionary();
     QPDF_DLL
     static QPDFObjectHandle newDictionary(
@@ -371,6 +411,10 @@ class QPDFObjectHandle
     // form of newArray.
     QPDF_DLL
     static QPDFObjectHandle newFromRectangle(Rectangle const&);
+    // Create an array from a matrix. Equivalent to the matrix
+    // form of newArray.
+    QPDF_DLL
+    static QPDFObjectHandle newFromMatrix(Matrix const&);
 
     // Create a new stream and associate it with the given qpdf
     // object.  A subsequent call must be made to replaceStreamData()
@@ -494,6 +538,12 @@ class QPDFObjectHandle
     // rectangle. Otherwise, return the rectangle [0, 0, 0, 0]
     QPDF_DLL
     Rectangle getArrayAsRectangle();
+    QPDF_DLL
+    bool isMatrix();
+    // If the array an array of six numeric values, return as a
+    // matrix. Otherwise, return the matrix [1, 0, 0, 1, 0, 0]
+    QPDF_DLL
+    Matrix getArrayAsMatrix();
 
     // Methods for dictionary objects
     QPDF_DLL
@@ -508,6 +558,47 @@ class QPDFObjectHandle
     // Methods for name and array objects
     QPDF_DLL
     bool isOrHasName(std::string const&);
+
+    // Merge resource dictionaries. Assumes resource dictionaries have
+    // the property that the collection of keys of all first-level
+    // dictionary members contains no duplicates. This method does
+    // nothing if both this object and the other object are not
+    // dictionaries. Otherwise, it has following behavior, where
+    // "object" refers to the object whose method is invoked, and
+    // "other" refers to the argument:
+    //
+    // * For each key in "other" whose value is an array:
+    //   * If "object" does not have that entry, shallow copy it.
+    //   * Otherwise, if "object" has an array in the same place,
+    //     append to that array any objects in "other"'s array that
+    //     are not already present.
+    // * For each key in "other" whose value is a dictionary:
+    //   * If "object" does not have that entry, shallow copy it.
+    //   * Otherwise, for each key in the subdictionary:
+    //     * If key is not present in "object"'s entry, shallow copy it.
+    //     * Otherwise, ignore. Conflicts are not detected.
+    //
+    // The primary purpose of this method is to facilitate merging of
+    // resource dictionaries that are supposed to have the same scope
+    // as each other. For example, this can be used to merge a form
+    // XObject's /Resources dictionary with a form field's /DR.
+    // Conflicts are not detected. If, in the future, there should be
+    // a need to detect conflicts, this method could detect them and
+    // return a mapping from old to new names. This mapping could be
+    // used for filtering the stream. This would be necessary, for
+    // example, to merge a form XObject's resources with a page's
+    // resources with the intention of concatenating the content
+    // streams.
+    QPDF_DLL
+    void mergeResources(QPDFObjectHandle other);
+
+    // Get all resource names from a resource dictionary. If this
+    // object is a dictionary, this method returns a set of all the
+    // keys in all top-level subdictionaries. For resources
+    // dictionaries, this is the collection of names that may be
+    // referenced in the content stream.
+    QPDF_DLL
+    std::set<std::string> getResourceNames();
 
     // Return the QPDF object that owns an indirect object.  Returns
     // null for a direct object.
@@ -727,6 +818,25 @@ class QPDFObjectHandle
     QPDF_DLL
     std::string unparseBinary();
 
+    // Return encoded as JSON. For most object types, there is an
+    // obvious mapping. The JSON is generated as follows:
+    // * Names are encoded as strings representing the normalized value of
+    //   getName()
+    // * Indirect references are encoded as strings containing "obj gen R"
+    // * Strings are encoded as UTF-8 strings with unrepresentable binary
+    //   characters encoded as \uHHHH
+    // * Encoding streams just encodes the stream's dictionary; the stream
+    //   data is not represented
+    // * Object types that are only valid in content streams (inline
+    //   image, operator) as well as "reserved" objects are not
+    //   representable and will be serialized as "null".
+    // If dereference_indirect is true and this is an indirect object,
+    // show the actual contents of the object. The effect of
+    // dereference_indirect applies only to this object. It is not
+    // recursive.
+    QPDF_DLL
+    JSON getJSON(bool dereference_indirect = false);
+
     // Legacy helper methods for commonly performed operations on
     // pages. Newer code should use QPDFPageObjectHelper instead. The
     // specification and behavior of these methods are the same as the
@@ -750,6 +860,7 @@ class QPDFObjectHandle
     // do nothing. Objects read normally from the file have
     // descriptions. See comments on setObjectDescription for
     // additional details.
+    QPDF_DLL
     void warnIfPossible(std::string const& warning,
                         bool throw_if_no_description = false);
 

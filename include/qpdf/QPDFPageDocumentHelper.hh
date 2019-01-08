@@ -1,4 +1,4 @@
-// Copyright (c) 2005-2018 Jay Berkenbilt
+// Copyright (c) 2005-2019 Jay Berkenbilt
 //
 // This file is part of qpdf.
 //
@@ -24,6 +24,7 @@
 
 #include <qpdf/QPDFDocumentHelper.hh>
 #include <qpdf/QPDFPageObjectHelper.hh>
+#include <qpdf/Constants.h>
 
 #include <qpdf/DLL.h>
 
@@ -31,11 +32,17 @@
 
 #include <qpdf/QPDF.hh>
 
+class QPDFAcroFormDocumentHelper;
+
 class QPDFPageDocumentHelper: public QPDFDocumentHelper
 {
   public:
     QPDF_DLL
     QPDFPageDocumentHelper(QPDF&);
+    QPDF_DLL
+    virtual ~QPDFPageDocumentHelper()
+    {
+    }
 
     // Traverse page tree, and return all /Page objects wrapped in
     // QPDFPageObjectHelper objects. Unlike with
@@ -80,7 +87,30 @@ class QPDFPageDocumentHelper: public QPDFDocumentHelper
     QPDF_DLL
     void removePage(QPDFPageObjectHelper page);
 
+    // For every annotation, integrate the annotation's appearance
+    // stream into the containing page's content streams, merge the
+    // annotation's resources with the page's resources, and remove
+    // the annotation from the page. Handles widget annotations
+    // associated with interactive form fields as a special case,
+    // including removing the /AcroForm key from the document catalog.
+    // The values passed to required_flags and forbidden_flags are
+    // passed along to
+    // QPDFAnnotationObjectHelper::getPageContentForAppearance. See
+    // comments there in QPDFAnnotationObjectHelper.hh for meanings of
+    // those flags.
+    QPDF_DLL
+    void flattenAnnotations(
+        int required_flags = 0,
+        int forbidden_flags = an_invisible | an_hidden);
+
   private:
+    void flattenAnnotationsForPage(
+        QPDFPageObjectHelper& page,
+        QPDFObjectHandle& resources,
+        QPDFAcroFormDocumentHelper& afdh,
+        int required_flags,
+        int forbidden_flags);
+
     class Members
     {
         friend class QPDFPageDocumentHelper;

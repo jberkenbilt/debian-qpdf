@@ -14,6 +14,7 @@ SRCS_libqpdf = \
 	libqpdf/FileInputSource.cc \
 	libqpdf/InputSource.cc \
 	libqpdf/InsecureRandomDataProvider.cc \
+	libqpdf/JSON.cc \
 	libqpdf/MD5.cc \
 	libqpdf/OffsetInputSource.cc \
 	libqpdf/Pipeline.cc \
@@ -40,10 +41,16 @@ SRCS_libqpdf = \
 	libqpdf/QPDFAnnotationObjectHelper.cc \
 	libqpdf/QPDFExc.cc \
 	libqpdf/QPDFFormFieldObjectHelper.cc \
+	libqpdf/QPDFMatrix.cc \
+	libqpdf/QPDFNameTreeObjectHelper.cc \
+	libqpdf/QPDFNumberTreeObjectHelper.cc \
 	libqpdf/QPDFObjGen.cc \
 	libqpdf/QPDFObject.cc \
 	libqpdf/QPDFObjectHandle.cc \
+	libqpdf/QPDFOutlineDocumentHelper.cc \
+	libqpdf/QPDFOutlineObjectHelper.cc \
 	libqpdf/QPDFPageDocumentHelper.cc \
+	libqpdf/QPDFPageLabelDocumentHelper.cc \
 	libqpdf/QPDFPageObjectHelper.cc \
 	libqpdf/QPDFSystemError.cc \
 	libqpdf/QPDFTokenizer.cc \

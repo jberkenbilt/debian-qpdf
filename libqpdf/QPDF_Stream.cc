@@ -74,6 +74,12 @@ QPDF_Stream::unparse()
 	QUtil::int_to_string(this->generation) + " R";
 }
 
+JSON
+QPDF_Stream::getJSON()
+{
+    return this->stream_dict.getJSON();
+}
+
 QPDFObject::object_type_e
 QPDF_Stream::getTypeCode() const
 {
@@ -125,6 +131,30 @@ bool
 QPDF_Stream::isDataModified() const
 {
     return (! this->token_filters.empty());
+}
+
+qpdf_offset_t
+QPDF_Stream::getOffset() const
+{
+    return this->offset;
+}
+
+size_t
+QPDF_Stream::getLength() const
+{
+    return this->length;
+}
+
+PointerHolder<Buffer>
+QPDF_Stream::getStreamDataBuffer() const
+{
+    return this->stream_data;
+}
+
+PointerHolder<QPDFObjectHandle::StreamDataProvider>
+QPDF_Stream::getStreamDataProvider() const
+{
+    return this->stream_provider;
 }
 
 PointerHolder<Buffer>

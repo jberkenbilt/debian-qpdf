@@ -220,6 +220,26 @@ void to_utf16_test()
     print_utf16(0x80000000UL);
 }
 
+void utf8_to_ascii_test()
+{
+    char const* input = "\302\277Does \317\200 have fingers?";
+    std::cout << input
+              << std::endl
+              << QUtil::utf8_to_ascii(input)
+              << std::endl
+              << QUtil::utf8_to_ascii(input, '*')
+              << std::endl;
+    std::string a = QUtil::utf8_to_win_ansi(input, '*');
+    std::string b = QUtil::utf8_to_mac_roman(input, '*');
+    std::cout
+        << "<" << QUtil::int_to_string_base(
+            static_cast<unsigned char>(a.at(0)), 16, 2)
+        << ">" << a.substr(1) << std::endl
+        << "<" << QUtil::int_to_string_base(
+            static_cast<unsigned char>(b.at(0)), 16, 2)
+        << ">" << b.substr(1) << std::endl;
+}
+
 void print_whoami(char const* str)
 {
     PointerHolder<char> dup(true, QUtil::copy_string(str));
@@ -328,6 +348,8 @@ int main(int argc, char* argv[])
 	to_utf8_test();
 	std::cout << "---- utf16" << std::endl;
 	to_utf16_test();
+	std::cout << "---- utf8_to_ascii" << std::endl;
+        utf8_to_ascii_test();
 	std::cout << "---- whoami" << std::endl;
 	get_whoami_test();
 	std::cout << "---- file" << std::endl;

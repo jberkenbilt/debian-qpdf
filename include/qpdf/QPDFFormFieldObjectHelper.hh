@@ -1,4 +1,4 @@
-// Copyright (c) 2005-2018 Jay Berkenbilt
+// Copyright (c) 2005-2019 Jay Berkenbilt
 //
 // This file is part of qpdf.
 //
@@ -29,6 +29,9 @@
 #include <qpdf/QPDFObjectHelper.hh>
 
 #include <qpdf/DLL.h>
+#include <vector>
+
+class QPDFAnnotationObjectHelper;
 
 class QPDFFormFieldObjectHelper: public QPDFObjectHelper
 {
@@ -37,6 +40,10 @@ class QPDFFormFieldObjectHelper: public QPDFObjectHelper
     QPDFFormFieldObjectHelper();
     QPDF_DLL
     QPDFFormFieldObjectHelper(QPDFObjectHandle);
+    QPDF_DLL
+    virtual ~QPDFFormFieldObjectHelper()
+    {
+    }
 
     QPDF_DLL
     bool isNull();
@@ -116,6 +123,38 @@ class QPDFFormFieldObjectHelper: public QPDFObjectHelper
     QPDF_DLL
     int getQuadding();
 
+    // Return field flags from /Ff. The value is a logical or of
+    // pdf_form_field_flag_e as defined in qpdf/Constants.h
+    QPDF_DLL
+    int getFlags();
+
+    // Methods for testing for particular types of form fields
+
+    // Returns true if field is of type /Tx
+    QPDF_DLL
+    bool isText();
+    // Returns true if field is of type /Btn and flags do not indicate
+    // some other type of button.
+    QPDF_DLL
+    bool isCheckbox();
+    // Returns true if field is a checkbox and is checked.
+    QPDF_DLL
+    bool isChecked();
+    // Returns true if field is of type /Btn and flags indicate that
+    // it is a radio button
+    QPDF_DLL
+    bool isRadioButton();
+    // Returns true if field is of type /Btn and flags indicate that
+    // it is a pushbutton
+    QPDF_DLL
+    bool isPushbutton();
+    // Returns true if fields if of type /Ch
+    QPDF_DLL
+    bool isChoice();
+    // Returns choices as UTF-8 strings
+    QPDF_DLL
+    std::vector<std::string> getChoices();
+
     // Set an attribute to the given value
     QPDF_DLL
     void setFieldAttribute(std::string const& key, QPDFObjectHandle value);
@@ -126,10 +165,13 @@ class QPDFFormFieldObjectHelper: public QPDFObjectHelper
     void setFieldAttribute(std::string const& key,
                            std::string const& utf8_value);
 
-    // Set /V (field value) to the given value. Optionally set
-    // /NeedAppearances to true. You can explicitly tell this method
-    // not to set /NeedAppearances if you are going to explicitly
-    // generate an appearance stream yourself.
+    // Set /V (field value) to the given value. If need_appearances is
+    // true and the field type is either /Tx (text) or /Ch (choice),
+    // set /NeedAppearances to true. You can explicitly tell this
+    // method not to set /NeedAppearances if you are going to generate
+    // an appearance stream yourself. Starting with qpdf 8.3.0, this
+    // method handles fields of type /Btn (checkboxes, radio buttons,
+    // pushbuttons) specially.
     QPDF_DLL
     void setV(QPDFObjectHandle value, bool need_appearances = true);
 
@@ -139,7 +181,24 @@ class QPDFFormFieldObjectHelper: public QPDFObjectHelper
     QPDF_DLL
     void setV(std::string const& utf8_value, bool need_appearances = true);
 
+    // Update the appearance stream for this field. Note that qpdf's
+    // ability to generate appearance streams is limited. We only
+    // generate appearance streams for streams of type text or choice.
+    // The appearance uses the default parameters provided in the
+    // file, and it only supports ASCII characters. Quadding is
+    // currently ignored. While this functionality is limited, it
+    // should do a decent job on properly constructed PDF files when
+    // field values are restricted to ASCII characters.
+    QPDF_DLL
+    void generateAppearance(QPDFAnnotationObjectHelper&);
+
   private:
+    void setRadioButtonValue(QPDFObjectHandle name);
+    void setCheckBoxValue(bool value);
+    void generateTextAppearance(QPDFAnnotationObjectHelper&);
+    QPDFObjectHandle getFontFromResource(
+        QPDFObjectHandle resources, std::string const& font_name);
+
     class Members
     {
         friend class QPDFFormFieldObjectHelper;

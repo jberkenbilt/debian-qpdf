@@ -18,8 +18,9 @@
 #include <qpdf/QPDFExc.hh>
 #include <qpdf/QPDF_Null.hh>
 #include <qpdf/QPDF_Dictionary.hh>
+#include <qpdf/QPDF_Stream.hh>
 
-std::string QPDF::qpdf_version = "8.2.1";
+std::string QPDF::qpdf_version = "8.3.0";
 
 static char const* EMPTY_PDF =
     "%PDF-1.3\n"
@@ -39,13 +40,50 @@ static char const* EMPTY_PDF =
     "110\n"
     "%%EOF\n";
 
+QPDF::ForeignStreamData::ForeignStreamData(
+    PointerHolder<EncryptionParameters> encp,
+    PointerHolder<InputSource> file,
+    int foreign_objid,
+    int foreign_generation,
+    qpdf_offset_t offset,
+    size_t length,
+    bool is_attachment_stream,
+    QPDFObjectHandle local_dict)
+    :
+    encp(encp),
+    file(file),
+    foreign_objid(foreign_objid),
+    foreign_generation(foreign_generation),
+    offset(offset),
+    length(length),
+    is_attachment_stream(is_attachment_stream),
+    local_dict(local_dict)
+{
+}
+
+QPDF::CopiedStreamDataProvider::CopiedStreamDataProvider(
+    QPDF& destination_qpdf) :
+    destination_qpdf(destination_qpdf)
+{
+}
+
 void
 QPDF::CopiedStreamDataProvider::provideStreamData(
     int objid, int generation, Pipeline* pipeline)
 {
-    QPDFObjectHandle foreign_stream =
-        this->foreign_streams[QPDFObjGen(objid, generation)];
-    foreign_stream.pipeStreamData(pipeline, 0, qpdf_dl_none);
+    PointerHolder<ForeignStreamData> foreign_data =
+        this->foreign_stream_data[QPDFObjGen(objid, generation)];
+    if (foreign_data.getPointer())
+    {
+        destination_qpdf.pipeForeignStreamData(
+            foreign_data, pipeline, 0, qpdf_dl_none);
+    }
+    else
+    {
+        QPDFObjectHandle foreign_stream =
+            this->foreign_streams[QPDFObjGen(objid, generation)];
+        foreign_stream.pipeStreamData(pipeline, 0, qpdf_dl_none);
+    }
 }
 
 void
@@ -53,6 +91,14 @@ QPDF::CopiedStreamDataProvider::registerForeignStream(
     QPDFObjGen const& local_og, QPDFObjectHandle foreign_stream)
 {
     this->foreign_streams[local_og] = foreign_stream;
+}
+
+void
+QPDF::CopiedStreamDataProvider::registerForeignStream(
+    QPDFObjGen const& local_og,
+    PointerHolder<ForeignStreamData> foreign_stream)
+{
+    this->foreign_stream_data[local_og] = foreign_stream;
 }
 
 QPDF::StringDecrypter::StringDecrypter(QPDF* qpdf, int objid, int gen) :
@@ -74,15 +120,9 @@ QPDF::QPDFVersion()
     return QPDF::qpdf_version;
 }
 
-QPDF::Members::Members() :
-    provided_password_is_hex_key(false),
+QPDF::EncryptionParameters::EncryptionParameters() :
     encrypted(false),
     encryption_initialized(false),
-    ignore_xref_streams(false),
-    suppress_warnings(false),
-    out_stream(&std::cout),
-    err_stream(&std::cerr),
-    attempt_recovery(true),
     encryption_V(0),
     encryption_R(0),
     encrypt_metadata(true),
@@ -90,10 +130,23 @@ QPDF::Members::Members() :
     cf_string(e_none),
     cf_file(e_none),
     cached_key_objid(0),
-    cached_key_generation(0),
+    cached_key_generation(0)
+{
+}
+
+QPDF::Members::Members() :
+    unique_id(0),
+    provided_password_is_hex_key(false),
+    ignore_xref_streams(false),
+    suppress_warnings(false),
+    out_stream(&std::cout),
+    err_stream(&std::cerr),
+    attempt_recovery(true),
+    encp(new EncryptionParameters),
     pushed_inherited_attributes_to_pages(false),
     copied_stream_data_provider(0),
     reconstructed_xref(false),
+    fixed_dangling_refs(false),
     first_xref_item_offset(0),
     uncompressed_after_compressed(false)
 {
@@ -107,6 +160,12 @@ QPDF::QPDF() :
     m(new Members())
 {
     m->tokenizer.allowEOF();
+    // Generate a unique ID. It just has to be unique among all QPDF
+    // objects allocated throughout the lifetime of this running
+    // application.
+    m->unique_id = static_cast<unsigned long>(QUtil::get_current_time());
+    m->unique_id <<= 32;
+    m->unique_id |= static_cast<unsigned long>(QUtil::random());
 }
 
 QPDF::~QPDF()
@@ -292,7 +351,7 @@ QPDF::parse(char const* password)
 {
     if (password)
     {
-	this->m->provided_password = password;
+	this->m->encp->provided_password = password;
     }
 
     // Find the header anywhere in the first 1024 bytes of the file.
@@ -1218,29 +1277,129 @@ QPDF::showXRefTable()
     }
 }
 
+void
+QPDF::fixDanglingReferences(bool force)
+{
+    if (this->m->fixed_dangling_refs && (! force))
+    {
+        return;
+    }
+    this->m->fixed_dangling_refs = true;
+
+    // Create a set of all known indirect objects including those
+    // we've previously resolved and those that we have created.
+    std::set<QPDFObjGen> to_process;
+    for (std::map<QPDFObjGen, ObjCache>::iterator iter =
+	     this->m->obj_cache.begin();
+	 iter != this->m->obj_cache.end(); ++iter)
+    {
+	to_process.insert((*iter).first);
+    }
+    for (std::map<QPDFObjGen, QPDFXRefEntry>::iterator iter =
+	     this->m->xref_table.begin();
+	 iter != this->m->xref_table.end(); ++iter)
+    {
+	to_process.insert((*iter).first);
+    }
+
+    // For each non-scalar item to process, put it in the queue.
+    std::list<QPDFObjectHandle> queue;
+    queue.push_back(this->m->trailer);
+    for (std::set<QPDFObjGen>::iterator iter = to_process.begin();
+         iter != to_process.end(); ++iter)
+    {
+        QPDFObjectHandle obj = QPDFObjectHandle::Factory::newIndirect(
+            this, (*iter).getObj(), (*iter).getGen());
+        if (obj.isDictionary() || obj.isArray())
+        {
+            queue.push_back(obj);
+        }
+        else if (obj.isStream())
+        {
+            queue.push_back(obj.getDict());
+        }
+    }
+
+    // Process the queue by recursively resolving all object
+    // references. We don't need to do loop detection because we don't
+    // traverse known indirect objects when processing the queue.
+    while (! queue.empty())
+    {
+        QPDFObjectHandle obj = queue.front();
+        queue.pop_front();
+        std::list<QPDFObjectHandle> to_check;
+        if (obj.isDictionary())
+        {
+            std::map<std::string, QPDFObjectHandle> members =
+                obj.getDictAsMap();
+            for (std::map<std::string, QPDFObjectHandle>::iterator iter =
+                     members.begin();
+                 iter != members.end(); ++iter)
+            {
+                to_check.push_back((*iter).second);
+            }
+        }
+        else if (obj.isArray())
+        {
+            std::vector<QPDFObjectHandle> elements = obj.getArrayAsVector();
+            for (std::vector<QPDFObjectHandle>::iterator iter =
+                     elements.begin();
+                 iter != elements.end(); ++iter)
+            {
+                to_check.push_back(*iter);
+            }
+        }
+        for (std::list<QPDFObjectHandle>::iterator iter = to_check.begin();
+             iter != to_check.end(); ++iter)
+        {
+            QPDFObjectHandle sub = *iter;
+            if (sub.isIndirect())
+            {
+                if (sub.getOwningQPDF() == this)
+                {
+                    QPDFObjGen og(sub.getObjGen());
+                    if (this->m->obj_cache.count(og) == 0)
+                    {
+                        QTC::TC("qpdf", "QPDF detected dangling ref");
+                        queue.push_back(sub);
+                    }
+                }
+            }
+            else
+            {
+                queue.push_back(sub);
+            }
+        }
+
+    }
+}
+
 size_t
 QPDF::getObjectCount()
 {
     // This method returns the next available indirect object number.
-    // makeIndirectObject uses it for this purpose.
-    QPDFObjGen o1(0, 0);
+    // makeIndirectObject uses it for this purpose. After
+    // fixDanglingReferences is called, all objects in the xref table
+    // will also be in obj_cache.
+    fixDanglingReferences();
+    QPDFObjGen og(0, 0);
     if (! this->m->obj_cache.empty())
     {
-	o1 = (*(this->m->obj_cache.rbegin())).first;
+	og = (*(this->m->obj_cache.rbegin())).first;
     }
-    QPDFObjGen o2 = (*(this->m->xref_table.rbegin())).first;
-    QTC::TC("qpdf", "QPDF indirect last obj from xref",
-	    (o2.getObj() > o1.getObj()) ? 1 : 0);
-    return std::max(o1.getObj(), o2.getObj());
+    return og.getObj();
 }
 
 std::vector<QPDFObjectHandle>
 QPDF::getAllObjects()
 {
+    // After fixDanglingReferences is called, all objects are in the
+    // object cache.
+    fixDanglingReferences(true);
     std::vector<QPDFObjectHandle> result;
-    for (std::map<QPDFObjGen, QPDFXRefEntry>::iterator iter =
-	     this->m->xref_table.begin();
-	 iter != this->m->xref_table.end(); ++iter)
+    for (std::map<QPDFObjGen, ObjCache>::iterator iter =
+	     this->m->obj_cache.begin();
+	 iter != this->m->obj_cache.end(); ++iter)
     {
 
 	QPDFObjGen const& og = (*iter).first;
@@ -1282,7 +1441,7 @@ QPDF::readObject(PointerHolder<InputSource> input,
     bool empty = false;
     PointerHolder<StringDecrypter> decrypter_ph;
     StringDecrypter* decrypter = 0;
-    if (this->m->encrypted && (! in_object_stream))
+    if (this->m->encp->encrypted && (! in_object_stream))
     {
         decrypter_ph = new StringDecrypter(this, objid, generation);
         decrypter = decrypter_ph.getPointer();
@@ -1748,7 +1907,6 @@ QPDF::resolve(int objid, int generation)
     }
     ResolveRecorder rr(this, og);
 
-    // PDF spec says unknown objects resolve to the null object.
     if ((! this->m->obj_cache.count(og)) && this->m->xref_table.count(og))
     {
 	QPDFXRefEntry const& entry = this->m->xref_table[og];
@@ -1796,6 +1954,7 @@ QPDF::resolve(int objid, int generation)
     }
     if (this->m->obj_cache.count(og) == 0)
     {
+        // PDF spec says unknown objects resolve to the null object.
         QTC::TC("qpdf", "QPDF resolve failure to null");
         QPDFObjectHandle oh = QPDFObjectHandle::newNull();
         this->m->obj_cache[og] =
@@ -1997,7 +2156,7 @@ QPDF::copyForeignObject(QPDFObjectHandle foreign, bool allow_page)
             "QPDF::copyForeign called with object from this QPDF");
     }
 
-    ObjCopier& obj_copier = this->m->object_copiers[other];
+    ObjCopier& obj_copier = this->m->object_copiers[other->m->unique_id];
     if (! obj_copier.visiting.empty())
     {
         throw std::logic_error("obj_copier.visiting is not empty"
@@ -2194,15 +2353,67 @@ QPDF::replaceForeignIndirectObjects(
         if (this->m->copied_stream_data_provider == 0)
         {
             this->m->copied_stream_data_provider =
-                new CopiedStreamDataProvider();
+                new CopiedStreamDataProvider(*this);
             this->m->copied_streams = this->m->copied_stream_data_provider;
         }
         QPDFObjGen local_og(result.getObjGen());
-        this->m->copied_stream_data_provider->registerForeignStream(
-            local_og, foreign);
-        result.replaceStreamData(this->m->copied_streams,
-                                 dict.getKey("/Filter"),
-                                 dict.getKey("/DecodeParms"));
+        // Copy information from the foreign stream so we can pipe its
+        // data later without keeping the original QPDF object around.
+        QPDF* foreign_stream_qpdf = foreign.getOwningQPDF();
+        if (! foreign_stream_qpdf)
+        {
+            throw std::logic_error("unable to retrieve owning qpdf"
+                                   " from foreign stream");
+        }
+        QPDF_Stream* stream =
+            dynamic_cast<QPDF_Stream*>(
+                QPDFObjectHandle::ObjAccessor::getObject(
+                    foreign).getPointer());
+        if (! stream)
+        {
+            throw std::logic_error("unable to retrieve underlying"
+                                   " stream object from foreign stream");
+        }
+        PointerHolder<Buffer> stream_buffer =
+            stream->getStreamDataBuffer();
+        PointerHolder<QPDFObjectHandle::StreamDataProvider> stream_provider =
+            stream->getStreamDataProvider();
+        if (stream_buffer.getPointer())
+        {
+            QTC::TC("qpdf", "QPDF copy foreign stream with buffer");
+            result.replaceStreamData(stream_buffer,
+                                     dict.getKey("/Filter"),
+                                     dict.getKey("/DecodeParms"));
+        }
+        else if (stream_provider.getPointer())
+        {
+            // In this case, the remote stream's QPDF must stay in scope.
+            QTC::TC("qpdf", "QPDF copy foreign stream with provider");
+            this->m->copied_stream_data_provider->registerForeignStream(
+                local_og, foreign);
+            result.replaceStreamData(this->m->copied_streams,
+                                     dict.getKey("/Filter"),
+                                     dict.getKey("/DecodeParms"));
+        }
+        else
+        {
+            PointerHolder<ForeignStreamData> foreign_stream_data =
+                new ForeignStreamData(
+                    foreign_stream_qpdf->m->encp,
+                    foreign_stream_qpdf->m->file,
+                    foreign.getObjectID(),
+                    foreign.getGeneration(),
+                    stream->getOffset(),
+                    stream->getLength(),
+                    (foreign_stream_qpdf->m->attachment_streams.count(
+                        foreign.getObjGen()) > 0),
+                    dict);
+            this->m->copied_stream_data_provider->registerForeignStream(
+                local_og, foreign_stream_data);
+            result.replaceStreamData(this->m->copied_streams,
+                                     dict.getKey("/Filter"),
+                                     dict.getKey("/DecodeParms"));
+        }
     }
     else
     {
@@ -2399,34 +2610,40 @@ QPDF::getCompressibleObjGens()
 }
 
 bool
-QPDF::pipeStreamData(int objid, int generation,
+QPDF::pipeStreamData(PointerHolder<EncryptionParameters> encp,
+                     PointerHolder<InputSource> file,
+                     QPDF& qpdf_for_warning,
+                     int objid, int generation,
 		     qpdf_offset_t offset, size_t length,
 		     QPDFObjectHandle stream_dict,
+                     bool is_attachment_stream,
 		     Pipeline* pipeline,
                      bool suppress_warnings,
                      bool will_retry)
 {
-    bool success = false;
     std::vector<PointerHolder<Pipeline> > to_delete;
-    if (this->m->encrypted)
+    if (encp->encrypted)
     {
-	decryptStream(pipeline, objid, generation, stream_dict, to_delete);
+	decryptStream(encp, file, qpdf_for_warning,
+                      pipeline, objid, generation,
+                      stream_dict, is_attachment_stream, to_delete);
     }
 
+    bool success = false;
     try
     {
-	this->m->file->seek(offset, SEEK_SET);
+	file->seek(offset, SEEK_SET);
 	char buf[10240];
 	while (length > 0)
 	{
 	    size_t to_read = (sizeof(buf) < length ? sizeof(buf) : length);
-	    size_t len = this->m->file->read(buf, to_read);
+	    size_t len = file->read(buf, to_read);
 	    if (len == 0)
 	    {
 		throw QPDFExc(qpdf_e_damaged_pdf,
-			      this->m->file->getName(),
-			      this->m->last_object_description,
-			      this->m->file->getLastOffset(),
+			      file->getName(),
+			      "",
+			      file->getLastOffset(),
 			      "unexpected EOF reading stream data");
 	    }
 	    length -= len;
@@ -2439,7 +2656,7 @@ QPDF::pipeStreamData(int objid, int generation,
     {
         if (! suppress_warnings)
         {
-            warn(e);
+            qpdf_for_warning.warn(e);
         }
     }
     catch (std::exception& e)
@@ -2447,17 +2664,19 @@ QPDF::pipeStreamData(int objid, int generation,
         if (! suppress_warnings)
         {
             QTC::TC("qpdf", "QPDF decoding error warning");
-            warn(QPDFExc(qpdf_e_damaged_pdf, this->m->file->getName(),
-                         "", this->m->file->getLastOffset(),
-                         "error decoding stream data for object " +
-                         QUtil::int_to_string(objid) + " " +
-                         QUtil::int_to_string(generation) + ": " + e.what()));
+            qpdf_for_warning.warn(
+                QPDFExc(qpdf_e_damaged_pdf, file->getName(),
+                        "", file->getLastOffset(),
+                        "error decoding stream data for object " +
+                        QUtil::int_to_string(objid) + " " +
+                        QUtil::int_to_string(generation) + ": " + e.what()));
             if (will_retry)
             {
-                warn(QPDFExc(qpdf_e_damaged_pdf, this->m->file->getName(),
-                             "", this->m->file->getLastOffset(),
-                             "stream will be re-processed without"
-                             " filtering to avoid data loss"));
+                qpdf_for_warning.warn(
+                    QPDFExc(qpdf_e_damaged_pdf, file->getName(),
+                            "", file->getLastOffset(),
+                            "stream will be re-processed without"
+                            " filtering to avoid data loss"));
             }
         }
     }
@@ -2473,6 +2692,42 @@ QPDF::pipeStreamData(int objid, int generation,
         }
     }
     return success;
+}
+
+bool
+QPDF::pipeStreamData(int objid, int generation,
+		     qpdf_offset_t offset, size_t length,
+		     QPDFObjectHandle stream_dict,
+		     Pipeline* pipeline,
+                     bool suppress_warnings,
+                     bool will_retry)
+{
+    bool is_attachment_stream = this->m->attachment_streams.count(
+        QPDFObjGen(objid, generation));
+    return pipeStreamData(
+        this->m->encp, this->m->file, *this,
+        objid, generation, offset, length,
+        stream_dict, is_attachment_stream,
+        pipeline, suppress_warnings, will_retry);
+}
+
+bool
+QPDF::pipeForeignStreamData(
+    PointerHolder<ForeignStreamData> foreign,
+    Pipeline* pipeline,
+    unsigned long encode_flags,
+    qpdf_stream_decode_level_e decode_level)
+{
+    if (foreign->encp->encrypted)
+    {
+        QTC::TC("qpdf", "QPDF pipe foreign encrypted stream");
+    }
+    return pipeStreamData(
+        foreign->encp, foreign->file, *this,
+        foreign->foreign_objid, foreign->foreign_generation,
+        foreign->offset, foreign->length,
+        foreign->local_dict, foreign->is_attachment_stream,
+        pipeline, false, false);
 }
 
 void
@@ -2507,4 +2762,14 @@ QPDF::findAttachmentStreams()
             this->m->attachment_streams.insert(stream.getObjGen());
         }
     }
+}
+
+void
+QPDF::stopOnError(std::string const& message)
+{
+    // Throw a generic exception when we lack context for something
+    // more specific. New code should not use this. This method exists
+    // to improve somewhat from calling assert in very old code.
+    throw QPDFExc(qpdf_e_damaged_pdf, this->m->file->getName(),
+                  "", this->m->file->getLastOffset(), message);
 }

@@ -718,3 +718,746 @@ QUtil::strcasecmp(char const *s1, char const *s2)
     return ::strcasecmp(s1, s2);
 #endif
 }
+
+static int maybe_from_end(int num, bool from_end, int max)
+{
+    if (from_end)
+    {
+        if (num > max)
+        {
+            num = 0;
+        }
+        else
+        {
+            num = max + 1 - num;
+        }
+    }
+    return num;
+}
+
+std::vector<int>
+QUtil::parse_numrange(char const* range, int max)
+{
+    std::vector<int> result;
+    char const* p = range;
+    try
+    {
+        std::vector<int> work;
+        static int const comma = -1;
+        static int const dash = -2;
+
+        enum { st_top,
+               st_in_number,
+               st_after_number } state = st_top;
+        bool last_separator_was_dash = false;
+        int cur_number = 0;
+        bool from_end = false;
+        while (*p)
+        {
+            char ch = *p;
+            if (isdigit(ch))
+            {
+                if (! ((state == st_top) || (state == st_in_number)))
+                {
+                    throw std::runtime_error("digit not expected");
+                }
+                state = st_in_number;
+                cur_number *= 10;
+                cur_number += (ch - '0');
+            }
+            else if (ch == 'z')
+            {
+                // z represents max
+                if (! (state == st_top))
+                {
+                    throw std::runtime_error("z not expected");
+                }
+                state = st_after_number;
+                cur_number = max;
+            }
+            else if (ch == 'r')
+            {
+                if (! (state == st_top))
+                {
+                    throw std::runtime_error("r not expected");
+                }
+                state = st_in_number;
+                from_end = true;
+            }
+            else if ((ch == ',') || (ch == '-'))
+            {
+                if (! ((state == st_in_number) || (state == st_after_number)))
+                {
+                    throw std::runtime_error("unexpected separator");
+                }
+                cur_number = maybe_from_end(cur_number, from_end, max);
+                work.push_back(cur_number);
+                cur_number = 0;
+                from_end = false;
+                if (ch == ',')
+                {
+                    state = st_top;
+                    last_separator_was_dash = false;
+                    work.push_back(comma);
+                }
+                else if (ch == '-')
+                {
+                    if (last_separator_was_dash)
+                    {
+                        throw std::runtime_error("unexpected dash");
+                    }
+                    state = st_top;
+                    last_separator_was_dash = true;
+                    work.push_back(dash);
+                }
+            }
+            else
+            {
+                throw std::runtime_error("unexpected character");
+            }
+            ++p;
+        }
+        if ((state == st_in_number) || (state == st_after_number))
+        {
+            cur_number = maybe_from_end(cur_number, from_end, max);
+            work.push_back(cur_number);
+        }
+        else
+        {
+            throw std::runtime_error("number expected");
+        }
+
+        p = 0;
+        for (size_t i = 0; i < work.size(); i += 2)
+        {
+            int num = work.at(i);
+            // max == 0 means we don't know the max and are just
+            // testing for valid syntax.
+            if ((max > 0) && ((num < 1) || (num > max)))
+            {
+                throw std::runtime_error(
+                    "number " + QUtil::int_to_string(num) + " out of range");
+            }
+            if (i == 0)
+            {
+                result.push_back(work.at(i));
+            }
+            else
+            {
+                int separator = work.at(i-1);
+                if (separator == comma)
+                {
+                    result.push_back(num);
+                }
+                else if (separator == dash)
+                {
+                    int lastnum = result.back();
+                    if (num > lastnum)
+                    {
+                        for (int j = lastnum + 1; j <= num; ++j)
+                        {
+                            result.push_back(j);
+                        }
+                    }
+                    else
+                    {
+                        for (int j = lastnum - 1; j >= num; --j)
+                        {
+                            result.push_back(j);
+                        }
+                    }
+                }
+                else
+                {
+                    throw std::logic_error(
+                        "INTERNAL ERROR parsing numeric range");
+                }
+            }
+        }
+    }
+    catch (std::runtime_error const& e)
+    {
+        std::string message;
+        if (p)
+        {
+            message = "error at * in numeric range " +
+                std::string(range, p - range) + "*" + p + ": " + e.what();
+        }
+        else
+        {
+            message = "error in numeric range " +
+                std::string(range) + ": " + e.what();
+        }
+        throw std::runtime_error(message);
+    }
+    return result;
+}
+
+enum encoding_e { e_utf16, e_ascii, e_winansi, e_macroman };
+
+static unsigned char
+encode_winansi(unsigned long codepoint)
+{
+    // Use this ugly switch statement to avoid a static, which is not
+    // thread-safe.
+    unsigned char ch = '\0';
+    switch (codepoint)
+    {
+      case 0x20ac:
+        ch = 0x80;
+        break;
+      case 0x152:
+        ch = 0x8c;
+        break;
+      case 0x160:
+        ch = 0x8a;
+        break;
+      case 0x178:
+        ch = 0x9f;
+        break;
+      case 0x17d:
+        ch = 0x8e;
+        break;
+      case 0x2022:
+        ch = 0x95;
+        break;
+      case 0x2c6:
+        ch = 0x88;
+        break;
+      case 0x2020:
+        ch = 0x86;
+        break;
+      case 0x2021:
+        ch = 0x87;
+        break;
+      case 0x2026:
+        ch = 0x85;
+        break;
+      case 0x2014:
+        ch = 0x97;
+        break;
+      case 0x2013:
+        ch = 0x96;
+        break;
+      case 0x192:
+        ch = 0x83;
+        break;
+      case 0x2039:
+        ch = 0x8b;
+        break;
+      case 0x203a:
+        ch = 0x9b;
+        break;
+      case 0x153:
+        ch = 0x9c;
+        break;
+      case 0x2030:
+        ch = 0x89;
+        break;
+      case 0x201e:
+        ch = 0x84;
+        break;
+      case 0x201c:
+        ch = 0x93;
+        break;
+      case 0x201d:
+        ch = 0x94;
+        break;
+      case 0x2018:
+        ch = 0x91;
+        break;
+      case 0x2019:
+        ch = 0x92;
+        break;
+      case 0x201a:
+        ch = 0x82;
+        break;
+      case 0x161:
+        ch = 0x9a;
+        break;
+      case 0x303:
+        ch = 0x98;
+        break;
+      case 0x2122:
+        ch = 0x99;
+        break;
+      case 0x17e:
+        ch = 0x9e;
+        break;
+      default:
+        break;
+    }
+    return ch;
+}
+
+static unsigned char
+encode_macroman(unsigned long codepoint)
+{
+    // Use this ugly switch statement to avoid a static, which is not
+    // thread-safe.
+    unsigned char ch = '\0';
+    switch (codepoint)
+    {
+      case 0xc6:
+        ch = 0xae;
+        break;
+      case 0xc1:
+        ch = 0xe7;
+        break;
+      case 0xc2:
+        ch = 0xe5;
+        break;
+      case 0xc4:
+        ch = 0x80;
+        break;
+      case 0xc0:
+        ch = 0xcb;
+        break;
+      case 0xc5:
+        ch = 0x81;
+        break;
+      case 0xc3:
+        ch = 0xcc;
+        break;
+      case 0xc7:
+        ch = 0x82;
+        break;
+      case 0xc9:
+        ch = 0x83;
+        break;
+      case 0xca:
+        ch = 0xe6;
+        break;
+      case 0xcb:
+        ch = 0xe8;
+        break;
+      case 0xc8:
+        ch = 0xe9;
+        break;
+      case 0xcd:
+        ch = 0xea;
+        break;
+      case 0xce:
+        ch = 0xeb;
+        break;
+      case 0xcf:
+        ch = 0xec;
+        break;
+      case 0xcc:
+        ch = 0xed;
+        break;
+      case 0xd1:
+        ch = 0x84;
+        break;
+      case 0x152:
+        ch = 0xce;
+        break;
+      case 0xd3:
+        ch = 0xee;
+        break;
+      case 0xd4:
+        ch = 0xef;
+        break;
+      case 0xd6:
+        ch = 0x85;
+        break;
+      case 0xd2:
+        ch = 0xf1;
+        break;
+      case 0xd8:
+        ch = 0xaf;
+        break;
+      case 0xd5:
+        ch = 0xcd;
+        break;
+      case 0xda:
+        ch = 0xf2;
+        break;
+      case 0xdb:
+        ch = 0xf3;
+        break;
+      case 0xdc:
+        ch = 0x86;
+        break;
+      case 0xd9:
+        ch = 0xf4;
+        break;
+      case 0x178:
+        ch = 0xd9;
+        break;
+      case 0xe1:
+        ch = 0x87;
+        break;
+      case 0xe2:
+        ch = 0x89;
+        break;
+      case 0x301:
+        ch = 0xab;
+        break;
+      case 0xe4:
+        ch = 0x8a;
+        break;
+      case 0xe6:
+        ch = 0xbe;
+        break;
+      case 0xe0:
+        ch = 0x88;
+        break;
+      case 0xe5:
+        ch = 0x8c;
+        break;
+      case 0xe3:
+        ch = 0x8b;
+        break;
+      case 0x306:
+        ch = 0xf9;
+        break;
+      case 0x2022:
+        ch = 0xa5;
+        break;
+      case 0x2c7:
+        ch = 0xff;
+        break;
+      case 0xe7:
+        ch = 0x8d;
+        break;
+      case 0x327:
+        ch = 0xfc;
+        break;
+      case 0xa2:
+        ch = 0xa2;
+        break;
+      case 0x2c6:
+        ch = 0xf6;
+        break;
+      case 0xa9:
+        ch = 0xa9;
+        break;
+      case 0xa4:
+        ch = 0xdb;
+        break;
+      case 0x2020:
+        ch = 0xa0;
+        break;
+      case 0x2021:
+        ch = 0xe0;
+        break;
+      case 0xb0:
+        ch = 0xa1;
+        break;
+      case 0x308:
+        ch = 0xac;
+        break;
+      case 0xf7:
+        ch = 0xd6;
+        break;
+      case 0x307:
+        ch = 0xfa;
+        break;
+      case 0x131:
+        ch = 0xf5;
+        break;
+      case 0xe9:
+        ch = 0x8e;
+        break;
+      case 0xea:
+        ch = 0x90;
+        break;
+      case 0xeb:
+        ch = 0x91;
+        break;
+      case 0xe8:
+        ch = 0x8f;
+        break;
+      case 0x2026:
+        ch = 0xc9;
+        break;
+      case 0x2014:
+        ch = 0xd1;
+        break;
+      case 0x2013:
+        ch = 0xd0;
+        break;
+      case 0xa1:
+        ch = 0xc1;
+        break;
+      case 0xfb01:
+        ch = 0xde;
+        break;
+      case 0xfb02:
+        ch = 0xdf;
+        break;
+      case 0x192:
+        ch = 0xc4;
+        break;
+      case 0x2044:
+        ch = 0xda;
+        break;
+      case 0xdf:
+        ch = 0xa7;
+        break;
+      case 0xab:
+        ch = 0xc7;
+        break;
+      case 0xbb:
+        ch = 0xc8;
+        break;
+      case 0x2039:
+        ch = 0xdc;
+        break;
+      case 0x203a:
+        ch = 0xdd;
+        break;
+      case 0x30b:
+        ch = 0xfd;
+        break;
+      case 0xed:
+        ch = 0x92;
+        break;
+      case 0xee:
+        ch = 0x94;
+        break;
+      case 0xef:
+        ch = 0x95;
+        break;
+      case 0xec:
+        ch = 0x93;
+        break;
+      case 0xac:
+        ch = 0xc2;
+        break;
+      case 0x304:
+        ch = 0xf8;
+        break;
+      case 0x3bc:
+        ch = 0xb5;
+        break;
+      case 0xf1:
+        ch = 0x96;
+        break;
+      case 0xf3:
+        ch = 0x97;
+        break;
+      case 0xf4:
+        ch = 0x99;
+        break;
+      case 0xf6:
+        ch = 0x9a;
+        break;
+      case 0x153:
+        ch = 0xcf;
+        break;
+      case 0x328:
+        ch = 0xfe;
+        break;
+      case 0xf2:
+        ch = 0x98;
+        break;
+      case 0x1d43:
+        ch = 0xbb;
+        break;
+      case 0x1d52:
+        ch = 0xbc;
+        break;
+      case 0xf8:
+        ch = 0xbf;
+        break;
+      case 0xf5:
+        ch = 0x9b;
+        break;
+      case 0xb6:
+        ch = 0xa6;
+        break;
+      case 0xb7:
+        ch = 0xe1;
+        break;
+      case 0x2030:
+        ch = 0xe4;
+        break;
+      case 0xb1:
+        ch = 0xb1;
+        break;
+      case 0xbf:
+        ch = 0xc0;
+        break;
+      case 0x201e:
+        ch = 0xe3;
+        break;
+      case 0x201c:
+        ch = 0xd2;
+        break;
+      case 0x201d:
+        ch = 0xd3;
+        break;
+      case 0x2018:
+        ch = 0xd4;
+        break;
+      case 0x2019:
+        ch = 0xd5;
+        break;
+      case 0x201a:
+        ch = 0xe2;
+        break;
+      case 0xae:
+        ch = 0xa8;
+        break;
+      case 0x30a:
+        ch = 0xfb;
+        break;
+      case 0xa7:
+        ch = 0xa4;
+        break;
+      case 0xa3:
+        ch = 0xa3;
+        break;
+      case 0x303:
+        ch = 0xf7;
+        break;
+      case 0x2122:
+        ch = 0xaa;
+        break;
+      case 0xfa:
+        ch = 0x9c;
+        break;
+      case 0xfb:
+        ch = 0x9e;
+        break;
+      case 0xfc:
+        ch = 0x9f;
+        break;
+      case 0xf9:
+        ch = 0x9d;
+        break;
+      case 0xff:
+        ch = 0xd8;
+        break;
+      case 0xa5:
+        ch = 0xb4;
+        break;
+      default:
+        break;
+    }
+    return ch;
+}
+
+static std::string
+transcode_utf8(std::string const& utf8_val, encoding_e encoding,
+               char unknown)
+{
+    std::string result;
+    if (encoding == e_utf16)
+    {
+        result += "\xfe\xff";
+    }
+    size_t len = utf8_val.length();
+    for (size_t i = 0; i < len; ++i)
+    {
+        unsigned char ch = static_cast<unsigned char>(utf8_val.at(i));
+        if (ch < 128)
+        {
+            if (encoding == e_utf16)
+            {
+                result += QUtil::toUTF16(ch);
+            }
+            else
+            {
+                result.append(1, ch);
+            }
+        }
+        else
+        {
+            size_t bytes_needed = 0;
+            unsigned bit_check = 0x40;
+            unsigned char to_clear = 0x80;
+            while (ch & bit_check)
+            {
+                ++bytes_needed;
+                to_clear |= bit_check;
+                bit_check >>= 1;
+            }
+
+            if (((bytes_needed > 5) || (bytes_needed < 1)) ||
+                ((i + bytes_needed) >= len))
+            {
+                if (encoding == e_utf16)
+                {
+                    result += "\xff\xfd";
+                }
+                else
+                {
+                    result.append(1, unknown);
+                }
+            }
+            else
+            {
+                unsigned long codepoint = (ch & ~to_clear);
+                while (bytes_needed > 0)
+                {
+                    --bytes_needed;
+                    ch = utf8_val.at(++i);
+                    if ((ch & 0xc0) != 0x80)
+                    {
+                        --i;
+                        codepoint = 0xfffd;
+                        break;
+                    }
+                    codepoint <<= 6;
+                    codepoint += (ch & 0x3f);
+                }
+                if (encoding == e_utf16)
+                {
+                    result += QUtil::toUTF16(codepoint);
+                }
+                else
+                {
+                    ch = '\0';
+                    if (encoding == e_winansi)
+                    {
+                        if ((codepoint >= 160) && (codepoint < 256))
+                        {
+                            ch = static_cast<unsigned char>(codepoint & 0xff);
+                        }
+                        else
+                        {
+                            ch = encode_winansi(codepoint);
+                        }
+                    }
+                    else if (encoding == e_macroman)
+                    {
+                        ch = encode_macroman(codepoint);
+                    }
+                    if (ch == '\0')
+                    {
+                        ch = static_cast<unsigned char>(unknown);
+                    }
+                    result.append(1, ch);
+                }
+            }
+        }
+    }
+    return result;
+}
+
+std::string
+QUtil::utf8_to_utf16(std::string const& utf8)
+{
+    return transcode_utf8(utf8, e_utf16, 0);
+}
+
+std::string
+QUtil::utf8_to_ascii(std::string const& utf8, char unknown_char)
+{
+    return transcode_utf8(utf8, e_ascii, unknown_char);
+}
+
+std::string
+QUtil::utf8_to_win_ansi(std::string const& utf8, char unknown_char)
+{
+    return transcode_utf8(utf8, e_winansi, unknown_char);
+}
+
+std::string
+QUtil::utf8_to_mac_roman(std::string const& utf8, char unknown_char)
+{
+    return transcode_utf8(utf8, e_macroman, unknown_char);
+}

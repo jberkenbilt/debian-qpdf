@@ -2,7 +2,7 @@ dnl Process this file with autoconf to produce a configure script.
 dnl This config.in requires autoconf 2.5 or greater.
 
 AC_PREREQ([2.68])
-AC_INIT([qpdf],[8.2.1])
+AC_INIT([qpdf],[8.3.0])
 
 AC_CONFIG_MACRO_DIR([m4])
 AC_CONFIG_FILES([autoconf.mk])
@@ -10,6 +10,28 @@ AC_CONFIG_FILES([manual/html.xsl manual/print.xsl])
 AC_CONFIG_FILES([libqpdf.pc])
 AC_CONFIG_FILES([libqpdf.map])
 AC_CONFIG_HEADERS([libqpdf/qpdf/qpdf-config.h])
+
+AC_ARG_ENABLE(check-autofiles,
+   AS_HELP_STRING([--enable-check-autofiles],
+		  [if specified, verify checksums on automatically generated files (default=yes); package maintainers may want to disable this]),
+   [if test "$enableval" = "no"; then
+      CHECK_AUTOFILES=0
+    else
+      CHECK_AUTOFILES=1
+    fi],
+   [CHECK_AUTOFILES=1])
+
+# Check to see if automatically generated files are outdated and if we
+# can update them.
+AC_CHECK_PROG(AUTOCONF,autoconf,1,0)
+AC_CHECK_PROG(AUTOHEADER,autoheader,1,0)
+AC_CHECK_PROG(ACLOCAL,aclocal,1,0)
+AC_CHECK_PROG(SHA256SUM,sha256sum,1,0)
+if test "$CHECK_AUTOFILES$AUTOCONF$AUTOHEADER$ACLOCAL$SHA256SUM" = "11111"; then
+   if ! sha256sum -c autofiles.sums; then
+       AC_MSG_ERROR(autofiles are autodated; rerun autogen.sh)
+   fi
+fi
 
 AC_PROG_CC
 AC_PROG_CC_C99
@@ -29,9 +51,9 @@ LT_INIT([win32-dll])
 # * Otherwise, increment LT_REVISION
 
 # LT = libtool
-LT_CURRENT=23
-LT_AGE=2
-LT_REVISION=1
+LT_CURRENT=24
+LT_AGE=3
+LT_REVISION=0
 AC_SUBST(LT_CURRENT)
 AC_SUBST(LT_REVISION)
 AC_SUBST(LT_AGE)
