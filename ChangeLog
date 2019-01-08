@@ -1,3 +1,224 @@
+2019-01-07  Jay Berkenbilt  <ejb@ql.org>
+
+	* 8.3.0: release
+
+	* Add sample completion files in completions. These can be used by
+	packagers to install on the system wherever bash and zsh keep
+	their vendor-supplied completions.
+
+	* Add configure flag --enable-check-autofiles, which is on by
+	default. Packagers whose packaging systems automatically refresh
+	autoconf or libtool files should pass --disable-check-autofiles to
+	./configure to suppress warnings about automatically generated
+	files being outdated.
+
+2019-01-06  Jay Berkenbilt  <ejb@ql.org>
+
+	* Remove the restriction in most cases that the source QPDF used
+	in a copyForeignObject call has to stick around until the
+	destination QPDF is written. The exceptional case is when the
+	source stream gets is data using a
+	QPDFObjectHandle::StreamDataProvider. For a more in-depth
+	discussion, see comments around copyForeignObject in QPDF.hh.
+	Fixes #219.
+
+2019-01-05  Jay Berkenbilt  <ejb@ql.org>
+
+	* When generating appearances, if the font uses one of the
+	standard, built-in encodings, restrict the character set to that
+	rather than just to ASCII. This will allow most appearances to
+	contain characters from the ISO-Latin-1 range plus a few
+	additional characters.
+
+	* Add methods QUtil::utf8_to_win_ansi and
+	QUtil::utf8_to_mac_roman.
+
+	* Add method QUtil::utf8_to_utf16.
+
+2019-01-04  Jay Berkenbilt  <ejb@ql.org>
+
+	* Add new option --optimize-images, which recompresses every image
+	using DCT (JPEG) compression as long as the image is not already
+	compressed with lossy compression and recompressing the image
+	reduces its size. The additional options --oi-min-width,
+	--oi-min-height, and --oi-min-area prevent recompression of images
+	whose width, height, or pixel area (width * height) are below a
+	specified threshold.
+
+	* Add new option --collate. When specified, the semantics of
+	--pages change from concatenation to collation. See the manual for
+	a more detailed discussion. Fixes #259.
+
+	* Add new method QPDFWriter::getFinalVersion, which returns the
+	PDF version that will ultimately be written to the final file. See
+	comments in QPDFWriter.hh for some restrictions on its use. Fixes
+	#266.
+
+	* When unexpected errors are found while checking linearization
+	data, print an error message instead of calling assert, which
+	cause the program to crash. Fixes #209, #231.
+
+	* Detect and recover from dangling references. If a PDF file
+	contained an indirect reference to a non-existent object (which is
+	valid), when adding a new object to the file, it was possible for
+	the new object to take the object ID of the dangling reference,
+	thereby causing the dangling reference to point to the new object.
+	This case is now prevented. Fixes #240.
+
+2019-01-03  Jay Berkenbilt  <ejb@ql.org>
+
+        * Add --generate-appearances flag to the qpdf command-line tool to
+	trigger generation of appearance streams.
+
+	* Fix behavior of form field value setting to handle the following
+	cases:
+	  - Strings are always written as UTF-16
+	  - Check boxes and radio buttons are handled properly with
+	    synchronization of values and appearance states
+
+	* Define constants in qpdf/Constants.h for interpretation of
+	annotation and form field flags
+
+	* Add QPDFAnnotationObjectHelper::getFlags
+
+	* Add many new methods to QPDFFormFieldObjectHelper for querying
+	flags and field types
+
+	* Add new methods for appearance stream generation. See comments
+	in QPDFFormFieldObjectHelper.hh for generateAppearance() for a
+	description of limitations.
+	  - QPDFAcroFormDocumentHelper::generateAppearancesIfNeeded
+	  - QPDFFormFieldObjectHelper::generateAppearance
+
+	* Bug fix: when writing form field values, always write string
+	values encoded as UTF-16.
+
+	* Add method QUtil::utf8_to_ascii, which returns an ASCII string
+	for a UTF-8 string, replacing out-of-range characters with a
+	specified substitute.
+
+2019-01-02  Jay Berkenbilt  <ejb@ql.org>
+
+	* Add method QPDFObjectHandle::getResourceNames that returns a set
+	of strings representing all second-level keys in a dictionary
+	(i.e. all keys of all direct dictionary members).
+
+2018-12-31  Jay Berkenbilt  <ejb@ql.org>
+
+	* Add --flatten-annotations flag to the qpdf command-line tool for
+	annotation flattening.
+
+	* Add methods for flattening form fields and annotations:
+	  - QPDFPageDocumentHelper::flattenAnnotations - integrate
+	    annotation appearance streams into page contents with special
+	    handling for form fields: if appearance streams are up to date
+	    (/NeedAppearances is false in /AcroForm), the /AcroForm key of
+	    the document catalog is removed. Otherwise, a warning is
+	    issued, and form fields are ignored. Non-form-field
+	    annotations are always flattened if an appearance stream can
+	    be found.
+	  - QPDFAnnotationObjectHelper::getPageContentForAppearance -
+	    generate the content stream fragment to render an appearance
+	    stream in a page's content stream as a form xobject. Called by
+	    flattenAnnotations.
+
+	* Add method QPDFObjectHandle::mergeResources(), which merges
+	resource dictionaries. See detailed description in
+	QPDFObjectHandle.hh.
+
+	* Add QPDFObjectHandle::Matrix, similar to
+	QPDFObjectHandle::Rectangle, as a convenience class for
+	six-element arrays that are used as matrices.
+
+2018-12-23  Jay Berkenbilt  <ejb@ql.org>
+
+	* When specifying @arg on the command line, if the file "arg" does
+	not exist, just treat this is a normal argument. This makes it
+	easier to deal with files whose names start with the @ character.
+	Fixes #265.
+
+	* Tweak completion so it works with zsh as well using
+	bashcompinit.
+
+2018-12-22  Jay Berkenbilt  <ejb@ql.org>
+
+	* Add new options --json, --json-key, and --json-object to
+	generate a json representation of the PDF file. This is described
+	in more depth in the manual. You can also run qpdf --json-help to
+	get a description of the json format.
+
+2018-12-21  Jay Berkenbilt  <ejb@ql.org>
+
+	* Allow --show-object=trailer for showing the document trailer.
+
+	* You can now use eval $(qpdf --completion-bash) to enable bash
+	completion for qpdf. It's not perfect, but it works pretty well.
+
+2018-12-19  Jay Berkenbilt  <ejb@ql.org>
+
+	* When splitting pages using --split-pages, the outlines
+	dictionary and some supporting metadata are copied into the split
+	files. The result is that all bookmarks from the original file
+	appear, and those that point to pages that are preserved work
+	while those that point to pages that are not preserved don't do
+	anything. This is an interim step toward proper support for
+	bookmark preservation in split files.
+
+	* Add QPDFOutlineDocumentHelper and QPDFOutlineObjectHelper for
+	handling outlines (bookmarks) including bidirectionally mapping
+	between bookmarks and pages. Initially there is no support for
+	modifying the outlines hierarchy.
+
+2018-12-18  Jay Berkenbilt  <ejb@ql.org>
+
+	* New method QPDFObjectHandle::getJSON() returns a JSON object
+	with a partial representation of the object. See
+	QPDFObjectHandle.hh for a detailed description.
+
+	* Add a simple JSON serializer. This is not a complete or
+	general-purpose JSON library. It allows assembly and serialization
+	of JSON structures with some restrictions, which are described in
+	the header file.
+
+	* Add QPDFNameTreeObjectHelper class. This class provides useful
+	methods for dealing with name trees, which are discussed in
+	section 7.9.6 of the PDF spec (ISO-32000).
+
+	* Preserve page labels when merging and splitting files. Prior
+	versions of qpdf simply preserved the page label information from
+	the first file, which usually wouldn't make any sense in the
+	merged file. Now any page that had a page number in any original
+	file will have the same page number after merging or splitting.
+
+	* Add QPDFPageLabelDocumentHelper class. This is a document helper
+	class that provides useful methods for dealing with page labels.
+	It abstracts the fact that they are stored as number trees and
+	deals with interpolating intermediate values that are not in the
+	tree. It also has helper functions used by the qpdf command line
+	tool to preserve page labels when merging and splitting files.
+
+	* Add QPDFNumberTreeObjectHelper class. This class provides useful
+	methods for dealing with number trees, which are discussed in
+	section 7.9.7 of the PDF spec (ISO-32000). Page label dictionaries
+	are represented as number trees.
+
+	* New method QPDFObjectHandle::wrapInArray returns the object
+	itself if it is an array. Otherwise, it returns an array
+	containing the object. This is useful for dealing with PDF data
+	that is sometimes expressed as a single element and sometimes
+	expressed as an array, which is a somewhat common PDF idiom.
+
+2018-10-11  Jay Berkenbilt  <ejb@ql.org>
+
+	* Files generated by autogen.sh are now committed so that it is
+	possible to build on platforms without autoconf directly from a
+	clean checkout of the repository. The configure script detects if
+	the files are out of date when it also determines that the tools
+	are present to regenerate them.
+
+	* Add build in Azure Pipelines, now that it is free for open
+	source projects.
+
 2018-08-18  Jay Berkenbilt  <ejb@ql.org>
 
 	* 8.2.1: release

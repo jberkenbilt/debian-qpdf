@@ -575,6 +575,26 @@ QPDFObjectHandle::isRectangle()
     return true;
 }
 
+bool
+QPDFObjectHandle::isMatrix()
+{
+    if (! isArray())
+    {
+        return false;
+    }
+    if (getArrayNItems() != 6)
+    {
+        return false;
+    }
+    for (size_t i = 0; i < 6; ++i)
+    {
+        if (! getArrayItem(i).isNumber())
+        {
+            return false;
+        }
+    }
+    return true;
+}
 
 QPDFObjectHandle::Rectangle
 QPDFObjectHandle::getArrayAsRectangle()
@@ -586,6 +606,22 @@ QPDFObjectHandle::getArrayAsRectangle()
                            getArrayItem(1).getNumericValue(),
                            getArrayItem(2).getNumericValue(),
                            getArrayItem(3).getNumericValue());
+    }
+    return result;
+}
+
+QPDFObjectHandle::Matrix
+QPDFObjectHandle::getArrayAsMatrix()
+{
+    Matrix result;
+    if (isMatrix())
+    {
+        result = Matrix(getArrayItem(0).getNumericValue(),
+                        getArrayItem(1).getNumericValue(),
+                        getArrayItem(2).getNumericValue(),
+                        getArrayItem(3).getNumericValue(),
+                        getArrayItem(4).getNumericValue(),
+                        getArrayItem(5).getNumericValue());
     }
     return result;
 }
@@ -787,6 +823,111 @@ QPDFObjectHandle::isOrHasName(std::string const& value)
 	}
     }
     return false;
+}
+
+void
+QPDFObjectHandle::mergeResources(QPDFObjectHandle other)
+{
+    if (! (isDictionary() && other.isDictionary()))
+    {
+        QTC::TC("qpdf", "QPDFObjectHandle merge top type mismatch");
+        return;
+    }
+    std::set<std::string> other_keys = other.getKeys();
+    for (std::set<std::string>::iterator iter = other_keys.begin();
+         iter != other_keys.end(); ++iter)
+    {
+        std::string const& key = *iter;
+        QPDFObjectHandle other_val = other.getKey(key);
+        if (hasKey(key))
+        {
+            QPDFObjectHandle this_val = getKey(key);
+            if (this_val.isDictionary() && other_val.isDictionary())
+            {
+                if (this_val.isIndirect())
+                {
+                    QTC::TC("qpdf", "QPDFObjectHandle replace with copy");
+                    this_val = this_val.shallowCopy();
+                    replaceKey(key, this_val);
+                }
+                std::set<std::string> other_val_keys = other_val.getKeys();
+                for (std::set<std::string>::iterator i2 =
+                         other_val_keys.begin();
+                     i2 != other_val_keys.end(); ++i2)
+                {
+                    if (! this_val.hasKey(*i2))
+                    {
+                        QTC::TC("qpdf", "QPDFObjectHandle merge shallow copy");
+                        this_val.replaceKey(
+                            *i2, other_val.getKey(*i2).shallowCopy());
+                    }
+                }
+            }
+            else if (this_val.isArray() && other_val.isArray())
+            {
+                std::set<std::string> scalars;
+                int n = this_val.getArrayNItems();
+                for (int i = 0; i < n; ++i)
+                {
+                    QPDFObjectHandle this_item = this_val.getArrayItem(i);
+                    if (this_item.isScalar())
+                    {
+                        scalars.insert(this_item.unparse());
+                    }
+                }
+                n = other_val.getArrayNItems();
+                for (int i = 0; i < n; ++i)
+                {
+                    QPDFObjectHandle other_item = other_val.getArrayItem(i);
+                    if (other_item.isScalar())
+                    {
+                        if (scalars.count(other_item.unparse()) == 0)
+                        {
+                            QTC::TC("qpdf", "QPDFObjectHandle merge array");
+                            this_val.appendItem(other_item);
+                        }
+                        else
+                        {
+                            QTC::TC("qpdf", "QPDFObjectHandle merge array dup");
+                        }
+                    }
+                }
+            }
+        }
+        else
+        {
+            QTC::TC("qpdf", "QPDFObjectHandle merge copy from other");
+            replaceKey(key, other_val.shallowCopy());
+        }
+    }
+}
+
+std::set<std::string>
+QPDFObjectHandle::getResourceNames()
+{
+    // Return second-level dictionary keys
+    std::set<std::string> result;
+    if (! isDictionary())
+    {
+        return result;
+    }
+    std::set<std::string> keys = getKeys();
+    for (std::set<std::string>::iterator iter = keys.begin();
+         iter != keys.end(); ++iter)
+    {
+        std::string const& key = *iter;
+        QPDFObjectHandle val = getKey(key);
+        if (val.isDictionary())
+        {
+            std::set<std::string> val_keys = val.getKeys();
+            for (std::set<std::string>::iterator i2 = val_keys.begin();
+                 i2 != val_keys.end(); ++i2)
+            {
+                result.insert(*i2);
+            }
+        }
+    }
+    return result;
 }
 
 // Indirect object accessors
@@ -1233,6 +1374,37 @@ QPDFObjectHandle::unparseBinary()
     {
         return unparse();
     }
+}
+
+JSON
+QPDFObjectHandle::getJSON(bool dereference_indirect)
+{
+    if ((! dereference_indirect) && this->isIndirect())
+    {
+        return JSON::makeString(unparse());
+    }
+    else
+    {
+        if (this->m->reserved)
+        {
+            throw std::logic_error(
+                "QPDFObjectHandle: attempting to unparse a reserved object");
+        }
+        dereference();
+        return this->m->obj->getJSON();
+    }
+}
+
+QPDFObjectHandle
+QPDFObjectHandle::wrapInArray()
+{
+    if (isArray())
+    {
+        return *this;
+    }
+    QPDFObjectHandle result = QPDFObjectHandle::newArray();
+    result.appendItem(*this);
+    return result;
 }
 
 QPDFObjectHandle
@@ -1900,7 +2072,26 @@ QPDFObjectHandle::newArray(Rectangle const& rect)
 }
 
 QPDFObjectHandle
+QPDFObjectHandle::newArray(Matrix const& matrix)
+{
+    std::vector<QPDFObjectHandle> items;
+    items.push_back(newReal(matrix.a));
+    items.push_back(newReal(matrix.b));
+    items.push_back(newReal(matrix.c));
+    items.push_back(newReal(matrix.d));
+    items.push_back(newReal(matrix.e));
+    items.push_back(newReal(matrix.f));
+    return newArray(items);
+}
+
+QPDFObjectHandle
 QPDFObjectHandle::newFromRectangle(Rectangle const& rect)
+{
+    return newArray(rect);
+}
+
+QPDFObjectHandle
+QPDFObjectHandle::newFromMatrix(Matrix const& rect)
 {
     return newArray(rect);
 }

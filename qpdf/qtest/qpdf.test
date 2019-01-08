@@ -100,6 +100,105 @@ $td->runtest("UTF-16 encoding errors",
 	     {$td->FILE => "unicode-errors.out", $td->EXIT_STATUS => 0},
 	     $td->NORMALIZE_NEWLINES);
 
+my @completion_tests = (
+    ['qpdf ', undef, 'top'],
+    ['qpdf -', undef, 'top-arg'],
+    ['qpdf --enc', undef, 'enc'],
+    ['qpdf --encrypt ', undef, 'encrypt'],
+    ['qpdf --encrypt u ', undef, 'encrypt-u'],
+    ['qpdf --encrypt u o ', undef, 'encrypt-u-o'],
+    ['qpdf @encrypt-u o ', undef, 'encrypt-u-o'],
+    ['qpdf --encrypt u o 40 --', undef, 'encrypt-40'],
+    ['qpdf --encrypt u o 128 --', undef, 'encrypt-128'],
+    ['qpdf --encrypt u o 256 --', undef, 'encrypt-256'],
+    ['qpdf --encrypt u o bad --', undef, 'encrypt-bad'],
+    ['qpdf --split-pag', undef, 'split'],
+    ['qpdf --decode-l', undef, 'decode-l'],
+    ['qpdf --decode-lzzz', 15, 'decode-l'],
+    ['qpdf --decode-level=', undef, 'decode-level'],
+    ['qpdf --decode-level=g', undef, 'decode-level-g'],
+    ['qpdf --check -', undef, 'later-arg'],
+    ['qpdf infile outfile oops --ch', undef, 'usage-empty'],
+    ['qpdf --encrypt \'user " password\' ', undef, 'quoting'],
+    ['qpdf --encrypt \'user password\' ', undef, 'quoting'],
+    ['qpdf --encrypt "user password" ', undef, 'quoting'],
+    ['qpdf --encrypt "user pass\'word" ', undef, 'quoting'],
+    ['qpdf --encrypt user\ password ', undef, 'quoting'],
+    );
+$n_tests += 2 * scalar(@completion_tests);
+foreach my $c (@completion_tests)
+{
+    my ($cmd, $point, $description) = @$c;
+    my $out = "completion-$description.out";
+    my $zout = "completion-$description-zsh.out";
+    if (! -f $zout)
+    {
+        $zout = $out;
+    }
+    $td->runtest("bash completion: $description",
+                 {$td->COMMAND => [@{bash_completion($cmd, $point)}],
+                      $td->FILTER => "perl filter-completion.pl $out"},
+                 {$td->FILE => "$out", $td->EXIT_STATUS => 0},
+                 $td->NORMALIZE_NEWLINES);
+    $td->runtest("zsh completion: $description",
+                 {$td->COMMAND => [@{zsh_completion($cmd, $point)}],
+                      $td->FILTER => "perl filter-completion.pl $zout"},
+                 {$td->FILE => "$zout", $td->EXIT_STATUS => 0},
+                 $td->NORMALIZE_NEWLINES);
+}
+
+show_ntests();
+# ----------
+$td->notify("--- Argument Parsing ---");
+$n_tests += 4;
+
+$td->runtest("required argument",
+             {$td->COMMAND => "qpdf --password minimal.pdf"},
+	     {$td->REGEXP => "must be given as --password=pass",
+                  $td->EXIT_STATUS => 2},
+             $td->NORMALIZE_NEWLINES);
+$td->runtest("required argument with choices",
+             {$td->COMMAND => "qpdf --decode-level minimal.pdf"},
+	     {$td->REGEXP => "must be given as --decode-level=\\{.*all.*\\}",
+                  $td->EXIT_STATUS => 2},
+             $td->NORMALIZE_NEWLINES);
+$td->runtest("required argument with choices",
+             {$td->COMMAND => "qpdf --decode-level minimal.pdf"},
+	     {$td->REGEXP => "must be given as --decode-level=\\{.*all.*\\}",
+                  $td->EXIT_STATUS => 2},
+             $td->NORMALIZE_NEWLINES);
+copy("minimal.pdf", '@file.pdf');
+$td->runtest("\@file exists and file doesn't",
+             {$td->COMMAND => "qpdf --check \@file.pdf"},
+             {$td->FILE => "check-at-file.out", $td->EXIT_STATUS => 0},
+             $td->NORMALIZE_NEWLINES);
+
+show_ntests();
+# ----------
+$td->notify("--- Final Version ---");
+$n_tests += 1;
+
+$td->runtest("check final version",
+             {$td->COMMAND => "test_driver 54 minimal.pdf"},
+             {$td->STRING => "test 54 done\n", $td->EXIT_STATUS => 0},
+             $td->NORMALIZE_NEWLINES);
+
+show_ntests();
+# ----------
+$td->notify("--- Dangling Refs ---");
+my @dangling = (qw(minimal dangling-refs));
+$n_tests += 2 * scalar(@dangling);
+
+foreach my $f (@dangling)
+{
+    $td->runtest("dangling refs: $f",
+                 {$td->COMMAND => "test_driver 53 $f.pdf"},
+                 {$td->FILE => "$f-dangling.out", $td->EXIT_STATUS => 0},
+                 $td->NORMALIZE_NEWLINES);
+    $td->runtest("check output",
+                 {$td->FILE => "a.pdf"},
+                 {$td->FILE => "$f-dangling-out.pdf"});
+}
 show_ntests();
 # ----------
 $td->notify("--- Form Tests ---");
@@ -115,14 +214,16 @@ my @form_tests = (
     'form-errors',
     );
 
-$n_tests += scalar(@form_tests) + 2;
+$n_tests += scalar(@form_tests) + 6;
 
 # Many of the form*.pdf files were created by converting the
 # LibreOffice document storage/form.odt to PDF and then manually
 # modifying the resulting PDF in various ways. That file would be good
 # starting point for generation of more complex forms should that be
 # required in the future. The file storage/form.pdf is a direct export
-# from LibreOffice with no modifications.
+# from LibreOffice with no modifications. The files
+# storage/field-types.odt and storage/field-types.pdf are the basis of
+# field-types.pdf used elsewhere in the test suite.
 
 foreach my $f (@form_tests)
 {
@@ -140,6 +241,73 @@ $td->runtest("fill fields",
 $td->runtest("compare files",
              {$td->FILE => "a.pdf"},
              {$td->FILE => "form-no-need-appearances-filled.pdf"});
+
+$td->runtest("button fields",
+             {$td->COMMAND => "test_driver 51 button-set.pdf"},
+             {$td->FILE => "button-set.out", $td->EXIT_STATUS => 0},
+             $td->NORMALIZE_NEWLINES);
+$td->runtest("compare files",
+             {$td->FILE => "a.pdf"},
+             {$td->FILE => "button-set-out.pdf"});
+
+$td->runtest("broken button fields",
+             {$td->COMMAND => "test_driver 51 button-set-broken.pdf"},
+             {$td->FILE => "button-set-broken.out", $td->EXIT_STATUS => 0},
+             $td->NORMALIZE_NEWLINES);
+$td->runtest("compare files",
+             {$td->FILE => "a.pdf"},
+             {$td->FILE => "button-set-broken-out.pdf"});
+
+show_ntests();
+# ----------
+$td->notify("--- Appearance Streams ---");
+$n_tests += 4;
+
+$td->runtest("generate appearances and flatten",
+             {$td->COMMAND =>
+                  "qpdf --qdf --no-original-object-ids --static-id" .
+                  " --generate-appearances --flatten-annotations=all" .
+                  " need-appearances.pdf a.pdf"},
+             {$td->STRING => "", $td->EXIT_STATUS => 0},
+             $td->NORMALIZE_NEWLINES);
+$td->runtest("compare files",
+             {$td->FILE => "a.pdf"},
+             {$td->FILE => "appearances-a.pdf"});
+
+$td->runtest("more choices",
+             {$td->COMMAND =>
+                  "qpdf --qdf --no-original-object-ids --static-id" .
+                  " --generate-appearances" .
+                  " more-choices.pdf b.pdf"},
+             {$td->STRING => "", $td->EXIT_STATUS => 0},
+             $td->NORMALIZE_NEWLINES);
+# b.pdf still has forms
+$td->runtest("compare files",
+             {$td->FILE => "b.pdf"},
+             {$td->FILE => "appearances-b.pdf"});
+
+my @choice_values = qw(1 2 11 12 quack);
+$n_tests += 3 * scalar(@choice_values);
+foreach my $i (@choice_values)
+{
+    # b.pdf was generated by qpdf and needs appearances
+    # test_driver 52 writes a.pdf
+    $td->runtest("set value to $i",
+                 {$td->COMMAND => "test_driver 52 b.pdf $i"},
+                 {$td->STRING => "setting list1 value\ntest 52 done\n",
+                      $td->EXIT_STATUS => 0},
+                 $td->NORMALIZE_NEWLINES);
+    $td->runtest("regenerate appearances",
+                 {$td->COMMAND =>
+                      "qpdf --qdf --no-original-object-ids --static-id" .
+                      " --generate-appearances" .
+                      " a.pdf b.pdf"},
+                 {$td->STRING => "", $td->EXIT_STATUS => 0},
+                 $td->NORMALIZE_NEWLINES);
+    $td->runtest("compare files",
+                 {$td->FILE => "b.pdf"},
+                 {$td->FILE => "appearances-$i.pdf"});
+}
 
 show_ntests();
 # ----------
@@ -226,6 +394,100 @@ foreach my $input (@ext_inputs)
 }
 show_ntests();
 # ----------
+$td->notify("--- Number and Name Trees ---");
+$n_tests += 2;
+
+$td->runtest("number trees",
+	     {$td->COMMAND => "test_driver 46 number-tree.pdf"},
+	     {$td->FILE => "number-tree.out", $td->EXIT_STATUS => 0},
+	     $td->NORMALIZE_NEWLINES);
+$td->runtest("name trees",
+	     {$td->COMMAND => "test_driver 48 name-tree.pdf"},
+	     {$td->FILE => "name-tree.out", $td->EXIT_STATUS => 0},
+	     $td->NORMALIZE_NEWLINES);
+
+show_ntests();
+# ----------
+$td->notify("--- Page Labels ---");
+$n_tests += 3;
+
+$td->runtest("complex page labels",
+	     {$td->COMMAND => "test_driver 47 page-labels-num-tree.pdf"},
+	     {$td->FILE => "page-labels-num-tree.out", $td->EXIT_STATUS => 0},
+	     $td->NORMALIZE_NEWLINES);
+$td->runtest("no zero entry for page labels",
+	     {$td->COMMAND => "test_driver 47 page-labels-no-zero.pdf"},
+	     {$td->FILE => "page-labels-no-zero.out", $td->EXIT_STATUS => 0},
+	     $td->NORMALIZE_NEWLINES);
+$td->runtest("no page labels",
+	     {$td->COMMAND => "test_driver 47 minimal.pdf"},
+	     {$td->FILE => "no-page-labels.out", $td->EXIT_STATUS => 0},
+	     $td->NORMALIZE_NEWLINES);
+
+show_ntests();
+# ----------
+$td->notify("--- Outlines ---");
+my @outline_files = (
+    'page-labels-and-outlines',
+    'outlines-with-actions',
+    'outlines-with-old-root-dests',
+    'outlines-with-loop',
+    );
+$n_tests += scalar(@outline_files);
+foreach my $f (@outline_files)
+{
+    $td->runtest("outlines: $f",
+                 {$td->COMMAND => "test_driver 49 $f.pdf"},
+                 {$td->FILE => "$f.out", $td->EXIT_STATUS => 0},
+                 $td->NORMALIZE_NEWLINES);
+}
+
+show_ntests();
+# ----------
+$td->notify("--- JSON Tests ---");
+my @json_files = (
+    ['outlines-with-actions', []],
+    ['outlines-with-old-root-dests', []],
+    ['page-labels-and-outlines', []],
+    ['page-labels-num-tree', []],
+    ['image-streams', []],
+    ['field-types', []],
+    ['image-streams', ['--decode-level=all']],
+    ['image-streams', ['--decode-level=specialized']],
+    ['page-labels-and-outlines', ['--json-key=objects']],
+    ['page-labels-and-outlines', ['--json-key=pages']],
+    ['page-labels-and-outlines', ['--json-key=pagelabels']],
+    ['page-labels-and-outlines', ['--json-key=outlines']],
+    ['page-labels-and-outlines',
+     ['--json-key=outlines', '--json-key=pages']],
+    ['page-labels-and-outlines',
+     ['--json-key=objects', '--json-object=trailer']],
+    ['page-labels-and-outlines',
+     ['--json-key=objects', '--json-object=trailer', '--json-object=2 0 R']],
+    ['field-types', ['--json-key=acroform']],
+    ['need-appearances', ['--json-key=acroform']],
+);
+$n_tests += scalar(@json_files);
+foreach my $d (@json_files)
+{
+    my ($file, $xargs) = @$d;
+    my $out = "json-$file";
+    foreach my $x (@$xargs)
+    {
+        my $y = $x;
+        $y =~ s/^.*=//;
+        $y =~ s/\s.*//;
+        $out .= "-$y";
+    }
+    my $in = "$file.pdf";
+    $td->runtest("json $out",
+                 {$td->COMMAND => ['qpdf', '--json', @$xargs, $in]},
+                 {$td->FILE => "$out.out", $td->EXIT_STATUS => 0},
+                 $td->NORMALIZE_NEWLINES);
+}
+
+show_ntests();
+# ----------
 $td->notify("--- Page API Tests ---");
 $n_tests += 9;
 
@@ -286,6 +548,7 @@ my @bug_tests = (
     ["149", "xref prev pointer loop", 3],
     ["150", "integer overflow", 2],
     ["202", "even more deeply nested dictionary", 2],
+    ["263", "empty xref stream", 3],
     );
 $n_tests += scalar(@bug_tests);
 foreach my $d (@bug_tests)
@@ -731,6 +994,16 @@ $td->runtest("detect foreign object in write",
 
 show_ntests();
 # ----------
+$td->notify("--- Merge Dictionary ---");
+$n_tests += 1;
+
+$td->runtest("merge dictionary",
+             {$td->COMMAND => "test_driver 50 merge-dict.pdf"},
+             {$td->FILE => "merge-dict.out", $td->EXIT_STATUS => 0},
+             $td->NORMALIZE_NEWLINES);
+
+show_ntests();
+# ----------
 $td->notify("--- Parsing ---");
 $n_tests += 17;
 
@@ -940,6 +1213,8 @@ show_ntests();
 $td->notify("--- Overwrite self ---");
 $n_tests += 1;
 
+copy("minimal.pdf", "a.pdf");
+# Also tests @- for reading args from stdin
 $td->runtest("don't overwrite self",
              {$td->COMMAND => "(echo a.pdf; echo a.pdf) | qpdf \@-"},
              {$td->REGEXP => "input file and output file are the same.*",
@@ -1109,7 +1384,7 @@ my @sp_cases = (
     [11, 'pdf extension', '', 'split-out.Pdf'],
     [4, 'fallback', '--pages 11-pages.pdf 1-3 minimal.pdf --', 'split-out'],
     );
-$n_tests += 9;
+$n_tests += 16;
 for (@sp_cases)
 {
     $n_tests += 1 + $_->[0];
@@ -1141,6 +1416,28 @@ foreach my $i (qw(01-04 05-08 09-10))
     $td->runtest("check output ($i)",
                  {$td->FILE => "split-out-shared-$i.pdf"},
                  {$td->FILE => "shared-split-$i.pdf"});
+}
+
+$td->runtest("split page with labels",
+             {$td->COMMAND => "qpdf --qdf --static-id --split-pages=6".
+                  " 11-pages-with-labels.pdf split-out-labels.pdf"},
+             {$td->STRING => "", $td->EXIT_STATUS => 0});
+foreach my $i (qw(01-06 07-11))
+{
+    $td->runtest("check output ($i)",
+                 {$td->FILE => "split-out-labels-$i.pdf"},
+                 {$td->FILE => "labels-split-$i.pdf"});
+}
+
+$td->runtest("split page with outlines",
+             {$td->COMMAND => "qpdf --qdf --static-id --split-pages=10".
+                  " outlines-with-actions.pdf split-out-outlines.pdf"},
+             {$td->STRING => "", $td->EXIT_STATUS => 0});
+foreach my $i (qw(01-10 11-20 21-30))
+{
+    $td->runtest("check output ($i)",
+                 {$td->FILE => "split-out-outlines-$i.pdf"},
+                 {$td->FILE => "outlines-split-$i.pdf"});
 }
 
 foreach my $d (@sp_cases)
@@ -1249,65 +1546,85 @@ $td->runtest("check output",
 
 show_ntests();
 # ----------
-$td->notify("--- Numeric range parsing tests ---");
-my @nrange_tests = (
-    [",5",
-     "qpdf: error at * in numeric range *,5: unexpected separator",
-     2],
-    ["4,,5",
-     "qpdf: error at * in numeric range 4,*,5: unexpected separator",
-     2],
-    ["4,5,",
-     "qpdf: error at * in numeric range 4,5,*: number expected",
-     2],
-    ["z1,",
-     "qpdf: error at * in numeric range z*1,: digit not expected",
-     2],
-    ["1z,",
-     "qpdf: error at * in numeric range 1*z,: z not expected",
-     2],
-    ["1-5?",
-     "qpdf: error at * in numeric range 1-5*?: unexpected character",
-     2],
-    ["1-30",
-     "qpdf: error in numeric range 1-30: number 30 out of range",
-     2],
-    ["1-10,0,5",
-     "qpdf: error in numeric range 1-10,0,5: number 0 out of range",
-     2],
-    ["1-10,1234,5",
-     "qpdf: error in numeric range 1-10,1234,5: number 1234 out of range",
-     2],
-    ["1,r,3",
-     "qpdf: error in numeric range 1,r,3: number 16 out of range",
-     2],
-    ["1,r16,3",
-     "qpdf: error in numeric range 1,r16,3: number 0 out of range",
-     2],
-    ["1,3,5-10,z-13,13,9,z,2,r2-r4",
-     "numeric range 1,3,5-10,z-13,13,9,z,2,r2-r4" .
-     " -> 1 3 5 6 7 8 9 10 15 14 13 13 9 15 2 14 13 12",
-     0],
-    ["r1-r15", # r\d+ at end
-     "numeric range r1-r15" .
-     " -> 15 14 13 12 11 10 9 8 7 6 5 4 3 2 1",
-     0],
+$td->notify("--- Flatten Form/Annotations ---");
+
+# manual-appearances was created by hand-coding appearance streams
+# with graphics that make it easy to test matrix calculations. The
+# result of flattening the annotations was compared visually with
+# okular. Some PDF viewers don't actually display the original version
+# correctly. The pages are as follows:
+# - page 1: normal
+# - page 2: rotate 90 with /F 20 (NoRotate)
+# - page 3: non-trivial matrix
+# - page 4: non-trivial matrix, rotate
+# - page 5: rotate 180 with /F 20
+# - page 6: rotate 90, /F 20, non-trivial matrix
+# - page 7: flags: top is print, middle is screen, bottom is hidden
+# - page 8: rotate 270 with /F 20
+# - page 9: normal -- available for additional testing
+#
+# form-filled-by-acrobat was filled in using the Acrobat Reader
+# android app. One of its appearance streams is actually an image.
+#
+# need-appearances.pdf is based on field-types.pdf with manual edits
+# to turn on NeedAppearances, change /V for several fields, and add
+# the comment annotation from comment-annotation.pdf. The test output
+# includes a flattened version of the comment annotation but not of
+# the form fields. Changes:
+# - field-types.pdf has /NeedAppearances true
+# - text1: blank -> abc
+# - r1: 1 -> 2
+# - list1: blank -> five
+# - combolist1: blank -> pi
+# - drop1: blank -> elephant
+# - combodrop1: blank -> delta
+
+my @annotation_files = (
+    'manual-appearances',
+    'form-filled-by-acrobat',
+    'comment-annotation',
+    'comment-annotation-direct',
+    'sample-form',
+    'need-appearances',
     );
-$n_tests += scalar(@nrange_tests);
-foreach my $d (@nrange_tests)
+$n_tests += 2 * scalar(@annotation_files);
+
+foreach my $f (@annotation_files)
 {
-    my ($range, $output, $status) = @$d;
-    $td->runtest("numeric range $range",
-                 {$td->COMMAND => ['qpdf', '-- test-numrange=' . $range],
-                  $td->FILTER => "grep 'numeric range'"},
-                 {$td->STRING => $output . "\n", $td->EXIT_STATUS => $status},
+    my $exp_out = {$td->STRING => "", $td->EXIT_STATUS => 0};
+    if (-f "$f-warn.out")
+    {
+        $exp_out = {$td->FILE => "$f-warn.out", $td->EXIT_STATUS => 3};
+    }
+    $td->runtest("flatten $f",
+                 {$td->COMMAND =>
+                      "qpdf --qdf --static-id --no-original-object-ids" .
+                      " --flatten-annotations=all $f.pdf a.pdf"},
+                 $exp_out,
                  $td->NORMALIZE_NEWLINES);
+    $td->runtest("check output",
+                 {$td->FILE => "a.pdf"},
+                 {$td->FILE => "$f-out.pdf"});
+}
+
+$n_tests += 4;
+foreach my $f (qw(screen print))
+{
+    $td->runtest("flatten for $f",
+                 {$td->COMMAND =>
+                      "qpdf --qdf --static-id --no-original-object-ids" .
+                      " --flatten-annotations=$f manual-appearances.pdf a.pdf"},
+                 {$td->STRING => "", $td->EXIT_STATUS => 0},
+                 $td->NORMALIZE_NEWLINES);
+    $td->runtest("check output",
+                 {$td->FILE => "a.pdf"},
+                 {$td->FILE => "manual-appearances-$f-out.pdf"});
 }
 
 show_ntests();
 # ----------
 $td->notify("--- Merging and Splitting ---");
-$n_tests += 16;
+$n_tests += 18;
 
 # Select pages from the same file multiple times including selecting
 # twice from an encrypted file and specifying the password only the
@@ -1340,8 +1657,7 @@ $td->runtest("merge three files",
                   " $pages_options --static-id"},
              {$td->STRING => "", $td->EXIT_STATUS => 0});
 # Manually verified about this file: it has the same pages but does
-# not contain outlines, page labels, or other things from the original
-# file.
+# not contain outlines or other things from the original file.
 $td->runtest("check output",
              {$td->FILE => "a.pdf"},
              {$td->FILE => "merge-three-files-2.pdf"});
@@ -1364,6 +1680,17 @@ $td->runtest("merge with implicit ranges",
 $td->runtest("check output",
              {$td->FILE => "a.pdf"},
              {$td->FILE => "merge-implicit-ranges.pdf"});
+$td->runtest("merge with multiple labels",
+             {$td->COMMAND =>
+                  "qpdf --empty a.pdf" .
+                  " --pages 11-pages-with-labels.pdf 8-11" .
+                  " minimal.pdf " .
+                  " page-labels-and-outlines.pdf 17-19 --" .
+                  " --static-id"},
+             {$td->STRING => "", $td->EXIT_STATUS => 0});
+$td->runtest("check output",
+             {$td->FILE => "a.pdf"},
+             {$td->FILE => "merge-multiple-labels.pdf"});
 
 $td->runtest("split with shared resources",
              {$td->COMMAND =>
@@ -1409,6 +1736,28 @@ $td->runtest("don't remove shared resources",
 $td->runtest("check output",
              {$td->FILE => "a.pdf"},
              {$td->FILE => "shared-images-errors-1-3-out.pdf"});
+
+show_ntests();
+# ----------
+$td->notify("--- Collating ---");
+my @collate = (
+    ["three-files", "collate-odd",
+     "collate-odd.pdf 1-5 minimal.pdf collate-even.pdf 7-1"],
+    );
+$n_tests += 2 * scalar(@collate);
+
+foreach my $d (@collate)
+{
+    my ($description, $first, $args) = @$d;
+    $td->runtest("collate pages: $description",
+                 {$td->COMMAND =>
+                      "qpdf --qdf --static-id --collate $first.pdf" .
+                      " --pages $args -- a.pdf"},
+                 {$td->STRING => "", $td->EXIT_STATUS => 0});
+    $td->runtest("check output",
+                 {$td->FILE => "a.pdf"},
+                 {$td->FILE => "$description-collate-out.pdf"});
+}
 
 show_ntests();
 # ----------
@@ -1502,6 +1851,43 @@ $td->runtest("get data",
 
 show_ntests();
 # ----------
+$td->notify("--- Image Optimization ---");
+my @image_opt = (
+    ['image-streams', 'image-streams', ''],
+    ['small-images', 'defaults', ''],
+    ['small-images', 'min-width',
+     '--oi-min-width=150 --oi-min-height=0 --oi-min-area=0'],
+    ['small-images', 'min-height',
+     '--oi-min-width=0 --oi-min-height=150 --oi-min-area=0'],
+    ['small-images', 'min-area',
+     '--oi-min-width=0 --oi-min-height=0 --oi-min-area=30000'],
+    ['small-images', 'min-area-all',
+     '--oi-min-width=0 --oi-min-height=0 --oi-min-area=30000'],
+    );
+
+$n_tests += 2 * scalar(@image_opt);
+
+foreach my $d (@image_opt)
+{
+    my ($f, $description, $args) = @$d;
+
+    $td->runtest("optimize images: $description",
+                 {$td->COMMAND =>
+                      "qpdf --static-id --optimize-images --verbose" .
+                      " $args $f.pdf a.pdf",
+                      $td->FILTER => "perl filter-optimize-images.pl"},
+                 {$td->FILE => "optimize-images-$description.out",
+                      $td->EXIT_STATUS => 0},
+                 $td->NORMALIZE_NEWLINES);
+    $td->runtest("check json: $description",
+                 {$td->COMMAND => "qpdf --json --json-key=pages a.pdf"},
+                 {$td->FILE => "optimize-images-$description-json.out",
+                      $td->EXIT_STATUS => 0},
+                 $td->NORMALIZE_NEWLINES);
+}
+
+show_ntests();
+# ----------
 $td->notify("--- Preserve unreferenced objects ---");
 $n_tests += 6;
 
@@ -1535,7 +1921,7 @@ foreach my $d ([25, 1], [26, 2], [27, 3])
     my ($testn, $outn) = @$d;
     $td->runtest("copy objects $outn",
                  {$td->COMMAND => "test_driver $testn" .
-                      " copy-foreign-objects-in.pdf minimal.pdf"},
+                      " minimal.pdf copy-foreign-objects-in.pdf"},
                  {$td->STRING => "test $testn done\n", $td->EXIT_STATUS => 0},
                  $td->NORMALIZE_NEWLINES);
     $td->runtest("check output",
@@ -1972,7 +2358,7 @@ $td->runtest("stream detected",
 show_ntests();
 # ----------
 $td->notify("--- Extraction Tests ---");
-$n_tests += 11;
+$n_tests += 12;
 
 $td->runtest("show xref",
 	     {$td->COMMAND => "qpdf encrypted-with-images.pdf" .
@@ -2045,6 +2431,12 @@ $td->runtest("show-xref-by-id-filtered",
 		  " --show-object=12 --filtered-stream-data"},
 	     {$td->FILE => "show-xref-by-id-filtered.out",
 	      $td->EXIT_STATUS => 0});
+
+$td->runtest("show trailer",
+	     {$td->COMMAND => "qpdf minimal.pdf --show-object=trailer"},
+	     {$td->FILE => "show-trailer.out",
+	      $td->EXIT_STATUS => 0},
+             $td->NORMALIZE_NEWLINES);
 
 show_ntests();
 # ----------
@@ -2847,10 +3239,36 @@ foreach my $file (@files)
 			 {$td->STRING => "",
 			  $td->EXIT_STATUS => 0});
 
+            # This test is fragile on Windows for unknown reasons.
+            # Sometimes the output of qpdf --check is truncated yet
+            # qpdf --check still exits normally. As a workaround, try
+            # writing the output of qpdf --check to a file and test
+            # for truncation. If we get a non-truncated output, use
+            # that output as the test input. If this loop fails to
+            # produce a non-truncated output, the truncated or
+            # otherwise incorrect output will still be used as the
+            # test input, so the test will fail as it should. We lose
+            # a check of qpdf --check's output, but it's not important
+            # for this test to verify that.
+            unlink "check.tmpout";
+            for (my $i = 0; $i < 5; ++$i)
+            {
+                if ((system("qpdf --check a.pdf > check.tmpout") == 0) &&
+                    open(F, "<check.tmpout"))
+                {
+                    local $/ = undef;
+                    my $text = <F>;
+                    close(F);
+                    if ($text =~ m/No syntax or stream/)
+                    {
+                        last;
+                    }
+                }
+                sleep 1;
+            }
 	    $td->runtest("check status",
-			 {$td->COMMAND => "qpdf --check a.pdf"},
-			 {$td->FILE => "$base.$n$osuf.check",
-			  $td->EXIT_STATUS => 0},
+			 {$td->FILE => "check.tmpout"},
+			 {$td->FILE => "$base.$n$osuf.check"},
 			 $td->NORMALIZE_NEWLINES);
 
 	    $td->runtest("check with C API",
@@ -3070,6 +3488,37 @@ sub show_ntests
     {
 	$td->emphasize("tests so far: ". calc_ntests());
     }
+    # Calling cleanup here helps to ensure that sections of the test
+    # suite are isolated.
+    cleanup();
+}
+
+sub bash_completion
+{
+    my ($line, $point) = @_;
+    if (! defined $point)
+    {
+        $point = length($line);
+    }
+    my $before_point = substr($line, 0, $point);
+    $before_point =~ m/^(.*)([ =])([^= ]*)$/ or die;
+    my ($first, $sep, $cur) = ($1, $2, $3);
+    my $prev = ($sep eq '=' ? $sep : $first);
+    $prev =~ s/.* (\S+)$/$1/;
+    my $this = $first;
+    $this =~ s/(\S+)\s.*/$1/;
+    ['env', "COMP_LINE=$line", "COMP_POINT=$point",
+     "qpdf", $this, $cur, $prev];
+}
+
+sub zsh_completion
+{
+    my ($line, $point) = @_;
+    if (! defined $point)
+    {
+        $point = length($line);
+    }
+    ['env', "COMP_LINE=$line", "COMP_POINT=$point", "qpdf"];
 }
 
 sub check_pdf
@@ -3186,5 +3635,5 @@ sub get_md5_checksum
 sub cleanup
 {
     system("rm -rf *.ps *.pnm ?.pdf ?.qdf *.enc* tif1 tif2 tiff-cache");
-    system("rm -rf *split-out* ???-kfo.pdf");
+    system("rm -rf *split-out* ???-kfo.pdf *.tmpout \@file.pdf");
 }

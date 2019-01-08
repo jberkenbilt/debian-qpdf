@@ -1,39 +1,7 @@
 Soon
 ====
 
- * Figure out how to render Gajić correctly in the PDF version of the
-   qpdf manual.
-
- * Add method to push inheritable resources to a single page by
-   walking up and copying without overwrite.  Above logic will also be
-   sufficient to fix the limitation in
-   QPDFObjectHandle::getPageImages().  Maybe add a method to get the
-   effective resources for a page without modifying the page and then
-   implement both changes in terms of that method.
-
- * Support user-pluggable stream filters.  This would enable external
-   code to provide interpretation for filters that are missing from
-   qpdf.  Make it possible for user-provided filters to override
-   built-in filters.  Make sure that the pluggable filters can be
-   prioritized so that we can poll all registered filters to see
-   whether they are capable of filtering a particular stream.
-
- * If possible, consider adding CCITT3, CCITT4, or any other easy
-   filters. For some reference code that we probably can't use but may
-   be handy anyway, see
-   http://partners.adobe.com/public/developer/ps/sdk/index_archive.html
-
- * If possible, support the following types of broken files:
-
-    - Files that have no whitespace token after "endobj" such that
-      endobj collides with the start of the next object
-
-    - See ../misc/broken-files
-
- * Some qpdf --check tests are fragile on Windows. The output gets
-   truncated. This happens in the loop for content preservation tests.
-   Figure out the source of the fragility.
-
+ * Set up OSS-Fuzz (Google). See starred email in qpdf label.
 
 Next ABI
 ========
@@ -78,6 +46,42 @@ Page splitting/merging
    Subramanyam provided a test file; see ../misc/article-threads.pdf.
    Email Q-Count: 431864 from 2009-11-03.
 
+ * bookmarks (outlines) 12.3.3
+   * support bookmarks when merging
+   * prune bookmarks that don't point to a surviving page when merging
+     or splitting
+   * make sure conflicting named destinations work possibly test by
+     including the same file by two paths in a merge
+
+   When pruning outlines, keep all outlines in the hierarchy that are
+   above an outline for a page we care about. If one of the ancestor
+   outlines points to a non-existent page, clear its dest. If an
+   outline does not have any children that point to pages in the
+   document, just omit it.
+
+   Possible strategy:
+   * resolve all named destinations to explicit destinations
+   * concatenate top-level outlines
+   * prune outlines whose dests don't point to a valid page
+   * recompute all /Count fields
+
+   Test files
+   * page-labels-and-outlines.pdf: old file with both page labels and
+     outlines. All destinations are explicit destinations. Each page
+     has Potato and a number. All titles are feline names.
+   * outlines-with-actions.pdf: mixture of explicit destinations,
+     named destinations, goto actions with explicit destinations, and
+     goto actions with named destinations; uses /Dests key in names
+     dictionary. Each page has Salad and a number. All titles are
+     silly words. One destination is an indirect object.
+   * outlines-with-old-root-dests.pdf: like outlines-with-actions
+     except it uses the PDF-1.1 /Dests dictionary for named
+     destinations, and each page has Soup and a number. Also pages are
+     numbered with upper-case Roman numerals starting with 0. All
+     titles are silly words preceded by a bullet.
+
+ * Form fields: should be similar to outlines.
+
 General
 =======
 
@@ -86,9 +90,58 @@ directory or that are otherwise not publicly accessible. This includes
 things sent to me by email that are specifically not public. Even so,
 I find it useful to make reference to them in this list
 
+ * Add support for writing name and number trees
+
+ * Figure out how to render Gajić correctly in the PDF version of the
+   qpdf manual.
+
+ * Add method to push inheritable resources to a single page by
+   walking up and copying without overwrite.  Above logic will also be
+   sufficient to fix the limitation in
+   QPDFObjectHandle::getPageImages().  Maybe add a method to get the
+   effective resources for a page without modifying the page and then
+   implement both changes in terms of that method.
+
+ * Support user-pluggable stream filters.  This would enable external
+   code to provide interpretation for filters that are missing from
+   qpdf.  Make it possible for user-provided filters to override
+   built-in filters.  Make sure that the pluggable filters can be
+   prioritized so that we can poll all registered filters to see
+   whether they are capable of filtering a particular stream.
+
+ * If possible, consider adding CCITT3, CCITT4, or any other easy
+   filters. For some reference code that we probably can't use but may
+   be handy anyway, see
+   http://partners.adobe.com/public/developer/ps/sdk/index_archive.html
+
+ * If possible, support the following types of broken files:
+
+    - Files that have no whitespace token after "endobj" such that
+      endobj collides with the start of the next object
+
+    - See ../misc/broken-files
+
+ * Additional form features
+   * set value from CLI? Specify title, and provide way to
+     disambiguate, probably by giving objgen of field
+
+ * replace mode: --replace-object, --replace-stream-raw,
+   --replace-stream-filtered
+   * update first paragraph of QPDF JSON in the manual to mention this
+   * object numbers are not preserved by write, so object ID lookup
+     has to be done separately for each invocation
+   * you don't have to specify length for streams
+   * you only have to specify filtering for streams if providing raw data
+
  * Pl_TIFFPredictor is pretty slow.
 
- * Some test cases on bad fails fail because qpdf is unable to find
+ * If we ever wanted to do anything more with character encoding, see
+   ../misc/character-encoding/, which includes machine-readable dump
+   of table D.2 in the ISO-32000 PDF spec. This shows the mapping
+   between Unicode, StandardEncoding, WinAnsiEncoding,
+   MacRomanEncoding, and PDFDocEncoding.
+
+ * Some test cases on bad files fail because qpdf is unable to find
    the root dictionary when it fails to read the trailer. Recovery
    could find the root dictionary and even the info dictionary in
    other ways. In particular, issue-202.pdf can be opened by evince,
@@ -113,39 +166,13 @@ I find it useful to make reference to them in this list
    for "Regarding write functionality", and read that comment and the
    responses to it.
 
- * Form flattening: there is on-going work on this topic. The primary
-   tracking issue is https://github.com/qpdf/qpdf/issues/72, and there
-   has also been discussion in private email threads. My notes are
-   summarized in ../misc/form-flattening/README (not publicly
-   accessible), but all important information is in issues in github.
-   The non-public items in my notes are transcripts of discussions
-   with a google summer of code student who was working on the issue.
-   These notes likely have low value at this point, but I have saved
-   them to review in case form flattening ever moves into the qpdf
-   library from external tools where it is currently being
-   implemented. Note that flattening forms with appearance streams is
-   relatively straightforward, but many PDF files don't have
-   appearance streams and leave rendering of the form fields to the
-   viewer. Handling this in the general case is probably out of scope
-   for what will be in qpdf in the foreseeable future, particularly in
-   the area of embedding and subsetting fonts.
-
  * Look at ~/Q/pdf-collection/forms-from-appian/
-
- * Look at Travis-CI for qpdf. See email from Travis-CI in pending.
-
- * https://github.com/qpdf/qpdf/pull/172 contains information about
-   running through MacPorts's CI.
 
  * Consider adding "uninstall" target to makefile. It should only
    uninstall what it installed, which means that you must run
    uninstall from the version you ran install with. It would only be
    supported for the toolchains that support the install target
    (libtool).
-
- * Figure out how to find Visual Studio in Windows registry and see if
-   I can get it to work with make so I can simplify creation of
-   Windows releases.
 
  * Provide support in QPDFWriter for writing incremental updates.
    Provide support in qpdf for preserving incremental updates.  The
@@ -185,8 +212,6 @@ I find it useful to make reference to them in this list
    with the same inputs.  Caching the results or refactoring to reduce
    the number of identical calls could improve performance for
    workloads that involve processing large numbers of small files.
-
- * Consider providing a Windows installer for qpdf using NSIS.
 
  * Consider adding a method to balance the pages tree.  It would call
    pushInheritedAttributesToPage, construct a pages tree from scratch,
@@ -277,14 +302,6 @@ I find it useful to make reference to them in this list
    viewing software silently ignores objects of this type, so this is
    probably not a big deal.
 
- * If we ever want to have check mode check the integrity of the free
-   list, this can be done by looking at the code from prior to the
-   object stream support of 4/5/2008.  It's in an if (0) block and
-   there's a comment about it.  There's also something about it in
-   qpdf.test -- search for "free table".  On the other hand, the value
-   of doing this seems very low since no viewer seems to care, so it's
-   probably not worth it.
-
  * QPDFObjectHandle::getPageImages() doesn't notice images in
    inherited resource dictionaries.  See comments in that function.
 
@@ -299,4 +316,48 @@ I find it useful to make reference to them in this list
    hint stream contents. Consider adding on option to provide a
    human-readable dump of linearization hint tables. This should
    include improving the 'overflow reading bit stream' message as
-   reported in issue #2.
+   reported in issue #2. There are multiple calls to stopOnError in
+   the linearization checking code. Ideally, these should not
+   terminate checking. It would require re-acquiring an understanding
+   of all that code to make the checks more robust. In particular,
+   it's hard to look at the code and quickly determine what is a true
+   logic error and what could happen because of malformed user input.
+
+ * There are a few known limitations of copying foreign streams. These
+   are somewhat discussed in github issue 219. They are most likely
+   not worth fixing.
+
+   * The original pipeStreamData in QPDF_Stream has various logic for
+     reporting warnings and letting the caller retry. This logic is
+     not implemented for stream data providers. When copying foreign
+     streams, qpdf uses a stream data provider
+     (QPDF::CopiedStreamDataProvider) to read the stream data from the
+     original file. While a warning is issued for that case, there is
+     no way to actually propagate failure information back through
+     because StreamDataProvider::provideStreamData doesn't take the
+     suppress_warnings or will_retry options, and adding them would
+     break source compatibility.
+
+   * When copying streams that use StreamDataProvider provider, the
+     original QPDF object must still be kept around. This is the case
+     of where QPDF q1 has a stream for which replaceStreamData was
+     called to provide a StreamDataProvider, and then that stream from
+     q1 was subsequently copied to q2. In that case, q1 must be kept
+     around until q2 is written. That is a pretty unusual case as,
+     most of the time, people could just attach the stream data
+     provider directly to the q2. That said, it actually appears in
+     qpdf itself. qpdf allows you to combine the --pages and --split
+     options. In that case, a merged file, which uses
+     StreamDataProvider to access the original stream, is subsequently
+     copied to the final split output files. Solving this restriction
+     is difficult and would probably require breaking source
+     compatibility because QPDF_Stream doesn't have enough information
+     to know whether the original QPDF object is needed by the
+     stream's data provider. Also, the interface is designed to pass
+     the object ID and generation of the object whose data is being
+     provided so the provider can use it for lookup or any other
+     purpose. As such, copying a stream data provider to a new stream
+     potentially changes the meaning of the parameters passed to the
+     provider. This happens with CopiedStreamDataProvider, which uses
+     the object ID and generation of the new stream to locate the
+     parameters of the old stream.

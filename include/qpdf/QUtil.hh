@@ -1,4 +1,4 @@
-// Copyright (c) 2005-2018 Jay Berkenbilt
+// Copyright (c) 2005-2019 Jay Berkenbilt
 //
 // This file is part of qpdf.
 //
@@ -26,6 +26,7 @@
 #include <qpdf/Types.h>
 #include <string>
 #include <list>
+#include <vector>
 #include <stdexcept>
 #include <stdio.h>
 #include <time.h>
@@ -151,6 +152,24 @@ namespace QUtil
     QPDF_DLL
     std::string toUTF16(unsigned long uval);
 
+    // Convert a UTF-8 encoded string to UTF-16. Unrepresentable code
+    // points are converted to U+FFFD.
+    QPDF_DLL
+    std::string utf8_to_utf16(std::string const& utf8);
+
+    // Convert a UTF-8 encoded string to the specified single-byte
+    // encoding system by replacing all unsupported characters with
+    // the given unknown_char.
+    QPDF_DLL
+    std::string utf8_to_ascii(
+        std::string const& utf8, char unknown_char = '?');
+    QPDF_DLL
+    std::string utf8_to_win_ansi(
+        std::string const& utf8, char unknown_char = '?');
+    QPDF_DLL
+    std::string utf8_to_mac_roman(
+        std::string const& utf8, char unknown_char = '?');
+
     // If secure random number generation is supported on your
     // platform and qpdf was not compiled with insecure random number
     // generation, this returns a cryptographically secure random
@@ -220,6 +239,11 @@ namespace QUtil
 
     QPDF_DLL
     bool is_number(char const*);
+
+    // This method parses the numeric range syntax used by the qpdf
+    // command-line tool. May throw std::runtime_error.
+    QPDF_DLL
+    std::vector<int> parse_numrange(char const* range, int max);
 };
 
 #endif // QUTIL_HH

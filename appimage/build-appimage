@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright (c) 2018 Jay Berkenbilt and Kurt Pfeifle
+# Copyright (c) 2019 Jay Berkenbilt and Kurt Pfeifle
 #
 # This script is mainly meant to build an 'AppImage' from GitHub
 # sources of QPDF via Travis CI on an Ubuntu Trusty (14.04) LTS system
@@ -83,7 +83,6 @@ appdir=$here/build/appdir
 rm -rf $here/build
 
 # Prepare build of QPDF from sources:
-./autogen.sh
 ./configure --prefix=/usr --enable-werror \
             --enable-show-failed-test-output \
             --enable-html-doc --enable-pdf-doc "$CUSTOM_CONFIGURE"

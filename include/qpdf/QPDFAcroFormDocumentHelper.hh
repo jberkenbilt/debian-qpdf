@@ -1,4 +1,4 @@
-// Copyright (c) 2005-2018 Jay Berkenbilt
+// Copyright (c) 2005-2019 Jay Berkenbilt
 //
 // This file is part of qpdf.
 //
@@ -85,6 +85,10 @@ class QPDFAcroFormDocumentHelper: public QPDFDocumentHelper
   public:
     QPDF_DLL
     QPDFAcroFormDocumentHelper(QPDF&);
+    QPDF_DLL
+    virtual ~QPDFAcroFormDocumentHelper()
+    {
+    }
 
     // This class lazily creates an internal cache of the mapping
     // among form fields, annotations, and pages. Methods within this
@@ -152,6 +156,16 @@ class QPDFAcroFormDocumentHelper: public QPDFDocumentHelper
     // this method unless you tell it not to.
     QPDF_DLL
     void setNeedAppearances(bool);
+
+    // If /NeedAppearances is false, do nothing. Otherwise generate
+    // appearance streams for all widget annotations that need them.
+    // See comments in QPDFFormFieldObjectHelper.hh for
+    // generateAppearance for limitations. For checkbox and radio
+    // button fields, this code ensures that appearance state is
+    // consistent with the field's value and uses any pre-existing
+    // appearance streams.
+    QPDF_DLL
+    void generateAppearancesIfNeeded();
 
   private:
     void analyze();

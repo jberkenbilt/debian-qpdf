@@ -10,9 +10,9 @@ Debugging:
 
 Memory checks:
 
-./configure CFLAGS="-fsanitize=address -g" \
-   CXXFLAGS="-fsanitize=address -g" \
-   LDFLAGS="-fsanitize=address" \
+./configure CFLAGS="-fsanitize=address -fsanitize=undefined -g" \
+   CXXFLAGS="-fsanitize=address -fsanitize=undefined -g" \
+   LDFLAGS="-fsanitize=address -fsanitize=undefined" \
    --enable-werror --disable-shared
 
 
@@ -30,7 +30,7 @@ RELEASE PREPARATION
 
 * Each year, update copyright notices. Just do a case-insensitive
   search for copyright. Don't forget copyright in manual. Also update
-  debian copyright in debian package. Last updated: 2018.
+  debian copyright in debian package. Last updated: 2019.
 
 * Check all open issues in the sourceforge trackers and on github.
 
@@ -40,7 +40,7 @@ RELEASE PREPARATION
 * Run a spelling checker over the source code to catch errors in
   variable names, strings, and comments.
 
-  ispell -p ispell-words **/*.hh **/*.cc manual/* ChangeLog
+  ispell -p ispell-words **/*.hh **/*.cc manual/* ChangeLog README*
 
 * If needed, run large file and image comparison tests. Configure
   options:
@@ -107,59 +107,15 @@ RELEASE PREPARATION
 
 CREATING A RELEASE
 
-* Be sure that the local git clone's HEAD is a commit that has
-  upstream/master as an ancestor and that can be pushed to my fork. We
-  will be generating releases and tagging this commit, which will be
-  pushed to master as part of the release process.
+* Push to master. The azure pipeline will create an artifact called
+  distribution which will contain all the distribution files. Download
+  these, verify the checksums from the job output, rename to remove
+  -ci from the names, and copy to the release archive area.
 
-* Create source release:
+* Sign the source distribution:
 
 version=x.y.z
-./make_dist $version
-gpg --detach-sign --armor /tmp/qpdf-$version.tar.gz
-
-  Move /tmp/qpdf-$version.tar.gz and /tmp/qpdf-$version.tar.gz.asc to
-  the release archive area.
-
-  For iterating on the release during testing, pass `--no-tests` to
-  make_dist to skip the test suite.
-
-* Generate an AppImage using the docker image in appimage. Arguments
-  to the docker container are arguments to git clone. The build should
-  be made off the exact commit that will be officially tagged as the
-  release but built prior to tagging the release. We used to create
-  signed AppImages, but this is problematic for various reasons (older
-  gpg on the build image, problems embedding the key in the AppImage
-  because of ELF issues), and we are signing the AppImages externally,
-  so it doesn't really matter.
-
-  Example:
-
-cd appimage
-docker build -t qpdfbuild .
-\rm -rf /tmp/build
-mkdir -p /tmp/build
-docker run --privileged -ti --rm -v /tmp/build:/tmp/build qpdfbuild https://github.com/jberkenbilt/qpdf -b work
-
-  The AppImage in /tmp/build/qpdf/appimage/build should be called
-  qpdf-$version-x86_64.AppImage. Copy qpdf*AppImage* (AppImage and
-  zsync) files to the release archive area.
-
-* Create Windows binary releases. In Windows:
-  * Extract the source distribution
-  * From there, unzip the binary distribution of the external libraries
-  * Open windows for 32-bit and 64-bit compilation environments that
-    support msvc and mingw
-  * Disable antivirus software. For bitdefender, open, select the "B"
-    shield, and go to "View Features". Disable all features. Disable
-    antivirus until next restart.
-  * In each window simultaneously, run ./make_windows_releases
-    * NOTE: For now, test failures are not fatal because of unknown
-      fragility in the Windows test environment. If any tests fail,
-      test logs are copied to qtest-*. Check test logs carefully
-      before accepting the releases.
-  * Copy the four resulting zip files into the release archive area
-  * Re-enable anti-virus software
+gpg --detach-sign --armor qpdf-$version.tar.gz
 
 * Build and test the debian package
 
@@ -181,18 +137,24 @@ chmod 555 *.AppImage
   `README-what-to-download.md` separately onto the download area if
   needed.
 
-* Push the master branch to github. Create and push a signed tag. This
-  should be run with HEAD pointing to the tip of master.
+* Ensure that the master branch has been to github. The rev-parse
+  command below should show the same commit hash for all its
+  arguments. Create and push a signed tag. This should be run with
+  HEAD pointing to the tip of master.
 
-git rev-parse master @
-git push upstream master
-git tag -s release-qpdf-$version HEAD -m"qpdf $version"
+git rev-parse master upstream/master @
+git tag -s release-qpdf-$version @ -m"qpdf $version"
 git push upstream release-qpdf-$version
+
+* In Azure Pipelines, retain the build that was used to generate the
+  release.
 
 * Create a github release after pushing the tag. `gcurl` is an alias
   that includes the auth token.
 
 # Create release
+TOKEN=$(cat ~/.github-token)
+function gcurl() { curl -H "Authorization: token $TOKEN" ${1+"$@"} }
 url=$(gcurl -s -XPOST https://api.github.com/repos/qpdf/qpdf/releases -d'{"tag_name": "release-qpdf-'$version'", "name": "qpdf '$version'", "draft": true}' | jq -r '.url')
 
 # Get upload url
@@ -228,7 +190,6 @@ OTHER NOTES
 To construct a source distribution from a pristine checkout,
 `make_dist` does the following:
 
-./autogen.sh
 ./configure --enable-doc-maintenance --enable-werror
 make build_manual
 make distclean
@@ -269,10 +230,10 @@ If building or editing documentation, configure with
 `--enable-doc-maintenance`. This will ensure that all tools or files
 required to validate and build documentation are available.
 
-If you want to run `make maintainer-clean`, `make distclean`, or `make
-autofiles.zip` and you haven't run `./configure`, you can pass
-`CLEAN=1` to make on the command line to prevent it from complaining
-about configure not having been run.
+If you want to run `make maintainer-clean` or `make distclean` and you
+haven't run `./configure`, you can pass `CLEAN=1` to make on the
+command line to prevent it from complaining about configure not having
+been run.
 
 If you want to run checks without rerunning the build, pass
 `NO_REBUILD=1` to make. This can be useful for special testing
@@ -283,10 +244,8 @@ LOCAL WINDOWS TESTING PROCEDURE
 
 This is what I do for routine testing on Windows.
 
-From Linux, run `./autogen.sh` and `make autofiles.zip CLEAN=1`.
-
-From Windows, git clone from my Linux clone, unzip `external-libs`,
-and unzip `autofiles.zip`.
+From Windows, git clone from my Linux clone, and unzip
+`external-libs`.
 
 Look at `make_windows_releases`. Set up path the same way and run
 whichever `./config-*` is appropriate for whichever compiler I need to

@@ -17,11 +17,18 @@ class QPDF_Stream: public QPDFObject
 		qpdf_offset_t offset, size_t length);
     virtual ~QPDF_Stream();
     virtual std::string unparse();
+    virtual JSON getJSON();
     virtual QPDFObject::object_type_e getTypeCode() const;
     virtual char const* getTypeName() const;
     virtual void setDescription(QPDF*, std::string const&);
     QPDFObjectHandle getDict() const;
     bool isDataModified() const;
+
+    // Methods to help QPDF copy foreign streams
+    qpdf_offset_t getOffset() const;
+    size_t getLength() const;
+    PointerHolder<Buffer> getStreamDataBuffer() const;
+    PointerHolder<QPDFObjectHandle::StreamDataProvider> getStreamDataProvider() const;
 
     // See comments in QPDFObjectHandle.hh for these methods.
     bool pipeStreamData(Pipeline*,

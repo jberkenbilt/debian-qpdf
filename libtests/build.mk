@@ -10,8 +10,11 @@ BINS_libtests = \
 	flate \
 	hex \
 	input_source \
+	json \
 	lzw \
+	matrix \
 	md5 \
+	numrange \
 	pointer_holder \
 	predictors \
 	qutil \
