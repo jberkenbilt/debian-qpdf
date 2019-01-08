@@ -19,7 +19,7 @@ override_dh_auto_clean:
 override_dh_auto_configure:
 	dh_auto_configure -- \
 	  --libdir="\$${prefix}/lib/$(DEB_HOST_MULTIARCH)" \
-	  --enable-show-failed-test-output
+	  --enable-show-failed-test-output --disable-check-autofiles
 
 override_dh_install:
 	dh_install
