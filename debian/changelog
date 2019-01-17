@@ -1,3 +1,10 @@
+qpdf (8.3.0-2) unstable; urgency=medium
+
+  * Fix potential data loss. The change is already in master. Details in
+    https://github.com/qpdf/qpdf/issues/276
+
+ -- Jay Berkenbilt <qjb@debian.org>  Thu, 17 Jan 2019 10:52:00 -0500
+
 qpdf (8.3.0-1) unstable; urgency=medium
 
   * New upstream release.
