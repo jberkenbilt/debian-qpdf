@@ -160,6 +160,39 @@ class QPDF
     QPDF_DLL
     void setAttemptRecovery(bool);
 
+    // Tell other QPDF objects that streams copied from this QPDF need
+    // to be fully copied when copyForeignObject is called on them.
+    // Calling setIgnoreXRefStreams(true) on a QPDF object makes it
+    // possible for the object and its input source to disappear
+    // before streams copied from it are written with the destination
+    // QPDF object. Confused? Ordinarily, if you are going to copy
+    // objects from a source QPDF object to a destination QPDF object
+    // using copyForeignObject or addPage, the source object's input
+    // source must stick around until after the destination PDF is
+    // written. If you call this method on the source QPDF object, it
+    // sends a signal to the destination object that it must fully
+    // copy the stream data when copyForeignObject. It will do this by
+    // making a copy in RAM. Ordinarily the stream data is copied
+    // lazily to avoid unnecessary duplication of the stream data.
+    // Note that the stream data is copied into RAM only once
+    // regardless of how many objects the stream is copied into. The
+    // result is that, if you called setImmediateCopyFrom(true) on a
+    // given QPDF object prior to copying any of its streams, you do
+    // not need to keep it or its input source around after copying
+    // its objects to another QPDF. This is true even if the source
+    // streams use StreamDataProvider. Note that this method is called
+    // on the QPDF object you are copying FROM, not the one you are
+    // copying to. The reasoning for this is that there's no reason a
+    // given QPDF may not get objects copied to it from a variety of
+    // other objects, some transient and some not. Since what's
+    // relevant is whether the source QPDF is transient, the method
+    // must be called on the source QPDF, not the destination one.
+    // Since this method will make a copy of the stream in RAM, so be
+    // sure you have enough memory to simultaneously hold all the
+    // streams you're copying.
+    QPDF_DLL
+    void setImmediateCopyFrom(bool);
+
     // Other public methods
 
     // Return the list of warnings that have been issued so far and
@@ -169,6 +202,16 @@ class QPDF
     // here will have already been output.
     QPDF_DLL
     std::vector<QPDFExc> getWarnings();
+
+    // Return an application-scoped unique ID for this QPDF object.
+    // This is not a globally unique ID. It is constructing using a
+    // timestamp and a random number and is intended to be unique
+    // among QPDF objects that are created by a single run of an
+    // application. While it's very likely that these are actually
+    // globally unique, it is not recommended to use them for
+    // long-term purposes.
+    QPDF_DLL
+    unsigned long long getUniqueId() const;
 
     QPDF_DLL
     std::string getFilename() const;
@@ -248,15 +291,28 @@ class QPDF
     // original stream's QPDF object must stick around because the
     // QPDF object is itself the source of the original stream data.
     // For a more in-depth discussion, please see the TODO file.
+    // Starting in 8.4.0, you can call setImmediateCopyFrom(true) on
+    // the SOURCE QPDF object (the one you're copying FROM). If you do
+    // this prior to copying any of its objects, then neither the
+    // source QPDF object nor its input source needs to stick around
+    // at all regardless of the source. The cost is that the stream
+    // data is copied into RAM at the time copyForeignObject is
+    // called. See setImmediateCopyFrom for more information.
     //
     // The return value of this method is an indirect reference to the
     // copied object in this file. This method is intended to be used
-    // to copy non-page objects and will not copy page objects. To
-    // copy page objects, pass the foreign page object directly to
-    // addPage (or addPageAt). If you copy objects that contain
-    // references to pages, you should copy the pages first using
-    // addPage(At). Otherwise references to the pages that have not
-    // been copied will be replaced with nulls.
+    // to copy non-page objects. To copy page objects, pass the
+    // foreign page object directly to addPage (or addPageAt). If you
+    // copy objects that contain references to pages, you should copy
+    // the pages first using addPage(At). Otherwise references to the
+    // pages that have not been copied will be replaced with nulls. It
+    // is possible to use copyForeignObject on page objects if you are
+    // not going to use them as pages. Doing so copies the object
+    // normally but does not update the page structure. For example,
+    // it is a valid use case to use copyForeignObject for a page that
+    // you are going to turn into a form XObject, though you can also
+    // use QPDFPageObjectHelper::getFormXObjectForPage for that
+    // purpose.
 
     // When copying objects with this method, object structure will be
     // preserved, so all indirectly referenced indirect objects will
@@ -477,15 +533,16 @@ class QPDF
     void optimize(std::map<int, int> const& object_stream_data,
 		  bool allow_changes = true);
 
-    // Traverse page tree return all /Page objects. For efficiency,
-    // this method returns a const reference to an internal vector of
-    // pages. Calls to addPage, addPageAt, and removePage safely
-    // update this, but directly manipulation of the pages three or
-    // pushing inheritable objects to the page level may invalidate
-    // it. See comments for updateAllPagesCache() for additional
-    // notes. Newer code should use
-    // QPDFPageDocumentHelper::getAllPages instead. The decision to
-    // expose this internal cache was arguably incorrect, but it is
+    // Traverse page tree return all /Page objects. It also detects
+    // and resolves cases in which the same /Page object is
+    // duplicated. For efficiency, this method returns a const
+    // reference to an internal vector of pages. Calls to addPage,
+    // addPageAt, and removePage safely update this, but directly
+    // manipulation of the pages three or pushing inheritable objects
+    // to the page level may invalidate it. See comments for
+    // updateAllPagesCache() for additional notes. Newer code should
+    // use QPDFPageDocumentHelper::getAllPages instead. The decision
+    // to expose this internal cache was arguably incorrect, but it is
     // being left here for compatibility. It is, however, completely
     // safe to use this for files that you are not modifying.
     QPDF_DLL
@@ -841,10 +898,9 @@ class QPDF
     // methods to support page handling
 
     void getAllPagesInternal(QPDFObjectHandle cur_pages,
-			     std::vector<QPDFObjectHandle>& result);
-    void getAllPagesInternal2(QPDFObjectHandle cur_pages,
-                              std::vector<QPDFObjectHandle>& result,
-                              std::set<QPDFObjGen>& visited);
+                             std::vector<QPDFObjectHandle>& result,
+                             std::set<QPDFObjGen>& visited,
+                             std::set<QPDFObjGen>& seen);
     void insertPage(QPDFObjectHandle newpage, int pos);
     int findPage(QPDFObjGen const& og);
     int findPage(QPDFObjectHandle& page);
@@ -875,9 +931,10 @@ class QPDF
 	QPDFObjectHandle& stream_dict, bool is_attachment_stream,
 	std::vector<PointerHolder<Pipeline> >& heap);
 
-    // Methods to support object copying
+    // Unused copyForeignObject -- remove at next ABI change
     QPDFObjectHandle copyForeignObject(
-        QPDFObjectHandle foreign, bool allow_page);
+        QPDFObjectHandle foreign, bool unused);
+    // Methods to support object copying
     void reserveObjects(QPDFObjectHandle foreign, ObjCopier& obj_copier,
                         bool top);
     QPDFObjectHandle replaceForeignIndirectObjects(
@@ -1231,11 +1288,6 @@ class QPDF
 	QPDFObjectHandle,
 	std::map<std::string, std::vector<QPDFObjectHandle> >&,
 	std::vector<QPDFObjectHandle>& all_pages,
-	bool allow_changes, bool warn_skipped_keys);
-    void pushInheritedAttributesToPageInternal2(
-	QPDFObjectHandle,
-	std::map<std::string, std::vector<QPDFObjectHandle> >&,
-	std::vector<QPDFObjectHandle>& all_pages,
 	bool allow_changes, bool warn_skipped_keys,
         std::set<QPDFObjGen>& visited);
     void updateObjectMaps(ObjUser const& ou, QPDFObjectHandle oh);
@@ -1283,6 +1335,7 @@ class QPDF
         std::set<QPDFObjGen> attachment_streams;
         bool reconstructed_xref;
         bool fixed_dangling_refs;
+        bool immediate_copy_from;
 
         // Linearization data
         qpdf_offset_t first_xref_item_offset; // actual value from file

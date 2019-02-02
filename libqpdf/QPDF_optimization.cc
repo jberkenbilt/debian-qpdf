@@ -156,13 +156,18 @@ QPDF::pushInheritedAttributesToPage(bool allow_changes, bool warn_skipped_keys)
         return;
     }
 
+    // Calling getAllPages() resolves any duplicated page objects.
+    getAllPages();
+
     // key_ancestors is a mapping of page attribute keys to a stack of
     // Pages nodes that contain values for them.
     std::map<std::string, std::vector<QPDFObjectHandle> > key_ancestors;
     this->m->all_pages.clear();
+    std::set<QPDFObjGen> visited;
     pushInheritedAttributesToPageInternal(
         this->m->trailer.getKey("/Root").getKey("/Pages"),
-        key_ancestors, this->m->all_pages, allow_changes, warn_skipped_keys);
+        key_ancestors, this->m->all_pages, allow_changes, warn_skipped_keys,
+        visited);
     if (! key_ancestors.empty())
     {
         throw std::logic_error(
@@ -174,19 +179,6 @@ QPDF::pushInheritedAttributesToPage(bool allow_changes, bool warn_skipped_keys)
 
 void
 QPDF::pushInheritedAttributesToPageInternal(
-    QPDFObjectHandle cur_pages,
-    std::map<std::string, std::vector<QPDFObjectHandle> >& key_ancestors,
-    std::vector<QPDFObjectHandle>& pages,
-    bool allow_changes, bool warn_skipped_keys)
-{
-    std::set<QPDFObjGen> visited;
-    pushInheritedAttributesToPageInternal2(
-        cur_pages, key_ancestors, pages, allow_changes,
-        warn_skipped_keys, visited);
-}
-
-void
-QPDF::pushInheritedAttributesToPageInternal2(
     QPDFObjectHandle cur_pages,
     std::map<std::string, std::vector<QPDFObjectHandle> >& key_ancestors,
     std::vector<QPDFObjectHandle>& pages,
@@ -208,10 +200,10 @@ QPDF::pushInheritedAttributesToPageInternal2(
 
     if (type == "/Pages")
     {
-	// Make a list of inheritable keys.  Any key other than /Type,
-	// /Parent, Kids, or /Count is an inheritable attribute.  Push
-	// this object onto the stack of pages nodes that have values
-	// for this attribute.
+	// Make a list of inheritable keys. Only the keys /MediaBox,
+	// /CropBox, /Resources, and /Rotate are inheritable
+	// attributes. Push this object onto the stack of pages nodes
+	// that have values for this attribute.
 
 	std::set<std::string> inheritable_keys;
 	std::set<std::string> keys = cur_pages.getKeys();
@@ -288,7 +280,7 @@ QPDF::pushInheritedAttributesToPageInternal2(
 	int n = kids.getArrayNItems();
 	for (int i = 0; i < n; ++i)
 	{
-            pushInheritedAttributesToPageInternal2(
+            pushInheritedAttributesToPageInternal(
                 kids.getArrayItem(i), key_ancestors, pages,
                 allow_changes, warn_skipped_keys, visited);
 	}

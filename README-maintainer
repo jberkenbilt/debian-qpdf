@@ -1,5 +1,7 @@
 ROUTINE DEVELOPMENT
 
+**Remember to check pull requests as well as issues in github.**
+
 Default:
 
 ./configure --enable-werror --disable-shared
@@ -32,7 +34,8 @@ RELEASE PREPARATION
   search for copyright. Don't forget copyright in manual. Also update
   debian copyright in debian package. Last updated: 2019.
 
-* Check all open issues in the sourceforge trackers and on github.
+* Check all open issues and pull requests in github and the
+  sourceforge trackers.
 
 * Check `TODO` file to make sure all planned items for the release are
   done or retargeted.
@@ -40,7 +43,7 @@ RELEASE PREPARATION
 * Run a spelling checker over the source code to catch errors in
   variable names, strings, and comments.
 
-  ispell -p ispell-words **/*.hh **/*.cc manual/* ChangeLog README*
+  ispell -p ispell-words **/*.hh **/*.cc manual/* ChangeLog README* TODO
 
 * If needed, run large file and image comparison tests. Configure
   options:
@@ -85,9 +88,9 @@ RELEASE PREPARATION
 
 * Test for binary compatibility:
   * Check out the last release
-  * ./autogen.sh && ./configure --enable-werror && make -j$(nproc)
+  * ./configure --enable-werror && make -j$(nproc)
   * Check out the current version
-  * ./autogen.sh && ./configure --enable-werror && make -j$(nproc) build_libqpdf
+  * ./configure --enable-werror && make -j$(nproc) build_libqpdf
   * Checkout the last release
   * make -k check NO_REBUILD=1
 
@@ -137,8 +140,8 @@ chmod 555 *.AppImage
   `README-what-to-download.md` separately onto the download area if
   needed.
 
-* Ensure that the master branch has been to github. The rev-parse
-  command below should show the same commit hash for all its
+* Ensure that the master branch has been pushed to github. The
+  rev-parse command below should show the same commit hash for all its
   arguments. Create and push a signed tag. This should be run with
   HEAD pointing to the tip of master.
 

@@ -79,20 +79,12 @@ QPDFPageDocumentHelper::flattenAnnotations(
             "document does not have updated appearance streams,"
             " so form fields will not be flattened");
     }
-    pushInheritedAttributesToPage();
     std::vector<QPDFPageObjectHelper> pages = getAllPages();
     for (std::vector<QPDFPageObjectHelper>::iterator iter = pages.begin();
          iter != pages.end(); ++iter)
     {
         QPDFPageObjectHelper ph(*iter);
-        QPDFObjectHandle page_oh = ph.getObjectHandle();
-        if (page_oh.getKey("/Resources").isIndirect())
-        {
-            QTC::TC("qpdf", "QPDFPageDocumentHelper indirect resources");
-            page_oh.replaceKey("/Resources",
-                               page_oh.getKey("/Resources").shallowCopy());
-        }
-        QPDFObjectHandle resources = ph.getObjectHandle().getKey("/Resources");
+        QPDFObjectHandle resources = ph.getAttribute("/Resources", true);
         if (! resources.isDictionary())
         {
             // This should never happen and is not exercised in the
@@ -141,11 +133,7 @@ QPDFPageDocumentHelper::flattenAnnotationsForPage(
             QTC::TC("qpdf", "QPDFPageDocumentHelper skip widget need appearances");
             process = false;
         }
-        if (process && (! as.isStream()))
-        {
-            process = false;
-        }
-        if (process)
+        if (process && as.isStream())
         {
             if (is_widget)
             {
@@ -167,38 +155,27 @@ QPDFPageDocumentHelper::flattenAnnotationsForPage(
             {
                 QTC::TC("qpdf", "QPDFPageDocumentHelper non-widget annotation");
             }
-            std::set<std::string> names = resources.getResourceNames();
-            std::string name;
-            int max_fx = next_fx + names.size() + 1;
-            while (next_fx <= max_fx)
-            {
-                std::string candidate = "/Fxo" + QUtil::int_to_string(next_fx);
-                if (names.count(candidate) == 0)
-                {
-                    name = candidate;
-                    break;
-                }
-                ++next_fx;
-            }
-            if (name.empty())
-            {
-                // This could only happen if there is a coding error.
-                // The number of candidates we test is more than the
-                // number of keys we're checking against.
-                name = "/FxConflict";
-            }
+            std::string name = resources.getUniqueResourceName(
+                "/Fxo", next_fx);
             std::string content = aoh.getPageContentForAppearance(
                 name, rotate, required_flags, forbidden_flags);
             if (! content.empty())
             {
                 resources.mergeResources(
-                    QPDFObjectHandle::parse(
-                        "<< /XObject << " + name + " null >> >>"));
+                    QPDFObjectHandle::parse("<< /XObject << >> >>"));
                 resources.getKey("/XObject").replaceKey(name, as);
-                names.insert(name);
                 ++next_fx;
             }
             new_content += content;
+        }
+        else if (process)
+        {
+            // If an annotation has no appearance stream, just drop
+            // the annotation when flattening. This can happen for
+            // unchecked checkboxes and radio buttons, popup windows
+            // associated with comments that aren't visible, and other
+            // types of annotations that aren't visible.
+            QTC::TC("qpdf", "QPDFPageDocumentHelper ignore annotation with no appearance");
         }
         else
         {

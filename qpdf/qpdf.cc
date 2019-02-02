@@ -58,6 +58,32 @@ struct RotationSpec
     bool relative;
 };
 
+enum password_mode_e { pm_bytes, pm_hex_bytes, pm_unicode, pm_auto };
+
+struct UnderOverlay
+{
+    UnderOverlay(char const* which) :
+        which(which),
+        filename(0),
+        password(0),
+        to_nr("1-z"),
+        from_nr("1-z"),
+        repeat_nr("")
+    {
+    }
+
+    std::string which;
+    char const* filename;
+    char const* password;
+    char const* to_nr;
+    char const* from_nr;
+    char const* repeat_nr;
+    PointerHolder<QPDF> pdf;
+    std::vector<int> to_pagenos;
+    std::vector<int> from_pagenos;
+    std::vector<int> repeat_pagenos;
+};
+
 struct Options
 {
     Options() :
@@ -73,6 +99,8 @@ struct Options
         encryption_file_password(0),
         encrypt(false),
         password_is_hex_key(false),
+        suppress_password_recovery(false),
+        password_mode(pm_auto),
         keylen(0),
         r2_print(true),
         r2_modify(true),
@@ -80,8 +108,11 @@ struct Options
         r2_annotate(true),
         r3_accessibility(true),
         r3_extract(true),
+        r3_assemble(true),
+        r3_annotate_and_form(true),
+        r3_form_filling(true),
+        r3_modify_other(true),
         r3_print(qpdf_r3p_full),
-        r3_modify(qpdf_r3m_all),
         force_V4(false),
         force_R5(false),
         cleartext_metadata(false),
@@ -130,9 +161,15 @@ struct Options
         json(false),
         check(false),
         optimize_images(false),
+        externalize_inline_images(false),
+        keep_inline_images(false),
         oi_min_width(128),      // Default values for these
         oi_min_height(128),     // oi flags are in --help
         oi_min_area(16384),     // and in the manual.
+        ii_min_bytes(1024),     //
+        underlay("underlay"),
+        overlay("overlay"),
+        under_overlay(0),
         require_outfile(true),
         infilename(0),
         outfilename(0)
@@ -151,6 +188,8 @@ struct Options
     char const* encryption_file_password;
     bool encrypt;
     bool password_is_hex_key;
+    bool suppress_password_recovery;
+    password_mode_e password_mode;
     std::string user_password;
     std::string owner_password;
     int keylen;
@@ -160,8 +199,11 @@ struct Options
     bool r2_annotate;
     bool r3_accessibility;
     bool r3_extract;
+    bool r3_assemble;
+    bool r3_annotate_and_form;
+    bool r3_form_filling;
+    bool r3_modify_other;
     qpdf_r3_print_e r3_print;
-    qpdf_r3_modify_e r3_modify;
     bool force_V4;
     bool force_R5;
     bool cleartext_metadata;
@@ -215,9 +257,15 @@ struct Options
     std::set<std::string> json_objects;
     bool check;
     bool optimize_images;
+    bool externalize_inline_images;
+    bool keep_inline_images;
     size_t oi_min_width;
     size_t oi_min_height;
     size_t oi_min_area;
+    size_t ii_min_bytes;
+    UnderOverlay underlay;
+    UnderOverlay overlay;
+    UnderOverlay* under_overlay;
     std::vector<PageSpec> page_specs;
     std::map<std::string, RotationSpec> rotations;
     bool require_outfile;
@@ -566,9 +614,13 @@ class ArgParser
     void argEncrypt();
     void argDecrypt();
     void argPasswordIsHexKey();
+    void argPasswordMode(char* parameter);
+    void argSuppressPasswordRecovery();
     void argCopyEncryption(char* parameter);
     void argEncryptionFilePassword(char* parameter);
     void argPages();
+    void argUnderlay();
+    void argOverlay();
     void argRotate(char* parameter);
     void argCollate();
     void argStreamData(char* parameter);
@@ -613,9 +665,12 @@ class ArgParser
     void argJsonObject(char* parameter);
     void argCheck();
     void argOptimizeImages();
+    void argExternalizeInlineImages();
+    void argKeepInlineImages();
     void argOiMinWidth(char* parameter);
     void argOiMinHeight(char* parameter);
     void argOiMinArea(char* parameter);
+    void argIiMinBytes(char* parameter);
     void arg40Print(char* parameter);
     void arg40Modify(char* parameter);
     void arg40Extract(char* parameter);
@@ -625,10 +680,20 @@ class ArgParser
     void arg128Print(char* parameter);
     void arg128Modify(char* parameter);
     void arg128ClearTextMetadata();
+    void arg128Assemble(char* parameter);
+    void arg128Annotate(char* parameter);
+    void arg128Form(char* parameter);
+    void arg128ModOther(char* parameter);
     void arg128UseAes(char* parameter);
     void arg128ForceV4();
     void arg256ForceR5();
     void argEndEncrypt();
+    void argUOpositional(char* arg);
+    void argUOto(char* parameter);
+    void argUOfrom(char* parameter);
+    void argUOrepeat(char* parameter);
+    void argUOpassword(char* parameter);
+    void argEndUnderOverlay();
 
     void usage(std::string const& message);
     void checkCompletion();
@@ -642,6 +707,7 @@ class ArgParser
     void addChoicesToCompletions(std::string const&, std::string const&);
     void handleCompletion();
     std::vector<PageSpec> parsePagesOptions();
+    void parseUnderOverlayOptions(UnderOverlay*);
     void parseRotationParameter(std::string const&);
     std::vector<int> parseNumrange(char const* range, int max,
                                    bool throw_error = false);
@@ -663,6 +729,7 @@ class ArgParser
     std::map<std::string, OptionEntry> encrypt40_option_table;
     std::map<std::string, OptionEntry> encrypt128_option_table;
     std::map<std::string, OptionEntry> encrypt256_option_table;
+    std::map<std::string, OptionEntry> under_overlay_option_table;
     std::vector<PointerHolder<char> > new_argv;
     std::vector<PointerHolder<char> > bash_argv;
     PointerHolder<char*> argv_ph;
@@ -744,12 +811,19 @@ ArgParser::initOptionTable()
     t = &this->main_option_table;
     char const* yn[] = {"y", "n", 0};
     (*t)[""] = oe_positional(&ArgParser::argPositional);
-    (*t)["password"] = oe_requiredParameter(&ArgParser::argPassword, "pass");
+    (*t)["password"] = oe_requiredParameter(
+        &ArgParser::argPassword, "password");
     (*t)["empty"] = oe_bare(&ArgParser::argEmpty);
     (*t)["linearize"] = oe_bare(&ArgParser::argLinearize);
     (*t)["encrypt"] = oe_bare(&ArgParser::argEncrypt);
     (*t)["decrypt"] = oe_bare(&ArgParser::argDecrypt);
     (*t)["password-is-hex-key"] = oe_bare(&ArgParser::argPasswordIsHexKey);
+    (*t)["suppress-password-recovery"] =
+        oe_bare(&ArgParser::argSuppressPasswordRecovery);
+    char const* password_mode_choices[] =
+        {"bytes", "hex-bytes", "unicode", "auto", 0};
+    (*t)["password-mode"] = oe_requiredChoices(
+        &ArgParser::argPasswordMode, password_mode_choices);
     (*t)["copy-encryption"] = oe_requiredParameter(
         &ArgParser::argCopyEncryption, "file");
     (*t)["encryption-file-password"] = oe_requiredParameter(
@@ -829,12 +903,19 @@ ArgParser::initOptionTable()
         &ArgParser::argJsonObject, "trailer|obj[,gen]");
     (*t)["check"] = oe_bare(&ArgParser::argCheck);
     (*t)["optimize-images"] = oe_bare(&ArgParser::argOptimizeImages);
+    (*t)["externalize-inline-images"] =
+        oe_bare(&ArgParser::argExternalizeInlineImages);
+    (*t)["keep-inline-images"] = oe_bare(&ArgParser::argKeepInlineImages);
     (*t)["oi-min-width"] = oe_requiredParameter(
         &ArgParser::argOiMinWidth, "minimum-width");
     (*t)["oi-min-height"] = oe_requiredParameter(
         &ArgParser::argOiMinHeight, "minimum-height");
     (*t)["oi-min-area"] = oe_requiredParameter(
         &ArgParser::argOiMinArea, "minimum-area");
+    (*t)["ii-min-bytes"] = oe_requiredParameter(
+        &ArgParser::argIiMinBytes, "minimum-bytes");
+    (*t)["overlay"] = oe_bare(&ArgParser::argOverlay);
+    (*t)["underlay"] = oe_bare(&ArgParser::argUnderlay);
 
     t = &this->encrypt40_option_table;
     (*t)["--"] = oe_bare(&ArgParser::argEndEncrypt);
@@ -851,11 +932,16 @@ ArgParser::initOptionTable()
     char const* print128_choices[] = {"full", "low", "none", 0};
     (*t)["print"] = oe_requiredChoices(
         &ArgParser::arg128Print, print128_choices);
+    (*t)["assemble"] = oe_requiredChoices(&ArgParser::arg128Assemble, yn);
+    (*t)["annotate"] = oe_requiredChoices(&ArgParser::arg128Annotate, yn);
+    (*t)["form"] = oe_requiredChoices(&ArgParser::arg128Form, yn);
+    (*t)["modify-other"] = oe_requiredChoices(&ArgParser::arg128ModOther, yn);
     char const* modify128_choices[] =
         {"all", "annotate", "form", "assembly", "none", 0};
     (*t)["modify"] = oe_requiredChoices(
         &ArgParser::arg128Modify, modify128_choices);
     (*t)["cleartext-metadata"] = oe_bare(&ArgParser::arg128ClearTextMetadata);
+
     // The above 128-bit options are also 256-bit options, so copy
     // what we have so far. Then continue separately with 128 and 256.
     this->encrypt256_option_table = this->encrypt128_option_table;
@@ -864,6 +950,18 @@ ArgParser::initOptionTable()
 
     t = &this->encrypt256_option_table;
     (*t)["force-R5"] = oe_bare(&ArgParser::arg256ForceR5);
+
+    t = &this->under_overlay_option_table;
+    (*t)[""] = oe_positional(&ArgParser::argUOpositional);
+    (*t)["to"] = oe_requiredParameter(
+        &ArgParser::argUOto, "page-range");
+    (*t)["from"] = oe_requiredParameter(
+        &ArgParser::argUOfrom, "page-range");
+    (*t)["repeat"] = oe_requiredParameter(
+        &ArgParser::argUOrepeat, "page-range");
+    (*t)["password"] = oe_requiredParameter(
+        &ArgParser::argUOpassword, "password");
+    (*t)["--"] = oe_bare(&ArgParser::argEndUnderOverlay);
 }
 
 void
@@ -971,6 +1069,10 @@ ArgParser::argHelp()
         << "--encrypt options --    generate an encrypted file\n"
         << "--decrypt               remove any encryption on the file\n"
         << "--password-is-hex-key   treat primary password option as a hex-encoded key\n"
+        << "--suppress-password-recovery\n"
+        << "                        do not attempt recovering from password string\n"
+        << "                        encoding errors\n"
+        << "--password-mode=mode    control qpdf's encoding of passwords\n"
         << "--pages options --      select specific pages from one or more files\n"
         << "--collate               causes files specified in --pages to be collated\n"
         << "                        rather than concatenated\n"
@@ -978,6 +1080,8 @@ ArgParser::argHelp()
         << "                        rotate each specified page 90, 180, or 270 degrees;\n"
         << "                        rotate all pages if no page range is given\n"
         << "--split-pages=[n]       write each output page to a separate file\n"
+        << "--overlay options --    overlay pages from another file\n"
+        << "--underlay options --   underlay pages from another file\n"
         << "\n"
         << "Note that you can use the @filename or @- syntax for any argument at any\n"
         << "point in the command. This provides a good way to specify a password without\n"
@@ -1042,7 +1146,11 @@ ArgParser::argHelp()
         << "    --accessibility=[yn]     allow accessibility to visually impaired\n"
         << "    --extract=[yn]           allow other text/graphic extraction\n"
         << "    --print=print-opt        control printing access\n"
-        << "    --modify=modify-opt      control modify access\n"
+        << "    --assemble=[yn]          allow document assembly\n"
+        << "    --annotate=[yn]          allow commenting/filling form fields\n"
+        << "    --form=[yn]              allow filling form fields\n"
+        << "    --modify-other=[yn]      allow other modifications\n"
+        << "    --modify=modify-opt      control modify access (old way)\n"
         << "    --cleartext-metadata     prevents encryption of metadata\n"
         << "    --use-aes=[yn]           indicates whether to use AES encryption\n"
         << "    --force-V4               forces use of V=4 encryption handler\n"
@@ -1066,7 +1174,8 @@ ArgParser::argHelp()
         << "      assembly              allow document assembly only\n"
         << "      none                  allow no modifications\n"
         << "\n"
-        << "The default for each permission option is to be fully permissive.\n"
+        << "The default for each permission option is to be fully permissive. Please\n"
+        << "refer to the manual for more details on the modify options.\n"
         << "\n"
         << "Specifying cleartext-metadata forces the PDF version to at least 1.5.\n"
         << "Specifying use of AES forces the PDF version to at least 1.6.  These\n"
@@ -1075,6 +1184,21 @@ ArgParser::argHelp()
         << "The --force-V4 flag forces the V=4 encryption handler introduced in PDF 1.5\n"
         << "to be used even if not otherwise needed.  This option is primarily useful\n"
         << "for testing qpdf and has no other practical use.\n"
+        << "\n"
+        << "\n"
+        << "Password Modes\n"
+        << "----------------------\n"
+        << "\n"
+        << "The --password-mode controls how qpdf interprets passwords supplied\n"
+        << "on the command-line. qpdf's default behavior is correct in almost all\n"
+        << "cases, but you can fine-tune with this option.\n"
+        << "\n"
+        << "  bytes: use the password literally as supplied\n"
+        << "  hex-bytes: interpret the password as a hex-encoded byte string\n"
+        << "  unicode: interpret the password as a UTF-8 encoded string\n"
+        << "  auto: attempt to infer the encoding and adjust as needed\n"
+        << "\n"
+        << "This is a complex topic. See the manual for a complete discussion.\n"
         << "\n"
         << "\n"
         << "Page Selection Options\n"
@@ -1092,7 +1216,8 @@ ArgParser::argHelp()
         << "password needs to be given only once per file.  If any of the input\n"
         << "files are the same as the primary input file or the file used to copy\n"
         << "encryption parameters (if specified), you do not need to repeat the\n"
-        << "password here.  The same file can be repeated multiple times.  All\n"
+        << "password here.  The same file can be repeated multiple times.  The\n"
+        << "filename \".\" may be used to refer to the current input file.  All\n"
         << "non-page data (info, outlines, page numbers, etc. are taken from the\n"
         << "primary input file.  To discard this, use --empty as the primary\n"
         << "input.\n"
@@ -1126,6 +1251,35 @@ ArgParser::argHelp()
         << "specified pages are taken from all files.\n"
         << "\n"
         << "See the manual for examples and a discussion of additional subtleties.\n"
+        << "\n"
+        << "\n"
+        << "Overlay and Underlay Options\n"
+        << "-------------------------------\n"
+        << "\n"
+        << "These options allow pages from another file to be overlaid or underlaid\n"
+        << "on the primary output. Overlaid pages are drawn on top of the destination\n"
+        << "page and may obscure the page. Underlaid pages are drawn below the\n"
+        << "destination page.\n"
+        << "\n"
+        << "{--overlay | --underlay } file\n"
+        "      [ --password=password ]\n"
+        "      [ --to=page-range ]\n"
+        "      [ --from=[page-range] ]\n"
+        "      [ --repeat=page-range ]\n"
+        "      --\n"
+        << "\n"
+        << "For overlay and underlay, a file and optional password are specified, along\n"
+        << "with a series of optional page ranges. The default behavior is that each\n"
+        << "page of the overlay or underlay file is imposed on the corresponding page\n"
+        << "of the primary output until it runs out of pages, and any extra pages are\n"
+        << "ignored. The page range options all take page ranges in the same form as\n"
+        << "the --pages option. They have the following meanings:\n"
+        << "\n"
+        << "  --to:     the pages in the primary output to which overlay/underlay is\n"
+        << "            applied\n"
+        << "  --from:   the pages from the overlay/underlay file that are used\n"
+        << "  --repeat: pages from the overlay/underlay that are repeated after\n"
+        << "            any \"from\" pages have been exhausted\n"
         << "\n"
         << "\n"
         << "Advanced Parsing Options\n"
@@ -1168,6 +1322,12 @@ ArgParser::argHelp()
         << "                          default is 128. Use 0 to mean no minimum\n"
         << "--oi-min-area=a           do not optimize images whose pixel count is below a\n"
         << "                          default is 16,384. Use 0 to mean no minimum\n"
+        << "--externalize-inline-images  convert inline images to regular images; by\n"
+        << "                          default, images of at least 1,024 bytes are\n"
+        << "                          externalized\n"
+        << "--ii-min-bytes=bytes      specify minimum size of inline images to be\n"
+        << "                          converted to regular images\n"
+        << "--keep-inline-images      exclude inline images from image optimization\n"
         << "--qdf                     turns on \"QDF mode\" (below)\n"
         << "--linearize-pass1=file    write intermediate pass of linearized file\n"
         << "                          for debugging\n"
@@ -1413,6 +1573,37 @@ ArgParser::argPasswordIsHexKey()
 }
 
 void
+ArgParser::argSuppressPasswordRecovery()
+{
+    o.suppress_password_recovery = true;
+}
+
+void
+ArgParser::argPasswordMode(char* parameter)
+{
+    if (strcmp(parameter, "bytes") == 0)
+    {
+        o.password_mode = pm_bytes;
+    }
+    else if (strcmp(parameter, "hex-bytes") == 0)
+    {
+        o.password_mode = pm_hex_bytes;
+    }
+    else if (strcmp(parameter, "unicode") == 0)
+    {
+        o.password_mode = pm_unicode;
+    }
+    else if (strcmp(parameter, "auto") == 0)
+    {
+        o.password_mode = pm_auto;
+    }
+    else
+    {
+        usage("invalid password-mode option");
+    }
+}
+
+void
 ArgParser::argCopyEncryption(char* parameter)
 {
     o.encryption_file = parameter;
@@ -1442,6 +1633,18 @@ ArgParser::argPages()
     {
         usage("--pages: no page specifications given");
     }
+}
+
+void
+ArgParser::argUnderlay()
+{
+    parseUnderOverlayOptions(&o.underlay);
+}
+
+void
+ArgParser::argOverlay()
+{
+    parseUnderOverlayOptions(&o.overlay);
 }
 
 void
@@ -1783,6 +1986,18 @@ ArgParser::argOptimizeImages()
 }
 
 void
+ArgParser::argExternalizeInlineImages()
+{
+    o.externalize_inline_images = true;
+}
+
+void
+ArgParser::argKeepInlineImages()
+{
+    o.keep_inline_images = true;
+}
+
+void
 ArgParser::argOiMinWidth(char* parameter)
 {
     o.oi_min_width = QUtil::string_to_int(parameter);
@@ -1798,6 +2013,12 @@ void
 ArgParser::argOiMinArea(char* parameter)
 {
     o.oi_min_area = QUtil::string_to_int(parameter);
+}
+
+void
+ArgParser::argIiMinBytes(char* parameter)
+{
+    o.ii_min_bytes = QUtil::string_to_int(parameter);
 }
 
 void
@@ -1862,23 +2083,38 @@ ArgParser::arg128Modify(char* parameter)
 {
     if (strcmp(parameter, "all") == 0)
     {
-        o.r3_modify = qpdf_r3m_all;
+        o.r3_assemble = true;
+        o.r3_annotate_and_form = true;
+        o.r3_form_filling = true;
+        o.r3_modify_other = true;
     }
     else if (strcmp(parameter, "annotate") == 0)
     {
-        o.r3_modify = qpdf_r3m_annotate;
+        o.r3_assemble = true;
+        o.r3_annotate_and_form = true;
+        o.r3_form_filling = true;
+        o.r3_modify_other = false;
     }
     else if (strcmp(parameter, "form") == 0)
     {
-        o.r3_modify = qpdf_r3m_form;
+        o.r3_assemble = true;
+        o.r3_annotate_and_form = false;
+        o.r3_form_filling = true;
+        o.r3_modify_other = false;
     }
     else if (strcmp(parameter, "assembly") == 0)
     {
-        o.r3_modify = qpdf_r3m_assembly;
+        o.r3_assemble = true;
+        o.r3_annotate_and_form = false;
+        o.r3_form_filling = false;
+        o.r3_modify_other = false;
     }
     else if (strcmp(parameter, "none") == 0)
     {
-        o.r3_modify = qpdf_r3m_none;
+        o.r3_assemble = false;
+        o.r3_annotate_and_form = false;
+        o.r3_form_filling = false;
+        o.r3_modify_other = false;
     }
     else
     {
@@ -1890,6 +2126,30 @@ void
 ArgParser::arg128ClearTextMetadata()
 {
     o.cleartext_metadata = true;
+}
+
+void
+ArgParser::arg128Assemble(char* parameter)
+{
+    o.r3_assemble = (strcmp(parameter, "y") == 0);
+}
+
+void
+ArgParser::arg128Annotate(char* parameter)
+{
+    o.r3_annotate_and_form = (strcmp(parameter, "y") == 0);
+}
+
+void
+ArgParser::arg128Form(char* parameter)
+{
+    o.r3_form_filling = (strcmp(parameter, "y") == 0);
+}
+
+void
+ArgParser::arg128ModOther(char* parameter)
+{
+    o.r3_modify_other = (strcmp(parameter, "y") == 0);
 }
 
 void
@@ -1917,6 +2177,63 @@ ArgParser::argEndEncrypt()
     o.decrypt = false;
     o.copy_encryption = false;
     this->option_table = &(this->main_option_table);
+}
+
+void
+ArgParser::argUOpositional(char* arg)
+{
+    if (o.under_overlay->filename)
+    {
+        usage(o.under_overlay->which + " file already specified");
+    }
+    else
+    {
+        o.under_overlay->filename = arg;
+    }
+}
+
+void
+ArgParser::argUOto(char* parameter)
+{
+    parseNumrange(parameter, 0);
+    o.under_overlay->to_nr = parameter;
+}
+
+void
+ArgParser::argUOfrom(char* parameter)
+{
+    if (strlen(parameter))
+    {
+        parseNumrange(parameter, 0);
+    }
+    o.under_overlay->from_nr = parameter;
+}
+
+void
+ArgParser::argUOrepeat(char* parameter)
+{
+    if (strlen(parameter))
+    {
+        parseNumrange(parameter, 0);
+    }
+    o.under_overlay->repeat_nr = parameter;
+}
+
+void
+ArgParser::argUOpassword(char* parameter)
+{
+    o.under_overlay->password = parameter;
+}
+
+void
+ArgParser::argEndUnderOverlay()
+{
+    this->option_table = &(this->main_option_table);
+    if (0 == o.under_overlay->filename)
+    {
+        usage(o.under_overlay->which + " file not specified");
+    }
+    o.under_overlay = 0;
 }
 
 void
@@ -2273,6 +2590,13 @@ ArgParser::parsePagesOptions()
         result.push_back(PageSpec(file, password, range));
     }
     return result;
+}
+
+void
+ArgParser::parseUnderOverlayOptions(UnderOverlay* uo)
+{
+    o.under_overlay = uo;
+    this->option_table = &(this->under_overlay_option_table);
 }
 
 QPDFPageData::QPDFPageData(std::string const& filename,
@@ -2647,6 +2971,10 @@ ArgParser::doFinalChecks()
     {
         usage("no output file may be given for this option");
     }
+    if (o.optimize_images && (! o.keep_inline_images))
+    {
+        o.externalize_inline_images = true;
+    }
 
     if (o.require_outfile && (strcmp(o.outfilename, "-") == 0))
     {
@@ -2947,10 +3275,6 @@ static void do_show_obj(QPDF& pdf, Options& o, int& exit_code)
 static void do_show_pages(QPDF& pdf, Options& o)
 {
     QPDFPageDocumentHelper dh(pdf);
-    if (o.show_page_images)
-    {
-        dh.pushInheritedAttributesToPage();
-    }
     std::vector<QPDFPageObjectHelper> pages = dh.getAllPages();
     int pageno = 0;
     for (std::vector<QPDFPageObjectHelper>::iterator iter = pages.begin();
@@ -3482,11 +3806,7 @@ ImageOptimizer::makePipeline(std::string const& description, Pipeline* next)
     QPDFObjectHandle w_obj = dict.getKey("/Width");
     QPDFObjectHandle h_obj = dict.getKey("/Height");
     QPDFObjectHandle colorspace_obj = dict.getKey("/ColorSpace");
-    QPDFObjectHandle components_obj = dict.getKey("/BitsPerComponent");
-    if (! (w_obj.isInteger() &&
-           h_obj.isInteger() &&
-           colorspace_obj.isName() &&
-           components_obj.isInteger()))
+    if (! (w_obj.isNumber() && h_obj.isNumber()))
     {
         if (o.verbose && (! description.empty()))
         {
@@ -3496,9 +3816,27 @@ ImageOptimizer::makePipeline(std::string const& description, Pipeline* next)
         }
         return result;
     }
-    JDIMENSION w = w_obj.getIntValue();
-    JDIMENSION h = h_obj.getIntValue();
-    std::string colorspace = colorspace_obj.getName();
+    QPDFObjectHandle components_obj = dict.getKey("/BitsPerComponent");
+    if (! (components_obj.isInteger() && (components_obj.getIntValue() == 8)))
+    {
+        QTC::TC("qpdf", "qpdf image optimize bits per component");
+        if (o.verbose && (! description.empty()))
+        {
+            std::cout << whoami << ": " << description
+                      << ": not optimizing because image has other than"
+                      << " 8 bits per component" << std::endl;
+        }
+        return result;
+    }
+    // Files have been seen in the wild whose width and height are
+    // floating point, which is goofy, but we can deal with it.
+    JDIMENSION w = static_cast<JDIMENSION>(
+        w_obj.isInteger() ? w_obj.getIntValue() : w_obj.getNumericValue());
+    JDIMENSION h = static_cast<JDIMENSION>(
+        h_obj.isInteger() ? h_obj.getIntValue() : h_obj.getNumericValue());
+    std::string colorspace = (colorspace_obj.isName() ?
+                              colorspace_obj.getName() :
+                              "");
     int components = 0;
     J_COLOR_SPACE cs = JCS_UNKNOWN;
     if (colorspace == "/DeviceRGB")
@@ -3518,11 +3856,12 @@ ImageOptimizer::makePipeline(std::string const& description, Pipeline* next)
     }
     else
     {
+        QTC::TC("qpdf", "qpdf image optimize colorspace");
         if (o.verbose && (! description.empty()))
         {
             std::cout << whoami << ": " << description
-                      << ": not optimizing because of unsupported"
-                      << " image parameters" << std::endl;
+                      << ": not optimizing because qpdf can't optimize"
+                      << " images with this colorspace" << std::endl;
         }
         return result;
     }
@@ -3534,7 +3873,7 @@ ImageOptimizer::makePipeline(std::string const& description, Pipeline* next)
         if (o.verbose && (! description.empty()))
         {
             std::cout << whoami << ": " << description
-                      << ": not optimizing because of image"
+                      << ": not optimizing because image"
                       << " is smaller than requested minimum dimensions"
                       << std::endl;
         }
@@ -3610,12 +3949,323 @@ ImageOptimizer::provideStreamData(int, int, Pipeline* pipeline)
                          false, false);
 }
 
+template <typename T>
+static PointerHolder<QPDF> do_process_once(
+    void (QPDF::*fn)(T, char const*),
+    T item, char const* password,
+    Options& o, bool empty)
+{
+    PointerHolder<QPDF> pdf = new QPDF;
+    set_qpdf_options(*pdf, o);
+    if (empty)
+    {
+        pdf->emptyPDF();
+    }
+    else
+    {
+        ((*pdf).*fn)(item, password);
+    }
+    return pdf;
+}
+
+template <typename T>
+static PointerHolder<QPDF> do_process(
+    void (QPDF::*fn)(T, char const*),
+    T item, char const* password,
+    Options& o, bool empty)
+{
+    // If a password has been specified but doesn't work, try other
+    // passwords that are equivalent in different character encodings.
+    // This makes it possible to open PDF files that were encrypted
+    // using incorrect string encodings. For example, if someone used
+    // a password encoded in PDF Doc encoding or Windows code page
+    // 1252 for an AES-encrypted file or a UTF-8-encoded password on
+    // an RC4-encrypted file, or if the password was properly encoded
+    // by the password given here was incorrectly encoded, there's a
+    // good chance we'd succeed here.
+
+    std::string ptemp;
+    if (password && (! o.password_is_hex_key))
+    {
+        if (o.password_mode == pm_hex_bytes)
+        {
+            // Special case: handle --password-mode=hex-bytes for input
+            // password as well as output password
+            QTC::TC("qpdf", "qpdf input password hex-bytes");
+            ptemp = QUtil::hex_decode(password);
+            password = ptemp.c_str();
+        }
+    }
+    if ((password == 0) || empty || o.password_is_hex_key ||
+        o.suppress_password_recovery)
+    {
+        // There is no password, or we're not doing recovery, so just
+        // do the normal processing with the supplied password.
+        return do_process_once(fn, item, password, o, empty);
+    }
+
+    // Get a list of otherwise encoded strings. Keep in scope for this
+    // method.
+    std::vector<std::string> passwords_str =
+        QUtil::possible_repaired_encodings(password);
+    // Represent to char const*, as required by the QPDF class.
+    std::vector<char const*> passwords;
+    for (std::vector<std::string>::iterator iter = passwords_str.begin();
+         iter != passwords_str.end(); ++iter)
+    {
+        passwords.push_back((*iter).c_str());
+    }
+    // We always try the supplied password first because it is the
+    // first string returned by possible_repaired_encodings. If there
+    // is more than one option, go ahead and put the supplied password
+    // at the end so that it's that decoding attempt whose exception
+    // is thrown.
+    if (passwords.size() > 1)
+    {
+        passwords.push_back(password);
+    }
+
+    // Try each password. If one works, return the resulting object.
+    // If they all fail, throw the exception thrown by the final
+    // attempt, which, like the first attempt, will be with the
+    // supplied password.
+    bool warned = false;
+    for (std::vector<char const*>::iterator iter = passwords.begin();
+         iter != passwords.end(); ++iter)
+    {
+        try
+        {
+            return do_process_once(fn, item, *iter, o, empty);
+        }
+        catch (QPDFExc& e)
+        {
+            std::vector<char const*>::iterator next = iter;
+            ++next;
+            if (next == passwords.end())
+            {
+                throw e;
+            }
+        }
+        if ((! warned) && o.verbose)
+        {
+            warned = true;
+            std::cout << whoami << ": supplied password didn't work;"
+                      << " trying other passwords based on interpreting"
+                      << " password with different string encodings"
+                      << std::endl;
+        }
+    }
+    // Should not be reachable
+    throw std::logic_error("do_process returned");
+}
+
+static PointerHolder<QPDF> process_file(char const* filename,
+                                        char const* password,
+                                        Options& o)
+{
+    return do_process(&QPDF::processFile, filename, password, o,
+                      strcmp(filename, "") == 0);
+}
+
+static PointerHolder<QPDF> process_input_source(
+    PointerHolder<InputSource> is, char const* password, Options& o)
+{
+    return do_process(&QPDF::processInputSource, is, password, o, false);
+}
+
+static void validate_under_overlay(QPDF& pdf, UnderOverlay* uo, Options& o)
+{
+    if (0 == uo->filename)
+    {
+        return;
+    }
+    QPDFPageDocumentHelper main_pdh(pdf);
+    int main_npages = static_cast<int>(main_pdh.getAllPages().size());
+    uo->pdf = process_file(uo->filename, uo->password, o);
+    QPDFPageDocumentHelper uo_pdh(*(uo->pdf));
+    int uo_npages = static_cast<int>(uo_pdh.getAllPages().size());
+    try
+    {
+        uo->to_pagenos = QUtil::parse_numrange(uo->to_nr, main_npages);
+    }
+    catch (std::runtime_error& e)
+    {
+        usageExit("parsing numeric range for " + uo->which +
+                  " \"to\" pages: " + e.what());
+    }
+    try
+    {
+        if (0 == strlen(uo->from_nr))
+        {
+            QTC::TC("qpdf", "qpdf from_nr from repeat_nr");
+            uo->from_nr = uo->repeat_nr;
+        }
+        uo->from_pagenos = QUtil::parse_numrange(uo->from_nr, uo_npages);
+        if (strlen(uo->repeat_nr))
+        {
+            uo->repeat_pagenos =
+                QUtil::parse_numrange(uo->repeat_nr, uo_npages);
+        }
+    }
+    catch (std::runtime_error& e)
+    {
+        usageExit("parsing numeric range for " + uo->which + " file " +
+                  uo->filename + ": " + e.what());
+    }
+}
+
+static void get_uo_pagenos(UnderOverlay& uo,
+                           std::map<int, std::vector<int> >& pagenos)
+{
+    size_t idx = 0;
+    size_t from_size = uo.from_pagenos.size();
+    size_t repeat_size = uo.repeat_pagenos.size();
+    for (std::vector<int>::iterator iter = uo.to_pagenos.begin();
+         iter != uo.to_pagenos.end(); ++iter, ++idx)
+    {
+        if (idx < from_size)
+        {
+            pagenos[*iter].push_back(uo.from_pagenos.at(idx));
+        }
+        else if (repeat_size)
+        {
+            pagenos[*iter].push_back(
+                uo.repeat_pagenos.at((idx - from_size) % repeat_size));
+        }
+    }
+}
+
+static void do_under_overlay_for_page(
+    QPDF& pdf,
+    Options& o,
+    UnderOverlay& uo,
+    std::map<int, std::vector<int> >& pagenos,
+    size_t page_idx,
+    std::map<int, QPDFObjectHandle>& fo,
+    std::vector<QPDFPageObjectHelper>& pages,
+    QPDFPageObjectHelper& dest_page,
+    bool before)
+{
+    int pageno = 1 + page_idx;
+    if (! pagenos.count(pageno))
+    {
+        return;
+    }
+
+    std::string content;
+    int min_suffix = 1;
+    QPDFObjectHandle resources = dest_page.getAttribute("/Resources", true);
+    for (std::vector<int>::iterator iter = pagenos[pageno].begin();
+         iter != pagenos[pageno].end(); ++iter)
+    {
+        int from_pageno = *iter;
+        if (o.verbose)
+        {
+            std::cout << "    " << uo.which << " " << from_pageno << std::endl;
+        }
+        if (0 == fo.count(from_pageno))
+        {
+            fo[from_pageno] =
+                pdf.copyForeignObject(
+                    pages.at(from_pageno - 1).getFormXObjectForPage());
+        }
+        // If the same page is overlaid or underlaid multiple times,
+        // we'll generate multiple names for it, but that's harmless
+        // and also a pretty goofy case that's not worth coding
+        // around.
+        std::string name = resources.getUniqueResourceName("/Fx", min_suffix);
+        std::string new_content = dest_page.placeFormXObject(
+            fo[from_pageno], name,
+            dest_page.getTrimBox().getArrayAsRectangle());
+        if (! new_content.empty())
+        {
+            resources.mergeResources(
+                QPDFObjectHandle::parse("<< /XObject << >> >>"));
+            resources.getKey("/XObject").replaceKey(name, fo[from_pageno]);
+            ++min_suffix;
+            content += new_content;
+        }
+    }
+    if (! content.empty())
+    {
+        if (before)
+        {
+            dest_page.addPageContents(
+                QPDFObjectHandle::newStream(&pdf, content), true);
+        }
+        else
+        {
+            dest_page.addPageContents(
+                QPDFObjectHandle::newStream(&pdf, "q\n"), true);
+            dest_page.addPageContents(
+                QPDFObjectHandle::newStream(&pdf, "\nQ\n" + content), false);
+        }
+    }
+}
+
+static void handle_under_overlay(QPDF& pdf, Options& o)
+{
+    validate_under_overlay(pdf, &o.underlay, o);
+    validate_under_overlay(pdf, &o.overlay, o);
+    if ((0 == o.underlay.pdf.getPointer()) &&
+        (0 == o.overlay.pdf.getPointer()))
+    {
+        return;
+    }
+    std::map<int, std::vector<int> > underlay_pagenos;
+    get_uo_pagenos(o.underlay, underlay_pagenos);
+    std::map<int, std::vector<int> > overlay_pagenos;
+    get_uo_pagenos(o.overlay, overlay_pagenos);
+    std::map<int, QPDFObjectHandle> underlay_fo;
+    std::map<int, QPDFObjectHandle> overlay_fo;
+    std::vector<QPDFPageObjectHelper> upages;
+    if (o.underlay.pdf.getPointer())
+    {
+        upages = QPDFPageDocumentHelper(*(o.underlay.pdf)).getAllPages();
+    }
+    std::vector<QPDFPageObjectHelper> opages;
+    if (o.overlay.pdf.getPointer())
+    {
+        opages = QPDFPageDocumentHelper(*(o.overlay.pdf)).getAllPages();
+    }
+
+    QPDFPageDocumentHelper main_pdh(pdf);
+    std::vector<QPDFPageObjectHelper> main_pages = main_pdh.getAllPages();
+    size_t main_npages = main_pages.size();
+    if (o.verbose)
+    {
+        std::cout << whoami << ": processing underlay/overlay" << std::endl;
+    }
+    for (size_t i = 0; i < main_npages; ++i)
+    {
+        if (o.verbose)
+        {
+            std::cout << "  page " << 1+i << std::endl;
+        }
+        do_under_overlay_for_page(pdf, o, o.underlay, underlay_pagenos, i,
+                                  underlay_fo, upages, main_pages.at(i),
+                                  true);
+        do_under_overlay_for_page(pdf, o, o.overlay, overlay_pagenos, i,
+                                  overlay_fo, opages, main_pages.at(i),
+                                  false);
+    }
+}
+
 static void handle_transformations(QPDF& pdf, Options& o)
 {
     QPDFPageDocumentHelper dh(pdf);
+    if (o.externalize_inline_images)
+    {
+        std::vector<QPDFPageObjectHelper> pages = dh.getAllPages();
+        for (std::vector<QPDFPageObjectHelper>::iterator iter = pages.begin();
+             iter != pages.end(); ++iter)
+        {
+            QPDFPageObjectHelper& ph(*iter);
+            ph.externalizeInlineImages(o.ii_min_bytes);
+        }
+    }
     if (o.optimize_images)
     {
-        dh.pushInheritedAttributesToPage();
         int pageno = 0;
         std::vector<QPDFPageObjectHelper> pages = dh.getAllPages();
         for (std::vector<QPDFPageObjectHelper>::iterator iter = pages.begin();
@@ -3644,8 +4294,9 @@ static void handle_transformations(QPDF& pdf, Options& o)
                         sdp,
                         QPDFObjectHandle::newName("/DCTDecode"),
                         QPDFObjectHandle::newNull());
-                    page.getKey("/Resources").getKey("/XObject").replaceKey(
-                        name, new_image);
+                    ph.getAttribute("/Resources", true).
+                        getKey("/XObject").replaceKey(
+                            name, new_image);
                 }
             }
         }
@@ -3675,6 +4326,17 @@ static void handle_page_specs(QPDF& pdf, Options& o)
 {
     // Parse all page specifications and translate them into lists of
     // actual pages.
+
+    // Handle "." as a shortcut for the input file
+    for (std::vector<PageSpec>::iterator iter = o.page_specs.begin();
+         iter != o.page_specs.end(); ++iter)
+    {
+        PageSpec& page_spec = *iter;
+        if (page_spec.filename == ".")
+        {
+            page_spec.filename = o.infilename;
+        }
+    }
 
     if (! o.keep_files_open_set)
     {
@@ -3719,6 +4381,7 @@ static void handle_page_specs(QPDF& pdf, Options& o)
     std::map<std::string, ClosedFileInputSource*> page_spec_cfis;
     page_spec_qpdfs[o.infilename] = &pdf;
     std::vector<QPDFPageData> parsed_specs;
+    std::map<unsigned long long, std::set<QPDFObjGen> > copied_pages;
     for (std::vector<PageSpec>::iterator iter = o.page_specs.begin();
          iter != o.page_specs.end(); ++iter)
     {
@@ -3735,9 +4398,6 @@ static void handle_page_specs(QPDF& pdf, Options& o)
             // the API, you can just create two different QPDF objects
             // to the same underlying file with the same path to
             // achieve the same affect.
-            PointerHolder<QPDF> qpdf_ph = new QPDF();
-            page_heap.push_back(qpdf_ph);
-            QPDF* qpdf = qpdf_ph.getPointer();
             char const* password = page_spec.password;
             if (o.encryption_file && (password == 0) &&
                 (page_spec.filename == o.encryption_file))
@@ -3766,8 +4426,9 @@ static void handle_page_specs(QPDF& pdf, Options& o)
                 is = fis;
                 fis->setFilename(page_spec.filename.c_str());
             }
-            qpdf->processInputSource(is, password);
-            page_spec_qpdfs[page_spec.filename] = qpdf;
+            PointerHolder<QPDF> qpdf_ph = process_input_source(is, password, o);
+            page_heap.push_back(qpdf_ph);
+            page_spec_qpdfs[page_spec.filename] = qpdf_ph.getPointer();
             if (cis)
             {
                 cis->stayOpen(false);
@@ -3797,7 +4458,6 @@ static void handle_page_specs(QPDF& pdf, Options& o)
                 cis->stayOpen(true);
             }
             QPDFPageDocumentHelper dh(*((*iter).second));
-            dh.pushInheritedAttributesToPage();
             dh.removeUnreferencedResources();
             if (cis)
             {
@@ -3893,7 +4553,20 @@ static void handle_page_specs(QPDF& pdf, Options& o)
             int pageno = *pageno_iter - 1;
             pldh.getLabelsForPageRange(pageno, pageno, out_pageno,
                                        new_labels);
-            dh.addPage(page_data.orig_pages.at(pageno), false);
+            QPDFPageObjectHelper to_copy = page_data.orig_pages.at(pageno);
+            QPDFObjGen to_copy_og = to_copy.getObjectHandle().getObjGen();
+            unsigned long long from_uuid = page_data.qpdf->getUniqueId();
+            if (copied_pages[from_uuid].count(to_copy_og))
+            {
+                QTC::TC("qpdf", "qpdf copy same page more than once",
+                        (page_data.qpdf == &pdf) ? 0 : 1);
+                to_copy = to_copy.shallowCopyPage();
+            }
+            else
+            {
+                copied_pages[from_uuid].insert(to_copy_og);
+            }
+            dh.addPage(to_copy, false);
             if (page_data.qpdf == &pdf)
             {
                 // This is a page from the original file. Keep track
@@ -3955,6 +4628,103 @@ static void handle_rotations(QPDF& pdf, Options& o)
     }
 }
 
+static void maybe_fix_write_password(int R, Options& o, std::string& password)
+{
+    switch (o.password_mode)
+    {
+      case pm_bytes:
+        QTC::TC("qpdf", "qpdf password mode bytes");
+        break;
+
+      case pm_hex_bytes:
+        QTC::TC("qpdf", "qpdf password mode hex-bytes");
+        password = QUtil::hex_decode(password);
+        break;
+
+      case pm_unicode:
+      case pm_auto:
+        {
+            bool has_8bit_chars;
+            bool is_valid_utf8;
+            bool is_utf16;
+            QUtil::analyze_encoding(password,
+                                    has_8bit_chars,
+                                    is_valid_utf8,
+                                    is_utf16);
+            if (! has_8bit_chars)
+            {
+                return;
+            }
+            if (o.password_mode == pm_unicode)
+            {
+                if (! is_valid_utf8)
+                {
+                    QTC::TC("qpdf", "qpdf password not unicode");
+                    throw std::runtime_error(
+                        "supplied password is not valid UTF-8");
+                }
+                if (R < 5)
+                {
+                    std::string encoded;
+                    if (! QUtil::utf8_to_pdf_doc(password, encoded))
+                    {
+                        QTC::TC("qpdf", "qpdf password not encodable");
+                        throw std::runtime_error(
+                            "supplied password cannot be encoded for"
+                            " 40-bit or 128-bit encryption formats");
+                    }
+                    password = encoded;
+                }
+            }
+            else
+            {
+                if ((R < 5) && is_valid_utf8)
+                {
+                    std::string encoded;
+                    if (QUtil::utf8_to_pdf_doc(password, encoded))
+                    {
+                        QTC::TC("qpdf", "qpdf auto-encode password");
+                        if (o.verbose)
+                        {
+                            std::cout
+                                << whoami
+                                << ": automatically converting Unicode"
+                                << " password to single-byte encoding as"
+                                << " required for 40-bit or 128-bit"
+                                << " encryption" << std::endl;
+                        }
+                        password = encoded;
+                    }
+                    else
+                    {
+                        QTC::TC("qpdf", "qpdf bytes fallback warning");
+                        std::cerr
+                            << whoami << ": WARNING: "
+                            << "supplied password looks like a Unicode"
+                            << " password with characters not allowed in"
+                            << " passwords for 40-bit and 128-bit encryption;"
+                            << " most readers will not be able to open this"
+                            << " file with the supplied password."
+                            << " (Use --password-mode=bytes to suppress this"
+                            << " warning and use the password anyway.)"
+                            << std::endl;
+                    }
+                }
+                else if ((R >= 5) && (! is_valid_utf8))
+                {
+                    QTC::TC("qpdf", "qpdf invalid utf-8 in auto");
+                    throw std::runtime_error(
+                        "supplied password is not a valid Unicode password,"
+                        " which is required for 256-bit encryption; to"
+                        " really use this password, rerun with the"
+                        " --password-mode=bytes option");
+                }
+            }
+        }
+        break;
+    }
+}
+
 static void set_encryption_options(QPDF& pdf, Options& o, QPDFWriter& w)
 {
     int R = 0;
@@ -3994,6 +4764,8 @@ static void set_encryption_options(QPDF& pdf, Options& o, QPDFWriter& w)
                   << ": -accessibility=n is ignored for modern"
                   << " encryption formats" << std::endl;
     }
+    maybe_fix_write_password(R, o, o.user_password);
+    maybe_fix_write_password(R, o, o.owner_password);
     switch (R)
     {
       case 2:
@@ -4004,25 +4776,34 @@ static void set_encryption_options(QPDF& pdf, Options& o, QPDFWriter& w)
       case 3:
         w.setR3EncryptionParameters(
             o.user_password.c_str(), o.owner_password.c_str(),
-            o.r3_accessibility, o.r3_extract, o.r3_print, o.r3_modify);
+            o.r3_accessibility, o.r3_extract,
+            o.r3_assemble, o.r3_annotate_and_form,
+            o.r3_form_filling, o.r3_modify_other,
+            o.r3_print);
         break;
       case 4:
         w.setR4EncryptionParameters(
             o.user_password.c_str(), o.owner_password.c_str(),
-            o.r3_accessibility, o.r3_extract, o.r3_print, o.r3_modify,
-            !o.cleartext_metadata, o.use_aes);
+            o.r3_accessibility, o.r3_extract,
+            o.r3_assemble, o.r3_annotate_and_form,
+            o.r3_form_filling, o.r3_modify_other,
+            o.r3_print, !o.cleartext_metadata, o.use_aes);
         break;
       case 5:
         w.setR5EncryptionParameters(
             o.user_password.c_str(), o.owner_password.c_str(),
-            o.r3_accessibility, o.r3_extract, o.r3_print, o.r3_modify,
-            !o.cleartext_metadata);
+            o.r3_accessibility, o.r3_extract,
+            o.r3_assemble, o.r3_annotate_and_form,
+            o.r3_form_filling, o.r3_modify_other,
+            o.r3_print, !o.cleartext_metadata);
         break;
       case 6:
         w.setR6EncryptionParameters(
             o.user_password.c_str(), o.owner_password.c_str(),
-            o.r3_accessibility, o.r3_extract, o.r3_print, o.r3_modify,
-            !o.cleartext_metadata);
+            o.r3_accessibility, o.r3_extract,
+            o.r3_assemble, o.r3_annotate_and_form,
+            o.r3_form_filling, o.r3_modify_other,
+            o.r3_print, !o.cleartext_metadata);
         break;
       default:
         throw std::logic_error("bad encryption R value");
@@ -4082,10 +4863,10 @@ static void set_writer_options(QPDF& pdf, Options& o, QPDFWriter& w)
     }
     if (o.copy_encryption)
     {
-        QPDF encryption_pdf;
-        encryption_pdf.processFile(
-            o.encryption_file, o.encryption_file_password);
-        w.copyEncryptionParameters(encryption_pdf);
+        PointerHolder<QPDF> encryption_pdf =
+            process_file(
+                o.encryption_file, o.encryption_file_password, o);
+        w.copyEncryptionParameters(*encryption_pdf);
     }
     if (o.encrypt)
     {
@@ -4154,7 +4935,6 @@ static void write_outfile(QPDF& pdf, Options& o)
         if (! o.preserve_unreferenced_page_resources)
         {
             QPDFPageDocumentHelper dh(pdf);
-            dh.pushInheritedAttributesToPage();
             dh.removeUnreferencedResources();
         }
         QPDFPageLabelDocumentHelper pldh(pdf);
@@ -4242,7 +5022,7 @@ static void write_outfile(QPDF& pdf, Options& o)
     }
 }
 
-int main(int argc, char* argv[])
+int realmain(int argc, char* argv[])
 {
     whoami = QUtil::getWhoami(argv[0]);
     QUtil::setLineBuf(stdout);
@@ -4261,18 +5041,9 @@ int main(int argc, char* argv[])
 
     try
     {
-	QPDF pdf;
-        set_qpdf_options(pdf, o);
-        if (strcmp(o.infilename, "") == 0)
-        {
-            pdf.emptyPDF();
-        }
-        else
-        {
-            pdf.processFile(o.infilename, o.password);
-        }
-
-        handle_transformations(pdf, o);
+	PointerHolder<QPDF> pdf_ph =
+            process_file(o.infilename, o.password, o);
+        QPDF& pdf = *pdf_ph;
         if (! o.page_specs.empty())
         {
             handle_page_specs(pdf, o);
@@ -4281,6 +5052,8 @@ int main(int argc, char* argv[])
         {
             handle_rotations(pdf, o);
         }
+        handle_under_overlay(pdf, o);
+        handle_transformations(pdf, o);
 
 	if (o.outfilename == 0)
 	{
@@ -4310,3 +5083,47 @@ int main(int argc, char* argv[])
 
     return 0;
 }
+
+#ifdef WINDOWS_WMAIN
+
+extern "C"
+int wmain(int argc, wchar_t* argv[])
+{
+    // If wmain is supported, argv contains UTF-16-encoded strings
+    // with a 16-bit wchar_t. Convert this to UTF-8-encoded strings
+    // for compatibility with other systems. That way the rest of
+    // qpdf.cc can just act like arguments are UTF-8.
+    std::vector<PointerHolder<char> > utf8_argv;
+    for (int i = 0; i < argc; ++i)
+    {
+        std::string utf16;
+        for (size_t j = 0; j < wcslen(argv[i]); ++j)
+        {
+            unsigned short codepoint = static_cast<unsigned short>(argv[i][j]);
+            utf16.append(1, static_cast<unsigned char>(codepoint >> 8));
+            utf16.append(1, static_cast<unsigned char>(codepoint & 0xff));
+        }
+        std::string utf8 = QUtil::utf16_to_utf8(utf16);
+        utf8_argv.push_back(
+            PointerHolder<char>(true, QUtil::copy_string(utf8.c_str())));
+    }
+    PointerHolder<char*> utf8_argv_ph =
+        PointerHolder<char*>(true, new char*[1+utf8_argv.size()]);
+    char** new_argv = utf8_argv_ph.getPointer();
+    for (size_t i = 0; i < utf8_argv.size(); ++i)
+    {
+        new_argv[i] = utf8_argv.at(i).getPointer();
+    }
+    argc = static_cast<int>(utf8_argv.size());
+    new_argv[argc] = 0;
+    return realmain(argc, new_argv);
+}
+
+#else
+
+int main(int argc, char* argv[])
+{
+    return realmain(argc, argv);
+}
+
+#endif

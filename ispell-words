@@ -80,6 +80,7 @@ appearancestate
 appendable
 appendItem
 appendString
+appian
 AppImage
 appimage
 arandom
@@ -101,6 +102,8 @@ argEmpty
 argEncrypt
 argEncryptionFilePassword
 argEndEncrypt
+argEndUnderOverlay
+argExternalizeInlineImages
 argfile
 argFilteredStreamData
 argFlattenAnnotations
@@ -108,11 +111,13 @@ argForceVersion
 argGenerateAppearances
 argHelp
 argIgnoreXrefStreams
+argIiMinBytes
 argJson
 argJsonHelp
 argJsonKey
 argJsonObject
 argKeepFilesOpen
+argKeepInlineImages
 argLinearize
 argLinearizePass
 argMinVersion
@@ -125,10 +130,12 @@ argOiMinArea
 argOiMinHeight
 argOiMinWidth
 argOptimizeImages
+argOverlay
 argPages
 ArgParser
 argPassword
 argPasswordIsHexKey
+argPasswordMode
 argPositional
 argPreserveUnreferenced
 argPreserveUnreferencedResources
@@ -148,7 +155,14 @@ argSplitPages
 argStaticAesIv
 argStaticId
 argStreamData
+argSuppressPasswordRecovery
 argSuppressRecovery
+argUnderlay
+argUOfrom
+argUOpassword
+argUOpositional
+argUOrepeat
+argUOto
 argv
 argVerbose
 argVersion
@@ -189,7 +203,9 @@ atoi
 auth
 AuthEvent
 autobuilder
+autobuilders
 autoconf
+autofiles
 autogen
 autoheader
 autolabel
@@ -218,6 +234,7 @@ beb
 Berkenbilt
 betweenTokens
 bf
+bi
 bidirectionally
 binmode
 bis
@@ -234,6 +251,7 @@ bookinfo
 bool
 BORLANDC
 bp
+BPC
 bpp
 bpr
 brdp
@@ -269,6 +287,7 @@ cc
 ccase
 ccc
 CCF
+CCITT
 CCITTFaxDecode
 cd
 cdc
@@ -320,6 +339,7 @@ clearPipelineStack
 clearsign
 cleartext
 ClearTextMetadata
+CLI
 ClosedFileInputSource
 CloseHandle
 closeObject
@@ -348,7 +368,9 @@ config
 conftest
 const
 ContentNormalizer
+ContentProvider
 contrib
+convertIIDict
 CopiedStreamDataProvider
 copyEncryptionParameters
 copyForeign
@@ -385,8 +407,10 @@ ctest
 ctx
 ctype
 CVE
+cx
 cxx
 CXXFLAGS
+cy
 cygwin
 da
 daae
@@ -498,6 +522,7 @@ dwVolumeSerialNumber
 dx
 dy
 ea
+eacute
 eadb
 earlychange
 EarlyChange
@@ -513,7 +538,7 @@ eeee
 ef
 EFF
 efgh
-EI
+ei
 ejb
 elif
 elt
@@ -522,6 +547,7 @@ embeddedFiles
 emc
 emptyPDF
 en
+encodable
 encodeDataIncrementally
 encodeFile
 encodeRow
@@ -569,6 +595,9 @@ exp
 expectInlineImage
 ExtensionLevel
 extern
+externalize
+externalized
+externalizeInlineImages
 fb
 fBqpdf
 fc
@@ -576,6 +605,7 @@ fcc
 fclose
 fcntl
 fd
+fdict
 feebbd
 ferror
 ff
@@ -603,6 +633,7 @@ filterCompressedObjects
 filterPageContents
 findAndSkipNextEOL
 findAttachmentStreams
+findEI
 findEndstream
 findFirst
 findHeader
@@ -627,6 +658,7 @@ flattenAnnotationsForPage
 flattenPagesTree
 flattenScalarReferences
 Florian
+fmatrix
 FMT
 fn
 fname
@@ -691,7 +723,9 @@ getArrayItem
 getArrayNItems
 getAsArray
 getAsMap
+getAsMatrix
 getAsVector
+getAttribute
 getBits
 getBitsSigned
 getBoolValue
@@ -700,6 +734,8 @@ getChoices
 getCompressibleObjects
 getCompressibleObjGens
 getCount
+getCropBox
+getDA
 getDataChecksum
 getDefaultAppearance
 getDefaultValue
@@ -729,6 +765,7 @@ getFlags
 getFontFromResource
 getFontName
 getFormFields
+getFormXObjectForPage
 getFullyQualifiedName
 getGen
 getGeneration
@@ -758,7 +795,9 @@ getLinearizationOffset
 getLinearizedParts
 getMappingName
 getMatch
+getMatrixForTransformations
 getMax
+getMediaBox
 getMessageDetail
 getMin
 getName
@@ -819,6 +858,7 @@ getTitle
 getToken
 getTopLevelOutlines
 getTrailer
+getTrimBox
 getTrimmedTrailer
 getTrimmedUserPassword
 getTrimmedUserPassword's
@@ -828,6 +868,8 @@ getTypeName
 getU
 getUE
 getUncompressedObject
+getUniqueId
+getUniqueResourceName
 getUserPassword
 getUTF
 getV
@@ -923,6 +965,8 @@ iff
 ifndef
 ifstream
 ignorable
+IIm
+iit
 ijg
 Im
 ImageC
@@ -954,6 +998,7 @@ initOptionTable
 inline
 InlineImage
 inlineimage
+InlineImageTracker
 ino
 inode
 inpdf
@@ -1180,6 +1225,7 @@ MixColumn
 mk
 mkinstalldirs
 mklink
+ModOther
 monoseq
 mr
 MSC
@@ -1200,6 +1246,7 @@ nannots
 nbackrefs
 nbits
 nbsp
+nBT
 nbytes
 nch
 ndash
@@ -1213,6 +1260,7 @@ nET
 newArray
 newBool
 NewDict
+newdict
 newDictionary
 newFromMatrix
 newFromRectangle
@@ -1260,6 +1308,7 @@ npos
 nproc
 nq
 nQ
+nr
 nrounds
 nshared
 nspaces
@@ -1289,6 +1338,7 @@ ObjectHolder
 objectStreamsChoices
 objectWarning
 ObjGen
+objgen
 ObjGens
 objGenToIndirect
 objid
@@ -1301,6 +1351,7 @@ ObjUser
 objusers
 oc
 odh
+odict
 oe
 OffsetInputSource
 og
@@ -1314,6 +1365,7 @@ olist
 omap
 ooh
 op
+opages
 OpenAction
 openObject
 opensource
@@ -1324,6 +1376,7 @@ org
 orig
 orred
 os
+OSS
 ostream
 ostringstream
 ot
@@ -1347,12 +1400,14 @@ pacman
 padLen
 Paeth
 PaethPredictor
+pagefile
 PageLabel
 PageLabels
 pagelabels
 pagemode
 PageMode
 pageno
+pagenos
 pageobj
 pagepos
 pageposfrom
@@ -1370,6 +1425,7 @@ parsePageContents
 parsePagesOptions
 ParserCallbacks
 parseRotationParameter
+parseUnderOverlayOptions
 parseVersion
 partialname
 partLen
@@ -1386,6 +1442,8 @@ pcre
 pdf
 PDFâ
 PDFContext
+pdfdoc
+PDFDoc
 PDFDocEncoding
 pdfDumpInfoDict
 PDFs
@@ -1410,9 +1468,11 @@ Pkey
 pkg
 PKI
 pl
+placeFormXObject
 plaintext
 plb
 pldh
+pm
 png
 PNGFilter
 pngify
@@ -1420,10 +1480,12 @@ PointerHolder
 PointerHolder's
 popPipelineStack
 poppler
+popup
 pornin
 pos
 POSIX
 PP
+PPA
 pr
 pragma
 pre
@@ -1455,9 +1517,11 @@ prov
 provideRandomData
 provideStreamData
 proxied
+ps
 PSâ
 pseudorandom
 pt
+ptemp
 pthread
 ptr
 pushDiscardFilter
@@ -1519,8 +1583,10 @@ QPDFSystemError
 QPDFTokenizer
 QPDFTYPES
 QPDFVersion
+QPDFWordTokenFinder
 QPDFWriter
 QPDFXRefEntry
+qpf
 qqqcqqq
 qstream
 QStream
@@ -1562,6 +1628,7 @@ readObject
 readObjectAtOffset
 readObjectInternal
 readToken
+realmain
 reattached
 recompress
 recompressed
@@ -1646,9 +1713,11 @@ sAlT
 saphir
 sarray
 SASLprep
+savable
 scanline
 scanlines
 sch
+sdk
 sdp
 se
 SecureRandomDataProvider
@@ -1678,6 +1747,7 @@ setFile
 setFilename
 setFromVector
 setIgnoreXRefStreams
+setImmediateCopyFrom
 setItem
 setIV
 setjmp
@@ -1725,6 +1795,7 @@ sev
 sf
 sha
 shallowCopy
+shallowCopyPage
 showLinearizationData
 showXRefTable
 sizeof
@@ -1744,6 +1815,9 @@ srandom
 src
 srdp
 sstream
+stampfile
+stamppdf
+StandardEncoding
 startoffset
 startxref
 stat
@@ -1831,11 +1905,14 @@ TfFinder
 tfh
 tgen
 th
+thax
 thomas
 tiffcmp
 TIFFPredictor
 Tj
-TM
+TL
+Tm
+tmatrix
 tmp
 tnum
 Tobias
@@ -1852,12 +1929,15 @@ tokenizer
 tokenizing
 tokenTypeName
 toolchain
-Toolchains
+toolchains
 toupper
 toUTF
 tp
 transcode
+transcoders
+transcodes
 transcoding
+transformRectangle
 traverseField
 travis
 TrimBox
@@ -1870,6 +1950,7 @@ Tval
 tx
 txt
 ty
+typename
 typeWarning
 ubuntu
 uc
@@ -1887,7 +1968,11 @@ ULONGLONG
 uncompresesd
 uncompress
 uncompressing
+unconflicting
 undef
+underlaid
+underlaying
+UnderOverlay
 understandDecodeParams
 unencrypted
 unfilterable
@@ -1907,6 +1992,8 @@ unreadCh
 unreferenced
 unresolvable
 unretrieved
+uo
+upages
 upass
 updateAllPagesCache
 updateMap
@@ -1920,6 +2007,7 @@ ury
 usageExit
 UseAes
 UseOutlines
+UserUnit
 useStaticIV
 useZeroIV
 USLetter
@@ -1927,6 +2015,7 @@ usr
 utf
 Util
 utils
+uuid
 uval
 val
 valgrind
@@ -1951,7 +2040,9 @@ vp
 vvv
 warnIfPossible
 wb
+wchar
 Wconversion
+wcslen
 Weimer
 werror
 WFLAGS
@@ -1961,6 +2052,8 @@ winansi
 WinAnsiEncoding
 wincrypt
 WindowsCryptProvider
+wmain
+wmatrix
 Wold
 wrapInArray
 writeAppearance
@@ -1996,6 +2089,7 @@ xA
 xa
 xABUL
 xb
+xbd
 xbebfbc
 xbf
 xc
@@ -2007,6 +2101,7 @@ xDC
 xe
 xeaa
 xee
+xef
 xefcdab
 xF
 xf
@@ -2041,18 +2136,21 @@ xrefFirst
 XRefStm
 xrefStream
 xrefTable
+xscale
 xsl
 XSLTPROC
 XXX
 xy
 yn
 yp
+yscale
 yuiop
 yyyymmdd
 z's
 zalloc
 zarko
 Zarko's
+zcaron
 zdata
 Zeroize
 zeroizing

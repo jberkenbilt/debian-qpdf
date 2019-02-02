@@ -1,3 +1,229 @@
+2019-02-01  Jay Berkenbilt  <ejb@ql.org>
+
+	* 8.4.0: release
+
+2019-01-31  Jay Berkenbilt  <ejb@ql.org>
+
+	* Bug fix: do better pre-checks on images before optimizing;
+	refuse to optimize images that can't be converted to JPEG because
+	of colorspace or depth.
+
+	* Add new options --externalize-inline-images, which converts
+	inline images larger than a specified size to regular images, and
+	--ii-min-bytes, which tweaks that size.
+
+	* When optimizing images, inline images are now included in the
+	optimization, first being converted to regular images. Use
+	--keep-inline-images to exclude them from optimization. Fixes #278.
+
+	* Add method QPDFPageObjectHelper::externalizeInlineImages, which
+	converts inline images whose size is at least a specified amount
+	to regular images.
+
+	* Remove traces of acroread, which hasn't been available in Linux
+	for a long time.
+
+2019-01-30  Jay Berkenbilt  <ejb@ql.org>
+
+	* Do not include space after ID operator in inline image data. The
+	token now correctly contains the image data, the EI operator,
+	and the delimiter that precedes the EI operator.
+
+	* Improve locating of an inline image's EI operator to correctly
+	handle the case of EI appearing inside the image data.
+
+	* Very low-level QPDFTokenizer API now includes an
+	expectInlineImage method that takes an input stream, enabling it
+	to locate an inline image's EI operator better. When this method
+	is called, the inline image token returned will not contain the EI
+	operator and will contain correct image data. This is called
+	automatically everywhere within the qpdf library. Most user code
+	will never have to use the low-level tokenizer API. If you use
+	Pl_QPDFTokenizer, this will be done automatically for you. If you
+	use the low-level API and call expectInlineImage, you should call
+	the new version.
+
+2019-01-29  Jay Berkenbilt  <ejb@ql.org>
+
+	* Bug fix: when returning an inline image token, the tokenizer no
+	longer includes the delimiter that follows EI. The
+	QPDFObjectHandle created from the token was correct.
+
+	* Handle files with direct page objects, which is not allowed by
+	the PDF spec but has been seen in the wild. Fixes #164.
+
+2019-01-28  Jay Berkenbilt  <ejb@ql.org>
+
+	* Bug fix: when using --stream-data=compress, object streams and
+	xref streams were not compressed. They were compressed if no
+	--stream-data option was specified. Fixes #271.
+
+	* When linearizing or getting the list of all pages in a file,
+	replace duplicated page objects with a shallow copy of the page
+	object. Linearization and all page manipulation APIs require page
+	objects to be unique. Pages that were originally duplicated will
+	still share contents and any other indirect resources. Fixes #268.
+
+2019-01-26  Jay Berkenbilt  <ejb@ql.org>
+
+	* Add --overlay and --underlay options. Fixes #207.
+
+	* Create examples/pdf-overlay-page.cc to demonstrate use of
+	page/form XObject interaction
+
+	* Add new methods QPDFPageObjectHelper::getFormXObjectForPage,
+	which creates a form XObject equivalent to a page, and
+	QPDFObjectHandle::placeFormXObject, which generates content stream
+	code to placing a form XObject on a page.
+
+2019-01-25  Jay Berkenbilt  <ejb@ql.org>
+
+	* Add new method QPDFObjectHandle::getUniqueResourceName() to
+	return an unused key available to be used in a resource
+	dictionary.
+
+	* Add new method QPDFPageObjectHelper::getAttribute() that
+	properly handles inherited attributes and allows for creation of a
+	copy of shared attributes. This is very useful if you are getting
+	an attribute of a page dictionary with the intent to modify it
+	privately for that page.
+
+	* Fix QPDFPageObjectHelper::getPageImages (and the legacy
+	QPDFObjectHandle::getPageImages()) to properly handle images in
+	inherited resources dictionaries.
+
+2019-01-20  Jay Berkenbilt  <ejb@ql.org>
+
+	* Tweak the content code generated for variable text fields to
+	better handle font sizes and multi-line text.
+
+	* When generating appearance streams for variable text
+	annotations, properly handle the cases of there being no
+	appearance dictionary, no appearance stream, or an appearance
+	stream with no BMC..EMC marker.
+
+	* When flattening annotations, remove annotations from the file
+	that don't have appearance streams. These were previously being
+	preserved, but since they are invisible, there is no reason to
+	preserve them when flattening annotations.
+
+2019-01-19  Jay Berkenbilt  <ejb@ql.org>
+
+	* NOTE: qpdf CLI: some non-compatible changes were made to how
+	qpdf interprets password arguments that contain Unicode characters
+	that fall outside of ASCII. On Windows, the non-compatibility was
+	unavoidable, as explained in the release notes. On all platforms,
+	it is possible to get the old behavior if desired, though the old
+	behavior would almost always result in files that other
+	applications were unable to open. As it stands, qpdf should now be
+	able to open passwords encrypted with a wide range of passwords
+	that some other viewers might not handle, though even now, qpdf's
+	Unicode password handling is not 100% complete.
+
+	* Add --password-mode option, which allows fine-grained control of
+	how password arguments are treated. This is discussed fully in the
+	manual. Fixes #215.
+
+	* Add option --suppress-password-recovery to disable the behavior
+	of searching for a correct password by re-encoding the provided
+	password. This option can be useful if you want to ensure you know
+	exactly what password is being used.
+
+2019-01-17  Jay Berkenbilt  <ejb@ql.org>
+
+	* When attempting to open an encrypted file with a password, if
+	the password doesn't work, try alternative passwords created by
+	re-interpreting the supplied password with different string
+	encodings. This makes qpdf able to recover passwords with
+	non-ASCII characters when either the decryption or encryption
+	operation was performed with an incorrectly encoded password.
+
+	* Fix data loss bug: qpdf was discarding referenced resources in
+	the case in which a page's resource dictionary contained an
+	indirect reference for either /Font or /XObject that contained
+	fonts or XObjects not referenced on all pages that shared the
+	resource. This was a "typo" in the code. The comment explained the
+	correct behavior, and the code was clearly intended to handle this
+	issue, but the implementation had an error in it. This is fixed by
+	a single-line change, which can be found in git commit
+	4bc434000c42a7191e705c8a38216ca6743ad9ff. That commit can be used
+	as a patch that applies cleanly against qpdf 8.1.0 and forward.
+	The bug was introduced in version 8.1.0. For the record, this is
+	the first bug in qpdf's history that could result in silent loss
+	of data when processing a correct input file. Fixes #276.
+
+2019-01-15  Jay Berkenbilt  <ejb@ql.org>
+
+	* Add QUtil::possible_repaired_encodings which, given a string,
+	generates other strings that represent re-interpretation of the
+	bytes in a different coding system. This is used to help recover
+	passwords if the password string was improperly encoded on a
+	different system due to user error or a software bug.
+
+2019-01-14  Jay Berkenbilt  <ejb@ql.org>
+
+	* Add new CLI flags to 128-bit and 256-bit encryption: --assemble,
+	--annotate, --form, and --modify-other to control encryption
+	permissions with more granularity than was allowed with the
+	--modify flag. Fixes #214.
+
+	* Add new versions of
+	QPDFWriter::setR{3,4,5,6}EncryptionParameters that allow
+	individual setting of the various permission bits. The old
+	interfaces are retained for backward compatibility. In the "C"
+	API, add qpdf_set_r{3,4,5,6}_encryption_parameters2. The new
+	interfaces use separate booleans for various permissions instead
+	of the qpdf_r3_modify_e enumerated type, which set permission bits
+	in predefined groups.
+
+	* Add versions of utf8 to single-byte character transcoders that
+	return a success code.
+
+2019-01-13  Jay Berkenbilt  <ejb@ql.org>
+
+	* Add several more string transcoding and analysis methods to
+	QUtil for bidirectional conversion between PDF Doc, Win Ansi, Mac
+	Roman, UTF-6, and UTF-16 along with detection of valid UTF-8 and
+	UTF-16.
+
+2019-01-12  Jay Berkenbilt  <ejb@ql.org>
+
+	* In the --pages option, allow the same page to be specified more
+	than once. You can now do "--pages A.pdf 1,1 --" or
+	"--pages A.pdf 1 A.pdf 1" instead of having to use two different
+	paths to specify A.pdf. Fixes #272.
+
+	* Add QPDFPageObjectHelper::shallowCopyPage(). This method creates
+	a new page object that is a "shallow copy" of the given page as
+	described in the comments in QPDFPageObjectHelper. The resulting
+	object has not been added anywhere but is ready to be passed to
+	QPDFPageDocumentHelper::addPage of its own QPDF or another QPDF
+	object.
+
+	* Add QPDF::getUniqueId() method to return an identifier that is
+	intended to be unique within the scope of all QPDF objects created
+	by the calling application in a single run.
+
+	* In --pages, allow "." as a replacement for the current input
+	file, making it possible to say "qpdf A.pdf --pages . 1-3 --"
+	instead of having to repeat the input filename.
+
+2019-01-10  Jay Berkenbilt  <ejb@ql.org>
+
+	* Add new configure option --enable-avoid-windows-handle, which
+	causes the symbol AVOID_WINDOWS_HANDLE to be defined. If set, we
+	avoid using Windows I/O HANDLE, which is disallowed in some
+	versions of the Windows SDK, such as for Windows phones.
+	QUtil::same_file will always return false in this case. Only
+	applies to Windows builds.
+
+	* Add new method QPDF::setImmediateCopyFrom. When called on a
+	source QPDF object, streams can be copied FROM that object to
+	other ones without having to keep the source QPDF or its input
+	source around. The cost is copying the streams into RAM. See
+	comments in QPDF.hh for setImmediateCopyFrom for a detailed
+	explanation.
+
 2019-01-07  Jay Berkenbilt  <ejb@ql.org>
 
 	* 8.3.0: release

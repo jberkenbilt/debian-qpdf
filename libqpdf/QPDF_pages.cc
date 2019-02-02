@@ -47,23 +47,19 @@ QPDF::getAllPages()
     // initialize this->m->all_pages.
     if (this->m->all_pages.empty())
     {
-	getAllPagesInternal(getRoot().getKey("/Pages"), this->m->all_pages);
+        std::set<QPDFObjGen> visited;
+        std::set<QPDFObjGen> seen;
+	getAllPagesInternal(getRoot().getKey("/Pages"), this->m->all_pages,
+                            visited, seen);
     }
     return this->m->all_pages;
 }
 
 void
 QPDF::getAllPagesInternal(QPDFObjectHandle cur_pages,
-			  std::vector<QPDFObjectHandle>& result)
-{
-    std::set<QPDFObjGen> visited;
-    getAllPagesInternal2(cur_pages, result, visited);
-}
-
-void
-QPDF::getAllPagesInternal2(QPDFObjectHandle cur_pages,
-			  std::vector<QPDFObjectHandle>& result,
-                          std::set<QPDFObjGen>& visited)
+                          std::vector<QPDFObjectHandle>& result,
+                          std::set<QPDFObjGen>& visited,
+                          std::set<QPDFObjGen>& seen)
 {
     QPDFObjGen this_og = cur_pages.getObjGen();
     if (visited.count(this_og) > 0)
@@ -94,11 +90,27 @@ QPDF::getAllPagesInternal2(QPDFObjectHandle cur_pages,
 	int n = kids.getArrayNItems();
 	for (int i = 0; i < n; ++i)
 	{
-	    getAllPagesInternal2(kids.getArrayItem(i), result, visited);
+            QPDFObjectHandle kid = kids.getArrayItem(i);
+            if (! kid.isIndirect())
+            {
+                QTC::TC("qpdf", "QPDF handle direct page object");
+                kid = makeIndirectObject(kid);
+                kids.setArrayItem(i, kid);
+            }
+            else if (seen.count(kid.getObjGen()))
+            {
+                // Make a copy of the page. This does the same as
+                // shallowCopyPage in QPDFPageObjectHelper.
+                QTC::TC("qpdf", "QPDF resolve duplicated page object");
+                kid = makeIndirectObject(QPDFObjectHandle(kid).shallowCopy());
+                kids.setArrayItem(i, kid);
+            }
+	    getAllPagesInternal(kid, result, visited, seen);
 	}
     }
     else if (type == "/Page")
     {
+        seen.insert(this_og);
 	result.push_back(cur_pages);
     }
     else
@@ -201,7 +213,7 @@ QPDF::insertPage(QPDFObjectHandle newpage, int pos)
     {
         QTC::TC("qpdf", "QPDF insert foreign page");
         newpage.getOwningQPDF()->pushInheritedAttributesToPage();
-        newpage = copyForeignObject(newpage, true);
+        newpage = copyForeignObject(newpage);
     }
     else
     {

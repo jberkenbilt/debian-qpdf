@@ -13,6 +13,15 @@ Do these things next time we have to break binary compatibility
    preserved binary compatibility, so the implementation is a bit
    convoluted.
 
+ * Rename QUtil::strcasecmp since strcasecmp is a macro on some
+   platforms. See #242.
+
+ * Get rid of the version of QPDF::copyForeignObject with the bool
+   unused parameter.
+
+ * Remove version of QPDFTokenizer::expectInlineImage with no
+   arguments.
+
 Lexical
 =======
 
@@ -95,12 +104,12 @@ I find it useful to make reference to them in this list
  * Figure out how to render Gajić correctly in the PDF version of the
    qpdf manual.
 
- * Add method to push inheritable resources to a single page by
-   walking up and copying without overwrite.  Above logic will also be
-   sufficient to fix the limitation in
-   QPDFObjectHandle::getPageImages().  Maybe add a method to get the
-   effective resources for a page without modifying the page and then
-   implement both changes in terms of that method.
+ * Decide whether errors thrown by checkLinearization should be
+   converted to warnings. Take a pass through the linearization code
+   to see whether it's correct. Be able to view linearization data
+   even when there are errors. See linearization label in github.
+
+ * Consider creating a PPA for Ubuntu
 
  * Support user-pluggable stream filters.  This would enable external
    code to provide interpretation for filters that are missing from
@@ -302,15 +311,14 @@ I find it useful to make reference to them in this list
    viewing software silently ignores objects of this type, so this is
    probably not a big deal.
 
- * QPDFObjectHandle::getPageImages() doesn't notice images in
-   inherited resource dictionaries.  See comments in that function.
-
  * Based on an idea suggested by user "Atom Smasher", consider
    providing some mechanism to recover earlier versions of a file
    embedded prior to appended sections.
 
  * From a suggestion in bug 3152169, consider having an option to
-   re-encode inline images with an ASCII encoding.
+   re-encode inline images with an ASCII encoding. This is also
+   https://github.com/qpdf/qpdf/issues/278. It would be interesting to
+   make optimize-images work with inline images.
 
  * From github issue 2, provide more in-depth output for examining
    hint stream contents. Consider adding on option to provide a
@@ -322,6 +330,7 @@ I find it useful to make reference to them in this list
    of all that code to make the checks more robust. In particular,
    it's hard to look at the code and quickly determine what is a true
    logic error and what could happen because of malformed user input.
+   See also ../misc/linearization-errors.
 
  * There are a few known limitations of copying foreign streams. These
    are somewhat discussed in github issue 219. They are most likely
@@ -361,3 +370,7 @@ I find it useful to make reference to them in this list
      provider. This happens with CopiedStreamDataProvider, which uses
      the object ID and generation of the new stream to locate the
      parameters of the old stream.
+
+ * If I ever decide to make appearance stream-generation aware of
+   fonts or font metrics, see email from Tobias with Message-ID
+   <5C3C9C6C.8000102@thax.hardliners.org> dated 2019-01-14.

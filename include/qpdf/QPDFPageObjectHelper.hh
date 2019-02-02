@@ -39,15 +39,44 @@ class QPDFPageObjectHelper: public QPDFObjectHelper
     {
     }
 
+    // Return the effective value of this attribute for the page. If
+    // the requested attribute is not present on the page but is
+    // inheritable, look up through the page's ancestors in the page
+    // tree. If copy_if_shared is true, then this method will replace
+    // the attribute with a shallow copy if it is in indirect or
+    // inherited and return the copy. You should do this if you are
+    // going to modify the returned object and want the modifications
+    // to apply to the current page only.
+    QPDF_DLL
+    QPDFObjectHandle
+    getAttribute(std::string const& name, bool copy_if_shared);
+
+    // Return the TrimBox. If not defined, fall back to CropBox
+    QPDF_DLL
+    QPDFObjectHandle
+    getTrimBox(bool copy_if_shared = false);
+
+    // Return the CropBox. If not defined, fall back to MediaBox
+    QPDF_DLL
+    QPDFObjectHandle
+    getCropBox(bool copy_if_shared = false);
+
+    // Return the MediaBox
+    QPDF_DLL
+    QPDFObjectHandle
+    getMediaBox(bool copy_if_shared = false);
+
     // Returns an empty map if there are no images or no resources.
-    // This function does not presently support inherited resources.
-    // If this is a significant concern, call
-    // pushInheritedAttributesToPage() on the QPDF object that owns
-    // this page. See comment in the source for details. Return value
-    // is a map from XObject name to the image object, which is always
-    // a stream.
+    // Prior to qpdf 8.4.0, this function did not support inherited
+    // resources, but it does now. Return value is a map from XObject
+    // name to the image object, which is always a stream.
     QPDF_DLL
     std::map<std::string, QPDFObjectHandle> getPageImages();
+
+    // Convert each inline image to an external (normal) image if the
+    // size is at least the specified number of bytes.
+    QPDF_DLL
+    void externalizeInlineImages(size_t min_size = 0);
 
     // Return the annotations in the page's "/Annots" list, if any. If
     // only_subtype is non-empty, only include annotations of the
@@ -139,6 +168,67 @@ class QPDFPageObjectHelper: public QPDFObjectHelper
     // multiple pages.
     QPDF_DLL
     void removeUnreferencedResources();
+
+    // Return a new QPDFPageDocumentHelper that is a duplicate of the
+    // page. The returned object is an indirect object that is ready
+    // to be inserted into the same or a different QPDF object using
+    // any of the addPage methods in QPDFPageDocumentHelper or QPDF.
+    // Without calling one of those methods, the page will not be
+    // added anywhere. The new page object shares all content streams
+    // and indirect object resources with the original page, so if you
+    // are going to modify the contents or other aspects of the page,
+    // you will need to handling copying of the component parts
+    // separately.
+    QPDF_DLL
+    QPDFPageObjectHelper shallowCopyPage();
+
+    // Return a transformation matrix whose effect is the same as the
+    // page's /Rotate and /UserUnit parameters. If invert is true,
+    // return a matrix whose effect is the opposite. The regular
+    // matrix is suitable for taking something from this page to put
+    // elsewhere, and the second one is suitable for putting something
+    // else onto this page. The page's TrimBox is used as the bounding
+    // box for purposes of computing the matrix.
+    QPDF_DLL
+    QPDFObjectHandle::Matrix getMatrixForTransformations(bool invert = false);
+
+    // Return a form XObject that draws this page. This is useful for
+    // n-up operations, underlay, overlay, thumbnail generation, or
+    // any other case in which it is useful to replicate the contents
+    // of a page in some other context. The dictionaries are shallow
+    // copies of the original page dictionary, and the contents are
+    // coalesced from the page's contents. The resulting object handle
+    // is not referenced anywhere. If handle_transformations is true,
+    // the resulting form XObject's /Matrix will be set to replicate
+    // rotation (/Rotate) and scaling (/UserUnit) in the page's
+    // dictionary. In this way, the page's transformations will be
+    // preserved when placing this object on another page.
+    QPDF_DLL
+    QPDFObjectHandle getFormXObjectForPage(bool handle_transformations = true);
+
+    // Return content stream text that will place the given form
+    // XObject (fo) using the resource name "name" on this page
+    // centered within the given rectangle and shrunk to fit if
+    // necessary. If invert_transformations is true, the effect of any
+    // rotation (/Rotate) and scaling (/UserUnit) applied to the
+    // current page will be inverted in the form XObject placement.
+    // This will cause the form XObject's absolute orientation to be
+    // preserved. You could overlay one page on another by calling
+    // getFormXObjectForPage on the original page,
+    // QPDFObjectHandle::getUniqueResourceName on the destination
+    // page's Resources dictionary to generate a name for the
+    // resulting object, and calling placeFormXObject on the
+    // destination page. Then insert the new fo (or, if it comes from
+    // a different file, the result of calling copyForeignObject on
+    // it) into the resources dictionary using name, and append or
+    // prepend the content to the page's content streams. See the
+    // overlay/underlay code in qpdf.cc or
+    // examples/pdf-overlay-page.cc for an example.
+    QPDF_DLL
+    std::string placeFormXObject(
+        QPDFObjectHandle fo, std::string name,
+        QPDFObjectHandle::Rectangle rect,
+        bool invert_transformations = true);
 
   private:
     class Members
