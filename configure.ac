@@ -2,7 +2,7 @@ dnl Process this file with autoconf to produce a configure script.
 dnl This config.in requires autoconf 2.5 or greater.
 
 AC_PREREQ([2.68])
-AC_INIT([qpdf],[8.3.0])
+AC_INIT([qpdf],[8.4.0])
 
 AC_CONFIG_MACRO_DIR([m4])
 AC_CONFIG_FILES([autoconf.mk])
@@ -51,8 +51,8 @@ LT_INIT([win32-dll])
 # * Otherwise, increment LT_REVISION
 
 # LT = libtool
-LT_CURRENT=24
-LT_AGE=3
+LT_CURRENT=25
+LT_AGE=4
 LT_REVISION=0
 AC_SUBST(LT_CURRENT)
 AC_SUBST(LT_REVISION)
@@ -92,6 +92,21 @@ fi
 
 AX_RANDOM_DEVICE
 
+AC_ARG_ENABLE(avoid-windows-handle,
+   AS_HELP_STRING([--enable-avoid-windows-handle],
+                  [whether to avoid use of HANDLE, useful for some embedded Windows builds (default is no)]),
+   [if test "$enableval" = "yes"; then
+      qpdf_AVOID_HANDLE=1;
+    else
+      qpdf_AVOID_HANDLE=0;
+    fi], [qpdf_AVOID_HANDLE=0])
+if test "$qpdf_AVOID_HANDLE" = "1"; then
+   AC_MSG_RESULT(yes)
+   AC_DEFINE([AVOID_WINDOWS_HANDLE], [1], [Whether to avoid use of HANDLE in Windows])
+else
+   AC_MSG_RESULT(no)
+fi
+
 USE_EXTERNAL_LIBS=0
 AC_MSG_CHECKING(for whether to use external libraries distribution)
 AC_ARG_ENABLE(external-libs,
@@ -129,6 +144,47 @@ if test "$BUILD_INTERNAL_LIBS" = "0"; then
    AC_CHECK_HEADER(jpeglib.h,,[MISSING_JPEG_H=1; MISSING_ANY=1])
    AC_SEARCH_LIBS(jpeg_destroy,jpeg,,[MISSING_JPEG=1; MISSING_ANY=1])
 fi
+
+qpdf_USE_WMAIN=0
+AC_LANG_PUSH([C++])
+AC_SUBST(WINDOWS_WMAIN_COMPILE)
+AC_SUBST(WINDOWS_WMAIN_LINK)
+for i in 0 1; do
+  if test "$qpdf_USE_WMAIN" = "0"; then
+    oLDFLAGS="$LDFLAGS"
+    if test "$i" = "1"; then
+      nLDFLAGS="-municode"
+      LDFLAGS="$LDFLAGS $nLDFLAGS"
+      msg="checking for wmain with $nLDFLAGS"
+    else
+      nLDFLAGS=
+      msg="checking for wmain"
+    fi
+    AC_MSG_CHECKING($msg)
+    AC_LINK_IFELSE([AC_LANG_SOURCE(
+      [[#include <windows.h>
+       #include <string.h>
+       #include <stdio.h>
+       extern "C"
+       int wmain(int argc, wchar_t* argv[])
+       {
+           size_t x = wcslen(argv[0]);
+           return 0;
+       }
+       ]])],
+       [qpdf_USE_WMAIN=1],
+       [qpdf_USE_WMAIN=0])
+    LDFLAGS="$oLDFLAGS"
+    if test "$qpdf_USE_WMAIN" = "1"; then
+      AC_MSG_RESULT(yes)
+      WINDOWS_WMAIN_COMPILE="-DWINDOWS_WMAIN $nLDFLAGS"
+      WINDOWS_WMAIN_LINK="$nLDFLAGS"
+    else
+      AC_MSG_RESULT(no)
+    fi
+  fi
+done
+AC_LANG_POP
 
 if test "x$qpdf_OS_SECURE_RANDOM" = "x1"; then
   OLIBS=$LIBS

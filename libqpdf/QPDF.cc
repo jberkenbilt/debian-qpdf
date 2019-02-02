@@ -20,7 +20,7 @@
 #include <qpdf/QPDF_Dictionary.hh>
 #include <qpdf/QPDF_Stream.hh>
 
-std::string QPDF::qpdf_version = "8.3.0";
+std::string QPDF::qpdf_version = "8.4.0";
 
 static char const* EMPTY_PDF =
     "%PDF-1.3\n"
@@ -147,6 +147,7 @@ QPDF::Members::Members() :
     copied_stream_data_provider(0),
     reconstructed_xref(false),
     fixed_dangling_refs(false),
+    immediate_copy_from(false),
     first_xref_item_offset(0),
     uncompressed_after_compressed(false)
 {
@@ -267,6 +268,12 @@ void
 QPDF::setAttemptRecovery(bool val)
 {
     this->m->attempt_recovery = val;
+}
+
+void
+QPDF::setImmediateCopyFrom(bool val)
+{
+    this->m->immediate_copy_from = val;
 }
 
 std::vector<QPDFExc>
@@ -2134,14 +2141,18 @@ QPDF::replaceReserved(QPDFObjectHandle reserved,
 }
 
 QPDFObjectHandle
-QPDF::copyForeignObject(QPDFObjectHandle foreign)
+QPDF::copyForeignObject(QPDFObjectHandle foreign, bool)
 {
-    return copyForeignObject(foreign, false);
+    // This method will be removed next time the ABI is changed.
+    return copyForeignObject(foreign);
 }
 
 QPDFObjectHandle
-QPDF::copyForeignObject(QPDFObjectHandle foreign, bool allow_page)
+QPDF::copyForeignObject(QPDFObjectHandle foreign)
 {
+    // Do not preclude use of copyForeignObject on page objects. It is
+    // a documented use case to copy pages this way if the intention
+    // is to not update the pages tree.
     if (! foreign.isIndirect())
     {
         QTC::TC("qpdf", "QPDF copyForeign direct");
@@ -2376,6 +2387,19 @@ QPDF::replaceForeignIndirectObjects(
         }
         PointerHolder<Buffer> stream_buffer =
             stream->getStreamDataBuffer();
+        if ((foreign_stream_qpdf->m->immediate_copy_from) &&
+            (stream_buffer.getPointer() == 0))
+        {
+            // Pull the stream data into a buffer before attempting
+            // the copy operation. Do it on the source stream so that
+            // if the source stream is copied multiple times, we don't
+            // have to keep duplicating the memory.
+            QTC::TC("qpdf", "QPDF immediate copy stream data");
+            foreign.replaceStreamData(foreign.getRawStreamData(),
+                                      dict.getKey("/Filter"),
+                                      dict.getKey("/DecodeParms"));
+            stream_buffer = stream->getStreamDataBuffer();
+        }
         PointerHolder<QPDFObjectHandle::StreamDataProvider> stream_provider =
             stream->getStreamDataProvider();
         if (stream_buffer.getPointer())
@@ -2448,6 +2472,12 @@ QPDF::swapObjects(int objid1, int generation1, int objid2, int generation2)
     ObjCache t = this->m->obj_cache[og1];
     this->m->obj_cache[og1] = this->m->obj_cache[og2];
     this->m->obj_cache[og2] = t;
+}
+
+unsigned long long
+QPDF::getUniqueId() const
+{
+    return this->m->unique_id;
 }
 
 std::string

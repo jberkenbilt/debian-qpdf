@@ -923,11 +923,24 @@ void runtest(int n, char const* filename1, char const* arg2)
     }
     else if (n == 17)
     {
-        // The input file to this test case is broken to exercise an
-        // error condition.
+        // The input file to this test case has a duplicated page.
+        QPDFObjectHandle page_kids =
+            pdf.getRoot().getKey("/Pages").getKey("/Kids");
+        assert(page_kids.getArrayItem(0).getObjGen() ==
+               page_kids.getArrayItem(1).getObjGen());
         std::vector<QPDFObjectHandle> const& pages = pdf.getAllPages();
+        assert(pages.size() == 3);
+        assert(! (pages.at(0).getObjGen() == pages.at(1).getObjGen()));
+        assert(QPDFObjectHandle(pages.at(0)).getKey("/Contents").getObjGen() ==
+               QPDFObjectHandle(pages.at(1)).getKey("/Contents").getObjGen());
         pdf.removePage(pages.at(0));
-        std::cout << "you can't see this" << std::endl;
+        assert(pages.size() == 2);
+        PointerHolder<Buffer> b = QPDFObjectHandle(pages.at(0)).
+            getKey("/Contents").getStreamData();
+        std::string contents = std::string(
+            reinterpret_cast<char const*>(b->getBuffer()),
+            b->getSize());
+        assert(contents.find("page 0") != std::string::npos);
     }
     else if (n == 18)
     {
@@ -1130,25 +1143,56 @@ void runtest(int n, char const* filename1, char const* arg2)
         // Should get qtest plus only the O3 page and the page that O3
         // points to. Inherited objects should be preserved. This test
         // also exercises copying from a stream that has a buffer and
-        // a provider, including copying a provider multiple times.
+        // a provider, including copying a provider multiple times. We
+        // also exercise setImmediateCopyFrom.
 
-	Pl_Buffer p1("buffer");
-	p1.write(QUtil::unsigned_char_pointer("new data for stream\n"),
-                 20); // no null!
-	p1.finish();
-	PointerHolder<Buffer> b = p1.getBuffer();
-	Provider* provider = new Provider(b);
-	PointerHolder<QPDFObjectHandle::StreamDataProvider> p = provider;
+        // Create a provider. The provider stays in scope.
+	PointerHolder<QPDFObjectHandle::StreamDataProvider> p1;
+        {
+            // Local scope
+            Pl_Buffer pl("buffer");
+            pl.write(QUtil::unsigned_char_pointer("new data for stream\n"),
+                      20); // no null!
+            pl.finish();
+            PointerHolder<Buffer> b = pl.getBuffer();
+            Provider* provider = new Provider(b);
+            p1 = provider;
+        }
+        // Create a stream that uses a provider in empty1 and copy it
+        // to empty2. It is copied from empty2 to the final pdf.
         QPDF empty1;
         empty1.emptyPDF();
         QPDFObjectHandle s1 = QPDFObjectHandle::newStream(&empty1);
 	s1.replaceStreamData(
-	    p, QPDFObjectHandle::newNull(), QPDFObjectHandle::newNull());
+	    p1, QPDFObjectHandle::newNull(), QPDFObjectHandle::newNull());
         QPDF empty2;
         empty2.emptyPDF();
 	s1 = empty2.copyForeignObject(s1);
         {
-            // Make sure original PDF is out of scope when we write.
+            // Make sure some source PDFs are out of scope when we
+            // write.
+
+            PointerHolder<QPDFObjectHandle::StreamDataProvider> p2;
+            // Create another provider. This one will go out of scope
+            // along with its containing qpdf, which has
+            // setImmediateCopyFrom(true).
+            {
+                // Local scope
+                Pl_Buffer pl("buffer");
+                pl.write(QUtil::unsigned_char_pointer(
+                              "more data for stream\n"),
+                          21); // no null!
+                pl.finish();
+                PointerHolder<Buffer> b = pl.getBuffer();
+                Provider* provider = new Provider(b);
+                p2 = provider;
+            }
+            QPDF empty3;
+            empty3.emptyPDF();
+            empty3.setImmediateCopyFrom(true);
+            QPDFObjectHandle s3 = QPDFObjectHandle::newStream(&empty3);
+            s3.replaceStreamData(
+                p2, QPDFObjectHandle::newNull(), QPDFObjectHandle::newNull());
             assert(arg2 != 0);
             QPDF oldpdf;
             oldpdf.processFile(arg2);
@@ -1167,6 +1211,8 @@ void runtest(int n, char const* filename1, char const* arg2)
                 pdf.copyForeignObject(s1));
             pdf.getTrailer().getKey("/QTest2").appendItem(
                 pdf.copyForeignObject(s2));
+            pdf.getTrailer().getKey("/QTest2").appendItem(
+                pdf.copyForeignObject(s3));
         }
 
 	QPDFWriter w(pdf, "a.pdf");
@@ -1910,6 +1956,95 @@ void runtest(int n, char const* filename1, char const* arg2)
         {
             std::cout << "oops: " << w.getFinalVersion() << std::endl;
         }
+    }
+    else if (n == 55)
+    {
+        // Form XObjects
+        std::vector<QPDFPageObjectHelper> pages =
+            QPDFPageDocumentHelper(pdf).getAllPages();
+        QPDFObjectHandle qtest = QPDFObjectHandle::newArray();
+        for (std::vector<QPDFPageObjectHelper>::iterator iter = pages.begin();
+             iter != pages.end(); ++iter)
+        {
+            QPDFPageObjectHelper& ph(*iter);
+            qtest.appendItem(ph.getFormXObjectForPage());
+            qtest.appendItem(ph.getFormXObjectForPage(false));
+        }
+        pdf.getTrailer().replaceKey("/QTest", qtest);
+        QPDFWriter w(pdf, "a.pdf");
+	w.setQDFMode(true);
+        w.setStaticID(true);
+        w.write();
+    }
+    else if ((n >= 56) && (n <= 59))
+    {
+        // Placing form XObjects
+        assert(arg2);
+        QPDF pdf2;
+        pdf2.processFile(arg2);
+
+        // red pages are from pdf, blue pages are from pdf2
+        // red pages always have stated rotation absolutely
+        // 56: blue pages are overlaid exactly on top of red pages
+        // 57: blue pages have stated rotation relative to red pages
+        // 58: blue pages have no rotation (absolutely upright)
+        // 59: blue pages have stated rotation absolutely
+        bool handle_from_transformation = ((n == 57) || (n == 59));
+        bool invert_to_transformation = ((n == 58) || (n == 59));
+
+        std::vector<QPDFPageObjectHelper> pages1 =
+            QPDFPageDocumentHelper(pdf).getAllPages();
+        std::vector<QPDFPageObjectHelper> pages2 =
+            QPDFPageDocumentHelper(pdf2).getAllPages();
+        size_t npages = (pages1.size() < pages2.size()
+                         ? pages1.size() : pages2.size());
+        for (size_t i = 0; i < npages; ++i)
+        {
+            QPDFPageObjectHelper& ph1 = pages1.at(i);
+            QPDFPageObjectHelper& ph2 = pages2.at(i);
+            QPDFObjectHandle fo = pdf.copyForeignObject(
+                ph2.getFormXObjectForPage(handle_from_transformation));
+            int min_suffix = 1;
+            QPDFObjectHandle resources = ph1.getAttribute("/Resources", true);
+            std::string name = resources.getUniqueResourceName(
+                "/Fx", min_suffix);
+            std::string content =
+                ph1.placeFormXObject(
+                    fo, name, ph1.getTrimBox().getArrayAsRectangle(),
+                    invert_to_transformation);
+            if (! content.empty())
+            {
+                resources.mergeResources(
+                    QPDFObjectHandle::parse("<< /XObject << >> >>"));
+                resources.getKey("/XObject").replaceKey(name, fo);
+                ph1.addPageContents(
+                    QPDFObjectHandle::newStream(&pdf, "q\n"), true);
+                ph1.addPageContents(
+                    QPDFObjectHandle::newStream(&pdf, "\nQ\n" + content),
+                    false);
+            }
+        }
+        QPDFWriter w(pdf, "a.pdf");
+	w.setQDFMode(true);
+        w.setStaticID(true);
+        w.write();
+    }
+    else if (n == 60)
+    {
+        // Boundary condition testing for getUniqueResourceName
+        QPDFObjectHandle r1 = QPDFObjectHandle::newDictionary();
+        int min_suffix = 1;
+        for (int i = 1; i < 3; ++i)
+        {
+            std::string name = r1.getUniqueResourceName("/Quack", min_suffix);
+            r1.mergeResources(QPDFObjectHandle::parse("<< /Z << >> >>"));
+            r1.getKey("/Z").replaceKey(
+                name, QPDFObjectHandle::newString("moo"));
+        }
+        pdf.getTrailer().replaceKey("/QTest", r1);
+        QPDFWriter w(pdf, "a.pdf");
+        w.setStaticID(true);
+        w.write();
     }
     else
     {

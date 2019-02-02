@@ -18,6 +18,7 @@
 #include <qpdf/Pl_QPDFTokenizer.hh>
 #include <qpdf/BufferInputSource.hh>
 #include <qpdf/QPDFExc.hh>
+#include <qpdf/QPDFPageObjectHelper.hh>
 
 #include <qpdf/QTC.hh>
 #include <qpdf/QUtil.hh>
@@ -930,6 +931,30 @@ QPDFObjectHandle::getResourceNames()
     return result;
 }
 
+std::string
+QPDFObjectHandle::getUniqueResourceName(std::string const& prefix,
+                                        int& min_suffix)
+{
+    std::set<std::string> names = getResourceNames();
+    int max_suffix = min_suffix + names.size();
+    while (min_suffix <= max_suffix)
+    {
+        std::string candidate = prefix + QUtil::int_to_string(min_suffix);
+        if (names.count(candidate) == 0)
+        {
+            return candidate;
+        }
+        // Increment after return; min_suffix should be the value
+        // used, not the next value.
+        ++min_suffix;
+    }
+    // This could only happen if there is a coding error.
+    // The number of candidates we test is more than the
+    // number of keys we're checking against.
+    throw std::logic_error("unable to find unconflicting name in"
+                           " QPDFObjectHandle::getUniqueResourceName");
+}
+
 // Indirect object accessors
 QPDF*
 QPDFObjectHandle::getOwningQPDF()
@@ -1109,24 +1134,11 @@ QPDFObjectHandle::getGeneration() const
 std::map<std::string, QPDFObjectHandle>
 QPDFObjectHandle::getPageImages()
 {
-    // Note: this code doesn't handle inherited resources.  If this
-    // page dictionary doesn't have a /Resources key or has one whose
-    // value is null or an empty dictionary, you are supposed to walk
-    // up the page tree until you find a /Resources dictionary.  As of
-    // this writing, I don't have any test files that use inherited
-    // resources, and hand-generating one won't be a good test because
-    // any mistakes in my understanding would be present in both the
-    // code and the test file.
-
-    // NOTE: If support of inherited resources (see above comment) is
-    // implemented, edit comment in QPDFObjectHandle.hh for this
-    // function.  Also remove call to pushInheritedAttributesToPage
-    // from qpdf.cc when show_page_images is true.
-
     std::map<std::string, QPDFObjectHandle> result;
-    if (this->hasKey("/Resources"))
+    QPDFObjectHandle resources =
+        QPDFPageObjectHelper(*this).getAttribute("/Resources", false);
+    if (resources.isDictionary())
     {
-	QPDFObjectHandle resources = this->getKey("/Resources");
 	if (resources.hasKey("/XObject"))
 	{
 	    QPDFObjectHandle xobject = resources.getKey("/XObject");
@@ -1546,7 +1558,7 @@ QPDFObjectHandle::parseContentStream_data(
             // terminated the token.  Read until end of inline image.
             char ch;
             input->read(&ch, 1);
-            tokenizer.expectInlineImage();
+            tokenizer.expectInlineImage(input);
             QPDFTokenizer::Token t =
                 tokenizer.readToken(input, description, true);
             if (t.getType() == QPDFTokenizer::tt_bad)
@@ -1558,16 +1570,7 @@ QPDFObjectHandle::parseContentStream_data(
             }
             else
             {
-                // Skip back over EI
-                input->seek(-3, SEEK_CUR);
-                std::string inline_image = t.getRawValue();
-                for (int i = 0; i < 4; ++i)
-                {
-                    if (inline_image.length() > 0)
-                    {
-                        inline_image.erase(inline_image.length() - 1);
-                    }
-                }
+                std::string inline_image = t.getValue();
                 QTC::TC("qpdf", "QPDFObjectHandle inline image token");
                 callbacks->handleObject(
                     QPDFObjectHandle::newInlineImage(inline_image));

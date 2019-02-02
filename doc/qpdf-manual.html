@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>QPDF Manual</title><link rel="stylesheet" type="text/css" href="stylesheet.css" /><meta name="generator" content="DocBook XSL Stylesheets V1.79.1" /></head><body><div class="book"><div class="titlepage"><div><div><h1 class="title"><a id="idm46642740573792"></a>QPDF Manual</h1></div><div><h2 class="subtitle">For QPDF Version 8.3.0, January 7, 2019</h2></div><div><div class="author"><h3 class="author"><span class="firstname">Jay</span> <span class="surname">Berkenbilt</span></h3></div></div><div><p class="copyright">Copyright © 2005–2019 Jay Berkenbilt</p></div></div><hr /></div><div class="toc"><p><strong>Table of Contents</strong></p><dl class="toc"><dt><span class="preface"><a href="#acknowledgments">General Information</a></span></dt><dt><span class="chapter"><a href="#ref.overview">1. What is QPDF?</a></span></dt><dt><span class="chapter"><a href="#ref.installing">2. Building and Installing QPDF</a></span></dt><dd><dl><dt><span class="sect1"><a href="#ref.prerequisites">2.1. System Requirements</a></span></dt><dt><span class="sect1"><a href="#ref.building">2.2. Build Instructions</a></span></dt><dt><span class="sect1"><a href="#ref.packaging">2.3. Notes for Packagers</a></span></dt></dl></dd><dt><span class="chapter"><a href="#ref.using">3. Running QPDF</a></span></dt><dd><dl><dt><span class="sect1"><a href="#ref.invocation">3.1. Basic Invocation</a></span></dt><dt><span class="sect1"><a href="#ref.shell-completion">3.2. Shell Completion</a></span></dt><dt><span class="sect1"><a href="#ref.basic-options">3.3. Basic Options</a></span></dt><dt><span class="sect1"><a href="#ref.encryption-options">3.4. Encryption Options</a></span></dt><dt><span class="sect1"><a href="#ref.page-selection">3.5. Page Selection Options</a></span></dt><dt><span class="sect1"><a href="#ref.advanced-parsing">3.6. Advanced Parsing Options</a></span></dt><dt><span class="sect1"><a href="#ref.advanced-transformation">3.7. Advanced Transformation Options</a></span></dt><dt><span class="sect1"><a href="#ref.testing-options">3.8. Testing, Inspection, and Debugging Options</a></span></dt></dl></dd><dt><span class="chapter"><a href="#ref.qdf">4. QDF Mode</a></span></dt><dt><span class="chapter"><a href="#ref.using-library">5. Using the QPDF Library</a></span></dt><dd><dl><dt><span class="sect1"><a href="#ref.using.from-cxx">5.1. Using QPDF from C++</a></span></dt><dt><span class="sect1"><a href="#ref.using.other-languages">5.2. Using QPDF from other languages</a></span></dt></dl></dd><dt><span class="chapter"><a href="#ref.json">6. QPDF JSON</a></span></dt><dd><dl><dt><span class="sect1"><a href="#ref.json-overview">6.1. Overview</a></span></dt><dt><span class="sect1"><a href="#ref.json-guarantees">6.2. JSON Guarantees</a></span></dt><dt><span class="sect1"><a href="#json.limitations">6.3. Limitations of JSON Representation</a></span></dt><dt><span class="sect1"><a href="#json.considerations">6.4. JSON: Special Considerations</a></span></dt></dl></dd><dt><span class="chapter"><a href="#ref.design">7. Design and Library Notes</a></span></dt><dd><dl><dt><span class="sect1"><a href="#ref.design.intro">7.1. Introduction</a></span></dt><dt><span class="sect1"><a href="#ref.design-goals">7.2. Design Goals</a></span></dt><dt><span class="sect1"><a href="#ref.helper-classes">7.3. Helper Classes</a></span></dt><dt><span class="sect1"><a href="#ref.implementation-notes">7.4. Implementation Notes</a></span></dt><dt><span class="sect1"><a href="#ref.casting">7.5. Casting Policy</a></span></dt><dt><span class="sect1"><a href="#ref.encryption">7.6. Encryption</a></span></dt><dt><span class="sect1"><a href="#ref.random-numbers">7.7. Random Number Generation</a></span></dt><dt><span class="sect1"><a href="#ref.adding-and-remove-pages">7.8. Adding and Removing Pages</a></span></dt><dt><span class="sect1"><a href="#ref.reserved-objects">7.9. Reserving Object Numbers</a></span></dt><dt><span class="sect1"><a href="#ref.foreign-objects">7.10. Copying Objects From Other PDF Files</a></span></dt><dt><span class="sect1"><a href="#ref.rewriting">7.11. Writing PDF Files</a></span></dt><dt><span class="sect1"><a href="#ref.filtered-streams">7.12. Filtered Streams</a></span></dt></dl></dd><dt><span class="chapter"><a href="#ref.linearization">8. Linearization</a></span></dt><dd><dl><dt><span class="sect1"><a href="#ref.linearization-strategy">8.1. Basic Strategy for Linearization</a></span></dt><dt><span class="sect1"><a href="#ref.linearized.preparation">8.2. Preparing For Linearization</a></span></dt><dt><span class="sect1"><a href="#ref.optimization">8.3. Optimization</a></span></dt><dt><span class="sect1"><a href="#ref.linearization.writing">8.4. Writing Linearized Files</a></span></dt><dt><span class="sect1"><a href="#ref.linearization-data">8.5. Calculating Linearization Data</a></span></dt><dt><span class="sect1"><a href="#ref.linearization-issues">8.6. Known Issues with Linearization</a></span></dt><dt><span class="sect1"><a href="#ref.linearization-debugging">8.7. Debugging Note</a></span></dt></dl></dd><dt><span class="chapter"><a href="#ref.object-and-xref-streams">9. Object and Cross-Reference Streams</a></span></dt><dd><dl><dt><span class="sect1"><a href="#ref.object-streams">9.1. Object Streams</a></span></dt><dt><span class="sect1"><a href="#ref.xref-streams">9.2. Cross-Reference Streams</a></span></dt><dd><dl><dt><span class="sect2"><a href="#ref.xref-stream-data">9.2.1. Cross-Reference Stream Data</a></span></dt></dl></dd><dt><span class="sect1"><a href="#ref.object-streams-linearization">9.3. Implications for Linearized Files</a></span></dt><dt><span class="sect1"><a href="#ref.object-stream-implementation">9.4. Implementation Notes</a></span></dt></dl></dd><dt><span class="appendix"><a href="#ref.release-notes">A. Release Notes</a></span></dt><dt><span class="appendix"><a href="#ref.upgrading-to-2.1">B. Upgrading from 2.0 to 2.1</a></span></dt><dt><span class="appendix"><a href="#ref.upgrading-to-3.0">C. Upgrading to 3.0</a></span></dt><dt><span class="appendix"><a href="#ref.upgrading-to-4.0">D. Upgrading to 4.0</a></span></dt></dl></div><div class="preface"><div class="titlepage"><div><div><h1 class="title"><a id="acknowledgments"></a>General Information</h1></div></div></div><p>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>QPDF Manual</title><link rel="stylesheet" type="text/css" href="stylesheet.css" /><meta name="generator" content="DocBook XSL Stylesheets V1.79.1" /></head><body><div class="book"><div class="titlepage"><div><div><h1 class="title"><a id="idm46094354123872"></a>QPDF Manual</h1></div><div><h2 class="subtitle">For QPDF Version 8.4.0, February 1, 2019</h2></div><div><div class="author"><h3 class="author"><span class="firstname">Jay</span> <span class="surname">Berkenbilt</span></h3></div></div><div><p class="copyright">Copyright © 2005–2019 Jay Berkenbilt</p></div></div><hr /></div><div class="toc"><p><strong>Table of Contents</strong></p><dl class="toc"><dt><span class="preface"><a href="#acknowledgments">General Information</a></span></dt><dt><span class="chapter"><a href="#ref.overview">1. What is QPDF?</a></span></dt><dt><span class="chapter"><a href="#ref.installing">2. Building and Installing QPDF</a></span></dt><dd><dl><dt><span class="sect1"><a href="#ref.prerequisites">2.1. System Requirements</a></span></dt><dt><span class="sect1"><a href="#ref.building">2.2. Build Instructions</a></span></dt><dt><span class="sect1"><a href="#ref.packaging">2.3. Notes for Packagers</a></span></dt></dl></dd><dt><span class="chapter"><a href="#ref.using">3. Running QPDF</a></span></dt><dd><dl><dt><span class="sect1"><a href="#ref.invocation">3.1. Basic Invocation</a></span></dt><dt><span class="sect1"><a href="#ref.shell-completion">3.2. Shell Completion</a></span></dt><dt><span class="sect1"><a href="#ref.basic-options">3.3. Basic Options</a></span></dt><dt><span class="sect1"><a href="#ref.encryption-options">3.4. Encryption Options</a></span></dt><dt><span class="sect1"><a href="#ref.page-selection">3.5. Page Selection Options</a></span></dt><dt><span class="sect1"><a href="#ref.overlay-underlay">3.6. Overlay and Underlay Options</a></span></dt><dt><span class="sect1"><a href="#ref.advanced-parsing">3.7. Advanced Parsing Options</a></span></dt><dt><span class="sect1"><a href="#ref.advanced-transformation">3.8. Advanced Transformation Options</a></span></dt><dt><span class="sect1"><a href="#ref.testing-options">3.9. Testing, Inspection, and Debugging Options</a></span></dt><dt><span class="sect1"><a href="#ref.unicode-passwords">3.10. Unicode Passwords</a></span></dt></dl></dd><dt><span class="chapter"><a href="#ref.qdf">4. QDF Mode</a></span></dt><dt><span class="chapter"><a href="#ref.using-library">5. Using the QPDF Library</a></span></dt><dd><dl><dt><span class="sect1"><a href="#ref.using.from-cxx">5.1. Using QPDF from C++</a></span></dt><dt><span class="sect1"><a href="#ref.using.other-languages">5.2. Using QPDF from other languages</a></span></dt></dl></dd><dt><span class="chapter"><a href="#ref.json">6. QPDF JSON</a></span></dt><dd><dl><dt><span class="sect1"><a href="#ref.json-overview">6.1. Overview</a></span></dt><dt><span class="sect1"><a href="#ref.json-guarantees">6.2. JSON Guarantees</a></span></dt><dt><span class="sect1"><a href="#json.limitations">6.3. Limitations of JSON Representation</a></span></dt><dt><span class="sect1"><a href="#json.considerations">6.4. JSON: Special Considerations</a></span></dt></dl></dd><dt><span class="chapter"><a href="#ref.design">7. Design and Library Notes</a></span></dt><dd><dl><dt><span class="sect1"><a href="#ref.design.intro">7.1. Introduction</a></span></dt><dt><span class="sect1"><a href="#ref.design-goals">7.2. Design Goals</a></span></dt><dt><span class="sect1"><a href="#ref.helper-classes">7.3. Helper Classes</a></span></dt><dt><span class="sect1"><a href="#ref.implementation-notes">7.4. Implementation Notes</a></span></dt><dt><span class="sect1"><a href="#ref.casting">7.5. Casting Policy</a></span></dt><dt><span class="sect1"><a href="#ref.encryption">7.6. Encryption</a></span></dt><dt><span class="sect1"><a href="#ref.random-numbers">7.7. Random Number Generation</a></span></dt><dt><span class="sect1"><a href="#ref.adding-and-remove-pages">7.8. Adding and Removing Pages</a></span></dt><dt><span class="sect1"><a href="#ref.reserved-objects">7.9. Reserving Object Numbers</a></span></dt><dt><span class="sect1"><a href="#ref.foreign-objects">7.10. Copying Objects From Other PDF Files</a></span></dt><dt><span class="sect1"><a href="#ref.rewriting">7.11. Writing PDF Files</a></span></dt><dt><span class="sect1"><a href="#ref.filtered-streams">7.12. Filtered Streams</a></span></dt></dl></dd><dt><span class="chapter"><a href="#ref.linearization">8. Linearization</a></span></dt><dd><dl><dt><span class="sect1"><a href="#ref.linearization-strategy">8.1. Basic Strategy for Linearization</a></span></dt><dt><span class="sect1"><a href="#ref.linearized.preparation">8.2. Preparing For Linearization</a></span></dt><dt><span class="sect1"><a href="#ref.optimization">8.3. Optimization</a></span></dt><dt><span class="sect1"><a href="#ref.linearization.writing">8.4. Writing Linearized Files</a></span></dt><dt><span class="sect1"><a href="#ref.linearization-data">8.5. Calculating Linearization Data</a></span></dt><dt><span class="sect1"><a href="#ref.linearization-issues">8.6. Known Issues with Linearization</a></span></dt><dt><span class="sect1"><a href="#ref.linearization-debugging">8.7. Debugging Note</a></span></dt></dl></dd><dt><span class="chapter"><a href="#ref.object-and-xref-streams">9. Object and Cross-Reference Streams</a></span></dt><dd><dl><dt><span class="sect1"><a href="#ref.object-streams">9.1. Object Streams</a></span></dt><dt><span class="sect1"><a href="#ref.xref-streams">9.2. Cross-Reference Streams</a></span></dt><dd><dl><dt><span class="sect2"><a href="#ref.xref-stream-data">9.2.1. Cross-Reference Stream Data</a></span></dt></dl></dd><dt><span class="sect1"><a href="#ref.object-streams-linearization">9.3. Implications for Linearized Files</a></span></dt><dt><span class="sect1"><a href="#ref.object-stream-implementation">9.4. Implementation Notes</a></span></dt></dl></dd><dt><span class="appendix"><a href="#ref.release-notes">A. Release Notes</a></span></dt><dt><span class="appendix"><a href="#ref.upgrading-to-2.1">B. Upgrading from 2.0 to 2.1</a></span></dt><dt><span class="appendix"><a href="#ref.upgrading-to-3.0">C. Upgrading to 3.0</a></span></dt><dt><span class="appendix"><a href="#ref.upgrading-to-4.0">D. Upgrading to 4.0</a></span></dt></dl></div><div class="preface"><div class="titlepage"><div><div><h1 class="title"><a id="acknowledgments"></a>General Information</h1></div></div></div><p>
    QPDF is a program that does structural, content-preserving
    transformations on PDF files.  QPDF's website is located at <a class="ulink" href="http://qpdf.sourceforge.net/" target="_top">http://qpdf.sourceforge.net/</a>.
    QPDF's source code is hosted on github at <a class="ulink" href="https://github.com/qpdf/qpdf" target="_top">https://github.com/qpdf/qpdf</a>.
@@ -120,14 +120,6 @@
     If you do not enable this, then you do not need to have tiff and
     ghostscript.
    </p><p>
-    If Adobe Reader is installed as <span class="command"><strong>acroread</strong></span>, some
-    additional test cases will be enabled.  These test cases simply
-    verify that Adobe Reader can open the files that qpdf creates.
-    They require version 8.0 or newer to pass.  However, in order to
-    avoid having qpdf depend on non-free (as in liberty) software, the
-    test suite will still pass without Adobe reader, and the test
-    suite still exercises the full functionality of the software.
-   </p><p>
     Pre-built documentation is distributed with qpdf, so you should
     generally not need to rebuild the documentation.  In order to
     build the documentation from its docbook sources, you need the
@@ -181,7 +173,7 @@ make
        prevent you from accidentally forgetting to regenerate
        automatic files after modifying their sources. If your
        packaging environment automatically refreshes automatic files,
-       it can cause this check to fail. Supress qpdf's checks by
+       it can cause this check to fail. Suppress qpdf's checks by
        passing <code class="option">--disable-check-autofiles</code> to
        <span class="command"><strong>/.configure</strong></span>. This is safe since qpdf's
        <span class="command"><strong>autogen.sh</strong></span> just runs autotools in the normal
@@ -197,7 +189,7 @@ make
        <code class="filename">examples</code> directory along with qpdf
        development packages.
       </p></li></ul></div><p>
-   </p></div></div><div class="chapter"><div class="titlepage"><div><div><h1 class="title"><a id="ref.using"></a>Chapter 3. Running QPDF</h1></div></div></div><div class="toc"><p><strong>Table of Contents</strong></p><dl class="toc"><dt><span class="sect1"><a href="#ref.invocation">3.1. Basic Invocation</a></span></dt><dt><span class="sect1"><a href="#ref.shell-completion">3.2. Shell Completion</a></span></dt><dt><span class="sect1"><a href="#ref.basic-options">3.3. Basic Options</a></span></dt><dt><span class="sect1"><a href="#ref.encryption-options">3.4. Encryption Options</a></span></dt><dt><span class="sect1"><a href="#ref.page-selection">3.5. Page Selection Options</a></span></dt><dt><span class="sect1"><a href="#ref.advanced-parsing">3.6. Advanced Parsing Options</a></span></dt><dt><span class="sect1"><a href="#ref.advanced-transformation">3.7. Advanced Transformation Options</a></span></dt><dt><span class="sect1"><a href="#ref.testing-options">3.8. Testing, Inspection, and Debugging Options</a></span></dt></dl></div><p>
+   </p></div></div><div class="chapter"><div class="titlepage"><div><div><h1 class="title"><a id="ref.using"></a>Chapter 3. Running QPDF</h1></div></div></div><div class="toc"><p><strong>Table of Contents</strong></p><dl class="toc"><dt><span class="sect1"><a href="#ref.invocation">3.1. Basic Invocation</a></span></dt><dt><span class="sect1"><a href="#ref.shell-completion">3.2. Shell Completion</a></span></dt><dt><span class="sect1"><a href="#ref.basic-options">3.3. Basic Options</a></span></dt><dt><span class="sect1"><a href="#ref.encryption-options">3.4. Encryption Options</a></span></dt><dt><span class="sect1"><a href="#ref.page-selection">3.5. Page Selection Options</a></span></dt><dt><span class="sect1"><a href="#ref.overlay-underlay">3.6. Overlay and Underlay Options</a></span></dt><dt><span class="sect1"><a href="#ref.advanced-parsing">3.7. Advanced Parsing Options</a></span></dt><dt><span class="sect1"><a href="#ref.advanced-transformation">3.8. Advanced Transformation Options</a></span></dt><dt><span class="sect1"><a href="#ref.testing-options">3.9. Testing, Inspection, and Debugging Options</a></span></dt><dt><span class="sect1"><a href="#ref.unicode-passwords">3.10. Unicode Passwords</a></span></dt></dl></div><p>
    This chapter describes how to run the qpdf program from the command
    line.
   </p><div class="sect1"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a id="ref.invocation"></a>3.1. Basic Invocation</h2></div></div></div><p>
@@ -319,6 +311,57 @@ make
         the encryption key used by an encrypted file that you can open
         normally, use the <code class="option">--show-encryption-key</code>
         option.
+       </p></dd><dt><span class="term"><code class="option">--suppress-password-recovery</code></span></dt><dd><p>
+        Ordinarily, qpdf attempts to automatically compensate for
+        passwords specified in the wrong character encoding. This
+        option suppresses that behavior. Under normal conditions,
+        there are no reasons to use this option. See <a class="xref" href="#ref.unicode-passwords" title="3.10. Unicode Passwords">Section 3.10, “Unicode Passwords”</a> for a discussion
+       </p></dd><dt><span class="term"><code class="option">--password-mode=<em class="replaceable"><code>mode</code></em></code></span></dt><dd><p>
+        This option can be used to fine-tune how qpdf interprets
+        Unicode (non-ASCII) password strings passed on the command
+        line. With the exception of the <code class="option">hex-bytes</code>
+        mode, these only apply to passwords provided when encrypting
+        files. The <code class="option">hex-bytes</code> mode also applies to
+        passwords specified for reading files. For additional
+        discussion of the supported password modes and when you might
+        want to use them, see <a class="xref" href="#ref.unicode-passwords" title="3.10. Unicode Passwords">Section 3.10, “Unicode Passwords”</a>.
+        The following modes are supported:
+        </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+           <code class="option">auto</code>: Automatically determine whether the
+           specified password is a properly encoded Unicode (UTF-8)
+           string, and transcode it as required by the PDF spec based
+           on the type encryption being applied. On Windows starting
+           with version 8.4.0, and on almost all other modern
+           platforms, incoming passwords will be properly encoded in
+           UTF-8, so this is almost always what you want.
+          </p></li><li class="listitem"><p>
+           <code class="option">unicode</code>: Tells qpdf that the incoming
+           password is UTF-8, overriding whatever its automatic
+           detection determines. The only difference between this mode
+           and <code class="option">auto</code> is that qpdf will fail with an
+           error message if the password is not valid UTF-8 instead of
+           falling back to <code class="option">bytes</code> mode with a warning.
+          </p></li><li class="listitem"><p>
+           <code class="option">bytes</code>: Interpret the password as a literal
+           byte string. For non-Windows platforms, this is what
+           versions of qpdf prior to 8.4.0 did. For Windows platforms,
+           there is no way to specify strings of binary data on the
+           command line directly, but you can use the
+           <code class="option">@filename</code> option to do it, in which case
+           this option forces qpdf to respect the string of bytes as
+           provided. This option will allow you to encrypt PDF files
+           with passwords that will not be usable by other readers.
+          </p></li><li class="listitem"><p>
+           <code class="option">hex-bytes</code>: Interpret the password as a
+           hex-encoded string. This provides a way to pass binary data
+           as a password on all platforms including Windows. As with
+           <code class="option">bytes</code>, this option may allow creation of
+           files that can't be opened by other readers. This mode
+           affects qpdf's interpretation of passwords specified for
+           decrypting files as well as for encrypting them. It makes
+           it possible to specify strings that are encoded in some
+           manner other than the system's default encoding.
+          </p></li></ul></div><p>
        </p></dd><dt><span class="term"><code class="option">--rotate=[+|-]angle[:page-range]</code></span></dt><dd><p>
         Apply rotation to specified pages. The
         <code class="option">page-range</code> portion of the option value has
@@ -410,6 +453,14 @@ make
         <code class="option">--pages</code> option once for each file. Using
         <code class="option">--split-pages</code> is much faster if you don't
         require the global data.
+       </p></dd><dt><span class="term"><code class="option">--overlay options --</code></span></dt><dd><p>
+        Overlay pages from another file onto the output pages. See
+        <a class="xref" href="#ref.overlay-underlay" title="3.6. Overlay and Underlay Options">Section 3.6, “Overlay and Underlay Options”</a> for details on
+        overlay/underlay.
+       </p></dd><dt><span class="term"><code class="option">--underlay options --</code></span></dt><dd><p>
+        Overlay pages from another file onto the output pages. See
+        <a class="xref" href="#ref.overlay-underlay" title="3.6. Overlay and Underlay Options">Section 3.6, “Overlay and Underlay Options”</a> for details on
+        overlay/underlay.
        </p></dd></dl></div><p>
    </p><p>
     Password-protected files may be opened by specifying a password.
@@ -426,22 +477,16 @@ make
     restrictions or other restrictions placed on files by their
     producers.
    </p><p>
-    In all cases where qpdf allows specification of a password, care
-    must be taken if the password contains characters that fall
-    outside of the 7-bit US-ASCII character range to ensure that the
-    exact correct byte sequence is provided.  It is possible that a
-    future version of qpdf may handle this more gracefully.  For
-    example, if a password was encrypted using a password that was
-    encoded in ISO-8859-1 and your terminal is configured to use
-    UTF-8, the password you supply may not work properly.  There are
-    various approaches to handling this.  For example, if you are
-    using Linux and have the iconv executable installed, you could
-    pass <code class="option">--password=`echo <em class="replaceable"><code>password</code></em>
-    | iconv -t iso-8859-1`</code> to qpdf where
-    <em class="replaceable"><code>password</code></em> is a password specified in
-    your terminal's locale. A detailed discussion of this is out of
-    scope for this manual, but just be aware of this issue if you have
-    trouble with a password that contains 8-bit characters.
+    Prior to 8.4.0, in the case of passwords that contain characters
+    that fall outside of 7-bit US-ASCII, qpdf left the burden of
+    supplying properly encoded encryption and decryption passwords to
+    the user. Starting in qpdf 8.4.0, qpdf does this automatically in
+    most cases. For an in-depth discussion, please see <a class="xref" href="#ref.unicode-passwords" title="3.10. Unicode Passwords">Section 3.10, “Unicode Passwords”</a>. Previous versions of this
+    manual described workarounds using the <span class="command"><strong>iconv</strong></span>
+    command. Such workarounds are no longer required or recommended
+    with qpdf 8.4.0. However, for backward compatibility, qpdf
+    attempts to detect those workarounds and do the right thing in
+    most cases.
    </p></div><div class="sect1"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a id="ref.encryption-options"></a>3.4. Encryption Options</h2></div></div></div><p>
     To change the encryption parameters of a file, use the --encrypt
     flag.  The syntax is
@@ -477,9 +522,29 @@ make
     the following restriction options are available:
     </p><div class="variablelist"><dl class="variablelist"><dt><span class="term"><code class="option">--accessibility=[yn]</code></span></dt><dd><p>
         Determines whether or not to allow accessibility to visually
-        impaired.
+        impaired. The qpdf library disregards this field when AES is
+        used or when 256-bit encryption is used. You should really
+        never disable accessibility, but qpdf lets you do it in case
+        you need to configure a file this way for testing purposes.
+        The PDF spec says that conforming readers should disregard
+        this permission and always allow accessibility.
        </p></dd><dt><span class="term"><code class="option">--extract=[yn]</code></span></dt><dd><p>
         Determines whether or not to allow text/graphic extraction.
+       </p></dd><dt><span class="term"><code class="option">--assemble=[yn]</code></span></dt><dd><p>
+        Determines whether document assembly (rotation and reordering
+        of pages) is allowed.
+       </p></dd><dt><span class="term"><code class="option">--annotate=[yn]</code></span></dt><dd><p>
+        Determines whether modifying annotations is allowed. This
+        includes adding comments and filling in form fields. Also
+        allows editing of form fields if
+        <code class="option">--modify-other=y</code> is given.
+       </p></dd><dt><span class="term"><code class="option">--form=[yn]</code></span></dt><dd><p>
+        Determines whether filling form fields is allowed.
+       </p></dd><dt><span class="term"><code class="option">--modify-other=[yn]</code></span></dt><dd><p>
+        Allow all document editing except those controlled separately
+        by the <code class="option">--assemble</code>,
+        <code class="option">--annotate</code>, and <code class="option">--form</code>
+        options.
        </p></dd><dt><span class="term"><code class="option">--print=<em class="replaceable"><code>print-opt</code></em></code></span></dt><dd><p>
         Controls printing access.
         <code class="option"><em class="replaceable"><code>print-opt</code></em></code> may be
@@ -492,21 +557,29 @@ make
            <code class="option">none</code>: disallow printing
           </p></li></ul></div><p>
        </p></dd><dt><span class="term"><code class="option">--modify=<em class="replaceable"><code>modify-opt</code></em></code></span></dt><dd><p>
-        Controls modify access.
+        Controls modify access. This way of controlling modify access
+        has less granularity than new options added in qpdf 8.4.
         <code class="option"><em class="replaceable"><code>modify-opt</code></em></code> may be
-        one of the following, each of which implies all the options
-        that follow it:
+        one of the following:
         </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
            <code class="option">all</code>: allow full document modification
           </p></li><li class="listitem"><p>
-           <code class="option">annotate</code>: allow comment authoring and form operations
+           <code class="option">annotate</code>: allow comment authoring, form
+           operations, and document assembly
           </p></li><li class="listitem"><p>
            <code class="option">form</code>: allow form field fill-in and signing
+           and document assembly
           </p></li><li class="listitem"><p>
            <code class="option">assembly</code>: allow document assembly only
           </p></li><li class="listitem"><p>
            <code class="option">none</code>: allow no modifications
           </p></li></ul></div><p>
+        Using the <code class="option">--modify</code> option does not allow you
+        to create certain combinations of permissions such as allowing
+        form filling but not allowing document assembly. Starting with
+        qpdf 8.4, you can either just use the other options to control
+        fields individually, or you can use something like
+        <code class="option">--modify=form --assembly=n</code> to fine tune.
        </p></dd><dt><span class="term"><code class="option">--cleartext-metadata</code></span></dt><dd><p>
         If specified, any metadata stream in the document will be left
         unencrypted even if the rest of the document is encrypted.
@@ -558,6 +631,10 @@ make
     “<code class="option">--</code>” terminates parsing of page
     selection flags.
    </p><p>
+    Starting with qpf 8.4, the special input file name
+    “<code class="filename">.</code>” can be used shortcut for the
+    primary input filename.
+   </p><p>
     For each file that pages should be taken from, specify the file, a
     password needed to open the file (if any), and a page range.  The
     password needs to be given only once per file.  If any of the
@@ -577,14 +654,6 @@ make
     it will include all pages in the file.  This makes it possible to
     easily combine all pages in a set of files with a command like
     <span class="command"><strong>qpdf --empty out.pdf --pages *.pdf --</strong></span>.
-   </p><p>
-    It is not presently possible to specify the same page from the
-    same file directly more than once, but you can make this work by
-    specifying two different paths to the same file (such as by
-    putting <code class="filename">./</code> somewhere in the path).  This can
-    also be used if you want to repeat a page from one of the input
-    files in the output file.  This may be made more convenient in a
-    future version of qpdf if there is enough demand for this feature.
    </p><p>
     The page range is a set of numbers separated by commas, ranges of
     numbers separated dashes, or combinations of those. The character
@@ -648,7 +717,7 @@ make
     <code class="filename">infile.pdf</code> while preserving all metadata
     associated with that file, you could use
 
-    </p><pre class="programlisting"><span class="command"><strong>qpdf</strong></span> <code class="option">infile.pdf --pages infile.pdf 1-5 -- outfile.pdf</code>
+    </p><pre class="programlisting"><span class="command"><strong>qpdf</strong></span> <code class="option">infile.pdf --pages . 1-5 -- outfile.pdf</code>
 </pre><p>
     If you wanted pages 1 through 5 from
     <code class="filename">infile.pdf</code> but you wanted the rest of the
@@ -660,7 +729,7 @@ make
     <code class="filename">file1.pdf</code> and pages 11–15 from
     <code class="filename">file2.pdf</code> in reverse, you would run
 
-    </p><pre class="programlisting"><span class="command"><strong>qpdf</strong></span> <code class="option">file1.pdf --pages file1.pdf 1-5 file2.pdf 15-11 -- outfile.pdf</code>
+    </p><pre class="programlisting"><span class="command"><strong>qpdf</strong></span> <code class="option">file1.pdf --pages file1.pdf 1-5 . 15-11 -- outfile.pdf</code>
 </pre><p>
     If, for some reason, you wanted to take the first page of an
     encrypted file called <code class="filename">encrypted.pdf</code> with
@@ -679,7 +748,74 @@ outfile.pdf</code>
     <code class="filename">./encrypted.pdf</code> are separated files.  These
     are all corner cases that most users should hopefully never have
     to be bothered with.
-   </p></div><div class="sect1"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a id="ref.advanced-parsing"></a>3.6. Advanced Parsing Options</h2></div></div></div><p>
+   </p><p>
+    Prior to version 8.4, it was not possible to specify the same page
+    from the same file directly more than once, and the workaround of
+    specifying the same file in more than one way was required.
+    Version 8.4 removes this limitation.
+   </p></div><div class="sect1"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a id="ref.overlay-underlay"></a>3.6. Overlay and Underlay Options</h2></div></div></div><p>
+    Starting with qpdf 8.4, it is possible to overlay or underlay
+    pages from other files onto the output generated by qpdf. Specify
+    overlay or underlay as follows:
+
+    </p><pre class="programlisting">{ <code class="option">--overlay</code> | <code class="option">--underlay</code> } <em class="replaceable"><code>file</code></em> [ <code class="option">options</code> ] <code class="option">--</code>
+</pre><p>
+    Overlay and underlay options are processed late, so they can be
+    combined with other like merging and will apply to the final
+    output. The <code class="option">--overlay</code> and
+    <code class="option">--underlay</code> options work the same way, except
+    underlay pages are drawn underneath the page to which they are
+    applied, possibly obscured by the original page, and overlay files
+    are drawn on top of the page to which they are applied, possibly
+    obscuring the page. You can combine overlay and underlay.
+   </p><p>
+    The default behavior of overlay and underlay is that pages are
+    taken from the overlay/underlay file in sequence and applied to
+    corresponding pages in the output until there are no more output
+    pages. If the overlay or underlay file runs out of pages,
+    remaining output pages are left alone. This behavior can be
+    modified by options, which are provided between the
+    <code class="option">--overlay</code> or <code class="option">--underlay</code> flag and
+    the <code class="option">--</code> option. The following options are
+    supported:
+    </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+       <code class="option">--password=password</code>: supply a password if the
+       overlay/underlay file is encrypted.
+      </p></li><li class="listitem"><p>
+       <code class="option">--to=page-range</code>: a range of pages in the same
+       form at described in <a class="xref" href="#ref.page-selection" title="3.5. Page Selection Options">Section 3.5, “Page Selection Options”</a>
+       indicates which pages in the output should have the
+       overlay/underlay applied. If not specified, overlay/underlay
+       are applied to all pages.
+      </p></li><li class="listitem"><p>
+       <code class="option">--from=[page-range]</code>: a range of pages that
+       specifies which pages in the overlay/underlay file will be used
+       for overlay or underlay. If not specified, all pages will be
+       used. This can be explicitly specified to be empty if
+       <code class="option">--repeat</code> is used.
+      </p></li><li class="listitem"><p>
+       <code class="option">--repeat=page-range</code>: an optional range of
+       pages that specifies which pages in the overlay/underlay file
+       will be repeated after the “from” pages are used
+       up. If you want to repeat a range of pages starting at the
+       beginning, you can explicitly use <code class="option">--from=</code>.
+      </p></li></ul></div><p>
+   </p><p>
+    Here are some examples.
+    </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+       <span class="command"><strong>--overlay o.pdf --to=1-5 --from=1-3
+       --repeat=4 --</strong></span>: overlay the first three pages from file
+       <code class="filename">o.pdf</code> onto the first three pages of the
+       output, then overlay page 4 from <code class="filename">o.pdf</code>
+       onto pages 4 and 5 of the output. Leave remaining output pages
+       untouched.
+      </p></li><li class="listitem"><p>
+       <span class="command"><strong>--underlay footer.pdf --from= --repeat=1,2 --</strong></span>:
+       Underlay page 1 of <code class="filename">footer.pdf</code> on all odd
+       output pages, and underlay page 2 of
+       <code class="filename">footer.pdf</code> on all even output pages.
+      </p></li></ul></div><p>
+   </p></div><div class="sect1"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a id="ref.advanced-parsing"></a>3.7. Advanced Parsing Options</h2></div></div></div><p>
     These options control aspects of how qpdf reads PDF files. Mostly
     these are of use to people who are working with damaged files.
     There is little reason to use these options unless you are trying
@@ -710,7 +846,7 @@ outfile.pdf</code>
     creation of hybrid PDF files and wish to see how a PDF consumer
     that doesn't understand object and cross-reference streams would
     interpret such a file.
-   </p></div><div class="sect1"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a id="ref.advanced-transformation"></a>3.7. Advanced Transformation Options</h2></div></div></div><p>
+   </p></div><div class="sect1"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a id="ref.advanced-transformation"></a>3.8. Advanced Transformation Options</h2></div></div></div><p>
     These transformation options control fine points of how qpdf
     creates the output file.  Mostly these are of use only to people
     who are very familiar with the PDF file format or who are PDF
@@ -812,8 +948,8 @@ outfile.pdf</code>
         resources it shouldn't be removing. If you encounter that
         case, please report it as a bug.
        </p><p>
-        See also <code class="option">--preserve-unreferenced-resources</code>,
-        which does something completely different.
+        See also <code class="option">--preserve-unreferenced</code>, which does
+        something completely different.
        </p></dd><dt><span class="term"><code class="option">--newline-before-endstream</code></span></dt><dd><p>
         Tells qpdf to insert a newline before the
         <code class="literal">endstream</code> keyword, not counted in the
@@ -928,7 +1064,11 @@ outfile.pdf</code>
         <code class="option">--verbose</code>. See also the
         <code class="option">--oi-min-width</code>,
         <code class="option">--oi-min-height</code>, and
-        <code class="option">--oi-min-area</code> options.
+        <code class="option">--oi-min-area</code> options. By default, starting
+        in qpdf 8.4, inline images are converted to regular images
+        and optimized as well. Use
+        <code class="option">--keep-inline-images</code> to prevent inline images
+        from being included.
        </p></dd><dt><span class="term"><code class="option">--oi-min-width=<em class="replaceable"><code>width</code></em></code></span></dt><dd><p>
         Avoid optimizing images whose width is below the specified
         amount. If omitted, the default is 128 pixels. Use 0 for no
@@ -941,6 +1081,22 @@ outfile.pdf</code>
         Avoid optimizing images whose pixel count
         (width × height) is below the specified amount. If
         omitted, the default is 16,384 pixels. Use 0 for no minimum.
+       </p></dd><dt><span class="term"><code class="option">--externalize-inline-images</code></span></dt><dd><p>
+        Convert inline images to regular images. By default, images
+        whose data is at least 1,024 bytes are converted when this
+        option is selected. Use <code class="option">--ii-min-bytes</code> to
+        change the size threshold. This option is implicitly selected
+        when <code class="option">--optimize-images</code> is selected. Use
+        <code class="option">--keep-inline-images</code> to exclude inline images
+        from image optimization.
+       </p></dd><dt><span class="term"><code class="option">--ii-min-bytes=<em class="replaceable"><code>bytes</code></em></code></span></dt><dd><p>
+        Avoid converting inline images whose size is below the
+        specified minimum size to regular images. If omitted, the
+        default is 1,024 bytes. Use 0 for no minimum.
+       </p></dd><dt><span class="term"><code class="option">--keep-inline-images</code></span></dt><dd><p>
+        Prevent inline images from being included in image
+        optimization. This option has no affect when
+        <code class="option">--optimize-images</code> is not specified.
        </p></dd><dt><span class="term"><code class="option">--qdf</code></span></dt><dd><p>
         Turns on QDF mode.  For additional information on QDF, please
         see <a class="xref" href="#ref.qdf" title="Chapter 4. QDF Mode">Chapter 4, <em>QDF Mode</em></a>.
@@ -1069,7 +1225,7 @@ outfile.pdf</code>
     QDF mode is intended for people, mostly developers, who wish to
     inspect or modify PDF files in a text editor.  For details, please
     see <a class="xref" href="#ref.qdf" title="Chapter 4. QDF Mode">Chapter 4, <em>QDF Mode</em></a>.
-   </p></div><div class="sect1"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a id="ref.testing-options"></a>3.8. Testing, Inspection, and Debugging Options</h2></div></div></div><p>
+   </p></div><div class="sect1"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a id="ref.testing-options"></a>3.9. Testing, Inspection, and Debugging Options</h2></div></div></div><p>
     These options can be useful for digging into PDF files or for use
     in automated test suites for software that uses the qpdf library.
     When any of the options in this section are specified, no output
@@ -1201,6 +1357,111 @@ outfile.pdf</code>
     attempt to normalize the stream data as if it is a page content
     stream.  This attempt will be made even if it is not a page
     content stream, in which case it will produce unusable results.
+   </p></div><div class="sect1"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a id="ref.unicode-passwords"></a>3.10. Unicode Passwords</h2></div></div></div><p>
+    At the library API level, all methods that perform encryption and
+    decryption interpret passwords as strings of bytes. It is up to
+    the caller to ensure that they are appropriately encoded. Starting
+    with qpdf version 8.4.0, qpdf will attempt to make this easier for
+    you when interact with qpdf via its command line interface. The
+    PDF specification requires passwords used to encrypt files with
+    40-bit or 128-bit encryption to be encoded with PDF Doc encoding.
+    This encoding is a single-byte encoding that supports ISO-Latin-1
+    and a handful of other commonly used characters. It has a large
+    overlap with Windows ANSI but is not exactly the same. There is
+    generally not a way to provide PDF Doc encoded strings on the
+    command line. As such, qpdf versions prior to 8.4.0 would often
+    create PDF files that couldn't be opened with other software when
+    given a password with non-ASCII characters to encrypt a file with
+    40-bit or 128-bit encryption. Starting with qpdf 8.4.0, qpdf
+    recognizes the encoding of the parameter and transcodes it as
+    needed. The rest of this section provides the details about
+    exactly how qpdf behaves. Most users will not need to know this
+    information, but it might be useful if you have been working
+    around qpdf's old behavior or if you are using qpdf to generate
+    encrypted files for testing other PDF software.
+   </p><p>
+    A note about Windows: when qpdf builds, it attempts to determine
+    what it has to do to use <code class="function">wmain</code> instead of
+    <code class="function">main</code> on Windows. The
+    <code class="function">wmain</code> function is an alternative entry point
+    that receives all arguments as UTF-16-encoded strings. When qpdf
+    starts up this way, it converts all the strings to UTF-8 encoding
+    and then invokes the regular main. This means that, as far as qpdf
+    is concerned, it receives its command-line arguments with UTF-8
+    encoding, just as it would in any modern Linux or UNIX
+    environment.
+   </p><p>
+    If a file is being encrypted with 40-bit or 128-bit encryption and
+    the supplied password is not a valid UTF-8 string, qpdf will fall
+    back to the behavior of interpreting the password as a string of
+    bytes. If you have old scripts that encrypt files by passing the
+    output of <span class="command"><strong>iconv</strong></span> to qpdf, you no longer need to
+    do that, but if you do, qpdf should still work. The only exception
+    would be for the extremely unlikely case of a password that is
+    encoded with a single-byte encoding but also happens to be valid
+    UTF-8. Such a password would contain strings of even numbers of
+    characters that alternate between accented letters and symbols. In
+    the extremely unlikely event that you are intentionally using such
+    passwords and qpdf is thwarting you by interpreting them as UTF-8,
+    you can use <code class="option">--password-mode=bytes</code> to suppress
+    qpdf's automatic behavior.
+   </p><p>
+    The <code class="option">--password-mode</code> option, as described earlier
+    in this chapter, can be used to change qpdf's interpretation of
+    supplied passwords. There are very few reasons to use this option.
+    One would be the unlikely case described in the previous paragraph
+    in which the supplied password happens to be valid UTF-8 but isn't
+    supposed to be UTF-8. Your best bet would be just to provide the
+    password as a valid UTF-8 string, but you could also use
+    <code class="option">--password-mode=bytes</code>. Another reason to use
+    <code class="option">--password-mode=bytes</code> would be to intentionally
+    generate PDF files encrypted with passwords that are not properly
+    encoded. The qpdf test suite does this to generate invalid files
+    for the purpose of testing its password recovery capability. If
+    you were trying to create intentionally incorrect files for a
+    similar purposes, the <code class="option">bytes</code> password mode can
+    enable you to do this.
+   </p><p>
+    When qpdf attempts to decrypt a file with a password that contains
+    non-ASCII characters, it will generate a list of alternative
+    passwords by attempting to interpret the password as each of a
+    handful of different coding systems and then transcode them to the
+    required format. This helps to compensate for the supplied
+    password being given in the wrong coding system, such as would
+    happen if you used the <span class="command"><strong>iconv</strong></span> workaround that
+    was previously needed. It also generates passwords by doing the
+    reverse operation: translating from correct in incorrect encoding
+    of the password. This would enable qpdf to decrypt files using
+    passwords that were improperly encoded by whatever software
+    encrypted the files, including older versions of qpdf invoked
+    without properly encoded passwords. The combination of these two
+    recovery methods should make qpdf transparently open most
+    encrypted files with the password supplied correctly but in the
+    wrong coding system. There are no real downsides to this behavior,
+    but if you don't want qpdf to do this, you can use the
+    <code class="option">--suppress-password-recovery</code> option. One reason
+    to do that is to ensure that you know the exact password that was
+    used to encrypt the file.
+   </p><p>
+    With these changes, qpdf now generates compliant passwords in most
+    cases. There are still some exceptions. In particular, the PDF
+    specification directs compliant writers to normalize Unicode
+    passwords and to perform certain transformations on passwords with
+    bidirectional text. Implementing this functionality requires using
+    a real Unicode library like ICU. If a client application that uses
+    qpdf wants to do this, the qpdf library will accept the resulting
+    passwords, but qpdf will not perform these transformations itself.
+    It is possible that this will be addressed in a future version of
+    qpdf. The <code class="classname">QPDFWriter</code> methods that enable
+    encryption on the output file accept passwords as strings of
+    bytes.
+   </p><p>
+    Please note that the <code class="option">--password-is-hex-key</code> option
+    is unrelated to all this. This flag bypasses the normal process of
+    going from password to encryption string entirely, allowing the
+    raw encryption key to be specified directly. This is useful for
+    forensic purposes or for brute-force recovery of files with
+    unknown passwords.
    </p></div></div><div class="chapter"><div class="titlepage"><div><div><h1 class="title"><a id="ref.qdf"></a>Chapter 4. QDF Mode</h1></div></div></div><p>
    In QDF mode, qpdf creates PDF files in what we call <em class="firstterm">QDF
    form</em>.  A PDF file in QDF form, sometimes called a QDF
@@ -1618,7 +1879,7 @@ outfile.pdf</code>
     password-protected files.  QPDF does not enforce encryption
     parameters and will treat user and owner passwords equivalently.
     Either password may be used to access an encrypted file.
-    <a href="#ftn.idm46642733756976" class="footnote" id="idm46642733756976"><sup class="footnote">[1]</sup></a>
+    <a href="#ftn.idm46094347359200" class="footnote" id="idm46094347359200"><sup class="footnote">[1]</sup></a>
     <code class="classname">QPDF</code> will allow recovery of a user password
     given an owner password.  The input PDF file must be seekable.
     (Output files written by <code class="classname">QPDFWriter</code> need
@@ -2269,7 +2530,7 @@ outfile.pdf</code>
     filter should write to whatever type of output is required.  The
     <code class="classname">QPDF</code> class has an interface to write raw or
     filtered stream contents to a given pipeline.
-   </p></div><div class="footnotes"><br /><hr style="width:100; text-align:left;margin-left: 0" /><div id="ftn.idm46642733756976" class="footnote"><p><a href="#idm46642733756976" class="para"><sup class="para">[1] </sup></a>
+   </p></div><div class="footnotes"><br /><hr style="width:100; text-align:left;margin-left: 0" /><div id="ftn.idm46094347359200" class="footnote"><p><a href="#idm46094347359200" class="para"><sup class="para">[1] </sup></a>
       As pointed out earlier, the intention is not for qpdf to be used
       to bypass security on files. but as any open source PDF consumer
       may be easily modified to bypass basic PDF document security,
@@ -2632,7 +2893,236 @@ print "\n";
    </p></div></div><div class="appendix"><div class="titlepage"><div><div><h1 class="title"><a id="ref.release-notes"></a>Appendix A. Release Notes</h1></div></div></div><p>
    For a detailed list of changes, please see the file
    <code class="filename">ChangeLog</code> in the source distribution.
-  </p><div class="variablelist"><dl class="variablelist"><dt><span class="term">8.3.0: January 7, 2019</span></dt><dd><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+  </p><div class="variablelist"><dl class="variablelist"><dt><span class="term">8.4.0: February 1, 2019</span></dt><dd><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+        Command-line Enhancements
+       </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: circle; "><li class="listitem"><p>
+          <span class="emphasis"><em>Non-compatible CLI change:</em></span> The qpdf
+          command-line tool interprets passwords given at the
+          command-line differently from previous releases when the
+          passwords contain non-ASCII characters. In some cases, the
+          behavior differs from previous releases. For a discussion of
+          the current behavior, please see <a class="xref" href="#ref.unicode-passwords" title="3.10. Unicode Passwords">Section 3.10, “Unicode Passwords”</a>. The incompatibilities are
+          as follows:
+          </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: square; "><li class="listitem"><p>
+             On Windows, qpdf now receives all command-line options as
+             Unicode strings if it can figure out the appropriate
+             compile/link options. This is enabled at least for MSVC
+             and mingw builds. That means that if non-ASCII strings
+             are passed to the qpdf CLI in Windows, qpdf will now
+             correctly receive them. In the past, they would have
+             either been encoded as Windows code page 1252 (also known
+             as “Windows ANSI” or as something
+             unintelligible. In almost all cases, qpdf is able to
+             properly interpret Unicode arguments now, whereas in the
+             past, it would almost never interpret them properly. The
+             result is that non-ASCII passwords given to the qpdf CLI
+             on Windows now have a much greater chance of creating PDF
+             files that can be opened by a variety of readers. In the
+             past, usually files encrypted from the Windows CLI using
+             non-ASCII passwords would not be readable by most
+             viewers. Note that the current version of qpdf is able to
+             decrypt files that it previously created using the
+             previously supplied password.
+            </p></li><li class="listitem"><p>
+             The PDF specification requires passwords to be encoded as
+             UTF-8 for 256-bit encryption and with PDF Doc encoding
+             for 40-bit or 128-bit encryption. Older versions of qpdf
+             left it up to the user to provide passwords with the
+             correct encoding. The qpdf CLI now detects when a
+             password is given with UTF-8 encoding and automatically
+             transcodes it to what the PDF spec requires. While this
+             is almost always the correct behavior, it is possible to
+             override the behavior if there is some reason to do so.
+             This is discussed in more depth in <a class="xref" href="#ref.unicode-passwords" title="3.10. Unicode Passwords">Section 3.10, “Unicode Passwords”</a>.
+            </p></li></ul></div><p>
+         </p></li><li class="listitem"><p>
+          New options <code class="option">--externalize-inline-images</code>,
+          <code class="option">--ii-min-bytes</code>, and
+          <code class="option">--keep-inline-images</code> control qpdf's
+          handling of inline images and possible conversion of them to
+          regular images. By default,
+          <code class="option">--optimize-images</code> now also applies to
+          inline images. These options are discussed in <a class="xref" href="#ref.advanced-transformation" title="3.8. Advanced Transformation Options">Section 3.8, “Advanced Transformation Options”</a>.
+         </p></li><li class="listitem"><p>
+          Add options <code class="option">--overlay</code> and
+          <code class="option">--underlay</code> for overlaying or underlaying
+          pages of other files onto output pages. See <a class="xref" href="#ref.overlay-underlay" title="3.6. Overlay and Underlay Options">Section 3.6, “Overlay and Underlay Options”</a> for details.
+         </p></li><li class="listitem"><p>
+          When opening an encrypted file with a password, if the
+          specified password doesn't work and the password contains
+          any non-ASCII characters, qpdf will try a number of
+          alternative passwords to try to compensate for possible
+          character encoding errors. This behavior can be suppressed
+          with the <code class="option">--suppress-password-recovery</code>
+          option. See <a class="xref" href="#ref.unicode-passwords" title="3.10. Unicode Passwords">Section 3.10, “Unicode Passwords”</a> for a
+          full discussion.
+         </p></li><li class="listitem"><p>
+          Add the <code class="option">--password-mode</code> option to fine-tune
+          how qpdf interprets password arguments, especially when they
+          contain non-ASCII characters. See <a class="xref" href="#ref.unicode-passwords" title="3.10. Unicode Passwords">Section 3.10, “Unicode Passwords”</a> for more information.
+         </p></li><li class="listitem"><p>
+          In the <code class="option">--pages</code> option, it is now possible
+          to copy the same page more than once from the same file
+          without using the previous workaround of specifying two
+          different paths to the same file.
+         </p></li><li class="listitem"><p>
+          In the <code class="option">--pages</code> option, allow use of
+          “.” as a shortcut for the primary input file.
+          That way, you can do <span class="command"><strong>qpdf in.pdf --pages . 1-2 --
+          out.pdf</strong></span> instead of having to repeat
+          <code class="filename">in.pdf</code> in the command.
+         </p></li><li class="listitem"><p>
+          When encrypting with 128-bit and 256-bit encryption, new
+          encryption options <code class="option">--assemble</code>,
+          <code class="option">--annotate</code>, <code class="option">--form</code>, and
+          <code class="option">--modify-other</code> allow more fine-grained
+          granularity in configuring options. Before, the
+          <code class="option">--modify</code> option only configured certain
+          predefined groups of permissions.
+         </p></li></ul></div></li><li class="listitem"><p>
+        Bug Fixes and Enhancements
+       </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: circle; "><li class="listitem"><p>
+          <span class="emphasis"><em>Potential data-loss bug:</em></span> Versions of
+          qpdf between 8.1.0 and 8.3.0 had a bug that could cause page
+          splitting and merging operations to drop some font or image
+          resources if the PDF file's internal structure shared these
+          resource lists across pages and if some but not all of the
+          pages in the output did not reference all the fonts and
+          images. Using the
+          <code class="option">--preserve-unreferenced-resources</code> option
+          would work around the incorrect behavior. This bug was the
+          result of a typo in the code and a deficiency in the test
+          suite. The case that triggered the error was known, just not
+          handled properly. This case is now exercised in qpdf's test
+          suite and properly handled.
+         </p></li><li class="listitem"><p>
+           When optimizing images, detect and refuse to optimize
+           images that can't be converted to JPEG because of bit depth
+           or color space.
+         </p></li><li class="listitem"><p>
+          Linearization and page manipulation APIs now detect and
+          recover from files that have duplicate Page objects in the
+          pages tree.
+         </p></li><li class="listitem"><p>
+          Using older option <code class="option">--stream-data=compress</code>
+          with object streams, object streams and xref streams were
+          not compressed.
+         </p></li><li class="listitem"><p>
+          When the tokenizer returns inline image tokens, delimiters
+          following <code class="literal">ID</code> and <code class="literal">EI</code>
+          operators are no longer excluded. This makes it possible to
+          reliably extract the actual image data.
+         </p></li></ul></div></li><li class="listitem"><p>
+        Library Enhancements
+       </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: circle; "><li class="listitem"><p>
+          Add method
+          <code class="function">QPDFPageObjectHelper::externalizeInlineImages</code>
+          to convert inline images to regular images.
+         </p></li><li class="listitem"><p>
+          Add method
+          <code class="function">QUtil::possible_repaired_encodings()</code> to
+          generate a list of strings that represent other ways the
+          given string could have been encoded. This is the method the
+          QPDF CLI uses to generate the strings it tries when
+          recovering incorrectly encoded Unicode passwords.
+         </p></li><li class="listitem"><p>
+          Add new versions of
+          <code class="function">QPDFWriter::setR{3,4,5,6}EncryptionParameters</code>
+          that allow more granular setting of permissions bits. See
+          <code class="filename">QPDFWriter.hh</code> for details.
+         </p></li><li class="listitem"><p>
+          Add new versions of the transcoders from UTF-8 to
+          single-byte coding systems in <code class="classname">QUtil</code>
+          that report success or failure rather than just substituting
+          a specified unknown character.
+         </p></li><li class="listitem"><p>
+          Add method <code class="function">QUtil::analyze_encoding()</code> to
+          determine whether a string has high-bit characters and is
+          appears to be UTF-16 or valid UTF-8 encoding.
+         </p></li><li class="listitem"><p>
+          Add new method
+          <code class="function">QPDFPageObjectHelper::shallowCopyPage()</code>
+          to copy a new page that is a “shallow copy” of a
+          page. The resulting object is an indirect object ready to be
+          passed to
+          <code class="function">QPDFPageDocumentHelper::addPage()</code> for
+          either the original <code class="classname">QPDF</code> object or a
+          different one. This is what the <span class="command"><strong>qpdf</strong></span>
+          command-line tool uses to copy the same page multiple times
+          from the same file during splitting and merging operations.
+         </p></li><li class="listitem"><p>
+          Add method <code class="function">QPDF::getUniqueId()</code>, which
+          returns a unique identifier for the given QPDF object. The
+          identifier will be unique across the life of the
+          application. The returned value can be safely used as a map
+          key.
+         </p></li><li class="listitem"><p>
+          Add method <code class="function">QPDF::setImmediateCopyFrom</code>.
+          This further enhances qpdf's ability to allow a
+          <code class="classname">QPDF</code> object from which objects are
+          being copied to go out of scope before the destination
+          object is written. If you call this method on a
+          <code class="classname">QPDF</code> instances, objects copied
+          <span class="emphasis"><em>from</em></span> this instance will be copied
+          immediately instead of lazily. This option uses more memory
+          but allows the source object to go out of scope before the
+          destination object is written in all cases. See comments in
+          <code class="filename">QPDF.hh</code> for details.
+         </p></li><li class="listitem"><p>
+          Add method
+          <code class="function">QPDFPageObjectHelper::getAttribute</code> for
+          retrieving an attribute from the page dictionary taking
+          inheritance into consideration, and optionally making a copy
+          if your intention is to modify the attribute.
+         </p></li><li class="listitem"><p>
+          Fix long-standing limitation of
+          <code class="function">QPDFPageObjectHelper::getPageImages</code> so
+          that it now properly reports images from inherited resources
+          dictionaries, eliminating the need to call
+          <code class="function">QPDFPageDocumentHelper::pushInheritedAttributesToPage</code>
+          in this case.
+         </p></li><li class="listitem"><p>
+          Add method
+          <code class="function">QPDFObjectHandle::getUniqueResourceName</code>
+          for finding an unused name in a resource dictionary.
+         </p></li><li class="listitem"><p>
+          Add method
+          <code class="function">QPDFPageObjectHelper::getFormXObjectForPage</code>
+          for generating a form XObject equivalent to a page. The
+          resulting object can be used in the same file or copied to
+          another file with <code class="function">copyForeignObject</code>.
+          This can be useful for implementing underlay, overlay, n-up,
+          thumbnails, or any other functionality requiring replication
+          of pages in other contexts.
+         </p></li><li class="listitem"><p>
+          Add method
+          <code class="function">QPDFPageObjectHelper::placeFormXObject</code>
+          for generating content stream text that places a given form
+          XObject on a page, centered and fit within a specified
+          rectangle. This method takes care of computing the proper
+          transformation matrix and may optionally compensate for
+          rotation or scaling of the destination page.
+         </p></li></ul></div></li><li class="listitem"><p>
+        Build Improvements
+       </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: circle; "><li class="listitem"><p>
+          Add new configure option
+          <code class="option">--enable-avoid-windows-handle</code>, which causes
+          the preprocessor symbol
+          <code class="literal">AVOID_WINDOWS_HANDLE</code> to be defined. When
+          defined, qpdf will avoid referencing the Windows
+          <code class="classname">HANDLE</code> type, which is disallowed with
+          certain versions of the Windows SDK.
+         </p></li><li class="listitem"><p>
+          For Windows builds, attempt to determine what options, if
+          any, have to be passed to the compiler and linker to enable
+          use of <code class="function">wmain</code>. This causes the
+          preprocessor symbol <code class="literal">WINDOWS_WMAIN</code> to be
+          defined. If you do your own builds with other compilers, you
+          can define this symbol to cause <code class="function">wmain</code>
+          to be used. This is needed to allow the Windows
+          <span class="command"><strong>qpdf</strong></span> command to receive Unicode
+          command-line options.
+         </p></li></ul></div></li></ul></div></dd><dt><span class="term">8.3.0: January 7, 2019</span></dt><dd><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
         Command-line Enhancements
        </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: circle; "><li class="listitem"><p>
           Shell completion: you can now use eval <span class="command"><strong>$(qpdf
@@ -2927,7 +3417,7 @@ print "\n";
           unlikely event that the old behavior should be desired, it
           can be enabled by specifying
           <code class="option">--preserve-unreferenced-resources</code>. For
-          additional details, please see <a class="xref" href="#ref.advanced-transformation" title="3.7. Advanced Transformation Options">Section 3.7, “Advanced Transformation Options”</a>.
+          additional details, please see <a class="xref" href="#ref.advanced-transformation" title="3.8. Advanced Transformation Options">Section 3.8, “Advanced Transformation Options”</a>.
          </p></li><li class="listitem"><p>
           When merging multiple PDF files, qpdf no longer leaves all
           the files open. This makes it possible to merge numbers of
@@ -3256,7 +3746,7 @@ print "\n";
 	  and <code class="function">qpdf_set_newline_before_endstream</code>
 	  corresponding to the new <code class="classname">QPDFWriter</code>
 	  methods.
-         </p></li></ul></div></li></ul></div></dd></dl></div><div class="variablelist"><dl class="variablelist"><dt><span class="term">6.0.0: November 10, 2015</span></dt><dd><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+         </p></li></ul></div></li></ul></div></dd><dt><span class="term">6.0.0: November 10, 2015</span></dt><dd><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
         Implement <code class="option">--deterministic-id</code> command-line
         option and <code class="function">QPDFWriter::setDeterministicID</code>
         as well as C API function
@@ -3513,7 +4003,7 @@ print "\n";
         <code class="function">QPDFWriter::setMinimumPDFVersion</code> and
         <code class="function">QPDFWriter::forcePDFVersion</code> that accept
         an extension level, and extended syntax for specifying forced
-        and minimum versions on the command line as described in <a class="xref" href="#ref.advanced-transformation" title="3.7. Advanced Transformation Options">Section 3.7, “Advanced Transformation Options”</a>.  Corresponding
+        and minimum versions on the command line as described in <a class="xref" href="#ref.advanced-transformation" title="3.8. Advanced Transformation Options">Section 3.8, “Advanced Transformation Options”</a>.  Corresponding
         functions have been added to the C API as well.
        </p></li><li class="listitem"><p>
         Minor fixes to prevent qpdf from referencing objects in the

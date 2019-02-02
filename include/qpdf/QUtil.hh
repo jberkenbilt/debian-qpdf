@@ -147,13 +147,18 @@ namespace QUtil
     std::string toUTF8(unsigned long uval);
 
     // Return a string containing the byte representation of the
-    // UTF-16 BE encoding for the unicode value passed in.
+    // UTF-16 big-endian encoding for the unicode value passed in.
     // Unrepresentable code points are converted to U+FFFD.
     QPDF_DLL
     std::string toUTF16(unsigned long uval);
 
-    // Convert a UTF-8 encoded string to UTF-16. Unrepresentable code
-    // points are converted to U+FFFD.
+    // Test whether this is a UTF-16 big-endian string. This is
+    // indicated by first two bytes being 0xFE 0xFF.
+    QPDF_DLL
+    bool is_utf16(std::string const&);
+
+    // Convert a UTF-8 encoded string to UTF-16 big-endian.
+    // Unrepresentable code points are converted to U+FFFD.
     QPDF_DLL
     std::string utf8_to_utf16(std::string const& utf8);
 
@@ -169,6 +174,76 @@ namespace QUtil
     QPDF_DLL
     std::string utf8_to_mac_roman(
         std::string const& utf8, char unknown_char = '?');
+    QPDF_DLL
+    std::string utf8_to_pdf_doc(
+        std::string const& utf8, char unknown_char = '?');
+
+    // These versions return true if the conversion was successful and
+    // false if any unrepresentable characters were found and had to
+    // be substituted with the unknown character.
+    QPDF_DLL
+    bool utf8_to_ascii(
+        std::string const& utf8, std::string& ascii, char unknown_char = '?');
+    QPDF_DLL
+    bool utf8_to_win_ansi(
+        std::string const& utf8, std::string& win, char unknown_char = '?');
+    QPDF_DLL
+    bool utf8_to_mac_roman(
+        std::string const& utf8, std::string& mac, char unknown_char = '?');
+    QPDF_DLL
+    bool utf8_to_pdf_doc(
+        std::string const& utf8, std::string& pdfdoc, char unknown_char = '?');
+
+    // Convert a UTF-16 big-endian encoded string to UTF-8.
+    // Unrepresentable code points are converted to U+FFFD.
+    QPDF_DLL
+    std::string utf16_to_utf8(std::string const& utf16);
+
+    // Convert from the specified single-byte encoding system to
+    // UTF-8. There is no ascii_to_utf8 because all ASCII strings are
+    // already valid UTF-8.
+    QPDF_DLL
+    std::string win_ansi_to_utf8(std::string const& win);
+    QPDF_DLL
+    std::string mac_roman_to_utf8(std::string const& mac);
+    QPDF_DLL
+    std::string pdf_doc_to_utf8(std::string const& pdfdoc);
+
+    // Analyze a string for encoding. We can't tell the difference
+    // between any single-byte encodings, and we can't tell for sure
+    // whether a string that happens to be valid UTF-8 isn't a
+    // different encoding, but we can at least tell a few things to
+    // help us guess. If there are no characters with the high bit
+    // set, has_8bit_chars is false, and the other values are also
+    // false, even though ASCII strings are valid UTF-8. is_valid_utf8
+    // means that the string is non-trivially valid UTF-8.
+    QPDF_DLL
+    void analyze_encoding(std::string const& str,
+                          bool& has_8bit_chars,
+                          bool& is_valid_utf8,
+                          bool& is_utf16);
+
+    // Try to compensate for previously incorrectly encoded strings.
+    // We want to compensate for the following errors:
+    //
+    // * The string was supposed to be UTF-8 but was one of the
+    //   single-byte encodings
+    // * The string was supposed to be PDF Doc but was either UTF-8 or
+    //   one of the other single-byte encodings
+    //
+    // The returned vector always contains the original string first,
+    // and then it contains what the correct string would be in the
+    // event that the original string was the result of any of the
+    // above errors.
+    //
+    // This method is useful for attempting to recover a password that
+    // may have been previously incorrectly encoded. For example, the
+    // password was supposed to be UTF-8 but the previous application
+    // used a password encoded in WinAnsi, or if the previous password
+    // was supposed to be PDFDoc but was actually given as UTF-8 or
+    // WinAnsi, this method would find the correct password.
+    QPDF_DLL
+    std::vector<std::string> possible_repaired_encodings(std::string);
 
     // If secure random number generation is supported on your
     // platform and qpdf was not compiled with insecure random number

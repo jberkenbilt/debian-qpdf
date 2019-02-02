@@ -240,6 +240,98 @@ void utf8_to_ascii_test()
         << ">" << b.substr(1) << std::endl;
 }
 
+void transcoding_test(std::string (*to_utf8)(std::string const&),
+                      std::string (*from_utf8)(std::string const&, char),
+                      int last, std::string unknown)
+{
+    std::string in(" ");
+    std::string out;
+    std::string back;
+    for (int i = 128; i <= last; ++i)
+    {
+        in.at(0) = static_cast<unsigned char>(i);
+        out = (*to_utf8)(in);
+        std::string wanted = (out == "\xef\xbf\xbd") ? unknown : in;
+        back = (*from_utf8)(out, '?');
+        if (back != wanted)
+        {
+            std::cout << i << ": " << in << " -> " << out
+                      << " -> " << back << " (wanted " << wanted << ")"
+                      << std::endl;
+        }
+    }
+}
+
+void check_analyze(std::string const& str, bool has8bit, bool utf8, bool utf16)
+{
+    bool has_8bit_chars = false;
+    bool is_valid_utf8 = false;
+    bool is_utf16 = false;
+    QUtil::analyze_encoding(str, has_8bit_chars, is_valid_utf8, is_utf16);
+    if (! ((has_8bit_chars == has8bit) &&
+           (is_valid_utf8 == utf8) &&
+           (is_utf16 == utf16)))
+    {
+        std::cout << "analysis failed: " << str << std::endl;
+    }
+}
+
+void print_alternatives(std::string const& str)
+{
+    std::vector<std::string> result = QUtil::possible_repaired_encodings(str);
+    size_t n = result.size();
+    for (size_t i = 0; i < n; ++i)
+    {
+        std::cout << i << ": " << QUtil::hex_encode(result.at(i)) << std::endl;
+    }
+}
+
+void transcoding_test()
+{
+    transcoding_test(&QUtil::pdf_doc_to_utf8,
+                     &QUtil::utf8_to_pdf_doc, 160, "\x9f");
+    std::cout << "bidirectional pdf doc done" << std::endl;
+    transcoding_test(&QUtil::win_ansi_to_utf8,
+                     &QUtil::utf8_to_win_ansi, 160, "?");
+    std::cout << "bidirectional win ansi done" << std::endl;
+    transcoding_test(&QUtil::mac_roman_to_utf8,
+                     &QUtil::utf8_to_mac_roman, 255, "?");
+    std::cout << "bidirectional mac roman done" << std::endl;
+    check_analyze("pi = \317\200", true, true, false);
+    check_analyze("pi != \317", true, false, false);
+    check_analyze("pi != 22/7", false, false, false);
+    check_analyze(std::string("\xfe\xff\00\x51", 4), true, false, true);
+    std::cout << "analysis done" << std::endl;
+    std::string input1("a\302\277b");
+    std::string input2("a\317\200b");
+    std::string input3("ab");
+    std::string output;
+    assert(! QUtil::utf8_to_ascii(input1, output));
+    assert(! QUtil::utf8_to_ascii(input2, output));
+    assert(QUtil::utf8_to_ascii(input3, output));
+    assert(QUtil::utf8_to_win_ansi(input1, output));
+    assert(! QUtil::utf8_to_win_ansi(input2, output));
+    assert(QUtil::utf8_to_win_ansi(input3, output));
+    assert(QUtil::utf8_to_mac_roman(input1, output));
+    assert(! QUtil::utf8_to_mac_roman(input2, output));
+    assert(QUtil::utf8_to_mac_roman(input3, output));
+    assert(QUtil::utf8_to_pdf_doc(input1, output));
+    assert(! QUtil::utf8_to_pdf_doc(input2, output));
+    assert(QUtil::utf8_to_pdf_doc(input3, output));
+    std::cout << "alternatives" << std::endl;
+    // char	name		mac	win	pdf-doc
+    // U+0192	florin		304	203	206
+    // U+00A9	copyright	251	251	251
+    // U+00E9	eacute		216	351	351
+    // U+017E	zcaron		-	236	236
+    std::string pdfdoc = "\206\251\351\236";
+    std::string utf8 = QUtil::pdf_doc_to_utf8(pdfdoc);
+    print_alternatives(pdfdoc);
+    print_alternatives(utf8);
+    print_alternatives("quack");
+    std::cout << "done alternatives" << std::endl;
+}
+
 void print_whoami(char const* str)
 {
     PointerHolder<char> dup(true, QUtil::copy_string(str));
@@ -350,6 +442,8 @@ int main(int argc, char* argv[])
 	to_utf16_test();
 	std::cout << "---- utf8_to_ascii" << std::endl;
         utf8_to_ascii_test();
+	std::cout << "---- transcoding" << std::endl;
+        transcoding_test();
 	std::cout << "---- whoami" << std::endl;
 	get_whoami_test();
 	std::cout << "---- file" << std::endl;

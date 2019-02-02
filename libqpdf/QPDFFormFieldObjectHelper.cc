@@ -506,6 +506,7 @@ class ValueSetter: public QPDFObjectHandle::TokenFilter
     {
     }
     virtual void handleToken(QPDFTokenizer::Token const&);
+    virtual void handleEOF();
     void writeAppearance();
 
   private:
@@ -515,6 +516,7 @@ class ValueSetter: public QPDFObjectHandle::TokenFilter
     double tf;
     QPDFObjectHandle::Rectangle bbox;
     enum { st_top, st_bmc, st_emc, st_end } state;
+    bool replaced;
 };
 
 ValueSetter::ValueSetter(std::string const& DA, std::string const& V,
@@ -525,7 +527,8 @@ ValueSetter::ValueSetter(std::string const& DA, std::string const& V,
     opt(opt),
     tf(tf),
     bbox(bbox),
-    state(st_top)
+    state(st_top),
+    replaced(false)
 {
 }
 
@@ -575,8 +578,22 @@ ValueSetter::handleToken(QPDFTokenizer::Token const& token)
     }
 }
 
-void ValueSetter::writeAppearance()
+void
+ValueSetter::handleEOF()
 {
+    if (! this->replaced)
+    {
+        QTC::TC("qpdf", "QPDFFormFieldObjectHelper replaced BMC at EOF");
+        write("/Tx BMC\n");
+        writeAppearance();
+    }
+}
+
+void
+ValueSetter::writeAppearance()
+{
+    this->replaced = true;
+
     // This code does not take quadding into consideration because
     // doing so requires font metric information, which we don't
     // have in many cases.
@@ -656,7 +673,6 @@ void ValueSetter::writeAppearance()
     // Write the lines centered vertically, highlighting if needed
     size_t nlines = lines.size();
     double dy = bbox.ury - ((bbox.ury - bbox.lly - (nlines * tfh)) / 2.0);
-    write(DA + "\nq\n");
     if (highlight)
     {
         write("q\n0.85 0.85 0.85 rg\n" +
@@ -667,17 +683,26 @@ void ValueSetter::writeAppearance()
               QUtil::double_to_string(tfh) +
               " re f\nQ\n");
     }
-    dy += 0.2 * tf;
+    dy -= tf;
+    write("q\nBT\n" + DA + "\n");
     for (size_t i = 0; i < nlines; ++i)
     {
-        dy -= tfh;
-        write("BT\n" +
-              QUtil::int_to_string(bbox.llx + dx) + " " +
-              QUtil::double_to_string(bbox.lly + dy) + " Td\n" +
-              QPDFObjectHandle::newString(lines.at(i)).unparse() +
-              " Tj\nET\n");
+        // We could adjust Tm to translate to the beginning the first
+        // line, set TL to tfh, and use T* for each subsequent line,
+        // but doing this would require extracting any Tm from DA,
+        // which doesn't seem really worth the effort.
+        if (i == 0)
+        {
+            write(QUtil::int_to_string(bbox.llx + dx) + " " +
+                  QUtil::double_to_string(bbox.lly + dy) + " Td\n");
+        }
+        else
+        {
+            write("0 " + QUtil::double_to_string(-tfh) + " Td\n");
+        }
+        write(QPDFObjectHandle::newString(lines.at(i)).unparse() + " Tj\n");
     }
-    write("Q\nEMC");
+    write("ET\nQ\nEMC");
 }
 
 class TfFinder: public QPDFObjectHandle::TokenFilter
@@ -690,17 +715,23 @@ class TfFinder: public QPDFObjectHandle::TokenFilter
     virtual void handleToken(QPDFTokenizer::Token const&);
     double getTf();
     std::string getFontName();
+    std::string getDA();
 
   private:
     double tf;
+    size_t tf_idx;
     std::string font_name;
     double last_num;
+    size_t last_num_idx;
     std::string last_name;
+    std::vector<std::string> DA;
 };
 
 TfFinder::TfFinder() :
     tf(11.0),
-    last_num(0.0)
+    tf_idx(0),
+    last_num(0.0),
+    last_num_idx(0)
 {
 }
 
@@ -709,11 +740,13 @@ TfFinder::handleToken(QPDFTokenizer::Token const& token)
 {
     QPDFTokenizer::token_type_e ttype = token.getType();
     std::string value = token.getValue();
+    DA.push_back(token.getRawValue());
     switch (ttype)
     {
       case QPDFTokenizer::tt_integer:
       case QPDFTokenizer::tt_real:
         last_num = strtod(value.c_str(), 0);
+        last_num_idx = DA.size() - 1;
         break;
 
       case QPDFTokenizer::tt_name:
@@ -729,6 +762,7 @@ TfFinder::handleToken(QPDFTokenizer::Token const& token)
             // insane things or suffering from over/underflow
             tf = last_num;
         }
+        tf_idx = last_num_idx;
         font_name = last_name;
         break;
 
@@ -741,6 +775,30 @@ double
 TfFinder::getTf()
 {
     return this->tf;
+}
+
+std::string
+TfFinder::getDA()
+{
+    std::string result;
+    size_t n = this->DA.size();
+    for (size_t i = 0; i < n; ++i)
+    {
+        std::string cur = this->DA.at(i);
+        if (i == tf_idx)
+        {
+            double delta = strtod(cur.c_str(), 0) - this->tf;
+            if ((delta > 0.001) || (delta < -0.001))
+            {
+                // tf doesn't match the font size passed to Tf, so
+                // substitute.
+                QTC::TC("qpdf", "QPDFFormFieldObjectHelper fallback Tf");
+                cur = QUtil::double_to_string(tf);
+            }
+        }
+        result += cur;
+    }
+    return result;
 }
 
 std::string
@@ -768,6 +826,29 @@ QPDFFormFieldObjectHelper::generateTextAppearance(
     QPDFAnnotationObjectHelper& aoh)
 {
     QPDFObjectHandle AS = aoh.getAppearanceStream("/N");
+    if (AS.isNull())
+    {
+        QTC::TC("qpdf", "QPDFFormFieldObjectHelper create AS from scratch");
+        QPDFObjectHandle::Rectangle rect = aoh.getRect();
+        QPDFObjectHandle::Rectangle bbox(
+            0, 0, rect.urx - rect.llx, rect.ury - rect.lly);
+        QPDFObjectHandle dict = QPDFObjectHandle::parse(
+            "<< /Resources << /ProcSet [ /PDF /Text ] >>"
+            " /Type /XObject /Subtype /Form >>");
+        dict.replaceKey("/BBox", QPDFObjectHandle::newFromRectangle(bbox));
+        AS = QPDFObjectHandle::newStream(
+            this->oh.getOwningQPDF(), "/Tx BMC\nEMC\n");
+        AS.replaceDict(dict);
+        QPDFObjectHandle AP = aoh.getAppearanceDictionary();
+        if (AP.isNull())
+        {
+            QTC::TC("qpdf", "QPDFFormFieldObjectHelper create AP from scratch");
+            aoh.getObjectHandle().replaceKey(
+                "/AP", QPDFObjectHandle::newDictionary());
+            AP = aoh.getAppearanceDictionary();
+        }
+        AP.replaceKey("/N", AS);
+    }
     if (! AS.isStream())
     {
         aoh.getObjectHandle().warnIfPossible(
@@ -795,6 +876,7 @@ QPDFFormFieldObjectHelper::generateTextAppearance(
     tok.write(QUtil::unsigned_char_pointer(DA.c_str()), DA.length());
     tok.finish();
     double tf = tff.getTf();
+    DA = tff.getDA();
 
     std::string (*encoder)(std::string const&, char) = &QUtil::utf8_to_ascii;
     std::string font_name = tff.getFontName();
