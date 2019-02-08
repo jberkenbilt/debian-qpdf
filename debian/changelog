@@ -1,3 +1,10 @@
+qpdf (8.4.0-2) unstable; urgency=medium
+
+  * Stop having library packages recommend binary packages. I'm not sure
+    this was ever done or why it took so long to notice. (Closes: #921722)
+
+ -- Jay Berkenbilt <qjb@debian.org>  Fri, 08 Feb 2019 17:43:33 -0500
+
 qpdf (8.4.0-1) unstable; urgency=medium
 
   * New upstream release.
