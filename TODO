@@ -1,3 +1,9 @@
+Before Next Release
+===================
+
+ * Make sure it is clear to downloaders where they can find my public
+   key for verifying downloads.
+
 Soon
 ====
 
@@ -21,6 +27,15 @@ Do these things next time we have to break binary compatibility
 
  * Remove version of QPDFTokenizer::expectInlineImage with no
    arguments.
+
+ * Consider whether to build with -fvisibility=hidden by default. See
+   #302 for discussion.
+
+ * Consider dealing with integer sizes in the API. Build with
+   -Wconversion -Wsign-conversion to see warnings. We won't be able to
+   resolve all, but we can possibly convert some things from int to
+   either size_t or qpdf_offset_t. Only do this if it doesn't break
+   source compatibility.
 
 Lexical
 =======
@@ -61,6 +76,17 @@ Page splitting/merging
      or splitting
    * make sure conflicting named destinations work possibly test by
      including the same file by two paths in a merge
+
+   Note: original implementation of bookmark preservation for split
+   pages caused a very high performance hit. The problem was
+   introduced in 313ba081265f69ac9a0324f9fe87087c72918191 and reverted
+   in the commit that adds this paragraph. The revert includes marking
+   a few tests cases as $td->EXPECT_FAILURE. When properly coded, the
+   test cases will need to be adjusted to only include the parts of
+   the outlines that are actually copied. The tests in question are
+   "split page with outlines". When implementing properly, ensure that
+   the performance is not adversely affected by timing split-pages on
+   a large file with complex outlines such as the PDF specification.
 
    When pruning outlines, keep all outlines in the hierarchy that are
    above an outline for a page we care about. If one of the ancestor
@@ -143,6 +169,14 @@ I find it useful to make reference to them in this list
    * you only have to specify filtering for streams if providing raw data
 
  * Pl_TIFFPredictor is pretty slow.
+
+ * Support for handling file names with Unicode characters in Windows
+   is incomplete. qpdf seems to support them okay from a functionality
+   standpoint, and the right thing happens if you pass in UTF-8
+   encoded filenames to QPDF library routines in Windows (they are
+   converted internally to wchar_t*), but file names are encoded in
+   UTF-8 on output, which doesn't produce nice error messages or
+   output on Windows in some cases.
 
  * If we ever wanted to do anything more with character encoding, see
    ../misc/character-encoding/, which includes machine-readable dump

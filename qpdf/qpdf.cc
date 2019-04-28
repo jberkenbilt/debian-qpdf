@@ -30,6 +30,8 @@ static int const EXIT_WARNING = 3;
 
 static char const* whoami = 0;
 
+static std::string expected_version = "8.4.1";
+
 struct PageSpec
 {
     PageSpec(std::string const& filename,
@@ -134,6 +136,7 @@ struct Options
         preserve_unreferenced_page_resources(false),
         keep_files_open(true),
         keep_files_open_set(false),
+        keep_files_open_threshold(200), // default known in help and docs
         newline_before_endstream(false),
         coalesce_contents(false),
         flatten_annotations(false),
@@ -163,6 +166,7 @@ struct Options
         optimize_images(false),
         externalize_inline_images(false),
         keep_inline_images(false),
+        remove_page_labels(false),
         oi_min_width(128),      // Default values for these
         oi_min_height(128),     // oi flags are in --help
         oi_min_area(16384),     // and in the manual.
@@ -225,6 +229,7 @@ struct Options
     bool preserve_unreferenced_page_resources;
     bool keep_files_open;
     bool keep_files_open_set;
+    size_t keep_files_open_threshold;
     bool newline_before_endstream;
     std::string linearize_pass1;
     bool coalesce_contents;
@@ -259,6 +264,7 @@ struct Options
     bool optimize_images;
     bool externalize_inline_images;
     bool keep_inline_images;
+    bool remove_page_labels;
     size_t oi_min_width;
     size_t oi_min_height;
     size_t oi_min_area;
@@ -634,6 +640,7 @@ class ArgParser
     void argPreserveUnreferenced();
     void argPreserveUnreferencedResources();
     void argKeepFilesOpen(char* parameter);
+    void argKeepFilesOpenThreshold(char* parameter);
     void argNewlineBeforeEndstream();
     void argLinearizePass1(char* parameter);
     void argCoalesceContents();
@@ -667,6 +674,7 @@ class ArgParser
     void argOptimizeImages();
     void argExternalizeInlineImages();
     void argKeepInlineImages();
+    void argRemovePageLabels();
     void argOiMinWidth(char* parameter);
     void argOiMinHeight(char* parameter);
     void argOiMinArea(char* parameter);
@@ -857,6 +865,8 @@ ArgParser::initOptionTable()
         &ArgParser::argPreserveUnreferencedResources);
     (*t)["keep-files-open"] = oe_requiredChoices(
         &ArgParser::argKeepFilesOpen, yn);
+    (*t)["keep-files-open-threshold"] = oe_requiredParameter(
+        &ArgParser::argKeepFilesOpenThreshold, "count");
     (*t)["newline-before-endstream"] = oe_bare(
         &ArgParser::argNewlineBeforeEndstream);
     (*t)["linearize-pass1"] = oe_requiredParameter(
@@ -906,6 +916,7 @@ ArgParser::initOptionTable()
     (*t)["externalize-inline-images"] =
         oe_bare(&ArgParser::argExternalizeInlineImages);
     (*t)["keep-inline-images"] = oe_bare(&ArgParser::argKeepInlineImages);
+    (*t)["remove-page-labels"] = oe_bare(&ArgParser::argRemovePageLabels);
     (*t)["oi-min-width"] = oe_requiredParameter(
         &ArgParser::argOiMinWidth, "minimum-width");
     (*t)["oi-min-height"] = oe_requiredParameter(
@@ -984,6 +995,17 @@ ArgParser::argPositional(char* arg)
 void
 ArgParser::argVersion()
 {
+    if (expected_version != QPDF::QPDFVersion())
+    {
+        std::cerr << "***\n"
+                  << "WARNING: qpdf CLI from version " << expected_version
+                  << " is using library version " << QPDF::QPDFVersion()
+                  << ".\n"
+                  << "This probably means you have multiple versions of qpdf installed\n"
+                  << "and don't have your library path configured correctly.\n"
+                  << "***"
+                  << std::endl;
+    }
     std::cout
         << whoami << " version " << QPDF::QPDFVersion() << std::endl
         << "Run " << whoami << " --copyright to see copyright and license information."
@@ -1209,6 +1231,7 @@ ArgParser::argHelp()
         << "starting point, but its pages are replaced with pages as specified.\n"
         << "\n"
         << "--keep-files-open=[yn]\n"
+        << "--keep-files-open-threshold=count\n"
         << "--pages file [ --password=password ] [ page-range ] ... --\n"
         << "\n"
         << "For each file that pages should be taken from, specify the file, a\n"
@@ -1227,7 +1250,8 @@ ArgParser::argHelp()
         << "files will be kept open at the same time. This behavior can be overridden\n"
         << "by specifying --keep-files-open=[yn]. Closing and opening files can have\n"
         << "very high overhead on certain file systems, especially networked file\n"
-        << "systems.\n"
+        << "systems. The threshold of 200 can be modified with\n"
+        << "--keep-files-open-threshold\n"
         << "\n"
         << "The page range is a set of numbers separated by commas, ranges of\n"
         << "numbers separated dashes, or combinations of those.  The character\n"
@@ -1328,6 +1352,7 @@ ArgParser::argHelp()
         << "--ii-min-bytes=bytes      specify minimum size of inline images to be\n"
         << "                          converted to regular images\n"
         << "--keep-inline-images      exclude inline images from image optimization\n"
+        << "--remove-page-labels      remove any page labels present in the output file\n"
         << "--qdf                     turns on \"QDF mode\" (below)\n"
         << "--linearize-pass1=file    write intermediate pass of linearized file\n"
         << "                          for debugging\n"
@@ -1378,7 +1403,8 @@ ArgParser::argHelp()
         << "                    including DCT (JPEG)\n"
         << "\n"
         << "In qdf mode, by default, content normalization is turned on, and the\n"
-        << "stream data mode is set to uncompress.\n"
+        << "stream data mode is set to uncompress. QDF mode does not support\n"
+        << "linearized files. The --linearize flag disables qdf mode.\n"
         << "\n"
         << "Setting the minimum PDF version of the output file may raise the version\n"
         << "but will never lower it.  Forcing the PDF version of the output file may\n"
@@ -1781,6 +1807,13 @@ ArgParser::argKeepFilesOpen(char* parameter)
 }
 
 void
+ArgParser::argKeepFilesOpenThreshold(char* parameter)
+{
+    o.keep_files_open_threshold =
+        static_cast<size_t>(QUtil::string_to_int(parameter));
+}
+
+void
 ArgParser::argNewlineBeforeEndstream()
 {
     o.newline_before_endstream = true;
@@ -1995,6 +2028,12 @@ void
 ArgParser::argKeepInlineImages()
 {
     o.keep_inline_images = true;
+}
+
+void
+ArgParser::argRemovePageLabels()
+{
+    o.remove_page_labels = true;
 }
 
 void
@@ -3836,7 +3875,7 @@ ImageOptimizer::makePipeline(std::string const& description, Pipeline* next)
         h_obj.isInteger() ? h_obj.getIntValue() : h_obj.getNumericValue());
     std::string colorspace = (colorspace_obj.isName() ?
                               colorspace_obj.getName() :
-                              "");
+                              std::string());
     int components = 0;
     J_COLOR_SPACE cs = JCS_UNKNOWN;
     if (colorspace == "/DeviceRGB")
@@ -4320,6 +4359,10 @@ static void handle_transformations(QPDF& pdf, Options& o)
             (*iter).coalesceContentStreams();
         }
     }
+    if (o.remove_page_labels)
+    {
+        pdf.getRoot().removeKey("/PageLabels");
+    }
 }
 
 static void handle_page_specs(QPDF& pdf, Options& o)
@@ -4351,9 +4394,7 @@ static void handle_page_specs(QPDF& pdf, Options& o)
             PageSpec& page_spec = *iter;
             filenames.insert(page_spec.filename);
         }
-        // NOTE: The number 200 for this threshold is in the help
-        // message and manual and is baked into the test suite.
-        if (filenames.size() > 200)
+        if (filenames.size() > o.keep_files_open_threshold)
         {
             QTC::TC("qpdf", "qpdf disable keep files open");
             if (o.verbose)
@@ -4965,30 +5006,6 @@ static void write_outfile(QPDF& pdf, Options& o)
                 page_labels.replaceKey(
                     "/Nums", QPDFObjectHandle::newArray(labels));
                 outpdf.getRoot().replaceKey("/PageLabels", page_labels);
-            }
-            // Copying the outlines tree, names table, and any
-            // outdated Dests key from the original file will make
-            // some things work in the split files. It is not a
-            // complete solution, but at least outlines whose
-            // destinations are on pages that have been preserved will
-            // work normally. There are other top-level structures
-            // that should be copied as well. This will be improved in
-            // the future.
-            std::list<std::string> to_copy;
-            to_copy.push_back("/Names");
-            to_copy.push_back("/Dests");
-            to_copy.push_back("/Outlines");
-            for (std::list<std::string>::iterator iter = to_copy.begin();
-                 iter != to_copy.end(); ++iter)
-            {
-                QPDFObjectHandle orig = pdf.getRoot().getKey(*iter);
-                if (! orig.isIndirect())
-                {
-                    orig = pdf.makeIndirectObject(orig);
-                }
-                outpdf.getRoot().replaceKey(
-                    *iter,
-                    outpdf.copyForeignObject(orig));
             }
             std::string page_range = QUtil::int_to_string(first, pageno_len);
             if (o.split_pages > 1)

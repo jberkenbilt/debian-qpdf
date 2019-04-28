@@ -1,3 +1,51 @@
+2019-04-27  Jay Berkenbilt  <ejb@ql.org>
+
+	* 8.4.1: release
+
+2019-04-20  Jay Berkenbilt  <ejb@ql.org>
+
+	* When qpdf --version is run, it will detect if the qpdf CLI was
+	built with a different version of qpdf than the library. This
+	usually indicates that multiple versions of qpdf are installed and
+	that the library path is not set up properly. This situation
+	sometimes causes confusing behavior for users who are not actually
+	running the version of qpdf they think they are running.
+
+	* Add parameter --remove-page-labels to remove page labels from
+	output. In qpdf 8.3.0, the behavior changed so that page labels
+	were preserved when merging and splitting files. Some users were
+	relying on the fact that if you ran qpdf --empty --pages ... all
+	page labels were dropped. This option makes it possible to get
+	that behavior if it is explicitly desired. Fixes #317.
+
+	* Add parameter --keep-files-open-threshold to override the
+	maximum number of files that qpdf will allow to be kept open at
+	once. Fixes #288.
+
+	* Handle Unicode characters in filenames properly on Windows. The
+	changes to support Unicode on the CLI in Windows broke Unicode
+	filenames on that platform. Fixes #298.
+
+	* Slightly tighten logic that determines whether an object is a
+	page. The previous logic was sometimes failing to preserve
+	annotations because they were passing the overly loose test for
+	whether something was a page. This fix has a slight risk of
+	causing some extraneous objects to be copied during page splitting
+	and merging for erroneous PDF files whose page objects contain
+	invalid types or are missing the /Type key entirely, both of which
+	would be invalid according to the PDF specification.
+
+	* Revert change that included preservation of outlines (bookmarks)
+	in --split-pages. The way it was implemented caused a very
+	significant performance penalty when splitting pages with
+	outlines. We need a better solution that only copies the relevant
+	items, not the whole tree.
+
+2019-03-11  Jay Berkenbilt  <ejb@ql.org>
+
+	* JSON serialization: add missing leading 0 to decimal values
+	between -1 and 1. Fixes #308.
+
 2019-02-01  Jay Berkenbilt  <ejb@ql.org>
 
 	* 8.4.0: release
