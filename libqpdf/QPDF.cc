@@ -4,6 +4,7 @@
 #include <vector>
 #include <map>
 #include <algorithm>
+#include <stdlib.h>
 #include <string.h>
 #include <memory.h>
 
@@ -20,7 +21,7 @@
 #include <qpdf/QPDF_Dictionary.hh>
 #include <qpdf/QPDF_Stream.hh>
 
-std::string QPDF::qpdf_version = "8.4.0";
+std::string QPDF::qpdf_version = "8.4.1";
 
 static char const* EMPTY_PDF =
     "%PDF-1.3\n"

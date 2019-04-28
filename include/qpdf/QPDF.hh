@@ -30,8 +30,10 @@
 #include <map>
 #include <list>
 #include <iostream>
+#include <vector>
 
 #include <qpdf/QPDFExc.hh>
+#include <qpdf/QPDFObjectHandle.hh>
 #include <qpdf/QPDFObjGen.hh>
 #include <qpdf/QPDFXRefEntry.hh>
 #include <qpdf/QPDFObjectHandle.hh>
@@ -1298,6 +1300,7 @@ class QPDF
     class Members
     {
         friend class QPDF;
+        friend class ResolveRecorder;
 
       public:
         QPDF_DLL

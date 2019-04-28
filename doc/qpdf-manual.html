@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>QPDF Manual</title><link rel="stylesheet" type="text/css" href="stylesheet.css" /><meta name="generator" content="DocBook XSL Stylesheets V1.79.1" /></head><body><div class="book"><div class="titlepage"><div><div><h1 class="title"><a id="idm46094354123872"></a>QPDF Manual</h1></div><div><h2 class="subtitle">For QPDF Version 8.4.0, February 1, 2019</h2></div><div><div class="author"><h3 class="author"><span class="firstname">Jay</span> <span class="surname">Berkenbilt</span></h3></div></div><div><p class="copyright">Copyright © 2005–2019 Jay Berkenbilt</p></div></div><hr /></div><div class="toc"><p><strong>Table of Contents</strong></p><dl class="toc"><dt><span class="preface"><a href="#acknowledgments">General Information</a></span></dt><dt><span class="chapter"><a href="#ref.overview">1. What is QPDF?</a></span></dt><dt><span class="chapter"><a href="#ref.installing">2. Building and Installing QPDF</a></span></dt><dd><dl><dt><span class="sect1"><a href="#ref.prerequisites">2.1. System Requirements</a></span></dt><dt><span class="sect1"><a href="#ref.building">2.2. Build Instructions</a></span></dt><dt><span class="sect1"><a href="#ref.packaging">2.3. Notes for Packagers</a></span></dt></dl></dd><dt><span class="chapter"><a href="#ref.using">3. Running QPDF</a></span></dt><dd><dl><dt><span class="sect1"><a href="#ref.invocation">3.1. Basic Invocation</a></span></dt><dt><span class="sect1"><a href="#ref.shell-completion">3.2. Shell Completion</a></span></dt><dt><span class="sect1"><a href="#ref.basic-options">3.3. Basic Options</a></span></dt><dt><span class="sect1"><a href="#ref.encryption-options">3.4. Encryption Options</a></span></dt><dt><span class="sect1"><a href="#ref.page-selection">3.5. Page Selection Options</a></span></dt><dt><span class="sect1"><a href="#ref.overlay-underlay">3.6. Overlay and Underlay Options</a></span></dt><dt><span class="sect1"><a href="#ref.advanced-parsing">3.7. Advanced Parsing Options</a></span></dt><dt><span class="sect1"><a href="#ref.advanced-transformation">3.8. Advanced Transformation Options</a></span></dt><dt><span class="sect1"><a href="#ref.testing-options">3.9. Testing, Inspection, and Debugging Options</a></span></dt><dt><span class="sect1"><a href="#ref.unicode-passwords">3.10. Unicode Passwords</a></span></dt></dl></dd><dt><span class="chapter"><a href="#ref.qdf">4. QDF Mode</a></span></dt><dt><span class="chapter"><a href="#ref.using-library">5. Using the QPDF Library</a></span></dt><dd><dl><dt><span class="sect1"><a href="#ref.using.from-cxx">5.1. Using QPDF from C++</a></span></dt><dt><span class="sect1"><a href="#ref.using.other-languages">5.2. Using QPDF from other languages</a></span></dt></dl></dd><dt><span class="chapter"><a href="#ref.json">6. QPDF JSON</a></span></dt><dd><dl><dt><span class="sect1"><a href="#ref.json-overview">6.1. Overview</a></span></dt><dt><span class="sect1"><a href="#ref.json-guarantees">6.2. JSON Guarantees</a></span></dt><dt><span class="sect1"><a href="#json.limitations">6.3. Limitations of JSON Representation</a></span></dt><dt><span class="sect1"><a href="#json.considerations">6.4. JSON: Special Considerations</a></span></dt></dl></dd><dt><span class="chapter"><a href="#ref.design">7. Design and Library Notes</a></span></dt><dd><dl><dt><span class="sect1"><a href="#ref.design.intro">7.1. Introduction</a></span></dt><dt><span class="sect1"><a href="#ref.design-goals">7.2. Design Goals</a></span></dt><dt><span class="sect1"><a href="#ref.helper-classes">7.3. Helper Classes</a></span></dt><dt><span class="sect1"><a href="#ref.implementation-notes">7.4. Implementation Notes</a></span></dt><dt><span class="sect1"><a href="#ref.casting">7.5. Casting Policy</a></span></dt><dt><span class="sect1"><a href="#ref.encryption">7.6. Encryption</a></span></dt><dt><span class="sect1"><a href="#ref.random-numbers">7.7. Random Number Generation</a></span></dt><dt><span class="sect1"><a href="#ref.adding-and-remove-pages">7.8. Adding and Removing Pages</a></span></dt><dt><span class="sect1"><a href="#ref.reserved-objects">7.9. Reserving Object Numbers</a></span></dt><dt><span class="sect1"><a href="#ref.foreign-objects">7.10. Copying Objects From Other PDF Files</a></span></dt><dt><span class="sect1"><a href="#ref.rewriting">7.11. Writing PDF Files</a></span></dt><dt><span class="sect1"><a href="#ref.filtered-streams">7.12. Filtered Streams</a></span></dt></dl></dd><dt><span class="chapter"><a href="#ref.linearization">8. Linearization</a></span></dt><dd><dl><dt><span class="sect1"><a href="#ref.linearization-strategy">8.1. Basic Strategy for Linearization</a></span></dt><dt><span class="sect1"><a href="#ref.linearized.preparation">8.2. Preparing For Linearization</a></span></dt><dt><span class="sect1"><a href="#ref.optimization">8.3. Optimization</a></span></dt><dt><span class="sect1"><a href="#ref.linearization.writing">8.4. Writing Linearized Files</a></span></dt><dt><span class="sect1"><a href="#ref.linearization-data">8.5. Calculating Linearization Data</a></span></dt><dt><span class="sect1"><a href="#ref.linearization-issues">8.6. Known Issues with Linearization</a></span></dt><dt><span class="sect1"><a href="#ref.linearization-debugging">8.7. Debugging Note</a></span></dt></dl></dd><dt><span class="chapter"><a href="#ref.object-and-xref-streams">9. Object and Cross-Reference Streams</a></span></dt><dd><dl><dt><span class="sect1"><a href="#ref.object-streams">9.1. Object Streams</a></span></dt><dt><span class="sect1"><a href="#ref.xref-streams">9.2. Cross-Reference Streams</a></span></dt><dd><dl><dt><span class="sect2"><a href="#ref.xref-stream-data">9.2.1. Cross-Reference Stream Data</a></span></dt></dl></dd><dt><span class="sect1"><a href="#ref.object-streams-linearization">9.3. Implications for Linearized Files</a></span></dt><dt><span class="sect1"><a href="#ref.object-stream-implementation">9.4. Implementation Notes</a></span></dt></dl></dd><dt><span class="appendix"><a href="#ref.release-notes">A. Release Notes</a></span></dt><dt><span class="appendix"><a href="#ref.upgrading-to-2.1">B. Upgrading from 2.0 to 2.1</a></span></dt><dt><span class="appendix"><a href="#ref.upgrading-to-3.0">C. Upgrading to 3.0</a></span></dt><dt><span class="appendix"><a href="#ref.upgrading-to-4.0">D. Upgrading to 4.0</a></span></dt></dl></div><div class="preface"><div class="titlepage"><div><div><h1 class="title"><a id="acknowledgments"></a>General Information</h1></div></div></div><p>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>QPDF Manual</title><link rel="stylesheet" type="text/css" href="stylesheet.css" /><meta name="generator" content="DocBook XSL Stylesheets V1.79.1" /></head><body><div class="book"><div class="titlepage"><div><div><h1 class="title"><a id="idm45802284558064"></a>QPDF Manual</h1></div><div><h2 class="subtitle">For QPDF Version 8.4.1, April 27, 2019</h2></div><div><div class="author"><h3 class="author"><span class="firstname">Jay</span> <span class="surname">Berkenbilt</span></h3></div></div><div><p class="copyright">Copyright © 2005–2019 Jay Berkenbilt</p></div></div><hr /></div><div class="toc"><p><strong>Table of Contents</strong></p><dl class="toc"><dt><span class="preface"><a href="#acknowledgments">General Information</a></span></dt><dt><span class="chapter"><a href="#ref.overview">1. What is QPDF?</a></span></dt><dt><span class="chapter"><a href="#ref.installing">2. Building and Installing QPDF</a></span></dt><dd><dl><dt><span class="sect1"><a href="#ref.prerequisites">2.1. System Requirements</a></span></dt><dt><span class="sect1"><a href="#ref.building">2.2. Build Instructions</a></span></dt><dt><span class="sect1"><a href="#ref.packaging">2.3. Notes for Packagers</a></span></dt></dl></dd><dt><span class="chapter"><a href="#ref.using">3. Running QPDF</a></span></dt><dd><dl><dt><span class="sect1"><a href="#ref.invocation">3.1. Basic Invocation</a></span></dt><dt><span class="sect1"><a href="#ref.shell-completion">3.2. Shell Completion</a></span></dt><dt><span class="sect1"><a href="#ref.basic-options">3.3. Basic Options</a></span></dt><dt><span class="sect1"><a href="#ref.encryption-options">3.4. Encryption Options</a></span></dt><dt><span class="sect1"><a href="#ref.page-selection">3.5. Page Selection Options</a></span></dt><dt><span class="sect1"><a href="#ref.overlay-underlay">3.6. Overlay and Underlay Options</a></span></dt><dt><span class="sect1"><a href="#ref.advanced-parsing">3.7. Advanced Parsing Options</a></span></dt><dt><span class="sect1"><a href="#ref.advanced-transformation">3.8. Advanced Transformation Options</a></span></dt><dt><span class="sect1"><a href="#ref.testing-options">3.9. Testing, Inspection, and Debugging Options</a></span></dt><dt><span class="sect1"><a href="#ref.unicode-passwords">3.10. Unicode Passwords</a></span></dt></dl></dd><dt><span class="chapter"><a href="#ref.qdf">4. QDF Mode</a></span></dt><dt><span class="chapter"><a href="#ref.using-library">5. Using the QPDF Library</a></span></dt><dd><dl><dt><span class="sect1"><a href="#ref.using.from-cxx">5.1. Using QPDF from C++</a></span></dt><dt><span class="sect1"><a href="#ref.using.other-languages">5.2. Using QPDF from other languages</a></span></dt><dt><span class="sect1"><a href="#ref.unicode-files">5.3. A Note About Unicode File Names</a></span></dt></dl></dd><dt><span class="chapter"><a href="#ref.json">6. QPDF JSON</a></span></dt><dd><dl><dt><span class="sect1"><a href="#ref.json-overview">6.1. Overview</a></span></dt><dt><span class="sect1"><a href="#ref.json-guarantees">6.2. JSON Guarantees</a></span></dt><dt><span class="sect1"><a href="#json.limitations">6.3. Limitations of JSON Representation</a></span></dt><dt><span class="sect1"><a href="#json.considerations">6.4. JSON: Special Considerations</a></span></dt></dl></dd><dt><span class="chapter"><a href="#ref.design">7. Design and Library Notes</a></span></dt><dd><dl><dt><span class="sect1"><a href="#ref.design.intro">7.1. Introduction</a></span></dt><dt><span class="sect1"><a href="#ref.design-goals">7.2. Design Goals</a></span></dt><dt><span class="sect1"><a href="#ref.helper-classes">7.3. Helper Classes</a></span></dt><dt><span class="sect1"><a href="#ref.implementation-notes">7.4. Implementation Notes</a></span></dt><dt><span class="sect1"><a href="#ref.casting">7.5. Casting Policy</a></span></dt><dt><span class="sect1"><a href="#ref.encryption">7.6. Encryption</a></span></dt><dt><span class="sect1"><a href="#ref.random-numbers">7.7. Random Number Generation</a></span></dt><dt><span class="sect1"><a href="#ref.adding-and-remove-pages">7.8. Adding and Removing Pages</a></span></dt><dt><span class="sect1"><a href="#ref.reserved-objects">7.9. Reserving Object Numbers</a></span></dt><dt><span class="sect1"><a href="#ref.foreign-objects">7.10. Copying Objects From Other PDF Files</a></span></dt><dt><span class="sect1"><a href="#ref.rewriting">7.11. Writing PDF Files</a></span></dt><dt><span class="sect1"><a href="#ref.filtered-streams">7.12. Filtered Streams</a></span></dt></dl></dd><dt><span class="chapter"><a href="#ref.linearization">8. Linearization</a></span></dt><dd><dl><dt><span class="sect1"><a href="#ref.linearization-strategy">8.1. Basic Strategy for Linearization</a></span></dt><dt><span class="sect1"><a href="#ref.linearized.preparation">8.2. Preparing For Linearization</a></span></dt><dt><span class="sect1"><a href="#ref.optimization">8.3. Optimization</a></span></dt><dt><span class="sect1"><a href="#ref.linearization.writing">8.4. Writing Linearized Files</a></span></dt><dt><span class="sect1"><a href="#ref.linearization-data">8.5. Calculating Linearization Data</a></span></dt><dt><span class="sect1"><a href="#ref.linearization-issues">8.6. Known Issues with Linearization</a></span></dt><dt><span class="sect1"><a href="#ref.linearization-debugging">8.7. Debugging Note</a></span></dt></dl></dd><dt><span class="chapter"><a href="#ref.object-and-xref-streams">9. Object and Cross-Reference Streams</a></span></dt><dd><dl><dt><span class="sect1"><a href="#ref.object-streams">9.1. Object Streams</a></span></dt><dt><span class="sect1"><a href="#ref.xref-streams">9.2. Cross-Reference Streams</a></span></dt><dd><dl><dt><span class="sect2"><a href="#ref.xref-stream-data">9.2.1. Cross-Reference Stream Data</a></span></dt></dl></dd><dt><span class="sect1"><a href="#ref.object-streams-linearization">9.3. Implications for Linearized Files</a></span></dt><dt><span class="sect1"><a href="#ref.object-stream-implementation">9.4. Implementation Notes</a></span></dt></dl></dd><dt><span class="appendix"><a href="#ref.release-notes">A. Release Notes</a></span></dt><dt><span class="appendix"><a href="#ref.upgrading-to-2.1">B. Upgrading from 2.0 to 2.1</a></span></dt><dt><span class="appendix"><a href="#ref.upgrading-to-3.0">C. Upgrading to 3.0</a></span></dt><dt><span class="appendix"><a href="#ref.upgrading-to-4.0">D. Upgrading to 4.0</a></span></dt></dl></div><div class="preface"><div class="titlepage"><div><div><h1 class="title"><a id="acknowledgments"></a>General Information</h1></div></div></div><p>
    QPDF is a program that does structural, content-preserving
    transformations on PDF files.  QPDF's website is located at <a class="ulink" href="http://qpdf.sourceforge.net/" target="_top">http://qpdf.sourceforge.net/</a>.
    QPDF's source code is hosted on github at <a class="ulink" href="https://github.com/qpdf/qpdf" target="_top">https://github.com/qpdf/qpdf</a>.
@@ -402,6 +402,13 @@ make
         more than the OS limit's number of files from a script and are
         not worried about a few seconds additional processing time,
         you may want to specify <code class="option">--keep-files-open=n</code>.
+        The threshold for switching may be changed from the default
+        200 with the <code class="option">--keep-files-open-threshold</code>
+        option.
+       </p></dd><dt><span class="term"><code class="option">--keep-files-open-threshold=<em class="replaceable"><code>count</code></em></code></span></dt><dd><p>
+        If specified, overrides the default value of 200 used as the
+        threshold for qpdf deciding whether or not to keep files open.
+        See <code class="option">--keep-files-open</code> for details.
        </p></dd><dt><span class="term"><code class="option">--pages options --</code></span></dt><dd><p>
         Select specific pages from one or more input files.  See <a class="xref" href="#ref.page-selection" title="3.5. Page Selection Options">Section 3.5, “Page Selection Options”</a> for details on how to do page
         selection (splitting and merging).
@@ -1097,9 +1104,12 @@ outfile.pdf</code>
         Prevent inline images from being included in image
         optimization. This option has no affect when
         <code class="option">--optimize-images</code> is not specified.
+       </p></dd><dt><span class="term"><code class="option">--remove-page-labels</code></span></dt><dd><p>
+        Remove page labels from the output file.
        </p></dd><dt><span class="term"><code class="option">--qdf</code></span></dt><dd><p>
         Turns on QDF mode.  For additional information on QDF, please
-        see <a class="xref" href="#ref.qdf" title="Chapter 4. QDF Mode">Chapter 4, <em>QDF Mode</em></a>.
+        see <a class="xref" href="#ref.qdf" title="Chapter 4. QDF Mode">Chapter 4, <em>QDF Mode</em></a>. Note that
+        <code class="option">--linearize</code> disables QDF mode.
        </p></dd><dt><span class="term"><code class="option">--min-version=<em class="replaceable"><code>version</code></em></code></span></dt><dd><p>
         Forces the PDF version of the output file to be at least
         <em class="replaceable"><code>version</code></em>.  In other words, if the
@@ -1472,7 +1482,9 @@ outfile.pdf</code>
    some restrictions, in an ordinary text editor.  This can be very
    useful for experimenting with different PDF constructs or for
    making one-off edits to PDF files (though there are other reasons
-   why this may not always work).
+   why this may not always work). Note that QDF mode does not support
+   linearized files. If you enable linearization, QDF mode is
+   automatically disabled.
   </p><p>
    It is ordinarily very difficult to edit PDF files in a text editor
    for two reasons: most meaningful data in PDF files is compressed,
@@ -1560,7 +1572,7 @@ outfile.pdf</code>
       the offset to the cross-reference table or cross-reference
       stream following the <code class="literal">startxref</code> token
      </p></li></ul></div><p>
-  </p></div><div class="chapter"><div class="titlepage"><div><div><h1 class="title"><a id="ref.using-library"></a>Chapter 5. Using the QPDF Library</h1></div></div></div><div class="toc"><p><strong>Table of Contents</strong></p><dl class="toc"><dt><span class="sect1"><a href="#ref.using.from-cxx">5.1. Using QPDF from C++</a></span></dt><dt><span class="sect1"><a href="#ref.using.other-languages">5.2. Using QPDF from other languages</a></span></dt></dl></div><div class="sect1"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a id="ref.using.from-cxx"></a>5.1. Using QPDF from C++</h2></div></div></div><p>
+  </p></div><div class="chapter"><div class="titlepage"><div><div><h1 class="title"><a id="ref.using-library"></a>Chapter 5. Using the QPDF Library</h1></div></div></div><div class="toc"><p><strong>Table of Contents</strong></p><dl class="toc"><dt><span class="sect1"><a href="#ref.using.from-cxx">5.1. Using QPDF from C++</a></span></dt><dt><span class="sect1"><a href="#ref.using.other-languages">5.2. Using QPDF from other languages</a></span></dt><dt><span class="sect1"><a href="#ref.unicode-files">5.3. A Note About Unicode File Names</a></span></dt></dl></div><div class="sect1"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a id="ref.using.from-cxx"></a>5.1. Using QPDF from C++</h2></div></div></div><p>
     The source tree for the qpdf package has an
     <code class="filename">examples</code> directory that contains a few
     example programs.  The <code class="filename">qpdf/qpdf.cc</code> source
@@ -1613,7 +1625,28 @@ outfile.pdf</code>
        file's non-content data. This can facilitate interacting
        programmatically with PDF files through qpdf's command line
        interface. For more information, please see <a class="xref" href="#ref.json" title="Chapter 6. QPDF JSON">Chapter 6, <em>QPDF JSON</em></a>.
-      </p></dd></dl></div></div></div><div class="chapter"><div class="titlepage"><div><div><h1 class="title"><a id="ref.json"></a>Chapter 6. QPDF JSON</h1></div></div></div><div class="toc"><p><strong>Table of Contents</strong></p><dl class="toc"><dt><span class="sect1"><a href="#ref.json-overview">6.1. Overview</a></span></dt><dt><span class="sect1"><a href="#ref.json-guarantees">6.2. JSON Guarantees</a></span></dt><dt><span class="sect1"><a href="#json.limitations">6.3. Limitations of JSON Representation</a></span></dt><dt><span class="sect1"><a href="#json.considerations">6.4. JSON: Special Considerations</a></span></dt></dl></div><div class="sect1"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a id="ref.json-overview"></a>6.1. Overview</h2></div></div></div><p>
+      </p></dd></dl></div></div><div class="sect1"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a id="ref.unicode-files"></a>5.3. A Note About Unicode File Names</h2></div></div></div><p>
+    When strings are passed to qpdf library routines either as
+    <code class="literal">char*</code> or as <code class="literal">std::string</code>,
+    they are treated as byte arrays except where otherwise noted. When
+    Unicode is desired, qpdf wants UTF-8 unless otherwise noted in
+    comments in header files. In modern UNIX/Linux environments, this
+    generally does the right thing. In Windows, it's a bit more
+    complicated. Starting in qpdf 8.4.0, passwords that contain
+    Unicode characters are handled much better, and starting in qpdf
+    8.4.1, the library attempts to properly handle Unicode characters
+    in filenames. In particular, in Windows, if a UTF-8 encoded string
+    is used as a filename in either <code class="classname">QPDF</code> or
+    <code class="classname">QPDFWriter</code>, it is internally converted to
+    <code class="literal">wchar_t*</code>, and Unicode-aware Windows APIs are
+    used. As such, qpdf will generally operate properly on files with
+    non-ASCII characters in their names as long as the filenames are
+    UTF-8 encoded for passing into the qpdf library API, but there are
+    still some rough edges, such as the encoding of the filenames in
+    error messages our CLI output messages. Patches or bug reports are
+    welcome for any continuing issues with Unicode file names in
+    Windows.
+   </p></div></div><div class="chapter"><div class="titlepage"><div><div><h1 class="title"><a id="ref.json"></a>Chapter 6. QPDF JSON</h1></div></div></div><div class="toc"><p><strong>Table of Contents</strong></p><dl class="toc"><dt><span class="sect1"><a href="#ref.json-overview">6.1. Overview</a></span></dt><dt><span class="sect1"><a href="#ref.json-guarantees">6.2. JSON Guarantees</a></span></dt><dt><span class="sect1"><a href="#json.limitations">6.3. Limitations of JSON Representation</a></span></dt><dt><span class="sect1"><a href="#json.considerations">6.4. JSON: Special Considerations</a></span></dt></dl></div><div class="sect1"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a id="ref.json-overview"></a>6.1. Overview</h2></div></div></div><p>
     Beginning with qpdf version 8.3.0, the <span class="command"><strong>qpdf</strong></span>
     command-line program can produce a JSON representation of the
     non-content data in a PDF file. It includes a dump in JSON format
@@ -1879,7 +1912,7 @@ outfile.pdf</code>
     password-protected files.  QPDF does not enforce encryption
     parameters and will treat user and owner passwords equivalently.
     Either password may be used to access an encrypted file.
-    <a href="#ftn.idm46094347359200" class="footnote" id="idm46094347359200"><sup class="footnote">[1]</sup></a>
+    <a href="#ftn.idm45802277788480" class="footnote" id="idm45802277788480"><sup class="footnote">[1]</sup></a>
     <code class="classname">QPDF</code> will allow recovery of a user password
     given an owner password.  The input PDF file must be seekable.
     (Output files written by <code class="classname">QPDFWriter</code> need
@@ -2530,7 +2563,7 @@ outfile.pdf</code>
     filter should write to whatever type of output is required.  The
     <code class="classname">QPDF</code> class has an interface to write raw or
     filtered stream contents to a given pipeline.
-   </p></div><div class="footnotes"><br /><hr style="width:100; text-align:left;margin-left: 0" /><div id="ftn.idm46094347359200" class="footnote"><p><a href="#idm46094347359200" class="para"><sup class="para">[1] </sup></a>
+   </p></div><div class="footnotes"><br /><hr style="width:100; text-align:left;margin-left: 0" /><div id="ftn.idm45802277788480" class="footnote"><p><a href="#idm45802277788480" class="para"><sup class="para">[1] </sup></a>
       As pointed out earlier, the intention is not for qpdf to be used
       to bypass security on files. but as any open source PDF consumer
       may be easily modified to bypass basic PDF document security,
@@ -2893,7 +2926,52 @@ print "\n";
    </p></div></div><div class="appendix"><div class="titlepage"><div><div><h1 class="title"><a id="ref.release-notes"></a>Appendix A. Release Notes</h1></div></div></div><p>
    For a detailed list of changes, please see the file
    <code class="filename">ChangeLog</code> in the source distribution.
-  </p><div class="variablelist"><dl class="variablelist"><dt><span class="term">8.4.0: February 1, 2019</span></dt><dd><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+  </p><div class="variablelist"><dl class="variablelist"><dt><span class="term">8.4.1: April 21, 2019</span></dt><dd><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+        Enhancements
+       </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: circle; "><li class="listitem"><p>
+          When <span class="command"><strong>qpdf --version</strong></span> is run, it will
+          detect if the qpdf CLI was built with a different version of
+          qpdf than the library, which may indicate a problem with the
+          installation.
+         </p></li><li class="listitem"><p>
+	  New option <code class="option">--remove-page-labels</code> will remove page
+          labels before generating output. This used to happen if you
+          ran <span class="command"><strong>qpdf --empty --pages .. --</strong></span>, but the
+          behavior changed in qpdf 8.3.0. This option enables people
+          who were relying on the old behavior to get it again.
+         </p></li><li class="listitem"><p>
+          New option
+          <code class="option">--keep-files-open-threshold=<em class="replaceable"><code>count</code></em></code>
+          can be used to override number of files that qpdf will use
+          to trigger the behavior of not keeping all files open when
+          merging files. This may be necessary if your system allows
+          fewer than the default value of 200 files to be open at the
+          same time.
+         </p></li></ul></div></li><li class="listitem"><p>
+        Bug Fixes
+       </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: circle; "><li class="listitem"><p>
+          Handle Unicode characters in filenames on Windows. The
+          changes to support Unicode on the CLI in Windows broke
+          Unicode filenames for Windows.
+         </p></li><li class="listitem"><p>
+          Slightly tighten logic that determines whether an object is
+          a page. This should resolve problems in some rare files
+          where some non-page objects were passing qpdf's test for
+          whether something was a page, thus causing them to be
+          erroneously lost during page splitting operations.
+         </p></li><li class="listitem"><p>
+	  Revert change that included preservation of outlines
+	  (bookmarks) in <code class="option">--split-pages</code>. The way it
+	  was implemented in 8.3.0 and 8.4.0 caused a very significant
+	  degradation of performance for splitting certain files. A
+	  future release of qpdf may re-introduce the behavior in a
+	  more performant and also more correct fashion.
+         </p></li><li class="listitem"><p>
+          In JSON mode, add missing leading 0 to decimal values
+          between -1 and 1 even if not present in the input. The JSON
+          specification requires the leading 0. The PDF specification
+          does not.
+         </p></li></ul></div></li></ul></div></dd><dt><span class="term">8.4.0: February 1, 2019</span></dt><dd><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
         Command-line Enhancements
        </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: circle; "><li class="listitem"><p>
           <span class="emphasis"><em>Non-compatible CLI change:</em></span> The qpdf

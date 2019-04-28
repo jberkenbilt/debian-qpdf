@@ -170,12 +170,43 @@ $td->runtest("extra overlay filename",
 
 show_ntests();
 # ----------
+$td->notify("--- Unicode Filenames ---");
+$n_tests += 3;
+
+$td->runtest("create unicode filenames",
+             {$td->COMMAND => "test_unicode_filenames"},
+             {$td->STRING => "created Unicode filenames\n",
+                  $td->EXIT_STATUS => 0},
+             $td->NORMALIZE_NEWLINES);
+
+foreach my $d (['auto-ü', 1], ['auto-öπ', 2])
+{
+    my ($u, $n) = @$d;
+    $td->runtest("unicode filename $u",
+                 {$td->COMMAND => "qpdf --check $u.pdf"},
+                 {$td->FILE => "check-unicode-filename-$n.out",
+                      $td->EXIT_STATUS => 0},
+                 $td->NORMALIZE_NEWLINES);
+}
+
+show_ntests();
+# ----------
 $td->notify("--- Final Version ---");
 $n_tests += 1;
 
 $td->runtest("check final version",
              {$td->COMMAND => "test_driver 54 minimal.pdf"},
              {$td->STRING => "test 54 done\n", $td->EXIT_STATUS => 0},
+             $td->NORMALIZE_NEWLINES);
+
+show_ntests();
+# ----------
+$td->notify("--- Exceptions ---");
+$n_tests += 1;
+
+$td->runtest("check exception handling",
+             {$td->COMMAND => "test_driver 61 -"},
+             {$td->FILE => "exceptions.out", $td->EXIT_STATUS => 0},
              $td->NORMALIZE_NEWLINES);
 
 show_ntests();
@@ -647,7 +678,7 @@ $n_tests += 3;
 
 $td->runtest("qpdf version",
 	     {$td->COMMAND => "qpdf --version"},
-	     {$td->REGEXP => "qpdf version \\S+\n.*", $td->EXIT_STATUS => 0},
+	     {$td->REGEXP => ".*qpdf version \\S+\n.*", $td->EXIT_STATUS => 0},
 	     $td->NORMALIZE_NEWLINES);
 $td->runtest("qpdf copyright contains version too",
 	     {$td->COMMAND => "qpdf --copyright"},
@@ -756,8 +787,6 @@ foreach my $d (@eii_tests)
                  {$td->FILE => "$file-ii-some.pdf"});
     compare_pdfs("$file.pdf", "a.pdf");
 }
-
-# QXXXQ externalize tests with min size
 
 show_ntests();
 # ----------
@@ -1584,6 +1613,8 @@ foreach my $i (qw(01-06 07-11))
                  {$td->FILE => "labels-split-$i.pdf"});
 }
 
+# See comments in TODO about these expected failures. Search for
+# "split page with outlines".
 $td->runtest("split page with outlines",
              {$td->COMMAND => "qpdf --qdf --static-id --split-pages=10".
                   " outlines-with-actions.pdf split-out-outlines.pdf"},
@@ -1592,7 +1623,8 @@ foreach my $i (qw(01-10 11-20 21-30))
 {
     $td->runtest("check output ($i)",
                  {$td->FILE => "split-out-outlines-$i.pdf"},
-                 {$td->FILE => "outlines-split-$i.pdf"});
+                 {$td->FILE => "outlines-split-$i.pdf"},
+                 $td->EXPECT_FAILURE)
 }
 
 foreach my $d (@sp_cases)
@@ -1662,23 +1694,25 @@ $n_tests += 4;
     binmode F;
     my $content = <F>;
     close(F);
-    for (my $i = 1; $i <= 201; ++$i)
+    for (my $i = 1; $i <= 51; ++$i)
     {
         open(F, sprintf(">%03d-kfo.pdf", $i)) or die;
+        binmode F;
         print F $content;
         close(F);
     }
 }
-$td->runtest("disable keep files open",
+$td->runtest("automatic disable keep files open",
              {$td->COMMAND =>
                   "qpdf --verbose --static-id --empty" .
+                  " --keep-files-open-threshold=50" .
                   " --pages *kfo.pdf -- a.pdf"},
              {$td->FILE => "disable-kfo.out", $td->EXIT_STATUS => 0},
              $td->NORMALIZE_NEWLINES);
 $td->runtest("don't disable keep files open",
              {$td->COMMAND =>
                   "qpdf --verbose --static-id --empty" .
-                  " --pages 1*kfo.pdf -- a.pdf"},
+                  " --pages 01*kfo.pdf -- a.pdf"},
              {$td->FILE => "enable-kfo.out", $td->EXIT_STATUS => 0},
              $td->NORMALIZE_NEWLINES);
 $td->runtest("explict keep files open",
@@ -1852,7 +1886,7 @@ foreach my $f (qw(page_api_2 direct-pages))
 show_ntests();
 # ----------
 $td->notify("--- Merging and Splitting ---");
-$n_tests += 22;
+$n_tests += 24;
 
 # Select pages from the same file multiple times including selecting
 # twice from an encrypted file and specifying the password only the
@@ -1919,6 +1953,18 @@ $td->runtest("merge with multiple labels",
 $td->runtest("check output",
              {$td->FILE => "a.pdf"},
              {$td->FILE => "merge-multiple-labels.pdf"});
+$td->runtest("remove labels",
+             {$td->COMMAND =>
+                  "qpdf --empty a.pdf" .
+                  " --remove-page-labels" .
+                  " --pages 11-pages-with-labels.pdf 8-11" .
+                  " minimal.pdf " .
+                  " page-labels-and-outlines.pdf 17-19 --" .
+                  " --static-id"},
+             {$td->STRING => "", $td->EXIT_STATUS => 0});
+$td->runtest("check output",
+             {$td->FILE => "a.pdf"},
+             {$td->FILE => "remove-labels.pdf"});
 
 $td->runtest("split with shared resources",
              {$td->COMMAND =>
@@ -4079,5 +4125,5 @@ sub get_md5_checksum
 sub cleanup
 {
     system("rm -rf *.ps *.pnm ?.pdf ?.qdf *.enc* tif1 tif2 tiff-cache");
-    system("rm -rf *split-out* ???-kfo.pdf *.tmpout \@file.pdf");
+    system("rm -rf *split-out* ???-kfo.pdf *.tmpout \@file.pdf auto-*.pdf");
 }
