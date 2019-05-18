@@ -3,7 +3,7 @@ Section: libs
 Priority: optional
 Build-Depends: debhelper (>> 10.3~), libjpeg-dev, zlib1g-dev
 Maintainer: Jay Berkenbilt <qjb@debian.org>
-Standards-Version: 4.2.0
+Standards-Version: 4.3.0
 Homepage: http://qpdf.sourceforge.net
 
 Package: libqpdf21
