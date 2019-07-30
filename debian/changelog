@@ -1,3 +1,9 @@
+qpdf (XXX) XXX; urgency=medium
+
+  * Use https on download address in copyright file. (Closes #933401)
+
+ --
+
 qpdf (8.4.2-1) unstable; urgency=medium
 
   * Update standards to 4.3.0. No changes required.
