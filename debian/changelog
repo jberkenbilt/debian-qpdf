@@ -1,6 +1,7 @@
 qpdf (XXX) XXX; urgency=medium
 
   * Use https on download address in copyright file. (Closes #933401)
+  * XXX Reminder: issue 345 is debian bug 933397
 
  --
 
