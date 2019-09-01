@@ -1,6 +1,6 @@
 qpdf (9.0.0-1) unstable; urgency=medium
 
-  * Use https on download address in copyright file. (Closes #933401)
+  * Use https on download address in copyright file. (Closes: #933401)
   * Update standards to 4.4.0. No changes required.
   * New upstream release.
 
