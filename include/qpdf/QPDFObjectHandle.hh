@@ -54,7 +54,7 @@ class QPDFObjectHandle
     // alternative way of associating stream data with a stream.  See
     // comments on replaceStreamData and newStream for additional
     // details.
-    class StreamDataProvider
+    class QPDF_DLL_CLASS StreamDataProvider
     {
       public:
 	QPDF_DLL
@@ -98,8 +98,14 @@ class QPDFObjectHandle
     // for being written to output, or calling writeToken with a
     // string token will also work. The correct way to construct a
     // string token that would write the literal value (str) is
-    // QPDFTokenizer::Token(QPDFTokenizer::tt_string, "str").
-    class TokenFilter
+    // QPDFTokenizer::Token(QPDFTokenizer::tt_string, "str"). A
+    // similar situation exists with tt_name. token.getValue() returns
+    // a normalized name with # codes resolved into characters, and
+    // may not be suitable for writing. You can pass it to
+    // QPDF_Name::normalizeName first, or you can use writeToken with
+    // a name token. The correct way to create a name token is
+    // QPDFTokenizer::Token(QPDFTokenizer::tt_name, "/Name").
+    class QPDF_DLL_CLASS TokenFilter
     {
       public:
         QPDF_DLL
@@ -153,15 +159,27 @@ class QPDFObjectHandle
     // This class is used by parsePageContents. Callers must
     // instantiate a subclass of this with handlers defined to accept
     // QPDFObjectHandles that are parsed from the stream.
-    class ParserCallbacks
+    class QPDF_DLL_CLASS ParserCallbacks
     {
       public:
         QPDF_DLL
         virtual ~ParserCallbacks()
         {
         }
-        virtual void handleObject(QPDFObjectHandle) = 0;
+        // One of the handleObject methods must be overridden.
+        QPDF_DLL
+        virtual void handleObject(QPDFObjectHandle);
+        QPDF_DLL
+        virtual void handleObject(
+            QPDFObjectHandle, size_t offset, size_t length);
+
         virtual void handleEOF() = 0;
+
+        // Override this if you want to know the full size of the
+        // contents, possibly after concatenation of multiple streams.
+        // This is called before the first call to handleObject.
+        QPDF_DLL
+        virtual void contentSize(size_t);
 
       protected:
         // Implementors may call this method during parsing to
@@ -274,6 +292,13 @@ class QPDFObjectHandle
     bool isStream();
     QPDF_DLL
     bool isReserved();
+
+    // True for objects that are direct nulls. Does not attempt to
+    // resolve objects. This is intended for internal use, but it can
+    // be used as an efficient way to check for nulls that are not
+    // indirect objects.
+    QPDF_DLL
+    bool isDirectNull() const;
 
     // This returns true in addition to the query for the specific
     // type for indirect objects.
@@ -491,6 +516,12 @@ class QPDFObjectHandle
     // Methods for integer objects
     QPDF_DLL
     long long getIntValue();
+    QPDF_DLL
+    int getIntValueAsInt();
+    QPDF_DLL
+    unsigned long long getUIntValue();
+    QPDF_DLL
+    unsigned int getUIntValueAsUInt();
 
     // Methods for real objects
     QPDF_DLL
@@ -530,6 +561,10 @@ class QPDFObjectHandle
     int getArrayNItems();
     QPDF_DLL
     QPDFObjectHandle getArrayItem(int n);
+    // Note: QPDF arrays internally optimize memory for arrays
+    // containing lots of nulls. Calling getArrayAsVector may cause a
+    // lot of memory to be allocated for very large arrays with lots
+    // of nulls.
     QPDF_DLL
     std::vector<QPDFObjectHandle> getArrayAsVector();
     QPDF_DLL
@@ -730,7 +765,7 @@ class QPDFObjectHandle
     // operation will be retried without filtering to avoid data loss.
     QPDF_DLL
     bool pipeStreamData(Pipeline*,
-                        unsigned long encode_flags,
+                        int encode_flags,
                         qpdf_stream_decode_level_e decode_level,
                         bool suppress_warnings = false,
                         bool will_retry = false);
@@ -918,8 +953,8 @@ class QPDFObjectHandle
     class ReleaseResolver
     {
 	friend class QPDF_Dictionary;
-	friend class QPDF_Array;
         friend class QPDF_Stream;
+        friend class SparseOHArray;
       private:
 	static void releaseResolved(QPDFObjectHandle& o)
 	{
@@ -1021,7 +1056,8 @@ class QPDFObjectHandle
     static void parseContentStream_data(
         PointerHolder<Buffer>,
         std::string const& description,
-        ParserCallbacks* callbacks);
+        ParserCallbacks* callbacks,
+        QPDF* context);
     std::vector<QPDFObjectHandle> arrayOrStreamToStreamArray(
         std::string const& description, std::string& all_description);
     static void warn(QPDF*, QPDFExc const&);

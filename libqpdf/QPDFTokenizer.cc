@@ -8,6 +8,7 @@
 #include <qpdf/QPDFExc.hh>
 #include <qpdf/QUtil.hh>
 #include <qpdf/QPDFObjectHandle.hh>
+#include <qpdf/QIntC.hh>
 
 #include <stdexcept>
 #include <stdlib.h>
@@ -77,7 +78,6 @@ QPDFWordTokenFinder::check()
 }
 
 QPDFTokenizer::Members::Members() :
-    pound_special_in_name(true),
     allow_eof(false),
     include_ignorable(false)
 {
@@ -128,13 +128,6 @@ QPDFTokenizer::QPDFTokenizer() :
 }
 
 void
-QPDFTokenizer::allowPoundAnywhereInName()
-{
-    QTC::TC("qpdf", "QPDFTokenizer allow pound anywhere in name");
-    this->m->pound_special_in_name = false;
-}
-
-void
 QPDFTokenizer::allowEOF()
 {
     this->m->allow_eof = true;
@@ -168,17 +161,19 @@ QPDFTokenizer::resolveLiteral()
         // valid name, so don't strip leading /.  That way we
         // don't have to deal with the empty string as a name.
         std::string nval = "/";
-        char const* valstr = this->m->val.c_str() + 1;
-        for (char const* p = valstr; *p; ++p)
+        size_t len = this->m->val.length();
+        for (size_t i = 1; i < len; ++i)
         {
-            if ((*p == '#') && this->m->pound_special_in_name)
+            char ch = this->m->val.at(i);
+            if (ch == '#')
             {
-                if (p[1] && p[2] &&
-                    QUtil::is_hex_digit(p[1]) && QUtil::is_hex_digit(p[2]))
+                if ((i + 2 < len) &&
+                    QUtil::is_hex_digit(this->m->val.at(i+1)) &&
+                    QUtil::is_hex_digit(this->m->val.at(i+2)))
                 {
                     char num[3];
-                    num[0] = p[1];
-                    num[1] = p[2];
+                    num[0] = this->m->val.at(i+1);
+                    num[1] = this->m->val.at(i+2);
                     num[2] = '\0';
                     char ch = static_cast<char>(strtol(num, 0, 16));
                     if (ch == '\0')
@@ -191,21 +186,23 @@ QPDFTokenizer::resolveLiteral()
                     }
                     else
                     {
-                        nval += ch;
+                        nval.append(1, ch);
                     }
-                    p += 2;
+                    i += 2;
                 }
                 else
                 {
                     QTC::TC("qpdf", "QPDFTokenizer bad name");
-                    this->m->type = tt_bad;
-                    this->m->error_message = "invalid name token";
-                    nval += *p;
+                    this->m->error_message =
+                        "name with stray # will not work with PDF >= 1.2";
+                    // Use null to encode a bad # -- this is reversed
+                    // in QPDF_Name::normalizeName.
+                    nval += '\0';
                 }
             }
             else
             {
-                nval += *p;
+                nval.append(1, ch);
             }
         }
         this->m->val = nval;
@@ -541,20 +538,6 @@ QPDFTokenizer::presentCharacter(char ch)
             this->m->inline_image_bytes = 0;
             this->m->state = st_token_ready;
         }
-        else if ((this->m->inline_image_bytes == 0) &&
-                 (len >= 4) &&
-                 isDelimiter(this->m->val.at(len-4)) &&
-                 (this->m->val.at(len-3) == 'E') &&
-                 (this->m->val.at(len-2) == 'I') &&
-                 isDelimiter(this->m->val.at(len-1)))
-        {
-            QTC::TC("qpdf", "QPDFTokenizer found EI the old way");
-            this->m->val.erase(len - 1);
-            this->m->type = tt_inline_image;
-            this->m->unread_char = true;
-            this->m->char_to_unread = ch;
-            this->m->state = st_token_ready;
-        }
     }
     else
     {
@@ -627,20 +610,6 @@ QPDFTokenizer::presentCharacter(char ch)
 void
 QPDFTokenizer::presentEOF()
 {
-    if (this->m->state == st_inline_image)
-    {
-        size_t len = this->m->val.length();
-        if ((len >= 3) &&
-            isDelimiter(this->m->val.at(len-3)) &&
-            (this->m->val.at(len-2) == 'E') &&
-            (this->m->val.at(len-1) == 'I'))
-        {
-            QTC::TC("qpdf", "QPDFTokenizer inline image at EOF the old way");
-            this->m->type = tt_inline_image;
-            this->m->state = st_token_ready;
-        }
-    }
-
     if (this->m->state == st_literal)
     {
         QTC::TC("qpdf", "QPDFTokenizer EOF reading appendable token");
@@ -666,12 +635,6 @@ QPDFTokenizer::presentEOF()
     }
 
     this->m->state = st_token_ready;
-}
-
-void
-QPDFTokenizer::expectInlineImage()
-{
-    expectInlineImage(PointerHolder<InputSource>());
 }
 
 void
@@ -715,7 +678,7 @@ QPDFTokenizer::findEI(PointerHolder<InputSource> input)
         {
             break;
         }
-        this->m->inline_image_bytes = input->tell() - pos - 2;
+        this->m->inline_image_bytes = QIntC::to_size(input->tell() - pos - 2);
 
         QPDFTokenizer check;
         bool found_bad = false;

@@ -9,6 +9,7 @@
 #include <qpdf/SecureRandomDataProvider.hh>
 #include <qpdf/QPDFSystemError.hh>
 #include <qpdf/QTC.hh>
+#include <qpdf/QIntC.hh>
 
 #include <cmath>
 #include <iomanip>
@@ -233,14 +234,10 @@ static unsigned short mac_roman_to_unicode[] = {
     0x02c7,    // 0xff
 };
 
+template <typename T>
+static
 std::string
-QUtil::int_to_string(long long num, int length)
-{
-    return int_to_string_base(num, 10, length);
-}
-
-std::string
-QUtil::int_to_string_base(long long num, int base, int length)
+int_to_string_base_internal(T num, int base, int length)
 {
     // Backward compatibility -- int_to_string, which calls this
     // function, used to use sprintf with %0*d, so we interpret length
@@ -254,17 +251,41 @@ QUtil::int_to_string_base(long long num, int base, int length)
     std::ostringstream buf;
     buf << std::setbase(base) << std::nouppercase << num;
     std::string result;
-    if ((length > 0) &&
-        (buf.str().length() < static_cast<size_t>(length)))
+    int str_length = QIntC::to_int(buf.str().length());
+    if ((length > 0) && (str_length < length))
     {
-	result.append(length - buf.str().length(), '0');
+	result.append(QIntC::to_size(length - str_length), '0');
     }
     result += buf.str();
-    if ((length < 0) && (buf.str().length() < static_cast<size_t>(-length)))
+    if ((length < 0) && (str_length < -length))
     {
-	result.append(-length - buf.str().length(), ' ');
+	result.append(QIntC::to_size(-length - str_length), ' ');
     }
     return result;
+}
+
+std::string
+QUtil::int_to_string(long long num, int length)
+{
+    return int_to_string_base(num, 10, length);
+}
+
+std::string
+QUtil::uint_to_string(unsigned long long num, int length)
+{
+    return uint_to_string_base(num, 10, length);
+}
+
+std::string
+QUtil::int_to_string_base(long long num, int base, int length)
+{
+    return int_to_string_base_internal(num, base, length);
+}
+
+std::string
+QUtil::uint_to_string_base(unsigned long long num, int base, int length)
+{
+    return int_to_string_base_internal(num, base, length);
 }
 
 std::string
@@ -294,7 +315,7 @@ QUtil::string_to_ll(char const* str)
 #endif
     if (errno == ERANGE)
     {
-        throw std::runtime_error(
+        throw std::range_error(
             std::string("overflow/underflow converting ") + str
             + " to 64-bit integer");
     }
@@ -304,22 +325,45 @@ QUtil::string_to_ll(char const* str)
 int
 QUtil::string_to_int(char const* str)
 {
+    // QIntC::to_int does range checking
+    return QIntC::to_int(string_to_ll(str));
+}
+
+unsigned long long
+QUtil::string_to_ull(char const* str)
+{
+    char const* p = str;
+    while (*p && is_space(*p))
+    {
+        ++p;
+    }
+    if (*p == '-')
+    {
+        throw std::runtime_error(
+            std::string("underflow converting ") + str
+            + " to 64-bit unsigned integer");
+    }
+
     errno = 0;
-    long long_val = strtol(str, 0, 10);
+#ifdef _MSC_VER
+    unsigned long long result = _strtoui64(str, 0, 10);
+#else
+    unsigned long long result = strtoull(str, 0, 10);
+#endif
     if (errno == ERANGE)
     {
         throw std::runtime_error(
-            std::string("overflow/underflow converting ") + str
-            + " to long integer");
-    }
-    int result = static_cast<int>(long_val);
-    if (static_cast<long>(result) != long_val)
-    {
-        throw std::runtime_error(
-            std::string("overflow/underflow converting ") + str
-            + " to integer");
+            std::string("overflow converting ") + str
+            + " to 64-bit unsigned integer");
     }
     return result;
+}
+
+unsigned int
+QUtil::string_to_uint(char const* str)
+{
+    // QIntC::to_uint does range checking
+    return QIntC::to_uint(string_to_ull(str));
 }
 
 unsigned char*
@@ -350,15 +394,14 @@ QUtil::os_wrapper(std::string const& description, int status)
     return status;
 }
 
-FILE*
-QUtil::safe_fopen(char const* filename, char const* mode)
-{
-    FILE* f = 0;
 #ifdef _WIN32
+static PointerHolder<wchar_t>
+win_convert_filename(char const* filename)
+{
     // Convert the utf-8 encoded filename argument to wchar_t*. First,
     // convert to utf16, then to wchar_t*. Note that u16 will start
     // with the UTF16 marker, which we skip.
-    std::string u16 = utf8_to_utf16(filename);
+    std::string u16 = QUtil::utf8_to_utf16(filename);
     size_t len = u16.length();
     size_t wlen = (len / 2) - 1;
     PointerHolder<wchar_t> wfilenamep(true, new wchar_t[wlen + 1]);
@@ -371,12 +414,23 @@ QUtil::safe_fopen(char const* filename, char const* mode)
                 (static_cast<unsigned char>(u16.at(i)) << 8) +
                 static_cast<unsigned char>(u16.at(i+1)));
     }
+    return wfilenamep;
+}
+#endif
+
+FILE*
+QUtil::safe_fopen(char const* filename, char const* mode)
+{
+    FILE* f = 0;
+#ifdef _WIN32
+    PointerHolder<wchar_t> wfilenamep = win_convert_filename(filename);
+    wchar_t* wfilename = wfilenamep.getPointer();
     PointerHolder<wchar_t> wmodep(true, new wchar_t[strlen(mode) + 1]);
     wchar_t* wmode = wmodep.getPointer();
     wmode[strlen(mode)] = 0;
     for (size_t i = 0; i < strlen(mode); ++i)
     {
-        wmode[i] = mode[i];
+        wmode[i] = static_cast<wchar_t>(mode[i]);
     }
 
 #ifdef _MSC_VER
@@ -412,14 +466,16 @@ int
 QUtil::seek(FILE* stream, qpdf_offset_t offset, int whence)
 {
 #if HAVE_FSEEKO
-    return fseeko(stream, static_cast<off_t>(offset), whence);
+    return fseeko(stream,
+                  QIntC::IntConverter<qpdf_offset_t, off_t>::convert(offset),
+                  whence);
 #elif HAVE_FSEEKO64
     return fseeko64(stream, offset, whence);
 #else
 # if defined _MSC_VER || defined __BORLANDC__
     return _fseeki64(stream, offset, whence);
 # else
-    return fseek(stream, static_cast<long>(offset), whence);
+    return fseek(stream, QIntC::to_long(offset), whence);
 # endif
 #endif
 }
@@ -428,14 +484,14 @@ qpdf_offset_t
 QUtil::tell(FILE* stream)
 {
 #if HAVE_FSEEKO
-    return static_cast<qpdf_offset_t>(ftello(stream));
+    return QIntC::to_offset(ftello(stream));
 #elif HAVE_FSEEKO64
-    return static_cast<qpdf_offset_t>(ftello64(stream));
+    return QIntC::to_offset(ftello64(stream));
 #else
 # if defined _MSC_VER || defined __BORLANDC__
     return _ftelli64(stream);
 # else
-    return static_cast<qpdf_offset_t>(ftell(stream));
+    return QIntC::to_offset(ftell(stream));
 # endif
 #endif
 }
@@ -491,6 +547,40 @@ QUtil::same_file(char const* name1, char const* name2)
     return false;
 }
 
+
+void
+QUtil::remove_file(char const* path)
+{
+#ifdef _WIN32
+    PointerHolder<wchar_t> wpath = win_convert_filename(path);
+    os_wrapper(std::string("remove ") + path, _wunlink(wpath.getPointer()));
+#else
+    os_wrapper(std::string("remove ") + path, unlink(path));
+#endif
+}
+
+void
+QUtil::rename_file(char const* oldname, char const* newname)
+{
+#ifdef _WIN32
+    try
+    {
+        remove_file(newname);
+    }
+    catch (QPDFSystemError&)
+    {
+        // ignore
+    }
+    PointerHolder<wchar_t> wold = win_convert_filename(oldname);
+    PointerHolder<wchar_t> wnew = win_convert_filename(newname);
+    os_wrapper(std::string("rename ") + oldname + " " + newname,
+               _wrename(wold.getPointer(), wnew.getPointer()));
+#else
+    os_wrapper(std::string("rename ") + oldname + " " + newname,
+               rename(oldname, newname));
+#endif
+}
+
 char*
 QUtil::copy_string(std::string const& str)
 {
@@ -508,7 +598,7 @@ QUtil::hex_encode(std::string const& input)
     for (unsigned int i = 0; i < input.length(); ++i)
     {
         result += QUtil::int_to_string_base(
-            static_cast<int>(static_cast<unsigned char>(input.at(i))), 16, 2);
+            QIntC::to_int(static_cast<unsigned char>(input.at(i))), 16, 2);
     }
     return result;
 }
@@ -524,17 +614,15 @@ QUtil::hex_decode(std::string const& input)
         bool skip = false;
         if ((*p >= 'A') && (*p <= 'F'))
         {
-            ch -= 'A';
-            ch += 10;
+            ch = QIntC::to_char(ch - 'A' + 10);
         }
         else if ((*p >= 'a') && (*p <= 'f'))
         {
-            ch -= 'a';
-            ch += 10;
+            ch = QIntC::to_char(ch - 'a' + 10);
         }
         else if ((*p >= '0') && (*p <= '9'))
         {
-            ch -= '0';
+            ch = QIntC::to_char(ch - '0');
         }
         else
         {
@@ -544,12 +632,12 @@ QUtil::hex_decode(std::string const& input)
         {
             if (pos == 0)
             {
-                result.push_back(ch << 4);
+                result.push_back(static_cast<char>(ch << 4));
                 pos = 1;
             }
             else
             {
-                result[result.length()-1] += ch;
+                result[result.length()-1] |= ch;
                 pos = 0;
             }
         }
@@ -626,10 +714,9 @@ QUtil::get_env(std::string const& var, std::string* value)
 
     if (value)
     {
-	char* t = new char[len + 1];
-        ::GetEnvironmentVariable(var.c_str(), t, len);
-	*value = t;
-	delete [] t;
+	PointerHolder<char> t = PointerHolder<char>(true, new char[len + 1]);
+        ::GetEnvironmentVariable(var.c_str(), t.getPointer(), len);
+	*value = t.getPointer();
     }
 
     return true;
@@ -669,7 +756,7 @@ QUtil::get_current_time()
     uinow.LowPart = filenow.dwLowDateTime;
     uinow.HighPart = filenow.dwHighDateTime;
     ULONGLONG now = uinow.QuadPart;
-    return ((now / 10000000LL) - 11644473600LL);
+    return static_cast<time_t>((now / 10000000ULL) - 11644473600ULL);
 #else
     return time(0);
 #endif
@@ -714,7 +801,7 @@ QUtil::toUTF8(unsigned long uval)
 	    *cur_byte = static_cast<unsigned char>(0x80 + (uval & 0x3f));
 	    uval >>= 6;
 	    // Maximum that will fit in high byte now shrinks by one bit
-	    maxval >>= 1;
+	    maxval = static_cast<unsigned char>(maxval >> 1);
 	    // Slide to the left one byte
 	    if (cur_byte <= bytes)
 	    {
@@ -725,7 +812,7 @@ QUtil::toUTF8(unsigned long uval)
 	// If maxval is k bits long, the high (7 - k) bits of the
 	// resulting byte must be high.
 	*cur_byte = static_cast<unsigned char>(
-            (0xff - (1 + (maxval << 1))) + uval);
+            QIntC::to_ulong(0xff - (1 + (maxval << 1))) + uval);
 
 	result += reinterpret_cast<char*>(cur_byte);
     }
@@ -744,20 +831,22 @@ QUtil::toUTF16(unsigned long uval)
     else if (uval <= 0xffff)
     {
         char out[2];
-        out[0] = (uval & 0xff00) >> 8;
-        out[1] = (uval & 0xff);
+        out[0] = static_cast<char>((uval & 0xff00) >> 8);
+        out[1] = static_cast<char>(uval & 0xff);
         result = std::string(out, 2);
     }
     else if (uval <= 0x10ffff)
     {
         char out[4];
         uval -= 0x10000;
-        unsigned short high = ((uval & 0xffc00) >> 10) + 0xd800;
-        unsigned short low = (uval & 0x3ff) + 0xdc00;
-        out[0] = (high & 0xff00) >> 8;
-        out[1] = (high & 0xff);
-        out[2] = (low & 0xff00) >> 8;
-        out[3] = (low & 0xff);
+        unsigned short high =
+            static_cast<unsigned short>(((uval & 0xffc00) >> 10) + 0xd800);
+        unsigned short low =
+            static_cast<unsigned short>((uval & 0x3ff) + 0xdc00);
+        out[0] = static_cast<char>((high & 0xff00) >> 8);
+        out[1] = static_cast<char>(high & 0xff);
+        out[2] = static_cast<char>((low & 0xff00) >> 8);
+        out[3] = static_cast<char>(low & 0xff);
         result = std::string(out, 4);
     }
     else
@@ -911,6 +1000,45 @@ QUtil::read_lines_from_file(char const* filename)
     return lines;
 }
 
+void
+QUtil::read_file_into_memory(
+    char const* filename,
+    PointerHolder<char>& file_buf, size_t& size)
+{
+    FILE* f = safe_fopen(filename, "rb");
+    fseek(f, 0, SEEK_END);
+    size = QIntC::to_size(QUtil::tell(f));
+    fseek(f, 0, SEEK_SET);
+    file_buf = PointerHolder<char>(true, new char[size]);
+    char* buf_p = file_buf.getPointer();
+    size_t bytes_read = 0;
+    size_t len = 0;
+    while ((len = fread(buf_p + bytes_read, 1, size - bytes_read, f)) > 0)
+    {
+        bytes_read += len;
+    }
+    if (bytes_read != size)
+    {
+        if (ferror(f))
+        {
+            throw std::runtime_error(
+                std::string("failure reading file ") + filename +
+                " into memory: read " +
+                uint_to_string(bytes_read) + "; wanted " +
+                uint_to_string(size));
+        }
+        else
+        {
+            throw std::runtime_error(
+                std::string("premature eof reading file ") + filename +
+                " into memory: read " +
+                uint_to_string(bytes_read) + "; wanted " +
+                uint_to_string(size));
+        }
+    }
+    fclose(f);
+}
+
 std::list<std::string>
 QUtil::read_lines_from_file(std::istream& in)
 {
@@ -951,14 +1079,14 @@ QUtil::read_lines_from_file(std::istream& in)
 }
 
 int
-QUtil::strcasecmp(char const *s1, char const *s2)
+QUtil::str_compare_nocase(char const *s1, char const *s2)
 {
 #if defined(_WIN32) && defined(__BORLANDC__)
     return stricmp(s1, s2);
 #elif defined(_WIN32)
     return _stricmp(s1, s2);
 #else
-    return ::strcasecmp(s1, s2);
+    return strcasecmp(s1, s2);
 #endif
 }
 
@@ -1124,7 +1252,8 @@ QUtil::parse_numrange(char const* range, int max)
         if (p)
         {
             message = "error at * in numeric range " +
-                std::string(range, p - range) + "*" + p + ": " + e.what();
+                std::string(range, QIntC::to_size(p - range)) +
+                "*" + p + ": " + e.what();
         }
         else
         {
@@ -1716,7 +1845,7 @@ unsigned long get_next_utf8_codepoint(
     while (ch & bit_check)
     {
         ++bytes_needed;
-        to_clear |= bit_check;
+        to_clear = static_cast<unsigned char>(to_clear | bit_check);
         bit_check >>= 1;
     }
     if (((bytes_needed > 5) || (bytes_needed < 1)) ||
@@ -1726,11 +1855,11 @@ unsigned long get_next_utf8_codepoint(
         return 0xfffd;
     }
 
-    unsigned long codepoint = (ch & ~to_clear);
+    unsigned long codepoint = static_cast<unsigned long>(ch & ~to_clear);
     while (bytes_needed > 0)
     {
         --bytes_needed;
-        ch = utf8_val.at(++pos);
+        ch = static_cast<unsigned char>(utf8_val.at(++pos));
         if ((ch & 0xc0) != 0x80)
         {
             --pos;
@@ -1775,7 +1904,7 @@ transcode_utf8(std::string const& utf8_val, std::string& result,
             char ch = static_cast<char>(codepoint);
             if (encoding == e_utf16)
             {
-                result += QUtil::toUTF16(ch);
+                result += QUtil::toUTF16(QIntC::to_ulong(ch));
             }
             else
             {
@@ -1789,7 +1918,7 @@ transcode_utf8(std::string const& utf8_val, std::string& result,
         else if ((codepoint > 160) && (codepoint < 256) &&
                  ((encoding == e_winansi) || (encoding == e_pdfdoc)))
         {
-            result.append(1, static_cast<unsigned char>(codepoint & 0xff));
+            result.append(1, static_cast<char>(codepoint & 0xff));
         }
         else
         {
@@ -1811,7 +1940,7 @@ transcode_utf8(std::string const& utf8_val, std::string& result,
                 okay = false;
                 ch = static_cast<unsigned char>(unknown);
             }
-            result.append(1, ch);
+            result.append(1, static_cast<char>(ch));
         }
     }
     return okay;
@@ -1908,7 +2037,7 @@ QUtil::utf16_to_utf8(std::string const& val)
     }
     // If the string has an odd number of bytes, the last byte is
     // ignored.
-    for (unsigned int i = start; i < len; i += 2)
+    for (size_t i = start; i + 1 < len; i += 2)
     {
         // Convert from UTF16-BE.  If we get a malformed
         // codepoint, this code will generate incorrect output
@@ -1917,11 +2046,12 @@ QUtil::utf16_to_utf8(std::string const& val)
         // discarded, and a low codepoint not preceded by a high
         // codepoint will just get its low 10 bits output.
         unsigned short bits =
-            (static_cast<unsigned char>(val.at(i)) << 8) +
-            static_cast<unsigned char>(val.at(i+1));
+            QIntC::to_ushort(
+                (static_cast<unsigned char>(val.at(i)) << 8) +
+                static_cast<unsigned char>(val.at(i+1)));
         if ((bits & 0xFC00) == 0xD800)
         {
-            codepoint = 0x10000 + ((bits & 0x3FF) << 10);
+            codepoint = 0x10000U + ((bits & 0x3FFU) << 10U);
             continue;
         }
         else if ((bits & 0xFC00) == 0xDC00)

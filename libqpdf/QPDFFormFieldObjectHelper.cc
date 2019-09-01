@@ -4,6 +4,7 @@
 #include <qpdf/QPDFAnnotationObjectHelper.hh>
 #include <qpdf/QUtil.hh>
 #include <qpdf/Pl_QPDFTokenizer.hh>
+#include <qpdf/QIntC.hh>
 #include <stdlib.h>
 
 QPDFFormFieldObjectHelper::Members::~Members()
@@ -42,6 +43,10 @@ QPDFObjectHandle
 QPDFFormFieldObjectHelper::getInheritableFieldValue(std::string const& name)
 {
     QPDFObjectHandle node = this->oh;
+    if (! node.isDictionary())
+    {
+        return QPDFObjectHandle::newNull();
+    }
     QPDFObjectHandle result(node.getKey(name));
     std::set<QPDFObjGen> seen;
     while (result.isNull() && node.hasKey("/Parent"))
@@ -189,7 +194,7 @@ QPDFFormFieldObjectHelper::getQuadding()
     if (fv.isInteger())
     {
         QTC::TC("qpdf", "QPDFFormFieldObjectHelper Q present");
-        result = static_cast<int>(fv.getIntValue());
+        result = QIntC::to_int(fv.getIntValue());
     }
     return result;
 }
@@ -198,7 +203,7 @@ int
 QPDFFormFieldObjectHelper::getFlags()
 {
     QPDFObjectHandle f = getInheritableFieldValue("/Ff");
-    return f.isInteger() ? f.getIntValue() : 0;
+    return f.isInteger() ? f.getIntValueAsInt() : 0;
 }
 
 bool
@@ -245,8 +250,8 @@ QPDFFormFieldObjectHelper::getChoices()
     QPDFObjectHandle opt = getInheritableFieldValue("/Opt");
     if (opt.isArray())
     {
-        size_t n = opt.getArrayNItems();
-        for (size_t i = 0; i < n; ++i)
+        int n = opt.getArrayNItems();
+        for (int i = 0; i < n; ++i)
         {
             QPDFObjectHandle item = opt.getArrayItem(i);
             if (item.isString())
@@ -631,8 +636,8 @@ ValueSetter::writeAppearance()
         {
             // Try to make the found item the second one, but
             // adjust for under/overflow.
-            int wanted_first = found_idx - 1;
-            int wanted_last = found_idx + max_rows - 2;
+            int wanted_first = QIntC::to_int(found_idx) - 1;
+            int wanted_last = QIntC::to_int(found_idx + max_rows) - 2;
             QTC::TC("qpdf", "QPDFFormFieldObjectHelper list found");
             while (wanted_first < 0)
             {
@@ -640,7 +645,7 @@ ValueSetter::writeAppearance()
                 ++wanted_first;
                 ++wanted_last;
             }
-            while (wanted_last >= static_cast<int>(nopt))
+            while (wanted_last >= QIntC::to_int(nopt))
             {
                 QTC::TC("qpdf", "QPDFFormFieldObjectHelper list last too high");
                 if (wanted_first > 0)
@@ -650,8 +655,9 @@ ValueSetter::writeAppearance()
                 --wanted_last;
             }
             highlight = true;
-            highlight_idx = found_idx - wanted_first;
-            for (int i = wanted_first; i <= wanted_last; ++i)
+            highlight_idx = found_idx - QIntC::to_size(wanted_first);
+            for (size_t i = QIntC::to_size(wanted_first);
+                 i <= QIntC::to_size(wanted_last); ++i)
             {
                 lines.push_back(opt.at(i));
             }
@@ -672,14 +678,16 @@ ValueSetter::writeAppearance()
 
     // Write the lines centered vertically, highlighting if needed
     size_t nlines = lines.size();
-    double dy = bbox.ury - ((bbox.ury - bbox.lly - (nlines * tfh)) / 2.0);
+    double dy = bbox.ury - ((bbox.ury - bbox.lly -
+                             (static_cast<double>(nlines) * tfh)) / 2.0);
     if (highlight)
     {
         write("q\n0.85 0.85 0.85 rg\n" +
-              QUtil::int_to_string(bbox.llx) + " " +
-              QUtil::double_to_string(bbox.lly + dy -
-                                      (tfh * (highlight_idx + 1))) + " " +
-              QUtil::int_to_string(bbox.urx - bbox.llx) + " " +
+              QUtil::double_to_string(bbox.llx) + " " +
+              QUtil::double_to_string(
+                  bbox.lly + dy -
+                  (tfh * (static_cast<double>(highlight_idx + 1)))) + " " +
+              QUtil::double_to_string(bbox.urx - bbox.llx) + " " +
               QUtil::double_to_string(tfh) +
               " re f\nQ\n");
     }
@@ -693,8 +701,10 @@ ValueSetter::writeAppearance()
         // which doesn't seem really worth the effort.
         if (i == 0)
         {
-            write(QUtil::int_to_string(bbox.llx + dx) + " " +
-                  QUtil::double_to_string(bbox.lly + dy) + " Td\n");
+            write(QUtil::double_to_string(bbox.llx + static_cast<double>(dx)) +
+                  " " +
+                  QUtil::double_to_string(bbox.lly + static_cast<double>(dy)) +
+                  " Td\n");
         }
         else
         {
@@ -890,7 +900,8 @@ QPDFFormFieldObjectHelper::generateTextAppearance(
             QPDFObjectHandle dr = getInheritableFieldValue("/DR");
             font = getFontFromResource(dr, font_name);
         }
-        if (font.isDictionary() &&
+        if (font.isInitialized() &&
+            font.isDictionary() &&
             font.getKey("/Encoding").isName())
         {
             std::string encoding = font.getKey("/Encoding").getName();

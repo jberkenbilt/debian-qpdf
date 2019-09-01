@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>QPDF Manual</title><link rel="stylesheet" type="text/css" href="stylesheet.css" /><meta name="generator" content="DocBook XSL Stylesheets V1.79.1" /></head><body><div class="book"><div class="titlepage"><div><div><h1 class="title"><a id="idm45124393972512"></a>QPDF Manual</h1></div><div><h2 class="subtitle">For QPDF Version 8.4.2, May 18, 2019</h2></div><div><div class="author"><h3 class="author"><span class="firstname">Jay</span> <span class="surname">Berkenbilt</span></h3></div></div><div><p class="copyright">Copyright © 2005–2019 Jay Berkenbilt</p></div></div><hr /></div><div class="toc"><p><strong>Table of Contents</strong></p><dl class="toc"><dt><span class="preface"><a href="#acknowledgments">General Information</a></span></dt><dt><span class="chapter"><a href="#ref.overview">1. What is QPDF?</a></span></dt><dt><span class="chapter"><a href="#ref.installing">2. Building and Installing QPDF</a></span></dt><dd><dl><dt><span class="sect1"><a href="#ref.prerequisites">2.1. System Requirements</a></span></dt><dt><span class="sect1"><a href="#ref.building">2.2. Build Instructions</a></span></dt><dt><span class="sect1"><a href="#ref.packaging">2.3. Notes for Packagers</a></span></dt></dl></dd><dt><span class="chapter"><a href="#ref.using">3. Running QPDF</a></span></dt><dd><dl><dt><span class="sect1"><a href="#ref.invocation">3.1. Basic Invocation</a></span></dt><dt><span class="sect1"><a href="#ref.shell-completion">3.2. Shell Completion</a></span></dt><dt><span class="sect1"><a href="#ref.basic-options">3.3. Basic Options</a></span></dt><dt><span class="sect1"><a href="#ref.encryption-options">3.4. Encryption Options</a></span></dt><dt><span class="sect1"><a href="#ref.page-selection">3.5. Page Selection Options</a></span></dt><dt><span class="sect1"><a href="#ref.overlay-underlay">3.6. Overlay and Underlay Options</a></span></dt><dt><span class="sect1"><a href="#ref.advanced-parsing">3.7. Advanced Parsing Options</a></span></dt><dt><span class="sect1"><a href="#ref.advanced-transformation">3.8. Advanced Transformation Options</a></span></dt><dt><span class="sect1"><a href="#ref.testing-options">3.9. Testing, Inspection, and Debugging Options</a></span></dt><dt><span class="sect1"><a href="#ref.unicode-passwords">3.10. Unicode Passwords</a></span></dt></dl></dd><dt><span class="chapter"><a href="#ref.qdf">4. QDF Mode</a></span></dt><dt><span class="chapter"><a href="#ref.using-library">5. Using the QPDF Library</a></span></dt><dd><dl><dt><span class="sect1"><a href="#ref.using.from-cxx">5.1. Using QPDF from C++</a></span></dt><dt><span class="sect1"><a href="#ref.using.other-languages">5.2. Using QPDF from other languages</a></span></dt><dt><span class="sect1"><a href="#ref.unicode-files">5.3. A Note About Unicode File Names</a></span></dt></dl></dd><dt><span class="chapter"><a href="#ref.json">6. QPDF JSON</a></span></dt><dd><dl><dt><span class="sect1"><a href="#ref.json-overview">6.1. Overview</a></span></dt><dt><span class="sect1"><a href="#ref.json-guarantees">6.2. JSON Guarantees</a></span></dt><dt><span class="sect1"><a href="#json.limitations">6.3. Limitations of JSON Representation</a></span></dt><dt><span class="sect1"><a href="#json.considerations">6.4. JSON: Special Considerations</a></span></dt></dl></dd><dt><span class="chapter"><a href="#ref.design">7. Design and Library Notes</a></span></dt><dd><dl><dt><span class="sect1"><a href="#ref.design.intro">7.1. Introduction</a></span></dt><dt><span class="sect1"><a href="#ref.design-goals">7.2. Design Goals</a></span></dt><dt><span class="sect1"><a href="#ref.helper-classes">7.3. Helper Classes</a></span></dt><dt><span class="sect1"><a href="#ref.implementation-notes">7.4. Implementation Notes</a></span></dt><dt><span class="sect1"><a href="#ref.casting">7.5. Casting Policy</a></span></dt><dt><span class="sect1"><a href="#ref.encryption">7.6. Encryption</a></span></dt><dt><span class="sect1"><a href="#ref.random-numbers">7.7. Random Number Generation</a></span></dt><dt><span class="sect1"><a href="#ref.adding-and-remove-pages">7.8. Adding and Removing Pages</a></span></dt><dt><span class="sect1"><a href="#ref.reserved-objects">7.9. Reserving Object Numbers</a></span></dt><dt><span class="sect1"><a href="#ref.foreign-objects">7.10. Copying Objects From Other PDF Files</a></span></dt><dt><span class="sect1"><a href="#ref.rewriting">7.11. Writing PDF Files</a></span></dt><dt><span class="sect1"><a href="#ref.filtered-streams">7.12. Filtered Streams</a></span></dt></dl></dd><dt><span class="chapter"><a href="#ref.linearization">8. Linearization</a></span></dt><dd><dl><dt><span class="sect1"><a href="#ref.linearization-strategy">8.1. Basic Strategy for Linearization</a></span></dt><dt><span class="sect1"><a href="#ref.linearized.preparation">8.2. Preparing For Linearization</a></span></dt><dt><span class="sect1"><a href="#ref.optimization">8.3. Optimization</a></span></dt><dt><span class="sect1"><a href="#ref.linearization.writing">8.4. Writing Linearized Files</a></span></dt><dt><span class="sect1"><a href="#ref.linearization-data">8.5. Calculating Linearization Data</a></span></dt><dt><span class="sect1"><a href="#ref.linearization-issues">8.6. Known Issues with Linearization</a></span></dt><dt><span class="sect1"><a href="#ref.linearization-debugging">8.7. Debugging Note</a></span></dt></dl></dd><dt><span class="chapter"><a href="#ref.object-and-xref-streams">9. Object and Cross-Reference Streams</a></span></dt><dd><dl><dt><span class="sect1"><a href="#ref.object-streams">9.1. Object Streams</a></span></dt><dt><span class="sect1"><a href="#ref.xref-streams">9.2. Cross-Reference Streams</a></span></dt><dd><dl><dt><span class="sect2"><a href="#ref.xref-stream-data">9.2.1. Cross-Reference Stream Data</a></span></dt></dl></dd><dt><span class="sect1"><a href="#ref.object-streams-linearization">9.3. Implications for Linearized Files</a></span></dt><dt><span class="sect1"><a href="#ref.object-stream-implementation">9.4. Implementation Notes</a></span></dt></dl></dd><dt><span class="appendix"><a href="#ref.release-notes">A. Release Notes</a></span></dt><dt><span class="appendix"><a href="#ref.upgrading-to-2.1">B. Upgrading from 2.0 to 2.1</a></span></dt><dt><span class="appendix"><a href="#ref.upgrading-to-3.0">C. Upgrading to 3.0</a></span></dt><dt><span class="appendix"><a href="#ref.upgrading-to-4.0">D. Upgrading to 4.0</a></span></dt></dl></div><div class="preface"><div class="titlepage"><div><div><h1 class="title"><a id="acknowledgments"></a>General Information</h1></div></div></div><p>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>QPDF Manual</title><link rel="stylesheet" type="text/css" href="stylesheet.css" /><meta name="generator" content="DocBook XSL Stylesheets V1.79.1" /></head><body><div class="book"><div class="titlepage"><div><div><h1 class="title"><a id="idm45743510273504"></a>QPDF Manual</h1></div><div><h2 class="subtitle">For QPDF Version 9.0.0, August 31, 2019</h2></div><div><div class="author"><h3 class="author"><span class="firstname">Jay</span> <span class="surname">Berkenbilt</span></h3></div></div><div><p class="copyright">Copyright © 2005–2019 Jay Berkenbilt</p></div></div><hr /></div><div class="toc"><p><strong>Table of Contents</strong></p><dl class="toc"><dt><span class="preface"><a href="#acknowledgments">General Information</a></span></dt><dt><span class="chapter"><a href="#ref.overview">1. What is QPDF?</a></span></dt><dt><span class="chapter"><a href="#ref.installing">2. Building and Installing QPDF</a></span></dt><dd><dl><dt><span class="sect1"><a href="#ref.prerequisites">2.1. System Requirements</a></span></dt><dt><span class="sect1"><a href="#ref.building">2.2. Build Instructions</a></span></dt><dt><span class="sect1"><a href="#ref.packaging">2.3. Notes for Packagers</a></span></dt></dl></dd><dt><span class="chapter"><a href="#ref.using">3. Running QPDF</a></span></dt><dd><dl><dt><span class="sect1"><a href="#ref.invocation">3.1. Basic Invocation</a></span></dt><dt><span class="sect1"><a href="#ref.shell-completion">3.2. Shell Completion</a></span></dt><dt><span class="sect1"><a href="#ref.basic-options">3.3. Basic Options</a></span></dt><dt><span class="sect1"><a href="#ref.encryption-options">3.4. Encryption Options</a></span></dt><dt><span class="sect1"><a href="#ref.page-selection">3.5. Page Selection Options</a></span></dt><dt><span class="sect1"><a href="#ref.overlay-underlay">3.6. Overlay and Underlay Options</a></span></dt><dt><span class="sect1"><a href="#ref.advanced-parsing">3.7. Advanced Parsing Options</a></span></dt><dt><span class="sect1"><a href="#ref.advanced-transformation">3.8. Advanced Transformation Options</a></span></dt><dt><span class="sect1"><a href="#ref.testing-options">3.9. Testing, Inspection, and Debugging Options</a></span></dt><dt><span class="sect1"><a href="#ref.unicode-passwords">3.10. Unicode Passwords</a></span></dt></dl></dd><dt><span class="chapter"><a href="#ref.qdf">4. QDF Mode</a></span></dt><dt><span class="chapter"><a href="#ref.using-library">5. Using the QPDF Library</a></span></dt><dd><dl><dt><span class="sect1"><a href="#ref.using.from-cxx">5.1. Using QPDF from C++</a></span></dt><dt><span class="sect1"><a href="#ref.using.other-languages">5.2. Using QPDF from other languages</a></span></dt><dt><span class="sect1"><a href="#ref.unicode-files">5.3. A Note About Unicode File Names</a></span></dt></dl></dd><dt><span class="chapter"><a href="#ref.json">6. QPDF JSON</a></span></dt><dd><dl><dt><span class="sect1"><a href="#ref.json-overview">6.1. Overview</a></span></dt><dt><span class="sect1"><a href="#ref.json-guarantees">6.2. JSON Guarantees</a></span></dt><dt><span class="sect1"><a href="#json.limitations">6.3. Limitations of JSON Representation</a></span></dt><dt><span class="sect1"><a href="#json.considerations">6.4. JSON: Special Considerations</a></span></dt></dl></dd><dt><span class="chapter"><a href="#ref.design">7. Design and Library Notes</a></span></dt><dd><dl><dt><span class="sect1"><a href="#ref.design.intro">7.1. Introduction</a></span></dt><dt><span class="sect1"><a href="#ref.design-goals">7.2. Design Goals</a></span></dt><dt><span class="sect1"><a href="#ref.helper-classes">7.3. Helper Classes</a></span></dt><dt><span class="sect1"><a href="#ref.implementation-notes">7.4. Implementation Notes</a></span></dt><dt><span class="sect1"><a href="#ref.casting">7.5. Casting Policy</a></span></dt><dt><span class="sect1"><a href="#ref.encryption">7.6. Encryption</a></span></dt><dt><span class="sect1"><a href="#ref.random-numbers">7.7. Random Number Generation</a></span></dt><dt><span class="sect1"><a href="#ref.adding-and-remove-pages">7.8. Adding and Removing Pages</a></span></dt><dt><span class="sect1"><a href="#ref.reserved-objects">7.9. Reserving Object Numbers</a></span></dt><dt><span class="sect1"><a href="#ref.foreign-objects">7.10. Copying Objects From Other PDF Files</a></span></dt><dt><span class="sect1"><a href="#ref.rewriting">7.11. Writing PDF Files</a></span></dt><dt><span class="sect1"><a href="#ref.filtered-streams">7.12. Filtered Streams</a></span></dt></dl></dd><dt><span class="chapter"><a href="#ref.linearization">8. Linearization</a></span></dt><dd><dl><dt><span class="sect1"><a href="#ref.linearization-strategy">8.1. Basic Strategy for Linearization</a></span></dt><dt><span class="sect1"><a href="#ref.linearized.preparation">8.2. Preparing For Linearization</a></span></dt><dt><span class="sect1"><a href="#ref.optimization">8.3. Optimization</a></span></dt><dt><span class="sect1"><a href="#ref.linearization.writing">8.4. Writing Linearized Files</a></span></dt><dt><span class="sect1"><a href="#ref.linearization-data">8.5. Calculating Linearization Data</a></span></dt><dt><span class="sect1"><a href="#ref.linearization-issues">8.6. Known Issues with Linearization</a></span></dt><dt><span class="sect1"><a href="#ref.linearization-debugging">8.7. Debugging Note</a></span></dt></dl></dd><dt><span class="chapter"><a href="#ref.object-and-xref-streams">9. Object and Cross-Reference Streams</a></span></dt><dd><dl><dt><span class="sect1"><a href="#ref.object-streams">9.1. Object Streams</a></span></dt><dt><span class="sect1"><a href="#ref.xref-streams">9.2. Cross-Reference Streams</a></span></dt><dd><dl><dt><span class="sect2"><a href="#ref.xref-stream-data">9.2.1. Cross-Reference Stream Data</a></span></dt></dl></dd><dt><span class="sect1"><a href="#ref.object-streams-linearization">9.3. Implications for Linearized Files</a></span></dt><dt><span class="sect1"><a href="#ref.object-stream-implementation">9.4. Implementation Notes</a></span></dt></dl></dd><dt><span class="appendix"><a href="#ref.release-notes">A. Release Notes</a></span></dt><dt><span class="appendix"><a href="#ref.upgrading-to-2.1">B. Upgrading from 2.0 to 2.1</a></span></dt><dt><span class="appendix"><a href="#ref.upgrading-to-3.0">C. Upgrading to 3.0</a></span></dt><dt><span class="appendix"><a href="#ref.upgrading-to-4.0">D. Upgrading to 4.0</a></span></dt></dl></div><div class="preface"><div class="titlepage"><div><div><h1 class="title"><a id="acknowledgments"></a>General Information</h1></div></div></div><p>
    QPDF is a program that does structural, content-preserving
    transformations on PDF files.  QPDF's website is located at <a class="ulink" href="http://qpdf.sourceforge.net/" target="_top">http://qpdf.sourceforge.net/</a>.
    QPDF's source code is hosted on github at <a class="ulink" href="https://github.com/qpdf/qpdf" target="_top">https://github.com/qpdf/qpdf</a>.
@@ -219,10 +219,12 @@ make
     <code class="option">outfilename</code> does not have to be seekable, even
     when generating linearized files.  Specifying
     “<code class="option">-</code>” as <code class="option">outfilename</code>
-    means to write to standard output.  However, you can't specify the
-    same file as both the input and the output because qpdf reads data
-    from the input file as it writes to the output file. QPDF attempts
-    to detect this case and fail without overwriting the output file.
+    means to write to standard output. If you want to overwrite the
+    input file with the output, use the option
+    <code class="option">--replace-input</code> and omit the output file name.
+    You can't specify the same file as both the input and the output.
+    If you do this, qpdf will tell you about the
+    <code class="option">--replace-input</code> option.
    </p><p>
     Most options require an output file, but some testing or
     inspection commands do not.  These are specifically noted.
@@ -267,6 +269,15 @@ make
         exit with exit code 3.
        </p></dd><dt><span class="term"><code class="option">--linearize</code></span></dt><dd><p>
         Causes generation of a linearized (web-optimized) output file.
+       </p></dd><dt><span class="term"><code class="option">--replace-input</code></span></dt><dd><p>
+        If specified, the output file name should be omitted. This
+        option tells qpdf to replace the input file with the output.
+        It does this by writing to
+        <code class="filename">.~qpdf-temp.<em class="replaceable"><code>infilename</code></em>#</code>
+        and, when done, overwriting the input file with the temporary
+        file. If there were any warnings, the original input is saved
+        as
+        <code class="filename"><em class="replaceable"><code>infilename</code></em>.~qpdf-orig</code>.
        </p></dd><dt><span class="term"><code class="option">--copy-encryption=file</code></span></dt><dd><p>
         Encrypt the file using the same encryption parameters,
         including user and owner password, as the specified file.  Use
@@ -873,21 +884,26 @@ outfile.pdf</code>
            <code class="option">none</code>: do not attempt to decode any streams
           </p></li><li class="listitem"><p>
            <code class="option">generalized</code>: decode streams filtered with
-           supported generalized filters: <code class="option">/LZWDecode</code>,
-           <code class="option">/FlateDecode</code>,
-           <code class="option">/ASCII85Decode</code>, and
-           <code class="option">/ASCIIHexDecode</code>. We define generalized
+           supported generalized filters:
+           <code class="literal">/LZWDecode</code>,
+           <code class="literal">/FlateDecode</code>,
+           <code class="literal">/ASCII85Decode</code>, and
+           <code class="literal">/ASCIIHexDecode</code>. We define generalized
            filters as those to be used for general-purpose compression
            or encoding, as opposed to filters specifically designed
-           for image data.
+           for image data. Note that, by default, streams already
+           compressed with <code class="literal">/FlateDecode</code> are not
+           uncompressed and recompressed unless you also specify
+           <code class="option">--recompress-flate</code>.
           </p></li><li class="listitem"><p>
            <code class="option">specialized</code>: in addition to generalized,
            decode streams with supported non-lossy specialized
-           filters; currently this is just <code class="option">/RunLengthDecode</code>
+           filters; currently this is just
+           <code class="literal">/RunLengthDecode</code>
           </p></li><li class="listitem"><p>
            <code class="option">all</code>: in addition to generalized and
            specialized, decode streams with supported lossy filters;
-           currently this is just <code class="option">/DCTDecode</code> (JPEG)
+           currently this is just <code class="literal">/DCTDecode</code> (JPEG)
           </p></li></ul></div><p>
        </p></dd><dt><span class="term"><code class="option">--stream-data=<em class="replaceable"><code>option</code></em></code></span></dt><dd><p>
         Controls transformation of stream data. This option predates
@@ -900,7 +916,10 @@ outfile.pdf</code>
            <code class="option">compress</code>: recompress stream data when
            possible (default); equivalent to
            <code class="option">--compress-streams=y</code>
-           <code class="option">--decode-level=generalized</code>
+           <code class="option">--decode-level=generalized</code>. Does not
+           recompress streams already compressed with
+           <code class="literal">/FlateDecode</code> unless
+           <code class="option">--recompress-flate</code> is also specified.
           </p></li><li class="listitem"><p>
            <code class="option">preserve</code>: leave all stream data as is;
            equivalent to <code class="option">--compress-streams=n</code>
@@ -911,6 +930,25 @@ outfile.pdf</code>
            equivalent to <code class="option">--compress-streams=n</code>
            <code class="option">--decode-level=generalized</code>
           </p></li></ul></div><p>
+       </p></dd><dt><span class="term"><code class="option">--recompress-flate</code></span></dt><dd><p>
+        By default, streams already compressed with
+        <code class="literal">/FlateDecode</code> are left alone rather than
+        being uncompressed and recompressed. This option causes qpdf
+        to uncompress and recompress the streams. There is a
+        significant performance cost to using this option, but you
+        probably want to use it if you specify
+        <code class="option">--compression-level</code>.
+       </p></dd><dt><span class="term"><code class="option">--compression-level=<em class="replaceable"><code>level</code></em></code></span></dt><dd><p>
+        When writing new streams that are compressed with
+        <code class="literal">/FlateDecode</code>, use the specified compression
+        level. The value of <code class="option">level</code> should be a number
+        from 1 to 9 and is passed directly to zlib, which implements
+        deflate compression. Note that qpdf doesn't uncompress and
+        recompress streams by default. To have this option apply to
+        already compressed streams, you should also specify
+        <code class="option">--recompress-flate</code>. If your goal is to shrink
+        the size of PDF files, you should also use
+        <code class="option">--object-streams=generate</code>.
        </p></dd><dt><span class="term"><code class="option">--normalize-content=[yn]</code></span></dt><dd><p>
         Enables or disables normalization of content streams. Content
         normalization is enabled by default in QDF mode. Please see
@@ -1912,7 +1950,7 @@ outfile.pdf</code>
     password-protected files.  QPDF does not enforce encryption
     parameters and will treat user and owner passwords equivalently.
     Either password may be used to access an encrypted file.
-    <a href="#ftn.idm45124387202432" class="footnote" id="idm45124387202432"><sup class="footnote">[1]</sup></a>
+    <a href="#ftn.idm45743503493680" class="footnote" id="idm45743503493680"><sup class="footnote">[1]</sup></a>
     <code class="classname">QPDF</code> will allow recovery of a user password
     given an owner password.  The input PDF file must be seekable.
     (Output files written by <code class="classname">QPDFWriter</code> need
@@ -2189,124 +2227,66 @@ outfile.pdf</code>
     about the use of old-style casts in code that is shared between C
     and C++ code.
    </p><p>
-    The casting policy explicitly prohibits casting between integer
-    sizes for no purpose other than to quiet a compiler warning when
-    there is no reasonable chance of a problem resulting.  The reason
-    for this exclusion is that the practice of adding these additional
-    casts precludes future use of additional compiler warnings as a
-    tool for making future improvements to this aspect of the code,
-    and it also damages the readability of the code.
+    The <code class="classname">QIntC</code> namespace, provided by
+    <code class="filename">include/qpdf/QIntC.hh</code>, implements safe
+    functions for converting between integer types. These functions do
+    range checking and throw a <span class="type">std::range_error</span>, which is
+    subclass of <span class="type">std::runtime_error</span>, if conversion from one
+    integer type to another results in loss of information. There are
+    many cases in which we have to move between different integer
+    types because of incompatible integer types used in interoperable
+    interfaces. Some are unavoidable, such as moving between sizes and
+    offsets, and others are there because of old code that is too in
+    entrenched to be fixable without breaking source compatibility and
+    causing pain for users. QPDF is compiled with extra warnings to
+    detect conversions with potential data loss, and all such cases
+    should be fixed by either using a function from
+    <code class="classname">QIntC</code> or a
+    <code class="function">static_cast</code>.
    </p><p>
-    There are a few significant areas where casting is common in the
-    qpdf sources or where casting would be required to quiet higher
-    levels of compiler warnings but is omitted at present:
-    </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
-       <span class="type">char</span> vs. <span class="type">unsigned char</span>.  For
-       historical reasons, there are a lot of places in qpdf's
-       internals that deal with <span class="type">unsigned char</span>, which
-       means that a lot of casting is required to interoperate with
-       standard library calls and <span class="type">std::string</span>.  In
-       retrospect, qpdf should have probably used regular (signed)
-       <span class="type">char</span> and <span class="type">char*</span> everywhere and just
-       cast to <span class="type">unsigned char</span> when needed, but it's too
-       late to make that change now.  There are
-       <code class="function">reinterpret_cast</code> calls to go between
-       <span class="type">char*</span> and <span class="type">unsigned char*</span>, and there
-       are <code class="function">static_cast</code> calls to go between
-       <span class="type">char</span> and <span class="type">unsigned char</span>.  These should
-       always be safe.
-      </p></li><li class="listitem"><p>
-       Non-const <span class="type">unsigned char*</span> used in the
-       <span class="type">Pipeline</span> interface.  The pipeline interface has a
-       <code class="function">write</code> call that uses <span class="type">unsigned
-       char*</span> without a <span class="type">const</span> qualifier.  The main
-       reason for this is to support pipelines that make calls to
-       third-party libraries, such as zlib, that don't include
-       <span class="type">const</span> in their interfaces.  Unfortunately, there
-       are many places in the code where it is desirable to have
-       <span class="type">const char*</span> with pipelines.  None of the pipeline
-       implementations in qpdf currently modify the data passed to
-       write, and doing so would be counter to the intent of
-       <span class="type">Pipeline</span>, but there is nothing in the code to
-       prevent this from being done.  There are places in the code
-       where <code class="function">const_cast</code> is used to remove the
-       const-ness of pointers going into <span class="type">Pipeline</span>s.  This
-       could theoretically be unsafe, but there is adequate testing to
-       assert that it is safe and will remain safe in qpdf's code.
-      </p></li><li class="listitem"><p>
-       <span class="type">size_t</span> vs. <span class="type">qpdf_offset_t</span>.  This is
-       pretty much unavoidable since sizes are unsigned types and
-       offsets are signed types.  Whenever it is necessary to seek by
-       an amount given by a <span class="type">size_t</span>, it becomes necessary
-       to mix and match between <span class="type">size_t</span> and
-       <span class="type">qpdf_offset_t</span>.  Additionally, qpdf sometimes
-       treats memory buffers like files (as with
-       <span class="type">BufferInputSource</span>, and those seek interfaces have
-       to be consistent with file-based input sources.  Neither gcc
-       nor MSVC give warnings for this case by default, but both have
-       warning flags that can enable this.  (MSVC:
-       <code class="option">/W14267</code> or <code class="option">/W3</code>, which also
-       enables some additional warnings that we ignore; gcc:
-       <code class="option">-Wconversion -Wsign-conversion</code>).  This could
-       matter for files whose sizes are larger than
-       2<sup>63</sup> bytes, but it is reasonable to
-       expect that a world where such files are common would also have
-       larger <span class="type">size_t</span> and <span class="type">qpdf_offset_t</span> types
-       in it.  On most 64-bit systems at the time of this writing (the
-       release of version 4.1.0 of qpdf), both <span class="type">size_t</span> and
-       <span class="type">qpdf_offset_t</span> are 64-bit integer types, while on
-       many current 32-bit systems, <span class="type">size_t</span> is a 32-bit
-       type while <span class="type">qpdf_offset_t</span> is a 64-bit type.  I am
-       not aware of any cases where 32-bit systems that have
-       <span class="type">size_t</span> smaller than <span class="type">qpdf_offset_t</span>
-       could run into problems.  Although I can't conclusively rule
-       out the possibility of such problems existing, I suspect any
-       cases would be pretty contrived.  In the event that someone
-       should produce a file that qpdf can't handle because of what is
-       suspected to be issues involving the handling of
-       <span class="type">size_t</span> vs. <span class="type">qpdf_offset_t</span> (such files
-       may behave properly on 64-bit systems but not on 32-bit systems
-       because they have very large embedded files or streams, for
-       example), the above mentioned warning flags could be enabled
-       and all those implicit conversions could be carefully
-       scrutinized.  (I have already gone through that exercise once
-       in adding support for files larger than 4 GB in size.)  I
-       continue to be committed to supporting large files on 32-bit
-       systems, but I would not go to any lengths to support corner
-       cases involving large embedded files or large streams that work
-       on 64-bit systems but not on 32-bit systems because of
-       <span class="type">size_t</span> being too small.  It is reasonable to
-       assume that anyone working with such files would be using a
-       64-bit system anyway since many 32-bit applications would have
-       similar difficulties.
-      </p></li><li class="listitem"><p>
-       <span class="type">size_t</span> vs. <span class="type">int</span> or <span class="type">long</span>.
-       There are some cases where <span class="type">size_t</span> and
-       <span class="type">int</span> or <span class="type">long</span> or <span class="type">size_t</span>
-       and <span class="type">unsigned int</span> or <span class="type">unsigned long</span> are
-       used interchangeably.  These cases occur when working with very
-       small amounts of memory, such as with the bit readers (where
-       we're working with just a few bytes at a time), some cases of
-       <code class="function">strlen</code>, and a few other cases.  I have
-       scrutinized all of these cases and determined them to be safe,
-       but there is no mechanism in the code to ensure that new unsafe
-       conversions between <span class="type">int</span> and <span class="type">size_t</span>
-       aren't introduced short of good testing and strong awareness of
-       the issues.  Again, if any such bugs are suspected in the
-       future, enabling the additional warning flags and scrutinizing
-       the warnings would be in order.
-      </p></li></ul></div><p>
+    When the intention is just to switch the type because of
+    exchanging data between incompatible interfaces, use
+    <code class="classname">QIntC</code>. This is the usual case. However,
+    there are some cases in which we are explicitly intending to use
+    the exact same bit pattern with a different type. This is most
+    common when switching between signed and unsigned characters. A
+    lot of qpdf's code uses unsigned characters internally, but
+    <span class="type">std::string</span> and <span class="type">char</span> are signed. Using
+    <code class="function">QIntC::to_char</code> would be wrong for converting
+    from unsigned to signed characters because a negative
+    <span class="type">char</span> value and the corresponding <span class="type">unsigned
+    char</span> value greater than 127 <span class="emphasis"><em>mean the same
+    thing</em></span>. There are also cases in which we use
+    <code class="function">static_cast</code> when working with bit fields
+    where we are not representing a numerical value but rather a bunch
+    of bits packed together in some integer type. Also note that
+    <span class="type">size_t</span> and <span class="type">long</span> both typically differ
+    between 32-bit and 64-bit environments, so sometimes an explicit
+    cast may not be needed to avoid warnings on one platform but may
+    be needed on another. A conversion with
+    <code class="classname">QIntC</code> should always be used when the types
+    are different even if the underlying size is the same. QPDF's CI
+    build builds on 32-bit and 64-bit platforms, and the test suite is
+    very thorough, so it is hard to make any of the potential errors
+    here without being caught in build or test.
    </p><p>
-    To be clear, I believe qpdf to be well-behaved with respect to
-    sizes and offsets, and qpdf's test suite includes actual
-    generation and full processing of files larger than 4 GB in
-    size.  The issues raised here are largely academic and should not
-    in any way be interpreted to mean that qpdf has practical problems
-    involving sloppiness with integer types.  I also believe that
-    appropriate measures have been taken in the code to avoid problems
-    with signed vs. unsigned integers from resulting in memory
-    overwrites or other issues with potential security implications,
-    though there are never any absolute guarantees.
+    Non-const <span class="type">unsigned char*</span> is used in the
+    <span class="type">Pipeline</span> interface. The pipeline interface has a
+    <code class="function">write</code> call that uses <span class="type">unsigned
+    char*</span> without a <span class="type">const</span> qualifier. The main
+    reason for this is to support pipelines that make calls to
+    third-party libraries, such as zlib, that don't include
+    <span class="type">const</span> in their interfaces. Unfortunately, there are
+    many places in the code where it is desirable to have <span class="type">const
+    char*</span> with pipelines. None of the pipeline implementations
+    in qpdf currently modify the data passed to write, and doing so
+    would be counter to the intent of <span class="type">Pipeline</span>, but there
+    is nothing in the code to prevent this from being done. There are
+    places in the code where <code class="function">const_cast</code> is used
+    to remove the const-ness of pointers going into
+    <span class="type">Pipeline</span>s. This could theoretically be unsafe, but
+    there is adequate testing to assert that it is safe and will
+    remain safe in qpdf's code.
    </p></div><div class="sect1"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a id="ref.encryption"></a>7.6. Encryption</h2></div></div></div><p>
     Encryption is supported transparently by qpdf.  When opening a PDF
     file, if an encryption dictionary exists, the
@@ -2348,6 +2328,37 @@ outfile.pdf</code>
     multiple encryption formats, qpdf will choose the newest format.
     The only exception to this is that clear-text metadata will be
     preserved as clear-text if it is that way in the original file.
+   </p><p>
+    One point of confusion some people have about encrypted PDF files
+    is that encryption is not the same as password protection.
+    Password protected files are always encrypted, but it is also
+    possible to create encrypted files that do not have passwords.
+    Internally, such files use the empty string as a password, and
+    most readers try the empty string first to see if it works and
+    prompt for a password only if the empty string doesn't work.
+    Normally such files have an empty user password and a non-empty
+    owner password. In that way, if the file is opened by an ordinary
+    reader without specification of password, the restrictions
+    specified in the encryption dictionary can be enforced. Most users
+    wouldn't even realize such a file was encrypted. Since qpdf always
+    ignores the restrictions (except for the purpose of reporting what
+    they are), qpdf doesn't care which password you use. QPDF will
+    allow you to create PDF files with non-empty user passwords and
+    empty owner passwords. Some readers will require a password when
+    you open these files, and others will open the files without a
+    password and not enforce restrictions. Having a non-empty user
+    password and an empty owner password doesn't really make sense
+    because it would mean that opening the file with the user password
+    would be more restrictive than not supplying a password at all.
+    QPDF also allows you to create PDF files with the same password as
+    both the user and owner password. Some readers will not ever allow
+    such files to be accessed without restrictions because they never
+    try the password as the owner password if it works as the user
+    password. Nonetheless, one of the powerful aspects of qpdf is that
+    it allows you to finely specify the way encrypted files are
+    created, even if the results are not useful to some readers. One
+    use case for this would be for testing a PDF reader to ensure that
+    it handles odd configurations of input files.
    </p></div><div class="sect1"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a id="ref.random-numbers"></a>7.7. Random Number Generation</h2></div></div></div><p>
     QPDF generates random numbers to support generation of encrypted
     data.  Versions prior to 5.0.1 used <code class="function">random</code> or
@@ -2563,7 +2574,7 @@ outfile.pdf</code>
     filter should write to whatever type of output is required.  The
     <code class="classname">QPDF</code> class has an interface to write raw or
     filtered stream contents to a given pipeline.
-   </p></div><div class="footnotes"><br /><hr style="width:100; text-align:left;margin-left: 0" /><div id="ftn.idm45124387202432" class="footnote"><p><a href="#idm45124387202432" class="para"><sup class="para">[1] </sup></a>
+   </p></div><div class="footnotes"><br /><hr style="width:100; text-align:left;margin-left: 0" /><div id="ftn.idm45743503493680" class="footnote"><p><a href="#idm45743503493680" class="para"><sup class="para">[1] </sup></a>
       As pointed out earlier, the intention is not for qpdf to be used
       to bypass security on files. but as any open source PDF consumer
       may be easily modified to bypass basic PDF document security,
@@ -2926,7 +2937,234 @@ print "\n";
    </p></div></div><div class="appendix"><div class="titlepage"><div><div><h1 class="title"><a id="ref.release-notes"></a>Appendix A. Release Notes</h1></div></div></div><p>
    For a detailed list of changes, please see the file
    <code class="filename">ChangeLog</code> in the source distribution.
-  </p><div class="variablelist"><dl class="variablelist"><dt><span class="term">8.4.2: May 18, 2019</span></dt><dd><p>
+  </p><div class="variablelist"><dl class="variablelist"><dt><span class="term">9.0.0: August 31, 2019</span></dt><dd><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+        Incompatible API (source-level) Changes (minor)
+       </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: circle; "><li class="listitem"><p>
+          The method <code class="function">QUtil::strcasecmp</code> has been
+          renamed to <code class="function">QUtil::str_compare_nocase</code>.
+          This incompatible change is necessary to enable qpdf to
+          build on platforms that define
+          <code class="function">strcasecmp</code> as a macro.
+         </p></li><li class="listitem"><p>
+          The <code class="function">QPDF::copyForeignObject</code> method had
+          an overloaded version that took a boolean parameter that was
+          not used. If you were using this version, just omit the
+          extra parameter.
+         </p></li><li class="listitem"><p>
+          There was a version
+          <code class="function">QPDFTokenizer::expectInlineImage</code> that
+          took no arguments. This version has been removed since it
+          caused the tokenizer to return incorrect inline images. A
+          new version was added some time ago that produces correct
+          output. This is a very low level method that doesn't make
+          sense to call outside of qpdf's lexical engine. There are
+          higher level methods for tokenizing content streams.
+         </p></li><li class="listitem"><p>
+          Change
+          <code class="function">QPDFOutlineDocumentHelper::getTopLevelOutlines</code>
+          and <code class="function">QPDFOutlineObjectHelper::getKids</code> to
+          return a <span class="type">std::vector</span> instead of a
+          <span class="type">std::list</span> of
+          <code class="classname">QPDFOutlineObjectHelper</code> objects.
+         </p></li><li class="listitem"><p>
+          Remove method
+          <code class="function">QPDFTokenizer::allowPoundAnywhereInName</code>.
+          This function would allow creation of name tokens whose
+          value would change when unparsed, which is never the correct
+          behavior.
+         </p></li><li class="listitem"><p>
+          When <span class="command"><strong>qpdf --check</strong></span> or <span class="command"><strong>qpdf
+          --check-linearization</strong></span> encounters a file with
+          linearization warnings but not errors, it now properly exits
+          with exit code 3 instead of 2.
+         </p></li></ul></div></li><li class="listitem"><p>
+        CLI Enhancements
+       </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: circle; "><li class="listitem"><p>
+          The <code class="option">--replace-input</code> option may be given in
+          place of an output file name. This causes qpdf to overwrite
+          the input file with the output. See the description of
+          <code class="option">--replace-input</code> in <a class="xref" href="#ref.basic-options" title="3.3. Basic Options">Section 3.3, “Basic Options”</a> for more details.
+         </p></li><li class="listitem"><p>
+          The <code class="option">--recompress-flate</code> instructs
+          <span class="command"><strong>qpdf</strong></span> to recompress streams that are
+          already compressed with <code class="literal">/FlateDecode</code>.
+          Useful with <code class="option">--compression-level</code>.
+         </p></li><li class="listitem"><p>
+          The
+          <code class="option">--compression-level=<em class="replaceable"><code>level</code></em></code>
+          sets the zlib compression level used for any streams
+          compressed by <code class="literal">/FlateDecode</code>. Most
+          effective when combined with
+          <code class="option">--recompress-flate</code>.
+         </p></li></ul></div></li><li class="listitem"><p>
+        Library Enhancements
+       </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: circle; "><li class="listitem"><p>
+          A new namespace <code class="classname">QIntC</code>, provided by
+          <code class="filename">qpdf/QIntC.hh</code>, provides safe conversion
+          methods between different integer types. These conversion
+          methods do range checking to ensure that the cast can be
+          performed with no loss of information. Every use of
+          <code class="function">static_cast</code> in the library was
+          inspected to see if it could use one of these safe
+          converters instead. See <a class="xref" href="#ref.casting" title="7.5. Casting Policy">Section 7.5, “Casting Policy”</a> for
+          additional details.
+         </p></li><li class="listitem"><p>
+          Method <code class="function">QPDF::anyWarnings</code> tells whether
+          there have been any warnings without clearing the list of
+          warnings.
+         </p></li><li class="listitem"><p>
+          Method <code class="function">QPDF::closeInputSource</code> closes or
+          otherwise releases the input source. This enables the input
+          file to be deleted or renamed.
+         </p></li><li class="listitem"><p>
+          New methods have been added to <code class="classname">QUtil</code>
+          for converting back and forth between strings and unsigned
+          integers: <code class="function">uint_to_string</code>,
+          <code class="function">uint_to_string_base</code>,
+          <code class="function">string_to_uint</code>, and
+          <code class="function">string_to_ull</code>.
+         </p></li><li class="listitem"><p>
+          New methods have been added to
+          <code class="classname">QPDFObjectHandle</code> that return the
+          value of <code class="classname">Integer</code> objects as
+          <span class="type">int</span> or <span class="type">unsigned int</span> with range
+          checking and sensible fallback values, and a new method was
+          added to return an unsigned value. This makes it easier to
+          write code that is safe from unintentional data loss.
+          Functions: <code class="function">getUIntValue</code>,
+          <code class="function">getIntVauleAsInt</code>,
+          <code class="function">getUIntValueAsUInt</code>.
+         </p></li><li class="listitem"><p>
+          When parsing content streams with
+          <code class="classname">QPDFObjectHandle::ParserCallbacks</code>, in
+          place of the method
+          <code class="function">handleObject(QPDFObjectHandle)</code>, the
+          developer may override
+          <code class="function">handleObject(QPDFObjectHandle, size_t offset,
+          size_t length)</code>. If this method is defined, it
+          will be invoked with the object along with its offset and
+          length within the overall contents being parsed. Intervening
+          spaces and comments are not included in offset and length.
+          Additionally, a new method
+          <code class="function">contentSize(size_t)</code> may be implemented.
+          If present, it will be called prior to the first call to
+          <code class="function">handleObject</code> with the total size in
+          bytes of the combined contents.
+         </p></li><li class="listitem"><p>
+          New methods <code class="function">QPDF::userPasswordMatched</code>
+          and <code class="function">QPDF::ownerPasswordMatched</code> have
+          been added to enable a caller to determine whether the
+          supplied password was the user password, the owner password,
+          or both. This information is also displayed by <span class="command"><strong>qpdf
+          --show-encryption</strong></span> and <span class="command"><strong>qpdf
+          --check</strong></span>.
+         </p></li><li class="listitem"><p>
+          Static method
+          <code class="function">Pl_Flate::setCompressionLevel</code> can be
+          called to set the zlib compression level globally used by
+          all instances of Pl_Flate in deflate mode.
+         </p></li><li class="listitem"><p>
+          The method
+          <code class="function">QPDFWriter::setRecompressFlate</code> can be
+          called to tell <code class="classname">QPDFWriter</code> to
+          uncompress and recompress streams already compressed with
+          <code class="literal">/FlateDecode</code>.
+         </p></li><li class="listitem"><p>
+          The underlying implementation of QPDF arrays has been
+          enhanced to be much more memory efficient when dealing with
+          arrays with lots of nulls. This enables qpdf to use
+          drastically less memory for certain types of files.
+         </p></li><li class="listitem"><p>
+          When traversing the pages tree, if nodes are encountered
+          with invalid types, the types are fixed, and a warning is
+          issued.
+         </p></li><li class="listitem"><p>
+          A new helper method
+          <code class="function">QUtil::read_file_into_memory</code> was added.
+         </p></li><li class="listitem"><p>
+          All conditions previously reported by
+          <code class="function">QPDF::checkLinearization()</code> as errors
+          are now presented as warnings.
+         </p></li><li class="listitem"><p>
+          Name tokens containing the <code class="literal">#</code> character
+          not preceded by two hexadecimal digits, which is invalid in
+          PDF 1.2 and above, are properly handled by the library: a
+          warning is generated, and the name token is properly
+          preserved, even if invalid, in the output. See
+          <code class="filename">ChangeLog</code> for a more complete
+          description of this change.
+         </p></li></ul></div></li><li class="listitem"><p>
+        Bug Fixes
+       </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: circle; "><li class="listitem"><p>
+          A small handful of memory issues, assertion failures, and
+          unhandled exceptions that could occur on badly mangled input
+          files have been fixed. Most of these problems were found by
+          Google's OSS-Fuzz project.
+         </p></li><li class="listitem"><p>
+          When <span class="command"><strong>qpdf --check</strong></span> or <span class="command"><strong>qpdf
+          --check-linearization</strong></span> encounters a file with
+          linearization warnings but not errors, it now properly exits
+          with exit code 3 instead of 2.
+         </p></li><li class="listitem"><p>
+          The <code class="option">--completion-bash</code> and
+          <code class="option">--completion-zsh</code> options now work properly
+          when qpdf is invoked as an AppImage.
+         </p></li><li class="listitem"><p>
+          Calling
+          <code class="function">QPDFWriter::set*EncryptionParameters</code> on
+          a <code class="classname">QPDFWriter</code> object whose output
+          filename has not yet been set no longer produces a
+          segmentation fault.
+         </p></li><li class="listitem"><p>
+          When reading encrypted files, follow the spec more closely
+          regarding encryption key length. This allows qpdf to open
+          encrypted files in most cases when they have invalid or
+          missing /Length keys in the encryption dictionary.
+         </p></li><li class="listitem"><p>
+          When <span class="command"><strong>qpdf --check</strong></span> or <span class="command"><strong>qpdf
+          --check-linearization</strong></span> encounters a file with
+          linearization warnings but not errors, it now properly exits
+          with exit code 3 instead of 2.
+         </p></li></ul></div></li><li class="listitem"><p>
+        Build Changes
+       </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: circle; "><li class="listitem"><p>
+          On platforms that support it, qpdf now builds with
+          <code class="option">-fvisibility=hidden</code>. If you build qpdf with
+          your own build system, this is now safe to use. This
+          prevents methods that are not part of the public API from
+          being exported by the shared library, and makes qpdf's ELF
+          shared libraries (used on Linux, MacOS, and most other UNIX
+          flavors) behave more like the Windows DLL. Since the DLL
+          already behaves in much this way, it is unlikely that there
+          are any methods that were accidentally not exported.
+          However, with ELF shared libraries, typeinfo for some
+          classes has to be explicitly exported. If there are problems
+          in dynamically linked code catching exceptions or
+          subclassing, this could be the reason. If you see this,
+          please report a bug at <a class="ulink" href="https://github.com/qpdf/qpdf/issues/" target="_top">pikepdf</a>.
+         </p></li><li class="listitem"><p>
+          QPDF is now compiled with integer conversion and sign
+          conversion warnings enabled. Numerous changes were made to
+          the library to make this safe.
+         </p></li><li class="listitem"><p>
+          QPDF's <span class="command"><strong>make install</strong></span> target explicitly
+          specifies the mode to use when installing files instead of
+          relying the user's umask. It was previously doing this for
+          some files but not others.
+         </p></li><li class="listitem"><p>
+          If <span class="command"><strong>pkg-config</strong></span> is available, use it to
+          locate <code class="filename">libjpeg</code> and
+          <code class="filename">zlib</code> dependencies, falling back on old
+          behavior if unsuccessful.
+         </p></li></ul></div></li><li class="listitem"><p>
+        Other Notes
+       </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: circle; "><li class="listitem"><p>
+          QPDF has been fully integrated into <a class="ulink" href="https://github.com/google/oss-fuzz" target="_top">Google's OSS-Fuzz
+          project</a>. This project exercises code with randomly
+          mutated inputs and is great for discovering hidden security
+          crashes and security issues. Several bugs found by oss-fuzz
+          have already been fixed in qpdf.
+         </p></li></ul></div></li></ul></div></dd><dt><span class="term">8.4.2: May 18, 2019</span></dt><dd><p>
       This release has just one change: correction of a buffer overrun
       in the Windows code used to open files. Windows users should
       take this update. There are no code changes that affect
@@ -3609,9 +3847,9 @@ print "\n";
          Properly handle pages with no contents.
        </p></li></ul></div></dd><dt><span class="term">8.0.1: March 4, 2018</span></dt><dd><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
         Disregard data check errors when uncompressing
-        <code class="option">/FlateDecode</code> streams. This is consistent with
-        most other PDF readers and allows qpdf to recover data from
-        another class of malformed PDF files.
+        <code class="literal">/FlateDecode</code> streams. This is consistent
+        with most other PDF readers and allows qpdf to recover data
+        from another class of malformed PDF files.
        </p></li><li class="listitem"><p>
         On the command line when specifying page ranges, support
         preceding a page number by “r” to indicate that it

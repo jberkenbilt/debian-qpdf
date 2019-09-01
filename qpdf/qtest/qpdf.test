@@ -191,6 +191,47 @@ foreach my $d (['auto-ü', 1], ['auto-öπ', 2])
 
 show_ntests();
 # ----------
+$td->notify("--- Replace Input ---");
+$n_tests += 8;
+
+# Use Unicode file names to test replace input so we can be sure it
+# works for that case.
+$td->runtest("create unicode filenames",
+             {$td->COMMAND => "test_unicode_filenames"},
+             {$td->STRING => "created Unicode filenames\n",
+                  $td->EXIT_STATUS => 0},
+             $td->NORMALIZE_NEWLINES);
+
+foreach my $d (['auto-ü', 1], ['auto-öπ', 2])
+{
+    my ($u, $n) = @$d;
+    $td->runtest("replace input $u",
+                 {$td->COMMAND => "qpdf --deterministic-id" .
+                      " --object-streams=generate --replace-input $u.pdf"},
+                 {$td->STRING => "", $td->EXIT_STATUS => 0},
+                 $td->NORMALIZE_NEWLINES);
+    $td->runtest("check output ($u)",
+                 {$td->FILE => "$u.pdf"},
+                 {$td->FILE => "replace-input.pdf"},
+                 $td->NORMALIZE_NEWLINES);
+}
+
+system("cp xref-with-short-size.pdf auto-warn.pdf") == 0 or die;
+$td->runtest("replace input with warnings",
+             {$td->COMMAND =>
+                  "qpdf --deterministic-id --replace-input auto-warn.pdf"},
+             {$td->FILE => "replace-warn.out", $td->EXIT_STATUS => 3},
+             $td->NORMALIZE_NEWLINES);
+
+$td->runtest("check output",
+             {$td->FILE => "auto-warn.pdf"},
+             {$td->FILE => "warn-replace.pdf"});
+$td->runtest("check orig output",
+             {$td->FILE => "auto-warn.pdf.~qpdf-orig"},
+             {$td->FILE => "xref-with-short-size.pdf"});
+
+show_ntests();
+# ----------
 $td->notify("--- Final Version ---");
 $n_tests += 1;
 
@@ -542,6 +583,7 @@ my @json_files = (
     ['page-labels-and-outlines', []],
     ['page-labels-num-tree', []],
     ['image-streams', []],
+    ['image-streams-small', []],
     ['field-types', []],
     ['image-streams', ['--decode-level=all']],
     ['image-streams', ['--decode-level=specialized']],
@@ -624,7 +666,7 @@ my @bug_tests = (
     ["99", "object 0", 2],
     ["99b", "object 0", 2],
     ["100", "xref reconstruction loop", 2],
-    ["101", "resolve for exception text", 3],
+    ["101", "resolve for exception text", 2],
     ["117", "other infinite loop", 2],
     ["118", "other infinite loop", 2],
     ["119", "other infinite loop", 3],
@@ -639,7 +681,12 @@ my @bug_tests = (
     ["149", "xref prev pointer loop", 3],
     ["150", "integer overflow", 2],
     ["202", "even more deeply nested dictionary", 2],
-    ["263", "empty xref stream", 3],
+    ["263", "empty xref stream", 2],
+    ["335a", "ozz-fuzz-12152", 2],
+    ["335b", "ozz-fuzz-14845", 2],
+    ["fuzz-16214", "stream in object stream", 3],
+    # When adding to this list, consider adding to SEED_CORPUS_FILES
+    # in fuzz/build.mk and updating the count in fuzz/qtest/fuzz.test.
     );
 $n_tests += scalar(@bug_tests);
 foreach my $d (@bug_tests)
@@ -664,9 +711,10 @@ foreach my $d (@bug_tests)
     }
     else
     {
+        my $base = (-f "issue-$n.pdf") ? "issue-$n" : "$n";
         $td->runtest($description,
-                     {$td->COMMAND => "qpdf issue-$n.pdf a.pdf"},
-                     {$td->FILE => "issue-$n.out",
+                     {$td->COMMAND => "qpdf $base.pdf a.pdf"},
+                     {$td->FILE => "$base.out",
                           $td->EXIT_STATUS => $exit_status},
                      $td->NORMALIZE_NEWLINES);
     }
@@ -791,7 +839,7 @@ foreach my $d (@eii_tests)
 show_ntests();
 # ----------
 $td->notify("--- Tokenizer ---");
-$n_tests += 5;
+$n_tests += 4;
 
 $td->runtest("tokenizer with no ignorable",
              {$td->COMMAND => "test_tokenizer -no-ignorable tokens.pdf"},
@@ -801,11 +849,6 @@ $td->runtest("tokenizer with no ignorable",
 $td->runtest("tokenizer",
              {$td->COMMAND => "test_tokenizer tokens.pdf"},
              {$td->FILE => "tokens.out", $td->EXIT_STATUS => 0},
-             $td->NORMALIZE_NEWLINES);
-
-$td->runtest("tokenizer with old inline image code",
-             {$td->COMMAND => "test_tokenizer -old-ei tokens.pdf"},
-             {$td->FILE => "tokens-old-ei.out", $td->EXIT_STATUS => 0},
              $td->NORMALIZE_NEWLINES);
 
 $td->runtest("tokenizer with max_len",
@@ -847,7 +890,7 @@ $td->runtest("get stream data",
 show_ntests();
 # ----------
 $td->notify("--- Decode parameter problems ---");
-$n_tests += 4;
+$n_tests += 6;
 
 # Make sure we ignore decode parameters that we don't understand
 $td->runtest("unknown decode parameters",
@@ -869,6 +912,13 @@ $td->runtest("stream with indirect decode parms",
 $td->runtest("check file",
              {$td->FILE => "a.pdf"},
              {$td->FILE => "indirect-decode-parms-out.pdf"});
+
+$td->runtest("decode parameters empty list",
+             {$td->COMMAND => "qpdf --static-id empty-decode-parms.pdf a.pdf"},
+             {$td->STRING => "", $td->EXIT_STATUS => 0});
+$td->runtest("check file",
+             {$td->FILE => "a.pdf"},
+             {$td->FILE => "empty-decode-parms-out.pdf"});
 
 show_ntests();
 # ----------
@@ -1228,7 +1278,7 @@ $td->runtest("check file with leading junk",
 $td->runtest("EOF inside inline image",
              {$td->COMMAND => "test_driver 37 eof-in-inline-image.pdf"},
              {$td->FILE => "eof-in-inline-image.out",
-              $td->EXIT_STATUS => 2},
+              $td->EXIT_STATUS => 0},
              $td->NORMALIZE_NEWLINES);
 $td->runtest("tokenize content streams",
              {$td->COMMAND => "test_driver 37 tokenize-content-streams.pdf"},
@@ -1243,7 +1293,7 @@ $td->runtest("terminate parsing",
 $td->runtest("content stream errors",
              {$td->COMMAND => "qpdf --check content-stream-errors.pdf"},
              {$td->FILE => "content-stream-errors.out",
-              $td->EXIT_STATUS => 2},
+              $td->EXIT_STATUS => 3},
              $td->NORMALIZE_NEWLINES);
 
 $td->runtest("ensure arguments to R are direct",
@@ -1314,12 +1364,12 @@ $n_tests += 3;
 $td->runtest("bounds check linearization data 1",
              {$td->COMMAND => "qpdf --check linearization-bounds-1.pdf"},
              {$td->FILE => "linearization-bounds-1.out",
-              $td->EXIT_STATUS => 2},
+              $td->EXIT_STATUS => 3},
              $td->NORMALIZE_NEWLINES);
 $td->runtest("bounds check linearization data 2",
              {$td->COMMAND => "qpdf --check linearization-bounds-2.pdf"},
              {$td->FILE => "linearization-bounds-2.out",
-              $td->EXIT_STATUS => 2},
+              $td->EXIT_STATUS => 3},
              $td->NORMALIZE_NEWLINES);
 # Throws logic error, not bad_alloc
 $td->runtest("sanity check array size",
@@ -1332,16 +1382,23 @@ $td->runtest("sanity check array size",
 show_ntests();
 # ----------
 $td->notify("--- Page errors ---");
-$n_tests += 3;
+$n_tests += 5;
 
 $td->runtest("handle page no with contents",
              {$td->COMMAND => "qpdf --show-pages page-no-content.pdf"},
              {$td->FILE => "page-no-content.out", $td->EXIT_STATUS => 0},
              $td->NORMALIZE_NEWLINES);
-$td->runtest("no type key for page nodes",
+$td->runtest("check no type key for page nodes",
              {$td->COMMAND => "qpdf --check no-pages-types.pdf"},
-             {$td->FILE => "no-pages-types.out", $td->EXIT_STATUS => 0},
+             {$td->FILE => "no-pages-types.out", $td->EXIT_STATUS => 3},
              $td->NORMALIZE_NEWLINES);
+$td->runtest("no type key for page nodes",
+             {$td->COMMAND => "qpdf --static-id --split-pages no-pages-types.pdf a-split-out.pdf"},
+             {$td->FILE => "no-pages-types-fix.out", $td->EXIT_STATUS => 3},
+             $td->NORMALIZE_NEWLINES);
+$td->runtest("check output",
+             {$td->FILE => "a-split-out-1.pdf"},
+             {$td->FILE => "no-pages-types-fixed.pdf"});
 $td->runtest("detect loops in pages structure",
              {$td->COMMAND => "qpdf --check pages-loop.pdf"},
              {$td->FILE => "pages-loop.out", $td->EXIT_STATUS => 2},
@@ -2094,6 +2151,10 @@ $n_tests += 14;
 
 # image-streams.pdf is the output of examples/pdf-create.
 # examples/pdf-create validates the actual image data.
+# image-streams-small.pdf was manually created by editing
+# pdf-create.cc to reduce width and height to 40x8 and ignoring
+# errors. Its purpose was to get a small file with images with
+# different filters for fuzz testing.
 foreach my $l (qw(none generalized specialized all))
 {
     $td->runtest("image-streams: $l",
@@ -2273,9 +2334,11 @@ my @badfiles = ("not a PDF file", 			# 1
 		"obj/gen in wrong place",		# 34
 		"object stream of wrong type",		# 35
                 "bad dictionary key",                   # 36
+                "space before xref",                    # 37
+                "startxref to space then eof",          # 38
 		);
 
-$n_tests += @badfiles + 5;
+$n_tests += @badfiles + 6;
 
 # Test 6 contains errors in the free table consistency, but we no
 # longer have any consistency check for this since it is not important
@@ -2283,7 +2346,7 @@ $n_tests += @badfiles + 5;
 # have error conditions that used to be fatal but are now considered
 # non-fatal.
 my %badtest_overrides = ();
-for(6, 12..15, 17, 18..32, 34, 36)
+for(6, 12..15, 17, 18..32, 34, 36..37)
 {
     $badtest_overrides{$_} = 0;
 }
@@ -2322,6 +2385,11 @@ $td->runtest("C API: no recovery",
 	     {$td->FILE => "c-no-recovery.out",
 	      $td->EXIT_STATUS => 0},
 	     $td->NORMALIZE_NEWLINES);
+
+$td->runtest("integer type checks",
+             {$td->COMMAND => "test_driver 62 minimal.pdf"},
+             {$td->STRING => "test 62 done\n", $td->EXIT_STATUS => 0},
+             $td->NORMALIZE_NEWLINES);
 
 show_ntests();
 # ----------
@@ -2431,7 +2499,7 @@ my @goodfiles = ("implicit null",			# 1
 		 "hybrid xref old mode",		# 18
 		 "xref with prev",			# 19
 		 "lots of compressible objects",	# 20
-		 "pound in name",                       # 21
+                 "array with indirect nulls",           # 21
 		 );
 
 $n_tests += (3 * @goodfiles) + 6;
@@ -2469,6 +2537,43 @@ check_pdf("no recompression",
 	  "qpdf --static-id --stream-data=preserve good17.pdf",
 	  "good17-not-recompressed.pdf",
 	  0);
+
+show_ntests();
+# ----------
+$td->notify("--- Name Normalization Tests ---");
+$n_tests += 6;
+
+$td->runtest("check pound in name",
+             {$td->COMMAND =>
+                  "test_driver 1 pound-in-name.pdf"},
+             {$td->FILE => "pound-in-name.out",
+              $td->EXIT_STATUS => 0},
+             $td->NORMALIZE_NEWLINES);
+$td->runtest("convert pound in name",
+             {$td->COMMAND => "qpdf --static-id --qdf" .
+                  " pound-in-name.pdf a.pdf"},
+             {$td->FILE => "pound-in-name-qdf.out",
+		  $td->EXIT_STATUS => 3},
+             $td->NORMALIZE_NEWLINES);
+$td->runtest("check output",
+             {$td->FILE => "a.pdf"},
+             {$td->FILE => "pound-in-name.qdf"});
+
+$td->runtest("check pound in image names",
+             {$td->COMMAND =>
+                  "qpdf --check name-pound-images.pdf"},
+             {$td->FILE => "name-pound-images.out",
+              $td->EXIT_STATUS => 3},
+             $td->NORMALIZE_NEWLINES);
+$td->runtest("convert pound in image names",
+             {$td->COMMAND => "qpdf --static-id --qdf" .
+                  " name-pound-images.pdf a.pdf"},
+             {$td->FILE => "name-pound-images-qdf.out",
+		  $td->EXIT_STATUS => 3},
+             $td->NORMALIZE_NEWLINES);
+$td->runtest("check output",
+             {$td->FILE => "a.pdf"},
+             {$td->FILE => "name-pound-images.qdf"});
 
 show_ntests();
 # ----------
@@ -2943,81 +3048,84 @@ $td->notify("--- Encryption Tests ---");
 # print-low-res, print-high-res, modify-assembly, modify-forms,
 # modify-annotate, modify-other, modify-all
 my @encrypted_files =
-    (['base', ''],
-     ['R3,V2', '',
+    (['base', ''],              # 1
+     ['R3,V2', '',              # 2
       '-accessibility=n -extract=n -print=full -modify=all', -532,
-      0, 0, 1, 1, 1, 1, 1, 1, 1],
-     ['R3,V2,U=view', 'view',
+      1, 1, 0, 0, 1, 1, 1, 1, 1, 1, 1],
+     ['R3,V2,U=view', 'view',   # 3
       '-accessibility=y -extract=n -print=none -modify=none', -3392,
-      1, 0, 0, 0, 0, 0, 0, 0, 0],
-     ['R3,V2,O=master', 'master',
+      1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0],
+     ['R3,V2,O=master', 'master', # 4
       '-accessibility=n -extract=y -print=none -modify=annotate', -2576,
-      0, 1, 0, 0, 1, 1, 1, 0, 0],
-     ['R3,V2,O=master', '',
+      1, 0, 0, 1, 0, 0, 1, 1, 1, 0, 0],
+     ['R3,V2,O=master', '',     # 5
       '-accessibility=n -extract=n -print=none -modify=form', -2624,
-      0, 0, 0, 0, 1, 1, 0, 0, 0],
-     ['R3,V2,U=view,O=master', 'view',
+      0, 1, 0, 0, 0, 0, 1, 1, 0, 0, 0],
+     ['R3,V2,U=view,O=master', 'view', # 6
       '-accessibility=n -extract=n -print=none -modify=assembly', -2880,
-      0, 0, 0, 0, 1, 0, 0, 0, 0],
-     ['R3,V2,U=view,O=master', 'master',
+      0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0],
+     ['R3,V2,U=view,O=master', 'master', # 7
       '-accessibility=n -print=low', -2564,
-      0, 1, 1, 0, 1, 1, 1, 1, 1],
-     ['R3,V2,U=view,O=master', 'master',
+      1, 0, 0, 1, 1, 0, 1, 1, 1, 1, 1],
+     ['R3,V2,U=view,O=master', 'master', # 8
       '-modify=all -assemble=n', -1028,
-      1, 1, 1, 1, 0, 1, 1, 1, 0],
-     ['R3,V2,U=view,O=master', 'master',
+      1, 0, 1, 1, 1, 1, 0, 1, 1, 1, 0],
+     ['R3,V2,U=view,O=master', 'master', # 9
       '-modify=none -form=y', -1068,
-      1, 1, 1, 1, 0, 1, 0, 0, 0],
-     ['R3,V2,U=view,O=master', 'master',
+      1, 0, 1, 1, 1, 1, 0, 1, 0, 0, 0],
+     ['R3,V2,U=view,O=master', 'master', # 10
       '-modify=annotate -assemble=n', -1036,
-      1, 1, 1, 1, 0, 1, 1, 0, 0],
-     ['R3,V2,U=view,O=master', 'master',
+      1, 0, 1, 1, 1, 1, 0, 1, 1, 0, 0],
+     ['R3,V2,U=view,O=master', 'master', # 11
       '-form=n', -260,
-      1, 1, 1, 1, 1, 0, 1, 1, 0],
-     ['R3,V2,U=view,O=master', 'master',
+      1, 0, 1, 1, 1, 1, 1, 0, 1, 1, 0],
+     ['R3,V2,U=view,O=master', 'master', # 12
       '-annotate=n', -36,
-      1, 1, 1, 1, 1, 1, 0, 1, 0],
-     ['R3,V2,U=view,O=master', 'master',
+      1, 0, 1, 1, 1, 1, 1, 1, 0, 1, 0],
+     ['R3,V2,U=view,O=master', 'master', # 13
       '-modify-other=n', -12,
-      1, 1, 1, 1, 1, 1, 1, 0, 0],
-     ['R2,V1', '',
+      1, 0, 1, 1, 1, 1, 1, 1, 1, 0, 0],
+     ['R2,V1', '',              # 14
       '-print=n -modify=n -extract=n -annotate=n', -64,
-      0, 0, 0, 0, 0, 0, 0, 0, 0],
-     ['R2,V1,U=view', 'view',
+      1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+     ['R2,V1,U=view', 'view',   # 15
       '-print=y -modify=n -extract=n -annotate=n', -60,
-      0, 0, 1, 1, 0, 0, 0, 0, 0],
-     ['R2,V1,O=master', 'master',
+      1, 1, 0, 0, 1, 1, 0, 0, 0, 0, 0],
+     ['R2,V1,O=master', 'master', # 16
       '-print=n -modify=y -extract=n -annotate=n', -56,
-      0, 0, 0, 0, 1, 0, 0, 1, 0],
-     ['R2,V1,O=master', '',
+      1, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0],
+     ['R2,V1,O=master', '',     # 17
       '-print=n -modify=n -extract=y -annotate=n', -48,
-      1, 1, 0, 0, 0, 0, 0, 0, 0],
-     ['R2,V1,U=view,O=master', 'view',
+      0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0],
+     ['R2,V1,U=view,O=master', 'view', # 18
       '-print=n -modify=n -extract=n -annotate=y', -32,
-      0, 0, 0, 0, 0, 1, 1, 0, 0],
-     ['R2,V1,U=view,O=master', 'master',
+      0, 1, 0, 0, 0, 0, 0, 1, 1, 0, 0],
+     ['R2,V1,U=view,O=master', 'master', # 19
       '', -4,
-      1, 1, 1, 1, 1, 1, 1, 1, 1],
-     ['long-password', 'asdf asdf asdf asdf asdf asdf qwer'],
-     ['long-password', 'asdf asdf asdf asdf asdf asdf qw'],
-     ['XI-base', ''],
-     ['XI-R6,V5,O=master', '',
+      1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+     ['long-password', 'asdf asdf asdf asdf asdf asdf qwer'], # 20
+     ['long-password', 'asdf asdf asdf asdf asdf asdf qw'],   # 21
+     ['XI-base', ''],                                         # 22
+     ['XI-R6,V5,O=master', '',                                # 23
       '-extract=n -print=none -modify=assembly', -2368,
-      1, 0, 0, 0, 1, 0, 0, 0, 0],
-     ['XI-R6,V5,O=master', 'master',
+      0, 1, 1, 0, 0, 0, 1, 0, 0, 0, 0],
+     ['XI-R6,V5,O=master', 'master', # 24
       '-extract=n -print=none -modify=assembly', -2368,
-      1, 0, 0, 0, 1, 0, 0, 0, 0],
-     ['XI-R6,V5,U=view,O=master', 'view',
+      1, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0],
+     ['XI-R6,V5,U=view,O=master', 'view', # 25
       '-print=low', -2052,
-      1, 1, 1, 0, 1, 1, 1, 1, 1],
-     ['XI-R6,V5,U=view,O=master', 'master',
+      0, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1],
+     ['XI-R6,V5,U=view,O=master', 'master', # 26
       '-print=low', -2052,
-      1, 1, 1, 0, 1, 1, 1, 1, 1],
-     ['XI-R6,V5,U=view,O=master', 'master',
+      1, 0, 1, 1, 1, 0, 1, 1, 1, 1, 1],
+     ['XI-R6,V5,U=view,O=master', 'master', # 27
       '-accessibility=n', -4, # -accessibility=n has no effect
-      1, 1, 1, 1, 1, 1, 1, 1, 1],
-     ['XI-long-password', 'qwertyuiopasdfghjklzxcvbnmqwertyuiopasdfghjklzxcvbnmqwertyuiopasdfghjklzxcvbnmqwertyuiopasdfghjklzxcvbnmqwertyuiopasdfghjklzxcvbnm'],
-     ['XI-long-password', 'qwertyuiopasdfghjklzxcvbnmqwertyuiopasdfghjklzxcvbnmqwertyuiopasdfghjklzxcvbnmqwertyuiopasdfghjklzxcvbnmqwertyuiopasdfghjklzxcv'],
+      1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+     ['XI-long-password', 'qwertyuiopasdfghjklzxcvbnmqwertyuiopasdfghjklzxcvbnmqwertyuiopasdfghjklzxcvbnmqwertyuiopasdfghjklzxcvbnmqwertyuiopasdfghjklzxcvbnm'], # 28; -accessibility=n has no effect
+     ['XI-long-password', 'qwertyuiopasdfghjklzxcvbnmqwertyuiopasdfghjklzxcvbnmqwertyuiopasdfghjklzxcvbnmqwertyuiopasdfghjklzxcvbnmqwertyuiopasdfghjklzxcv'], # 29
+     ['XI-R6,V5,U=wwwww,O=wwwww', 'wwwww', # 30
+      '', -4,
+      1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
     );
 
 $n_tests += 5 + (2 * (@encrypted_files)) + (6 * (@encrypted_files - 6)) + 9;
@@ -3050,15 +3158,26 @@ $td->runtest("significant password characters (V = 5)",
              {$td->REGEXP => ".*invalid password.*", $td->EXIT_STATUS => 2});
 
 my $enc_base = undef;
+my $enc_n = 0;
 foreach my $d (@encrypted_files)
 {
-    my ($file, $pass, $xeflags, $P,
+    ++$enc_n;
+    my ($file, $pass, $xeflags, $P, $match_owner, $match_user,
 	$accessible, $extract, $printlow, $printhigh,
 	$modifyassembly, $modifyform, $modifyannot,
 	$modifyother, $modifyall) = @$d;
 
     my $f = sub { $_[0] ? "allowed" : "not allowed" };
-    my $enc_details =
+    my $enc_details = "";
+    if ($match_owner)
+    {
+        $enc_details .= "Supplied password is owner password\n";
+    }
+    if ($match_user)
+    {
+        $enc_details .= "Supplied password is user password\n";
+    }
+    $enc_details .=
 	"extract for accessibility: " . &$f($accessible) . "\n" .
 	"extract for any purpose: " . &$f($extract) . "\n" .
 	"print low resolution: " . &$f($printlow) . "\n" .
@@ -3132,7 +3251,7 @@ foreach my $d (@encrypted_files)
 		     {$td->STRING => $accessibility_warning,
 		      $td->EXIT_STATUS => 0},
                      $td->NORMALIZE_NEWLINES);
-	$td->runtest("check /P",
+	$td->runtest("check /P enc2 ($enc_n)",
 		     {$td->COMMAND =>
 			  "qpdf --show-encryption --password=\"$pass\"" .
 			  " $file.enc2"},
@@ -3156,7 +3275,7 @@ foreach my $d (@encrypted_files)
 			  " $file.enc2 $file.enc4"},
 		     {$td->STRING => "",
 		      $td->EXIT_STATUS => 0});
-	$td->runtest("check /P",
+	$td->runtest("check /P enc4 ($enc_n)",
 		     {$td->COMMAND =>
 			  "qpdf --show-encryption --password=\"$pass\"" .
 			  " $file.enc4"},
@@ -3244,7 +3363,7 @@ $td->runtest("linearize encrypted file",
 	      $td->EXIT_STATUS => 0});
 $td->runtest("check encryption",
 	     {$td->COMMAND => "qpdf --show-encryption a.pdf",
-	      $td->FILTER => "grep -v allowed"},
+	      $td->FILTER => "grep -v allowed | grep -v Supplied"},
 	     {$td->STRING => "R = 3\nP = -4\nUser password = \n",
 	      $td->EXIT_STATUS => 0},
 	     $td->NORMALIZE_NEWLINES);
@@ -3261,7 +3380,7 @@ $td->runtest("linearize and encrypt file",
 	      $td->EXIT_STATUS => 0});
 $td->runtest("check encryption",
 	     {$td->COMMAND => "qpdf --show-encryption --password=owner a.pdf",
-	      $td->FILTER => "grep -v allowed | grep -v method"},
+	      $td->FILTER => "grep -v allowed | grep -v method | grep -v Supplied"},
 	     {$td->STRING => "R = 4\nP = -4\nUser password = user\n",
 	      $td->EXIT_STATUS => 0},
 	     $td->NORMALIZE_NEWLINES);
@@ -3280,7 +3399,7 @@ $td->runtest("encrypt with AES",
 	     {$td->STRING => "", $td->EXIT_STATUS => 0});
 $td->runtest("check encryption",
 	     {$td->COMMAND => "qpdf --show-encryption a.pdf",
-	      $td->FILTER => "grep -v allowed | grep -v method"},
+	      $td->FILTER => "grep -v allowed | grep -v method | grep -v Supplied"},
 	     {$td->STRING => "R = 4\nP = -4\nUser password = \n",
 	      $td->EXIT_STATUS => 0},
 	     $td->NORMALIZE_NEWLINES);
@@ -3301,7 +3420,7 @@ $td->runtest("linearize with AES and object streams",
 	     {$td->STRING => "", $td->EXIT_STATUS => 0});
 $td->runtest("check encryption",
 	     {$td->COMMAND => "qpdf --show-encryption a.pdf",
-	      $td->FILTER => "grep -v allowed | grep -v method"},
+	      $td->FILTER => "grep -v allowed | grep -v method | grep -v Supplied"},
 	     {$td->STRING => "R = 4\nP = -4\nUser password = \n",
 	      $td->EXIT_STATUS => 0},
 	     $td->NORMALIZE_NEWLINES);
@@ -3494,6 +3613,24 @@ foreach my $d (@enc_key)
              {$td->FILE => "c-r5-key-$description.out", $td->EXIT_STATUS => 0},
              $td->NORMALIZE_NEWLINES);
 }
+
+# Miscellaneous encryption tests
+$n_tests += 3;
+
+$td->runtest("set encryption before set filename",
+             {$td->COMMAND => "test_driver 63 minimal.pdf"},
+             {$td->STRING => "test 63 done\n", $td->EXIT_STATUS => 0},
+             $td->NORMALIZE_NEWLINES);
+$td->runtest("check file's validity",
+             {$td->COMMAND => "qpdf --check --password=u a.pdf"},
+             {$td->FILE => "encrypt-before-filename.out",
+                  $td->EXIT_STATUS => 0},
+             $td->NORMALIZE_NEWLINES);
+$td->runtest("handle missing/invalid Length",
+             {$td->COMMAND => "qpdf --check bad-encryption-length.pdf"},
+             {$td->FILE => "bad-encryption-length.out",
+                  $td->EXIT_STATUS => 0},
+             $td->NORMALIZE_NEWLINES);
 
 show_ntests();
 # ----------
@@ -3796,8 +3933,20 @@ $td->runtest("convert inline-images to qdf",
 compare_pdfs("inline-images.pdf", "a.pdf");
 
 show_ntests();
+# ----------
+$td->notify("--- Compression Level ---");
+$n_tests += 4;
 
+check_pdf("recompress with level",
+	  "qpdf --static-id --recompress-flate --compression-level=9" .
+          " --object-streams=generate minimal.pdf",
+          "minimal-9.pdf", 0);
+check_pdf("recompress with level",
+	  "qpdf --static-id --recompress-flate --compression-level=1" .
+          " --object-streams=generate minimal.pdf",
+          "minimal-1.pdf", 0);
 
+show_ntests();
 # ----------
 $td->notify("--- Specialized filtering Tests ---");
 $n_tests += 3;
@@ -4125,5 +4274,5 @@ sub get_md5_checksum
 sub cleanup
 {
     system("rm -rf *.ps *.pnm ?.pdf ?.qdf *.enc* tif1 tif2 tiff-cache");
-    system("rm -rf *split-out* ???-kfo.pdf *.tmpout \@file.pdf auto-*.pdf");
+    system("rm -rf *split-out* ???-kfo.pdf *.tmpout \@file.pdf auto-*");
 }

@@ -23,20 +23,22 @@ void test_to_number(char const* str, int_T wanted, bool error,
     bool threw = false;
     bool worked = false;
     int_T result = 0;
+    std::string msg;
     try
     {
         result = fn(str);
         worked = (wanted == result);
     }
-    catch (std::runtime_error const&)
+    catch (std::runtime_error const& e)
     {
         threw = true;
+        msg = e.what();
     }
     if (threw)
     {
         if (error)
         {
-            std::cout << str << " to int threw: PASSED" << std::endl;
+            std::cout << str << " to int threw (" << msg << "): PASSED" << std::endl;
         }
         else
         {
@@ -67,6 +69,16 @@ void test_to_ll(char const* str, long long wanted, bool error)
     test_to_number(str, wanted, error, QUtil::string_to_ll);
 }
 
+void test_to_uint(char const* str, unsigned int wanted, bool error)
+{
+    test_to_number(str, wanted, error, QUtil::string_to_uint);
+}
+
+void test_to_ull(char const* str, unsigned long long wanted, bool error)
+{
+    test_to_number(str, wanted, error, QUtil::string_to_ull);
+}
+
 void string_conversion_test()
 {
     std::cout << QUtil::int_to_string(16059) << std::endl
@@ -81,7 +93,8 @@ void string_conversion_test()
               << QUtil::double_to_string(.000123456, 5) << std::endl
               << QUtil::int_to_string_base(16059, 10) << std::endl
               << QUtil::int_to_string_base(16059, 8) << std::endl
-              << QUtil::int_to_string_base(16059, 16) << std::endl;
+              << QUtil::int_to_string_base(16059, 16) << std::endl
+              << QUtil::int_to_string_base(5000093552LL, 10) << std::endl;
 
     std::string embedded_null = "one";
     embedded_null += '\0';
@@ -105,6 +118,8 @@ void string_conversion_test()
     long long int_min_minus_1 = static_cast<long long>(INT_MIN) - 1;
     std::string int_max_plus_1_str = QUtil::int_to_string(int_max_plus_1);
     std::string int_min_minus_1_str = QUtil::int_to_string(int_min_minus_1);
+    std::string small_positive = QUtil::uint_to_string(16059U);
+    std::string small_negative = QUtil::int_to_string(-16059);
     test_to_int(int_min_str.c_str(), INT_MIN, false);
     test_to_int(int_max_str.c_str(), INT_MAX, false);
     test_to_int(int_max_plus_1_str.c_str(), 0, true);
@@ -113,6 +128,11 @@ void string_conversion_test()
     test_to_ll(int_max_plus_1_str.c_str(), int_max_plus_1, false);
     test_to_ll(int_min_minus_1_str.c_str(), int_min_minus_1, false);
     test_to_ll("99999999999999999999999999999999999999999999999999", 0, true);
+    test_to_uint(small_positive.c_str(), 16059U, false);
+    test_to_uint(small_negative.c_str(), 0, true);
+    test_to_uint("9999999999", 0, true);
+    test_to_ull(small_positive.c_str(), 16059U, false);
+    test_to_ull(small_negative.c_str(), 0, true);
 }
 
 void os_wrapper_test()
@@ -159,7 +179,7 @@ void getenv_test()
 static void print_utf8(unsigned long val)
 {
     std::string result = QUtil::toUTF8(val);
-    std::cout << "0x" << QUtil::int_to_string_base(val, 16) << " ->";
+    std::cout << "0x" << QUtil::uint_to_string_base(val, 16) << " ->";
     if (val < 0xfffe)
     {
 	std::cout << " " << result;
@@ -199,7 +219,7 @@ void to_utf8_test()
 static void print_utf16(unsigned long val)
 {
     std::string result = QUtil::toUTF16(val);
-    std::cout << "0x" << QUtil::int_to_string_base(val, 16) << " ->";
+    std::cout << "0x" << QUtil::uint_to_string_base(val, 16) << " ->";
     for (std::string::iterator iter = result.begin();
          iter != result.end(); ++iter)
     {
@@ -218,6 +238,10 @@ void to_utf16_test()
     print_utf16(0xdeadUL);
     print_utf16(0x7fffffffUL);
     print_utf16(0x80000000UL);
+
+    std::string s(QUtil::utf8_to_utf16("\xcf\x80"));
+    std::cout << QUtil::utf16_to_utf8(s) << std::endl;
+    std::cout << QUtil::utf16_to_utf8(s + ".") << std::endl;
 }
 
 void utf8_to_ascii_test()
@@ -249,7 +273,7 @@ void transcoding_test(std::string (*to_utf8)(std::string const&),
     std::string back;
     for (int i = 128; i <= last; ++i)
     {
-        in.at(0) = static_cast<unsigned char>(i);
+        in.at(0) = static_cast<char>(static_cast<unsigned char>(i));
         out = (*to_utf8)(in);
         std::string wanted = (out == "\xef\xbf\xbd") ? unknown : in;
         back = (*from_utf8)(out, '?');
@@ -376,7 +400,7 @@ void same_file_test()
     assert_same_file("", "qutil.out", false);
 }
 
-void read_lines_from_file_test()
+void read_from_file_test()
 {
     std::list<std::string> lines = QUtil::read_lines_from_file("other-file");
     for (std::list<std::string>::iterator iter = lines.begin();
@@ -384,6 +408,15 @@ void read_lines_from_file_test()
     {
         std::cout << *iter << std::endl;
     }
+    PointerHolder<char> buf;
+    size_t size = 0;
+    QUtil::read_file_into_memory("other-file", buf, size);
+    std::cout << "read " << size << " bytes" << std::endl;
+    char const* p = buf.getPointer();
+    assert(size == 24652);
+    assert(memcmp(p, "This file is used for qutil testing.", 36) == 0);
+    assert(p[59] == static_cast<char>(13));
+    assert(memcmp(p + 24641, "very long.", 10) == 0);
 }
 
 void assert_hex_encode(std::string const& input, std::string const& expected)
@@ -424,6 +457,57 @@ void hex_encode_decode_test()
     std::cout << "end hex encode/decode\n";
 }
 
+static void assert_no_file(char const* filename)
+{
+    try
+    {
+        fclose(QUtil::safe_fopen(filename, "r"));
+        assert(false);
+    }
+    catch (QPDFSystemError&)
+    {
+    }
+}
+
+void rename_delete_test()
+{
+    PointerHolder<char> buf;
+    size_t size = 0;
+
+    try
+    {
+        QUtil::remove_file("old\xcf\x80");
+    }
+    catch (QPDFSystemError&)
+    {
+    }
+    assert_no_file("old\xcf\x80");
+    std::cout << "create file" << std::endl;;
+    FILE* f1 = QUtil::safe_fopen("old\xcf\x80", "w");
+    fprintf(f1, "one");
+    fclose(f1);
+    QUtil::read_file_into_memory("old\xcf\x80", buf, size);
+    assert(memcmp(buf.getPointer(), "one", 3) == 0);
+    std::cout << "rename file" << std::endl;;
+    QUtil::rename_file("old\xcf\x80", "old\xcf\x80.~tmp");
+    QUtil::read_file_into_memory("old\xcf\x80.~tmp", buf, size);
+    assert(memcmp(buf.getPointer(), "one", 3) == 0);
+    assert_no_file("old\xcf\x80");
+    std::cout << "create file" << std::endl;;
+    f1 = QUtil::safe_fopen("old\xcf\x80", "w");
+    fprintf(f1, "two");
+    fclose(f1);
+    std::cout << "rename over existing" << std::endl;;
+    QUtil::rename_file("old\xcf\x80", "old\xcf\x80.~tmp");
+    QUtil::read_file_into_memory("old\xcf\x80.~tmp", buf, size);
+    assert(memcmp(buf.getPointer(), "two", 3) == 0);
+    assert_no_file("old\xcf\x80");
+    std::cout << "delete file" << std::endl;;
+    QUtil::remove_file("old\xcf\x80.~tmp");
+    assert_no_file("old\xcf\x80");
+    assert_no_file("old\xcf\x80.~tmp");
+}
+
 int main(int argc, char* argv[])
 {
     try
@@ -448,10 +532,12 @@ int main(int argc, char* argv[])
 	get_whoami_test();
 	std::cout << "---- file" << std::endl;
 	same_file_test();
-	std::cout << "---- lines from file" << std::endl;
-	read_lines_from_file_test();
+	std::cout << "---- read from file" << std::endl;
+	read_from_file_test();
 	std::cout << "---- hex encode/decode" << std::endl;
 	hex_encode_decode_test();
+	std::cout << "---- rename/delete" << std::endl;
+	rename_delete_test();
     }
     catch (std::exception& e)
     {

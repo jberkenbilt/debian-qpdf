@@ -13,6 +13,7 @@
 #include <qpdf/Pl_Discard.hh>
 #include <qpdf/Pl_DCT.hh>
 #include <qpdf/Pl_Count.hh>
+#include <qpdf/Pl_Flate.hh>
 #include <qpdf/PointerHolder.hh>
 
 #include <qpdf/QPDF.hh>
@@ -22,15 +23,17 @@
 #include <qpdf/QPDFOutlineDocumentHelper.hh>
 #include <qpdf/QPDFAcroFormDocumentHelper.hh>
 #include <qpdf/QPDFExc.hh>
+#include <qpdf/QPDFSystemError.hh>
 
 #include <qpdf/QPDFWriter.hh>
+#include <qpdf/QIntC.hh>
 
 static int const EXIT_ERROR = 2;
 static int const EXIT_WARNING = 3;
 
 static char const* whoami = 0;
 
-static std::string expected_version = "8.4.2";
+static std::string expected_version = "9.0.0";
 
 struct PageSpec
 {
@@ -123,6 +126,9 @@ struct Options
         stream_data_mode(qpdf_s_compress),
         compress_streams(true),
         compress_streams_set(false),
+        recompress_flate(false),
+        recompress_flate_set(false),
+        compression_level(-1),
         decode_level(qpdf_dl_generalized),
         decode_level_set(false),
         normalize_set(false),
@@ -175,6 +181,7 @@ struct Options
         overlay("overlay"),
         under_overlay(0),
         require_outfile(true),
+        replace_input(false),
         infilename(0),
         outfilename(0)
     {
@@ -216,6 +223,9 @@ struct Options
     qpdf_stream_data_e stream_data_mode;
     bool compress_streams;
     bool compress_streams_set;
+    bool recompress_flate;
+    bool recompress_flate_set;
+    int compression_level;
     qpdf_stream_decode_level_e decode_level;
     bool decode_level_set;
     bool normalize_set;
@@ -275,6 +285,7 @@ struct Options
     std::vector<PageSpec> page_specs;
     std::map<std::string, RotationSpec> rotations;
     bool require_outfile;
+    bool replace_input;
     char const* infilename;
     char const* outfilename;
 };
@@ -631,6 +642,8 @@ class ArgParser
     void argCollate();
     void argStreamData(char* parameter);
     void argCompressStreams(char* parameter);
+    void argRecompressFlate();
+    void argCompressionLevel(char* parameter);
     void argDecodeLevel(char* parameter);
     void argNormalizeContent(char* parameter);
     void argSuppressRecovery();
@@ -702,6 +715,7 @@ class ArgParser
     void argUOrepeat(char* parameter);
     void argUOpassword(char* parameter);
     void argEndUnderOverlay();
+    void argReplaceInput();
 
     void usage(std::string const& message);
     void checkCompletion();
@@ -846,6 +860,9 @@ ArgParser::initOptionTable()
         &ArgParser::argStreamData, stream_data_choices);
     (*t)["compress-streams"] = oe_requiredChoices(
         &ArgParser::argCompressStreams, yn);
+    (*t)["recompress-flate"] = oe_bare(&ArgParser::argRecompressFlate);
+    (*t)["compression-level"] = oe_requiredParameter(
+        &ArgParser::argCompressionLevel, "level");
     char const* decode_level_choices[] =
         {"none", "generalized", "specialized", "all", 0};
     (*t)["decode-level"] = oe_requiredChoices(
@@ -927,6 +944,7 @@ ArgParser::initOptionTable()
         &ArgParser::argIiMinBytes, "minimum-bytes");
     (*t)["overlay"] = oe_bare(&ArgParser::argOverlay);
     (*t)["underlay"] = oe_bare(&ArgParser::argUnderlay);
+    (*t)["replace-input"] = oe_bare(&ArgParser::argReplaceInput);
 
     t = &this->encrypt40_option_table;
     (*t)["--"] = oe_bare(&ArgParser::argEndEncrypt);
@@ -1067,6 +1085,9 @@ ArgParser::argHelp()
         << "will be interpreted as an argument. No interpolation is done. Line\n"
         << "terminators are stripped. @- can be specified to read from standard input.\n"
         << "\n"
+        << "The output file can be - to indicate writing to standard output, or it can\n"
+        << "be --replace-input to cause qpdf to replace the input file with the output.\n"
+        << "\n"
         << "Note that when contradictory options are provided, whichever options are\n"
         << "provided last take precedence.\n"
         << "\n"
@@ -1084,6 +1105,8 @@ ArgParser::argHelp()
         << "--progress              give progress indicators while writing output\n"
         << "--no-warn               suppress warnings\n"
         << "--linearize             generated a linearized (web optimized) file\n"
+        << "--replace-input         use in place of specifying an output file; qpdf will\n"
+        << "                        replace the input file with the output\n"
         << "--copy-encryption=file  copy encryption parameters from specified file\n"
         << "--encryption-file-password=password\n"
         << "                        password used to open the file from which encryption\n"
@@ -1327,6 +1350,9 @@ ArgParser::argHelp()
         << "--stream-data=option      controls transformation of stream data (below)\n"
         << "--compress-streams=[yn]   controls whether to compress streams on output\n"
         << "--decode-level=option     controls how to filter streams from the input\n"
+        << "--recompress-flate        recompress streams already compressed with Flate\n"
+        << "--compression-level=n     set zlib compression level; most effective with\n"
+        << "                          --recompress-flate --object-streams=generate\n"
         << "--normalize-content=[yn]  enables or disables normalization of content streams\n"
         << "--object-streams=mode     controls handing of object streams\n"
         << "--preserve-unreferenced   preserve unreferenced objects\n"
@@ -1470,10 +1496,23 @@ ArgParser::argHelp()
 void
 ArgParser::argCompletionBash()
 {
+    std::string progname = argv[0];
+    // Detect if we're in an AppImage and adjust
+    std::string appdir;
+    std::string appimage;
+    if (QUtil::get_env("APPDIR", &appdir) &&
+        QUtil::get_env("APPIMAGE", &appimage))
+    {
+        if ((appdir.length() < strlen(argv[0])) &&
+            (strncmp(appdir.c_str(), argv[0], appdir.length()) == 0))
+        {
+            progname = appimage;
+        }
+    }
     std::cout << "complete -o bashdefault -o default -o nospace"
-              << " -C " << argv[0] << " " << whoami << std::endl;
+              << " -C " << progname << " " << whoami << std::endl;
     // Put output before error so calling from zsh works properly
-    std::string path = argv[0];
+    std::string path = progname;
     size_t slash = path.find('/');
     if ((slash != 0) && (slash != std::string::npos))
     {
@@ -1711,6 +1750,19 @@ ArgParser::argCompressStreams(char* parameter)
 }
 
 void
+ArgParser::argRecompressFlate()
+{
+    o.recompress_flate_set = true;
+    o.recompress_flate = true;
+}
+
+void
+ArgParser::argCompressionLevel(char* parameter)
+{
+    o.compression_level = QUtil::string_to_int(parameter);
+}
+
+void
 ArgParser::argDecodeLevel(char* parameter)
 {
     o.decode_level_set = true;
@@ -1809,8 +1861,7 @@ ArgParser::argKeepFilesOpen(char* parameter)
 void
 ArgParser::argKeepFilesOpenThreshold(char* parameter)
 {
-    o.keep_files_open_threshold =
-        static_cast<size_t>(QUtil::string_to_int(parameter));
+    o.keep_files_open_threshold = QUtil::string_to_uint(parameter);
 }
 
 void
@@ -2039,25 +2090,25 @@ ArgParser::argRemovePageLabels()
 void
 ArgParser::argOiMinWidth(char* parameter)
 {
-    o.oi_min_width = QUtil::string_to_int(parameter);
+    o.oi_min_width = QUtil::string_to_uint(parameter);
 }
 
 void
 ArgParser::argOiMinHeight(char* parameter)
 {
-    o.oi_min_height = QUtil::string_to_int(parameter);
+    o.oi_min_height = QUtil::string_to_uint(parameter);
 }
 
 void
 ArgParser::argOiMinArea(char* parameter)
 {
-    o.oi_min_area = QUtil::string_to_int(parameter);
+    o.oi_min_area = QUtil::string_to_uint(parameter);
 }
 
 void
 ArgParser::argIiMinBytes(char* parameter)
 {
-    o.ii_min_bytes = QUtil::string_to_int(parameter);
+    o.ii_min_bytes = QUtil::string_to_uint(parameter);
 }
 
 void
@@ -2276,6 +2327,12 @@ ArgParser::argEndUnderOverlay()
 }
 
 void
+ArgParser::argReplaceInput()
+{
+    o.replace_input = true;
+}
+
+void
 ArgParser::handleArgFileArguments()
 {
     // Support reading arguments from files. Create a new argv. Ensure
@@ -2318,7 +2375,7 @@ ArgParser::handleArgFileArguments()
     {
         argv[i] = new_argv.at(i).getPointer();
     }
-    argc = static_cast<int>(new_argv.size());
+    argc = QIntC::to_int(new_argv.size());
     argv[argc] = 0;
 }
 
@@ -2423,7 +2480,7 @@ ArgParser::handleBashArguments()
     {
         argv[i] = bash_argv.at(i).getPointer();
     }
-    argc = static_cast<int>(bash_argv.size());
+    argc = QIntC::to_int(bash_argv.size());
     argv[argc] = 0;
 }
 
@@ -2508,6 +2565,14 @@ static void show_encryption(QPDF& pdf, Options& o)
         {
             std::cout << "Encryption key = "
                       << QUtil::hex_encode(encryption_key) << std::endl;
+        }
+        if (pdf.ownerPasswordMatched())
+        {
+            std::cout << "Supplied password is owner password" << std::endl;
+        }
+        if (pdf.userPasswordMatched())
+        {
+            std::cout << "Supplied password is user password" << std::endl;
         }
         std::cout << "extract for accessibility: "
 		  << show_bool(pdf.allowAccessibility()) << std::endl
@@ -2648,7 +2713,8 @@ QPDFPageData::QPDFPageData(std::string const& filename,
     try
     {
         this->selected_pages =
-            QUtil::parse_numrange(range, this->orig_pages.size());
+            QUtil::parse_numrange(range,
+                                  QIntC::to_int(this->orig_pages.size()));
     }
     catch (std::runtime_error& e)
     {
@@ -2805,8 +2871,8 @@ ArgParser::checkCompletion()
     if (QUtil::get_env("COMP_LINE", &bash_line) &&
         QUtil::get_env("COMP_POINT", &bash_point_env))
     {
-        int p = QUtil::string_to_int(bash_point_env.c_str());
-        if ((p > 0) && (p <= static_cast<int>(bash_line.length())))
+        size_t p = QUtil::string_to_uint(bash_point_env.c_str());
+        if ((p > 0) && (p <= bash_line.length()))
         {
             // Truncate the line. We ignore everything at or after the
             // cursor for completion purposes.
@@ -2844,7 +2910,7 @@ ArgParser::checkCompletion()
         {
             // Go back to the last separator and set prev based on
             // that.
-            int p1 = p;
+            size_t p1 = p;
             while (--p1 > 0)
             {
                 char ch = bash_line.at(p1);
@@ -2998,15 +3064,28 @@ ArgParser::doFinalChecks()
     {
         usage("missing -- at end of options");
     }
+    if (o.replace_input)
+    {
+        if (o.outfilename)
+        {
+            usage("--replace-input may not be used when"
+                  " an output file is specified");
+        }
+        else if (o.split_pages)
+        {
+            usage("--split-pages may not be used with --replace-input");
+        }
+    }
     if (o.infilename == 0)
     {
         usage("an input file name is required");
     }
-    else if (o.require_outfile && (o.outfilename == 0))
+    else if (o.require_outfile && (o.outfilename == 0) && (! o.replace_input))
     {
         usage("an output file name is required; use - for standard output");
     }
-    else if ((! o.require_outfile) && (o.outfilename != 0))
+    else if ((! o.require_outfile) &&
+             ((o.outfilename != 0) || o.replace_input))
     {
         usage("no output file may be given for this option");
     }
@@ -3015,7 +3094,8 @@ ArgParser::doFinalChecks()
         o.externalize_inline_images = true;
     }
 
-    if (o.require_outfile && (strcmp(o.outfilename, "-") == 0))
+    if (o.require_outfile && o.outfilename &&
+        (strcmp(o.outfilename, "-") == 0))
     {
         if (o.split_pages)
         {
@@ -3038,7 +3118,7 @@ ArgParser::doFinalChecks()
     {
         QTC::TC("qpdf", "qpdf same file error");
         usage("input file and output file are the same;"
-              " this would cause input file to be lost");
+              " use --replace-input to intentionally overwrite the input file");
     }
 }
 
@@ -3180,6 +3260,7 @@ static void do_check(QPDF& pdf, Options& o, int& exit_code)
     // continue to perform additional checks after finding
     // errors.
     bool okay = true;
+    bool warnings = false;
     std::cout << "checking " << o.infilename << std::endl;
     try
     {
@@ -3195,10 +3276,12 @@ static void do_check(QPDF& pdf, Options& o, int& exit_code)
         if (pdf.isLinearized())
         {
             std::cout << "File is linearized\n";
+            // any errors or warnings are reported by
+            // checkLinearization(). We treat all issues reported here
+            // as warnings.
             if (! pdf.checkLinearization())
             {
-                // any errors are reported by checkLinearization()
-                okay = false;
+                warnings = true;
             }
         }
         else
@@ -3245,7 +3328,7 @@ static void do_check(QPDF& pdf, Options& o, int& exit_code)
     }
     if (okay)
     {
-        if (! pdf.getWarnings().empty())
+        if ((! pdf.getWarnings().empty()) || warnings)
         {
             exit_code = EXIT_WARNING;
         }
@@ -3342,9 +3425,9 @@ static void do_show_pages(QPDF& pdf, Options& o)
                     QPDFObjectHandle image = (*iter).second;
                     QPDFObjectHandle dict = image.getDict();
                     int width =
-                        dict.getKey("/Width").getIntValue();
+                        dict.getKey("/Width").getIntValueAsInt();
                     int height =
-                        dict.getKey("/Height").getIntValue();
+                        dict.getKey("/Height").getIntValueAsInt();
                     std::cout << "    " << name << ": "
                               << image.unparse()
                               << ", " << width << " x " << height
@@ -3410,7 +3493,7 @@ static void do_json_pages(QPDF& pdf, Options& o, JSON& j)
     QPDFOutlineDocumentHelper odh(pdf);
     pdh.pushInheritedAttributesToPage();
     std::vector<QPDFPageObjectHelper> pages = pdh.getAllPages();
-    size_t pageno = 0;
+    int pageno = 0;
     for (std::vector<QPDFPageObjectHelper>::iterator iter = pages.begin();
          iter != pages.end(); ++iter, ++pageno)
     {
@@ -3476,9 +3559,9 @@ static void do_json_pages(QPDF& pdf, Options& o, JSON& j)
             "label", pldh.getLabelForPage(pageno).getJSON());
         JSON j_outlines = j_page.addDictionaryMember(
             "outlines", JSON::makeArray());
-        std::list<QPDFOutlineObjectHelper> outlines =
+        std::vector<QPDFOutlineObjectHelper> outlines =
             odh.getOutlinesForPage(page.getObjGen());
-        for (std::list<QPDFOutlineObjectHelper>::iterator oiter =
+        for (std::vector<QPDFOutlineObjectHelper>::iterator oiter =
                  outlines.begin();
              oiter != outlines.end(); ++oiter)
         {
@@ -3503,7 +3586,8 @@ static void do_json_page_labels(QPDF& pdf, Options& o, JSON& j)
     if (pldh.hasPageLabels())
     {
         std::vector<QPDFObjectHandle> labels;
-        pldh.getLabelsForPageRange(0, pages.size() - 1, 0, labels);
+        pldh.getLabelsForPageRange(
+            0, QIntC::to_int(pages.size()) - 1, 0, labels);
         for (std::vector<QPDFObjectHandle>::iterator iter = labels.begin();
              iter != labels.end(); ++iter)
         {
@@ -3525,10 +3609,10 @@ static void do_json_page_labels(QPDF& pdf, Options& o, JSON& j)
 }
 
 static void add_outlines_to_json(
-    std::list<QPDFOutlineObjectHelper> outlines, JSON& j,
+    std::vector<QPDFOutlineObjectHelper> outlines, JSON& j,
     std::map<QPDFObjGen, int>& page_numbers)
 {
-    for (std::list<QPDFOutlineObjectHelper>::iterator iter = outlines.begin();
+    for (std::vector<QPDFOutlineObjectHelper>::iterator iter = outlines.begin();
          iter != outlines.end(); ++iter)
     {
         QPDFOutlineObjectHelper& ol = *iter;
@@ -3778,9 +3862,9 @@ static void do_inspection(QPDF& pdf, Options& o)
             std::cout << o.infilename << ": no linearization errors"
                       << std::endl;
         }
-        else
+        else if (exit_code != EXIT_ERROR)
         {
-            exit_code = EXIT_ERROR;
+            exit_code = EXIT_WARNING;
         }
     }
     if (o.show_linearization)
@@ -3806,6 +3890,12 @@ static void do_inspection(QPDF& pdf, Options& o)
     if (o.show_pages)
     {
         do_show_pages(pdf, o);
+    }
+    if ((! pdf.getWarnings().empty()) && (exit_code != EXIT_ERROR))
+    {
+        std::cerr << whoami
+                  << ": operation succeeded with warnings" << std::endl;
+        exit_code = EXIT_WARNING;
     }
     if (exit_code)
     {
@@ -3869,10 +3959,24 @@ ImageOptimizer::makePipeline(std::string const& description, Pipeline* next)
     }
     // Files have been seen in the wild whose width and height are
     // floating point, which is goofy, but we can deal with it.
-    JDIMENSION w = static_cast<JDIMENSION>(
-        w_obj.isInteger() ? w_obj.getIntValue() : w_obj.getNumericValue());
-    JDIMENSION h = static_cast<JDIMENSION>(
-        h_obj.isInteger() ? h_obj.getIntValue() : h_obj.getNumericValue());
+    JDIMENSION w = 0;
+    if (w_obj.isInteger())
+    {
+        w = w_obj.getUIntValueAsUInt();
+    }
+    else
+    {
+        w = static_cast<JDIMENSION>(w_obj.getNumericValue());
+    }
+    JDIMENSION h = 0;
+    if (h_obj.isInteger())
+    {
+        h = h_obj.getUIntValueAsUInt();
+    }
+    else
+    {
+        h = static_cast<JDIMENSION>(h_obj.getNumericValue());
+    }
     std::string colorspace = (colorspace_obj.isName() ?
                               colorspace_obj.getName() :
                               std::string());
@@ -4119,10 +4223,10 @@ static void validate_under_overlay(QPDF& pdf, UnderOverlay* uo, Options& o)
         return;
     }
     QPDFPageDocumentHelper main_pdh(pdf);
-    int main_npages = static_cast<int>(main_pdh.getAllPages().size());
+    int main_npages = QIntC::to_int(main_pdh.getAllPages().size());
     uo->pdf = process_file(uo->filename, uo->password, o);
     QPDFPageDocumentHelper uo_pdh(*(uo->pdf));
-    int uo_npages = static_cast<int>(uo_pdh.getAllPages().size());
+    int uo_npages = QIntC::to_int(uo_pdh.getAllPages().size());
     try
     {
         uo->to_pagenos = QUtil::parse_numrange(uo->to_nr, main_npages);
@@ -4185,7 +4289,7 @@ static void do_under_overlay_for_page(
     QPDFPageObjectHelper& dest_page,
     bool before)
 {
-    int pageno = 1 + page_idx;
+    int pageno = 1 + QIntC::to_int(page_idx);
     if (! pagenos.count(pageno))
     {
         return;
@@ -4206,7 +4310,8 @@ static void do_under_overlay_for_page(
         {
             fo[from_pageno] =
                 pdf.copyForeignObject(
-                    pages.at(from_pageno - 1).getFormXObjectForPage());
+                    pages.at(QIntC::to_size(from_pageno - 1)).
+                    getFormXObjectForPage());
         }
         // If the same page is overlaid or underlaid multiple times,
         // we'll generate multiple names for it, but that's harmless
@@ -4594,7 +4699,8 @@ static void handle_page_specs(QPDF& pdf, Options& o)
             int pageno = *pageno_iter - 1;
             pldh.getLabelsForPageRange(pageno, pageno, out_pageno,
                                        new_labels);
-            QPDFPageObjectHelper to_copy = page_data.orig_pages.at(pageno);
+            QPDFPageObjectHelper to_copy =
+                page_data.orig_pages.at(QIntC::to_size(pageno));
             QPDFObjGen to_copy_og = to_copy.getObjectHandle().getObjGen();
             unsigned long long from_uuid = page_data.qpdf->getUniqueId();
             if (copied_pages[from_uuid].count(to_copy_og))
@@ -4634,7 +4740,7 @@ static void handle_page_specs(QPDF& pdf, Options& o)
     // other places, such as the outlines dictionary.
     for (size_t pageno = 0; pageno < orig_pages.size(); ++pageno)
     {
-        if (selected_from_orig.count(pageno) == 0)
+        if (selected_from_orig.count(QIntC::to_int(pageno)) == 0)
         {
             pdf.replaceObject(
                 orig_pages.at(pageno).getObjectHandle().getObjGen(),
@@ -4647,7 +4753,7 @@ static void handle_rotations(QPDF& pdf, Options& o)
 {
     QPDFPageDocumentHelper dh(pdf);
     std::vector<QPDFPageObjectHelper> pages = dh.getAllPages();
-    int npages = static_cast<int>(pages.size());
+    int npages = QIntC::to_int(pages.size());
     for (std::map<std::string, RotationSpec>::iterator iter =
              o.rotations.begin();
          iter != o.rotations.end(); ++iter)
@@ -4663,7 +4769,8 @@ static void handle_rotations(QPDF& pdf, Options& o)
             int pageno = *i2 - 1;
             if ((pageno >= 0) && (pageno < npages))
             {
-                pages.at(pageno).rotatePage(rspec.angle, rspec.relative);
+                pages.at(QIntC::to_size(pageno)).rotatePage(
+                    rspec.angle, rspec.relative);
             }
         }
     }
@@ -4854,6 +4961,10 @@ static void set_encryption_options(QPDF& pdf, Options& o, QPDFWriter& w)
 
 static void set_writer_options(QPDF& pdf, Options& o, QPDFWriter& w)
 {
+    if (o.compression_level >= 0)
+    {
+        Pl_Flate::setCompressionLevel(o.compression_level);
+    }
     if (o.qdf_mode)
     {
         w.setQDFMode(true);
@@ -4877,6 +4988,10 @@ static void set_writer_options(QPDF& pdf, Options& o, QPDFWriter& w)
     if (o.compress_streams_set)
     {
         w.setCompressStreams(o.compress_streams);
+    }
+    if (o.recompress_flate_set)
+    {
+        w.setRecompressFlate(o.recompress_flate);
     }
     if (o.decode_level_set)
     {
@@ -4945,96 +5060,163 @@ static void set_writer_options(QPDF& pdf, Options& o, QPDFWriter& w)
     }
 }
 
-static void write_outfile(QPDF& pdf, Options& o)
+static void do_split_pages(QPDF& pdf, Options& o)
 {
-    if (o.split_pages)
+    // Generate output file pattern
+    std::string before;
+    std::string after;
+    size_t len = strlen(o.outfilename);
+    char* num_spot = strstr(const_cast<char*>(o.outfilename), "%d");
+    if (num_spot != 0)
     {
-        // Generate output file pattern
-        std::string before;
-        std::string after;
-        size_t len = strlen(o.outfilename);
-        char* num_spot = strstr(const_cast<char*>(o.outfilename), "%d");
-        if (num_spot != 0)
-        {
-            QTC::TC("qpdf", "qpdf split-pages %d");
-            before = std::string(o.outfilename, (num_spot - o.outfilename));
-            after = num_spot + 2;
-        }
-        else if ((len >= 4) &&
-                 (QUtil::strcasecmp(o.outfilename + len - 4, ".pdf") == 0))
-        {
-            QTC::TC("qpdf", "qpdf split-pages .pdf");
-            before = std::string(o.outfilename, len - 4) + "-";
-            after = o.outfilename + len - 4;
-        }
-        else
-        {
-            QTC::TC("qpdf", "qpdf split-pages other");
-            before = std::string(o.outfilename) + "-";
-        }
-
-        if (! o.preserve_unreferenced_page_resources)
-        {
-            QPDFPageDocumentHelper dh(pdf);
-            dh.removeUnreferencedResources();
-        }
-        QPDFPageLabelDocumentHelper pldh(pdf);
-        std::vector<QPDFObjectHandle> const& pages = pdf.getAllPages();
-        int pageno_len = QUtil::int_to_string(pages.size()).length();
-        unsigned int num_pages = pages.size();
-        for (unsigned int i = 0; i < num_pages; i += o.split_pages)
-        {
-            unsigned int first = i + 1;
-            unsigned int last = i + o.split_pages;
-            if (last > num_pages)
-            {
-                last = num_pages;
-            }
-            QPDF outpdf;
-            outpdf.emptyPDF();
-            for (unsigned int pageno = first; pageno <= last; ++pageno)
-            {
-                QPDFObjectHandle page = pages.at(pageno - 1);
-                outpdf.addPage(page, false);
-            }
-            if (pldh.hasPageLabels())
-            {
-                std::vector<QPDFObjectHandle> labels;
-                pldh.getLabelsForPageRange(first - 1, last - 1, 0, labels);
-                QPDFObjectHandle page_labels =
-                    QPDFObjectHandle::newDictionary();
-                page_labels.replaceKey(
-                    "/Nums", QPDFObjectHandle::newArray(labels));
-                outpdf.getRoot().replaceKey("/PageLabels", page_labels);
-            }
-            std::string page_range = QUtil::int_to_string(first, pageno_len);
-            if (o.split_pages > 1)
-            {
-                page_range += "-" + QUtil::int_to_string(last, pageno_len);
-            }
-            std::string outfile = before + page_range + after;
-            QPDFWriter w(outpdf, outfile.c_str());
-            set_writer_options(outpdf, o, w);
-            w.write();
-            if (o.verbose)
-            {
-                std::cout << whoami << ": wrote file " << outfile << std::endl;
-            }
-        }
+        QTC::TC("qpdf", "qpdf split-pages %d");
+        before = std::string(o.outfilename,
+                             QIntC::to_size(num_spot - o.outfilename));
+        after = num_spot + 2;
+    }
+    else if ((len >= 4) &&
+             (QUtil::str_compare_nocase(
+                 o.outfilename + len - 4, ".pdf") == 0))
+    {
+        QTC::TC("qpdf", "qpdf split-pages .pdf");
+        before = std::string(o.outfilename, len - 4) + "-";
+        after = o.outfilename + len - 4;
     }
     else
     {
-        if (strcmp(o.outfilename, "-") == 0)
+        QTC::TC("qpdf", "qpdf split-pages other");
+        before = std::string(o.outfilename) + "-";
+    }
+
+    if (! o.preserve_unreferenced_page_resources)
+    {
+        QPDFPageDocumentHelper dh(pdf);
+        dh.removeUnreferencedResources();
+    }
+    QPDFPageLabelDocumentHelper pldh(pdf);
+    std::vector<QPDFObjectHandle> const& pages = pdf.getAllPages();
+    size_t pageno_len = QUtil::uint_to_string(pages.size()).length();
+    size_t num_pages = pages.size();
+    for (size_t i = 0; i < num_pages; i += QIntC::to_size(o.split_pages))
+    {
+        size_t first = i + 1;
+        size_t last = i + QIntC::to_size(o.split_pages);
+        if (last > num_pages)
         {
-            o.outfilename = 0;
+            last = num_pages;
         }
-        QPDFWriter w(pdf, o.outfilename);
-        set_writer_options(pdf, o, w);
+        QPDF outpdf;
+        outpdf.emptyPDF();
+        for (size_t pageno = first; pageno <= last; ++pageno)
+        {
+            QPDFObjectHandle page = pages.at(pageno - 1);
+            outpdf.addPage(page, false);
+        }
+        if (pldh.hasPageLabels())
+        {
+            std::vector<QPDFObjectHandle> labels;
+            pldh.getLabelsForPageRange(
+                QIntC::to_longlong(first - 1),
+                QIntC::to_longlong(last - 1),
+                0, labels);
+            QPDFObjectHandle page_labels =
+                QPDFObjectHandle::newDictionary();
+            page_labels.replaceKey(
+                "/Nums", QPDFObjectHandle::newArray(labels));
+            outpdf.getRoot().replaceKey("/PageLabels", page_labels);
+        }
+        std::string page_range =
+            QUtil::uint_to_string(first, QIntC::to_int(pageno_len));
+        if (o.split_pages > 1)
+        {
+            page_range += "-" +
+                QUtil::uint_to_string(last, QIntC::to_int(pageno_len));
+        }
+        std::string outfile = before + page_range + after;
+        QPDFWriter w(outpdf, outfile.c_str());
+        set_writer_options(outpdf, o, w);
         w.write();
         if (o.verbose)
         {
-            std::cout << whoami << ": wrote file "
-                      << o.outfilename << std::endl;
+            std::cout << whoami << ": wrote file " << outfile << std::endl;
+        }
+    }
+}
+
+static void write_outfile(QPDF& pdf, Options& o)
+{
+    std::string temp_out;
+    if (o.replace_input)
+    {
+        // Use a file name that is hidden by default in the OS to
+        // avoid having it become momentarily visible in a
+        // graphical file manager or in case it gets left behind
+        // because of some kind of error.
+        temp_out = ".~qpdf-temp." + std::string(o.infilename) + "#";
+        // o.outfilename will be restored to 0 before temp_out
+        // goes out of scope.
+        o.outfilename = temp_out.c_str();
+    }
+    else if (strcmp(o.outfilename, "-") == 0)
+    {
+        o.outfilename = 0;
+    }
+    {
+        // Private scope so QPDFWriter will close the output file
+        QPDFWriter w(pdf, o.outfilename);
+        set_writer_options(pdf, o, w);
+        w.write();
+    }
+    if (o.verbose && o.outfilename)
+    {
+        std::cout << whoami << ": wrote file "
+                  << o.outfilename << std::endl;
+    }
+    if (o.replace_input)
+    {
+        o.outfilename = 0;
+    }
+    if (o.replace_input)
+    {
+        // We must close the input before we can rename files
+        pdf.closeInputSource();
+        std::string backup;
+        bool warnings = pdf.anyWarnings();
+        if (warnings)
+        {
+            // If there are warnings, the user may care about this
+            // file, so give it a non-hidden name that will be
+            // lexically grouped with the original file.
+            backup = std::string(o.infilename) + ".~qpdf-orig";
+        }
+        else
+        {
+            backup = ".~qpdf-orig." + std::string(o.infilename) + "#";
+        }
+        QUtil::rename_file(o.infilename, backup.c_str());
+        QUtil::rename_file(temp_out.c_str(), o.infilename);
+        if (warnings)
+        {
+            std::cerr << whoami
+                      << ": there are warnings; original file kept in "
+                      << backup << std::endl;
+        }
+        else
+        {
+            try
+            {
+                QUtil::remove_file(backup.c_str());
+            }
+            catch (QPDFSystemError& e)
+            {
+                std::cerr
+                    << whoami
+                    << ": unable to delete original file ("
+                    << e.what() << ");"
+                    << " original file left in " << backup
+                    << ", but the input was successfully replaced"
+                    << std::endl;
+            }
         }
     }
 }
@@ -5072,10 +5254,14 @@ int realmain(int argc, char* argv[])
         handle_under_overlay(pdf, o);
         handle_transformations(pdf, o);
 
-	if (o.outfilename == 0)
+	if ((o.outfilename == 0) && (! o.replace_input))
 	{
             do_inspection(pdf, o);
 	}
+        else if (o.split_pages)
+        {
+            do_split_pages(pdf, o);
+        }
 	else
 	{
             write_outfile(pdf, o);
@@ -5117,8 +5303,10 @@ int wmain(int argc, wchar_t* argv[])
         for (size_t j = 0; j < wcslen(argv[i]); ++j)
         {
             unsigned short codepoint = static_cast<unsigned short>(argv[i][j]);
-            utf16.append(1, static_cast<unsigned char>(codepoint >> 8));
-            utf16.append(1, static_cast<unsigned char>(codepoint & 0xff));
+            utf16.append(1, static_cast<char>(
+                             QIntC::to_uchar(codepoint >> 8)));
+            utf16.append(1, static_cast<char>(
+                             QIntC::to_uchar(codepoint & 0xff)));
         }
         std::string utf8 = QUtil::utf16_to_utf8(utf16);
         utf8_argv.push_back(
@@ -5131,7 +5319,7 @@ int wmain(int argc, wchar_t* argv[])
     {
         new_argv[i] = utf8_argv.at(i).getPointer();
     }
-    argc = static_cast<int>(utf8_argv.size());
+    argc = QIntC::to_int(utf8_argv.size());
     new_argv[argc] = 0;
     return realmain(argc, new_argv);
 }

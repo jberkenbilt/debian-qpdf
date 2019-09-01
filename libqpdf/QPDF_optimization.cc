@@ -87,11 +87,11 @@ QPDF::optimize(std::map<int, int> const& object_stream_data,
     pushInheritedAttributesToPage(allow_changes, false);
 
     // Traverse pages
-    int n = this->m->all_pages.size();
+    int n = toI(this->m->all_pages.size());
     for (int pageno = 0; pageno < n; ++pageno)
     {
         updateObjectMaps(ObjUser(ObjUser::ou_page, pageno),
-                         this->m->all_pages.at(pageno));
+                         this->m->all_pages.at(toS(pageno)));
     }
 
     // Traverse document-level items
@@ -194,6 +194,14 @@ QPDF::pushInheritedAttributesToPageInternal(
             "Loop detected in /Pages structure (inherited attributes)");
     }
     visited.insert(this_og);
+
+    if (! cur_pages.isDictionary())
+    {
+	throw QPDFExc(qpdf_e_damaged_pdf, this->m->file->getName(),
+		      this->m->last_object_description,
+		      this->m->file->getLastOffset(),
+		      "invalid object in page tree");
+    }
 
     // Extract the underlying dictionary object
     std::string type = cur_pages.getKey("/Type").getName();

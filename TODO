@@ -1,39 +1,46 @@
-Soon
-====
+Fuzz Errors
+===========
 
- * Set up OSS-Fuzz (Google). See starred email in qpdf label.
+* https://bugs.chromium.org/p/oss-fuzz/issues/detail?id=<N>
 
- * Investigate whether there is a way to automate the memory checker
-   tests for Windows, and consider running the memory checks in the
-   automated test pipeline.
+* Ignoring these:
+  * Problems inside the jpeg library: 15454, 15471, 15751, 15987
+  * Timeout in xref reconstruction (won't fix): 15659
+  * Out of memory: 15730
 
-Next ABI
-========
+C++-11 (for qpdf 10)
+====================
 
-Do these things next time we have to break binary compatibility
+* Consider requiring C++-11 for qpdf 10.
 
- * Pl_Buffer's internal structure is not right for what it does. It
-   was modified for greater efficiency, but it was done in a way that
-   preserved binary compatibility, so the implementation is a bit
-   convoluted.
+* My c++11 branch adds autoconf tests to require C++-11 and
+  re-implements PointerHolder so that it is interchangeable with
+  std::shared_ptr. It is not actually possible to just replace
+  PointerHolder with std::shared_ptr for two reasons: there is no
+  automatic creation of std::shared_ptr<T> from T* like there is for
+  PointerHolder, which breaks some code, and also there is no
+  automatic conversion from something like
+  std::vector<PointerHolder<T>> to std::vector<std::shared_ptr<T>>. It
+  may be a good idea to replace PointerHolder with std::shared_ptr in
+  the API even if it requires some work for the developer, but even if
+  that isn't worth it, we should find all occurrences of PointerHolder
+  within the code and replace with std::shared_ptr or std::unique_ptr
+  as needed. This will definitely break binary compatibility as the
+  PointerHolder<Members> pattern is part of the ABI for almost every
+  class.
 
- * Rename QUtil::strcasecmp since strcasecmp is a macro on some
-   platforms. See #242.
+* QIntC.hh could be simplified with type_traits.
 
- * Get rid of the version of QPDF::copyForeignObject with the bool
-   unused parameter.
+* Search for ::iterator and ::const_iterator and replace with either
+  auto or foreach-style iteration.
 
- * Remove version of QPDFTokenizer::expectInlineImage with no
-   arguments.
+* There may be some places where std::function and lambdas can
+  simplify handlers rather than using classes with apply methods.
 
- * Consider whether to build with -fvisibility=hidden by default. See
-   #302 for discussion.
+* Find places where we declare but don't define copy and assignment
+  and replace with deleted methods to move errors from link to compile
+  time.
 
- * Consider dealing with integer sizes in the API. Build with
-   -Wconversion -Wsign-conversion to see warnings. We won't be able to
-   resolve all, but we can possibly convert some things from int to
-   either size_t or qpdf_offset_t. Only do this if it doesn't break
-   source compatibility.
 
 Lexical
 =======
@@ -74,6 +81,7 @@ Page splitting/merging
      or splitting
    * make sure conflicting named destinations work possibly test by
      including the same file by two paths in a merge
+   * see also comments in issue 343
 
    Note: original implementation of bookmark preservation for split
    pages caused a very high performance hit. The problem was
@@ -113,6 +121,10 @@ Page splitting/merging
      numbered with upper-case Roman numerals starting with 0. All
      titles are silly words preceded by a bullet.
 
+   If outline handling is significantly improved, see
+   ../misc/bad-outlines/bad-outlines.pdf and email:
+   https://mail.google.com/mail/u/0/#search/rfc822msgid%3A02aa01d3d013%249f766990%24de633cb0%24%40mono.hr)
+
  * Form fields: should be similar to outlines.
 
 General
@@ -128,12 +140,10 @@ I find it useful to make reference to them in this list
  * Figure out how to render Gajić correctly in the PDF version of the
    qpdf manual.
 
- * Decide whether errors thrown by checkLinearization should be
-   converted to warnings. Take a pass through the linearization code
-   to see whether it's correct. Be able to view linearization data
-   even when there are errors. See linearization label in github.
-
  * Consider creating a PPA for Ubuntu
+
+ * Investigate whether there is a way to automate the memory checker
+   tests for Windows.
 
  * Support user-pluggable stream filters.  This would enable external
    code to provide interpretation for filters that are missing from
@@ -271,21 +281,6 @@ I find it useful to make reference to them in this list
    spec, and look at ~/Q/pdf-collection/form-with-full-save.pdf, which
    came from Adobe's example site.
 
- * Consider the possibility of doing something locale-aware to support
-   non-ASCII passwords. Update documentation if this is done. Consider
-   implementing full Unicode password algorithms from newer encryption
-   formats. See ../misc/unicode-password*. If code is added to
-   properly encode Unicode passwords, figure out how to deal with
-   backward compatibility. Either require some additional flag to
-   decode the password or provide a `--raw-password` flag to suppress
-   decoding. While automatically encoding breaks backward
-   compatibility, it's probably the right behavior because the current
-   behavior is arguably a bug. Alternatively, if the password doesn't
-   work as a raw password and contains characters outside US-ASCII,
-   try various encoding methods to see if any work. See section
-   7.6.3.3, algorithms 2 and 2A, in the ISO spec for details. (This is
-   tracked in https://github.com/qpdf/qpdf/issues/215.)
-
  * See if we can avoid preserving unreferenced objects in object
    streams even when preserving the object streams.
 
@@ -348,9 +343,7 @@ I find it useful to make reference to them in this list
    embedded prior to appended sections.
 
  * From a suggestion in bug 3152169, consider having an option to
-   re-encode inline images with an ASCII encoding. This is also
-   https://github.com/qpdf/qpdf/issues/278. It would be interesting to
-   make optimize-images work with inline images.
+   re-encode inline images with an ASCII encoding.
 
  * From github issue 2, provide more in-depth output for examining
    hint stream contents. Consider adding on option to provide a

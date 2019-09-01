@@ -32,6 +32,7 @@
 #include <iostream>
 #include <vector>
 
+#include <qpdf/QIntC.hh>
 #include <qpdf/QPDFExc.hh>
 #include <qpdf/QPDFObjectHandle.hh>
 #include <qpdf/QPDFObjGen.hh>
@@ -99,6 +100,14 @@ class QPDF
     QPDF_DLL
     void processInputSource(PointerHolder<InputSource>,
                             char const* password = 0);
+
+    // Close or otherwise release the input source. Once this has been
+    // called, no other methods of qpdf can be called safely except
+    // for getWarnings and anyWarnings(). After this has been called,
+    // it is safe to perform operations on the input file such as
+    // deleting or renaming it.
+    QPDF_DLL
+    void closeInputSource();
 
     // For certain forensic or investigatory purposes, it may
     // sometimes be useful to specify the encryption key directly,
@@ -204,6 +213,11 @@ class QPDF
     // here will have already been output.
     QPDF_DLL
     std::vector<QPDFExc> getWarnings();
+
+    // Indicate whether any warnings have been issued so far. Does not
+    // clear the list of warnings.
+    QPDF_DLL
+    bool anyWarnings() const;
 
     // Return an application-scoped unique ID for this QPDF object.
     // This is not a globally unique ID. It is constructing using a
@@ -405,6 +419,12 @@ class QPDF
                      encryption_method_e& string_method,
                      encryption_method_e& file_method);
 
+    QPDF_DLL
+    bool ownerPasswordMatched() const;
+
+    QPDF_DLL
+    bool userPasswordMatched() const;
+
     // Encryption permissions -- not enforced by QPDF
     QPDF_DLL
     bool allowAccessibility();
@@ -476,10 +496,11 @@ class QPDF
     QPDF_DLL
     bool isLinearized();
 
-    // Performs various sanity checks on a linearized file.  Return
-    // true if no errors or warnings.  Otherwise, return false and
+    // Performs various sanity checks on a linearized file. Return
+    // true if no errors or warnings. Otherwise, return false and
     // output errors and warnings to std::cout or the output stream
-    // specified in a call to setOutputStreams.
+    // specified in a call to setOutputStreams. It is recommended for
+    // linearization errors to be treated as warnings.
     QPDF_DLL
     bool checkLinearization();
 
@@ -655,6 +676,31 @@ class QPDF
     };
     friend class Warner;
 
+    // ParseGuard class allows QPDFObjectHandle to detect re-entrant
+    // resolution
+    class ParseGuard
+    {
+	friend class QPDFObjectHandle;
+      private:
+        ParseGuard(QPDF* qpdf) :
+            qpdf(qpdf)
+        {
+            if (qpdf)
+            {
+                qpdf->inParse(true);
+            }
+        }
+        ~ParseGuard()
+        {
+            if (qpdf)
+            {
+                qpdf->inParse(false);
+            }
+        }
+        QPDF* qpdf;
+    };
+    friend class ParseGuard;
+
     // Pipe class is restricted to QPDF_Stream
     class Pipe
     {
@@ -729,6 +775,8 @@ class QPDF
         std::string cached_object_encryption_key;
         int cached_key_objid;
         int cached_key_generation;
+        bool user_password_matched;
+        bool owner_password_matched;
     };
 
     class ForeignStreamData
@@ -814,6 +862,7 @@ class QPDF
     friend class ResolveRecorder;
 
     void parse(char const* password);
+    void inParse(bool);
     void warn(QPDFExc const& e);
     void setTrailer(QPDFObjectHandle obj);
     void read_xref(qpdf_offset_t offset);
@@ -859,7 +908,7 @@ class QPDF
     bool pipeForeignStreamData(
         PointerHolder<ForeignStreamData>,
         Pipeline*,
-        unsigned long encode_flags,
+        int encode_flags,
         qpdf_stream_decode_level_e decode_level);
     static bool pipeStreamData(PointerHolder<QPDF::EncryptionParameters> encp,
                                PointerHolder<InputSource> file,
@@ -933,9 +982,6 @@ class QPDF
 	QPDFObjectHandle& stream_dict, bool is_attachment_stream,
 	std::vector<PointerHolder<Pipeline> >& heap);
 
-    // Unused copyForeignObject -- remove at next ABI change
-    QPDFObjectHandle copyForeignObject(
-        QPDFObjectHandle foreign, bool unused);
     // Methods to support object copying
     void reserveObjects(QPDFObjectHandle foreign, ObjCopier& obj_copier,
                         bool top);
@@ -1253,7 +1299,7 @@ class QPDF
     void dumpHPageOffset();
     void dumpHSharedObject();
     void dumpHGeneric(HGeneric&);
-    int adjusted_offset(int offset);
+    qpdf_offset_t adjusted_offset(qpdf_offset_t offset);
     QPDFObjectHandle objGenToIndirect(QPDFObjGen const&);
     void calculateLinearizationData(
 	std::map<int, int> const& object_stream_data);
@@ -1297,6 +1343,20 @@ class QPDF
 				  std::set<QPDFObjGen>& visited, bool top);
     void filterCompressedObjects(std::map<int, int> const& object_stream_data);
 
+    // Type conversion helper methods
+    template<typename T> static qpdf_offset_t toO(T const& i)
+    {
+        return QIntC::to_offset(i);
+    }
+    template<typename T> static size_t toS(T const& i)
+    {
+        return QIntC::to_size(i);
+    }
+    template<typename T> static int toI(T const& i)
+    {
+        return QIntC::to_int(i);
+    }
+
     class Members
     {
         friend class QPDF;
@@ -1339,6 +1399,7 @@ class QPDF
         bool reconstructed_xref;
         bool fixed_dangling_refs;
         bool immediate_copy_from;
+        bool in_parse;
 
         // Linearization data
         qpdf_offset_t first_xref_item_offset; // actual value from file

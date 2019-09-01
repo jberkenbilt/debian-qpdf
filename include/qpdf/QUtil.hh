@@ -24,6 +24,7 @@
 
 #include <qpdf/DLL.h>
 #include <qpdf/Types.h>
+#include <qpdf/PointerHolder.hh>
 #include <string>
 #include <list>
 #include <vector>
@@ -40,7 +41,11 @@ namespace QUtil
     QPDF_DLL
     std::string int_to_string(long long, int length = 0);
     QPDF_DLL
+    std::string uint_to_string(unsigned long long, int length = 0);
+    QPDF_DLL
     std::string int_to_string_base(long long, int base, int length = 0);
+    QPDF_DLL
+    std::string uint_to_string_base(unsigned long long, int base, int length = 0);
     QPDF_DLL
     std::string double_to_string(double, int decimal_places = 0);
 
@@ -50,6 +55,10 @@ namespace QUtil
     long long string_to_ll(char const* str);
     QPDF_DLL
     int string_to_int(char const* str);
+    QPDF_DLL
+    unsigned long long string_to_ull(char const* str);
+    QPDF_DLL
+    unsigned int string_to_uint(char const* str);
 
     // Pipeline's write method wants unsigned char*, but we often have
     // some other type of string.  These methods do combinations of
@@ -100,6 +109,13 @@ namespace QUtil
 
     QPDF_DLL
     bool same_file(char const* name1, char const* name2);
+
+    QPDF_DLL
+    void remove_file(char const* path);
+
+    // rename_file will overwrite newname if it exists
+    QPDF_DLL
+    void rename_file(char const* oldname, char const* newname);
 
     QPDF_DLL
     char* copy_string(std::string const&);
@@ -296,9 +312,15 @@ namespace QUtil
     std::list<std::string> read_lines_from_file(char const* filename);
     QPDF_DLL
     std::list<std::string> read_lines_from_file(std::istream&);
-
     QPDF_DLL
-    int strcasecmp(char const *, char const *);
+    void read_file_into_memory(
+        char const* filename, PointerHolder<char>& file_buf, size_t& size);
+
+    // This used to be called strcasecmp, but that is a macro on some
+    // platforms, so we have to give it a name that is not likely to
+    // be a macro anywhere.
+    QPDF_DLL
+    int str_compare_nocase(char const *, char const *);
 
     // These routines help the tokenizer recognize certain character
     // classes without using ctype, which we avoid because of locale

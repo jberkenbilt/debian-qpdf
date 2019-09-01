@@ -1,9 +1,15 @@
 #include <qpdf/QPDF_Array.hh>
 #include <qpdf/QUtil.hh>
+#include <qpdf/QIntC.hh>
 #include <stdexcept>
 
-QPDF_Array::QPDF_Array(std::vector<QPDFObjectHandle> const& items) :
-    items(items)
+QPDF_Array::QPDF_Array(std::vector<QPDFObjectHandle> const& v)
+{
+    setFromVector(v);
+}
+
+QPDF_Array::QPDF_Array(SparseOHArray const& items) :
+    elements(items)
 {
 }
 
@@ -14,21 +20,17 @@ QPDF_Array::~QPDF_Array()
 void
 QPDF_Array::releaseResolved()
 {
-    for (std::vector<QPDFObjectHandle>::iterator iter = this->items.begin();
-	 iter != this->items.end(); ++iter)
-    {
-	QPDFObjectHandle::ReleaseResolver::releaseResolved(*iter);
-    }
+    this->elements.releaseResolved();
 }
 
 std::string
 QPDF_Array::unparse()
 {
     std::string result = "[ ";
-    for (std::vector<QPDFObjectHandle>::iterator iter = this->items.begin();
-	 iter != this->items.end(); ++iter)
+    size_t size = this->elements.size();
+    for (size_t i = 0; i < size; ++i)
     {
-	result += (*iter).unparse();
+	result += this->elements.at(i).unparse();
 	result += " ";
     }
     result += "]";
@@ -39,10 +41,10 @@ JSON
 QPDF_Array::getJSON()
 {
     JSON j = JSON::makeArray();
-    for (std::vector<QPDFObjectHandle>::iterator iter = this->items.begin();
-	 iter != this->items.end(); ++iter)
+    size_t size = this->elements.size();
+    for (size_t i = 0; i < size; ++i)
     {
-        j.addArrayElement((*iter).getJSON());
+        j.addArrayElement(this->elements.at(i).getJSON());
     }
     return j;
 }
@@ -68,62 +70,86 @@ QPDF_Array::setDescription(QPDF* qpdf, std::string const& description)
 int
 QPDF_Array::getNItems() const
 {
-    return this->items.size();
+    // This should really return a size_t, but changing it would break
+    // a lot of code.
+    return QIntC::to_int(this->elements.size());
 }
 
 QPDFObjectHandle
 QPDF_Array::getItem(int n) const
 {
-    if ((n < 0) || (n >= static_cast<int>(this->items.size())))
+    if ((n < 0) || (n >= QIntC::to_int(elements.size())))
     {
 	throw std::logic_error(
 	    "INTERNAL ERROR: bounds error accessing QPDF_Array element");
     }
-    return this->items.at(n);
+    return this->elements.at(QIntC::to_size(n));
 }
 
-std::vector<QPDFObjectHandle> const&
-QPDF_Array::getAsVector() const
+void
+QPDF_Array::getAsVector(std::vector<QPDFObjectHandle>& v) const
 {
-    return this->items;
+    size_t size = this->elements.size();
+    for (size_t i = 0; i < size; ++i)
+    {
+        v.push_back(this->elements.at(i));
+    }
 }
 
 void
 QPDF_Array::setItem(int n, QPDFObjectHandle const& oh)
 {
-    // Call getItem for bounds checking
-    (void) getItem(n);
-    this->items.at(n) = oh;
+    this->elements.setAt(QIntC::to_size(n), oh);
 }
 
 void
-QPDF_Array::setFromVector(std::vector<QPDFObjectHandle> const& items)
+QPDF_Array::setFromVector(std::vector<QPDFObjectHandle> const& v)
 {
-    this->items = items;
+    this->elements = SparseOHArray();
+    for (std::vector<QPDFObjectHandle>::const_iterator iter = v.begin();
+         iter != v.end(); ++iter)
+    {
+        this->elements.append(*iter);
+    }
 }
 
 void
 QPDF_Array::insertItem(int at, QPDFObjectHandle const& item)
 {
     // As special case, also allow insert beyond the end
-    if ((at < 0) || (at > static_cast<int>(this->items.size())))
+    if ((at < 0) || (at > QIntC::to_int(this->elements.size())))
     {
 	throw std::logic_error(
 	    "INTERNAL ERROR: bounds error accessing QPDF_Array element");
     }
-    this->items.insert(this->items.begin() + at, item);
+    this->elements.insert(QIntC::to_size(at), item);
 }
 
 void
 QPDF_Array::appendItem(QPDFObjectHandle const& item)
 {
-    this->items.push_back(item);
+    this->elements.append(item);
 }
 
 void
 QPDF_Array::eraseItem(int at)
 {
-    // Call getItem for bounds checking
-    (void) getItem(at);
-    this->items.erase(this->items.begin() + at);
+    this->elements.erase(QIntC::to_size(at));
+}
+
+SparseOHArray const&
+QPDF_Array::getElementsForShallowCopy() const
+{
+    return this->elements;
+}
+
+void
+QPDF_Array::addExplicitElementsToList(std::list<QPDFObjectHandle>& l) const
+{
+    for (std::map<size_t, QPDFObjectHandle>::const_iterator iter =
+             this->elements.begin();
+         iter != this->elements.end(); ++iter)
+    {
+        l.push_back((*iter).second);
+    }
 }

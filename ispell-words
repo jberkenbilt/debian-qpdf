@@ -5,8 +5,10 @@ abacc
 abc
 ABCD
 abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnom
+abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnom
 abcde
 abcdefABCDEF
+abcdefghbcdefghicdefghijdefghijkefghijklfghijklmg
 abcdefghbcdefghicdefghijdefghijkefghijklfghijklmg
 abcdefghijklmnopqrstuvwxyz
 ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghi
@@ -28,6 +30,7 @@ addArrayElement
 addChoicesToCompletions
 addContentTokenFilter
 addDictionaryMember
+addExplicitElementsToList
 addOptionsToCompletions
 addPage
 addPageAt
@@ -69,6 +72,7 @@ annots
 ansi
 antivirus
 anyBadTokens
+anyWarnings
 aobjid
 aoh
 ap
@@ -76,6 +80,7 @@ apexcovantage
 api
 APIs
 apis
+appdir
 appearancestate
 appendable
 appendItem
@@ -83,6 +88,7 @@ appendString
 appian
 AppImage
 appimage
+appspot
 arandom
 arg
 argc
@@ -92,6 +98,7 @@ argCoalesceContents
 argCollate
 argCompletionBash
 argCompletionZsh
+argCompressionLevel
 argCompressStreams
 argCopyEncryption
 argCopyright
@@ -143,7 +150,9 @@ argPreserveUnreferencedResources
 argProgress
 argQdf
 argRawStreamData
+argRecompressFlate
 argRemovePageLabels
+argReplaceInput
 argRotate
 args
 argShowEncryption
@@ -233,6 +242,7 @@ BBox
 bbox
 bc
 beb
+BeforeQuack
 Berkenbilt
 betweenTokens
 bf
@@ -283,6 +293,7 @@ callbacks
 callHello
 CAPTURECOUNT
 CARON
+cassert
 cb
 cbc
 cc
@@ -344,7 +355,9 @@ ClearTextMetadata
 CLI
 ClosedFileInputSource
 CloseHandle
+closeInputSource
 closeObject
+clusterfuzz
 cmath
 cmd
 cmyk
@@ -371,6 +384,7 @@ conftest
 const
 ContentNormalizer
 ContentProvider
+contentSize
 contrib
 convertIIDict
 CopiedStreamDataProvider
@@ -494,12 +508,14 @@ DLLs
 docbook
 DOCBOOKX
 docdir
+doChecks
 DocOpen
 DOCTYPE
 DocumentHelper
 doFinalChecks
 DOTLESS
 doubleBoxSize
+doWrite
 doWriteSetup
 Doxygen
 dp
@@ -548,6 +564,7 @@ embeddedFiles
 emc
 emptyPDF
 en
+enc
 encodable
 encodeDataIncrementally
 encodeFile
@@ -586,6 +603,7 @@ eraseItem
 Erdelsky's
 errno
 erroffset
+errorMessageID
 errptr
 esize
 esses
@@ -594,6 +612,7 @@ exc
 exe
 exp
 expectInlineImage
+expr
 ExtensionLevel
 extern
 externalize
@@ -653,6 +672,7 @@ fixDanglingReferences
 fl
 flarp
 flate
+Flate's
 FlateDecode
 flattenAnnotations
 flattenAnnotationsForPage
@@ -671,6 +691,7 @@ ForceR
 ForceV
 foreach
 ForeignStreamData
+FormatMessageA
 fp
 fprintf
 fR
@@ -689,6 +710,9 @@ fullinfo
 fullname
 fullpad
 func
+fuzzer
+fuzzers
+FuzzHelper
 fv
 fvisibility
 fweimer
@@ -729,6 +753,7 @@ getAsMatrix
 getAsVector
 getAttribute
 getBits
+getBitsInt
 getBitsSigned
 getBoolValue
 getBuffer
@@ -747,6 +772,7 @@ getDest
 getDestPage
 getDict
 getDictAsMap
+getElementsForShallowCopy
 getEncryptionKey
 getEncryptMetadata
 getenv
@@ -774,12 +800,15 @@ getGeneration
 getHeight
 getHexDigest
 getId
+getIdentifier
 getInheritableFieldValue
 getInheritableFieldValueAsName
 getInheritableFieldValueAsString
 getInlineImageValue
 getInstance
 getIntValue
+getIntValueAsInt
+getIntVauleAsInt
 getItem
 getJSON
 getKey
@@ -837,6 +866,7 @@ getPDFVersion
 getPerms
 getPointer
 getQPDF
+getQpdf
 getQuadding
 getR
 getRandomDataProvider
@@ -869,6 +899,8 @@ getTypeCode
 getTypeName
 getU
 getUE
+getUIntValue
+getUIntValueAsUInt
 getUncompressedObject
 getUniqueId
 getUniqueResourceName
@@ -882,6 +914,7 @@ getWarnings
 getWhoami
 getWidgetAnnotationsForPage
 getWidth
+getWriter
 GG
 ghostscript
 GhostScript
@@ -892,10 +925,13 @@ glerbl
 glibc
 gm
 gmail
+gmon
 GNUC
 gnuwin
+googleapis
 GoTo
 gpg
+gprof
 grayscale
 grep
 gsdnld
@@ -937,6 +973,7 @@ hf
 HGeneric
 hh
 HighPart
+hijklmnoijklmnopjklmnopqklmnopqrlmnopqrsmnopqrstn
 hijklmnoijklmnopjklmnopqklmnopqrlmnopqrsmnopqrstn
 hlen
 Hoffmann
@@ -1003,6 +1040,7 @@ inlineimage
 InlineImageTracker
 ino
 inode
+inParse
 inpdf
 inputLen
 InputSource
@@ -1013,6 +1051,7 @@ insertPageobjToPage
 insertXrefEntry
 inst
 int
+IntConverter
 interoperate
 interpretCF
 interpretR
@@ -1038,6 +1077,7 @@ isDataModified
 isDelimiter
 isDictionary
 isdigit
+isDirectNull
 isEncrypted
 isIgnorable
 isIndirect
@@ -1124,6 +1164,8 @@ lexer
 LF
 lhs
 libclang
+libfuzzer
+libFuzzer
 libgcc
 libjpeg
 LibJpeg
@@ -1156,13 +1198,18 @@ listitem
 ljpeg
 ll
 lld
+LLU
 llvm
+LLVMFuzzerTestOneInput
 llx
 lly
+LocalFree
 longjmp
+longlong
 lookup
 lossy
 LowPart
+LPSTR
 lqpdf
 lsb
 lt
@@ -1188,6 +1235,7 @@ makeDirectInternal
 Makefile
 makeIndirectObject
 makeInt
+MAKELANGID
 makeNull
 makeNumber
 makePipeline
@@ -1214,6 +1262,7 @@ memmove
 memset
 merchantability
 mergeResources
+messageBuffer
 metadata
 mgr
 MILLE
@@ -1232,6 +1281,7 @@ monoseq
 mr
 MSC
 msg
+msgid
 msvc
 MSVC's
 msys
@@ -1271,6 +1321,7 @@ newInlineImage
 newInteger
 NEWKEYSET
 newName
+newname
 newNull
 newOperator
 newpage
@@ -1293,6 +1344,7 @@ nmatches
 nMatches
 NoBackref
 nobjects
+nocase
 NOMATCH
 NOMEMORY
 NONINFRINGEMENT
@@ -1321,6 +1373,7 @@ NTE
 ntoh
 ntotal
 NUL
+nullptr
 num
 numericValue
 numrange
@@ -1362,6 +1415,7 @@ oi
 oiter
 okey
 ol
+oldname
 oldpdf
 olist
 omap
@@ -1378,7 +1432,7 @@ org
 orig
 orred
 os
-OSS
+oss
 ostream
 ostringstream
 ot
@@ -1392,12 +1446,14 @@ OUTDOC
 outfile
 outfilename
 outlength
+outname
 outpdf
 outpdfw
 outprefix
 outputLengthNextN
 ovecsize
 ovector
+ownerPasswordMatched
 pacman
 padLen
 Paeth
@@ -1420,6 +1476,7 @@ params
 parms
 parsecontent
 parseContentStream
+ParseGuard
 parseInternal
 parseNumrange
 parseOptions
@@ -1457,6 +1514,7 @@ performant
 perl
 persistAcrossFinish
 Pfeifle
+pg
 ph
 phe
 php
@@ -1464,8 +1522,11 @@ pikepdf
 pipeContentStreams
 pipeForeignStreamData
 PipelineAccessor
+PipelinePopper
+PipelinePopper's
 pipePageContents
 pipeStreamData
+pipeStreamData's
 pipeStringAndFinish
 Pkey
 pkg
@@ -1487,7 +1548,7 @@ popup
 pornin
 pos
 POSIX
-PP
+pp
 PPA
 pr
 pragma
@@ -1512,6 +1573,7 @@ processXRefStream
 procset
 ProcSet
 procsets
+progname
 programlisting
 programmatically
 ProgressReporter
@@ -1527,6 +1589,7 @@ pt
 ptemp
 pthread
 ptr
+pubkey
 pushDiscardFilter
 pushEncryptionFilter
 pushInheritedAttributesToPage
@@ -1536,6 +1599,7 @@ pushOutlinesToPart
 pushPipeline
 PUTU
 PWD
+py
 pypi
 qarray
 QArray
@@ -1545,6 +1609,7 @@ QDFWriter
 qdict
 QDict
 QEXC
+QIntC
 ql
 qnumbers
 QNumbers
@@ -1608,6 +1673,7 @@ quoteright
 quotesinglbase
 QUtil
 qutil
+qw
 qwert
 rand
 RandomDataProvider
@@ -1664,6 +1730,7 @@ replaceObject
 replaceOrRemoveKey
 replaceReserved
 replaceStreamData
+repo
 reportProgress
 repos
 requiredChoices
@@ -1680,6 +1747,7 @@ retargeted
 retested
 reverseResolved
 rf
+rfc
 rfont
 rg
 rgb
@@ -1713,6 +1781,7 @@ runtest
 Sahil
 sahilarora
 sAlT
+sanitizers
 saphir
 sarray
 SASLprep
@@ -1726,15 +1795,18 @@ se
 SecureRandomDataProvider
 sed
 seekable
+segfaulting
 sendNextCode
 sep
 seq
 serif
 setArrayFromVector
 setArrayItem
+setAt
 setAttemptRecovery
 setbase
 setCheckBoxValue
+setCompressionLevel
 setCompressStreams
 setContentNormalization
 setDataKey
@@ -1783,6 +1855,7 @@ setQDFMode
 setR
 setRadioButtonValue
 setRandomDataProvider
+setRecompressFlate
 setStaticAesIV
 setStaticID
 setStreamDataMode
@@ -1808,6 +1881,7 @@ softlink
 solidus
 sourceforge
 SourceForge
+SparseOHArray
 sph
 sphlib
 sprintf
@@ -1865,14 +1939,19 @@ strtod
 strtoi
 strtol
 strtoll
+strtoui
+strtoull
 struct
 stylesheet
 stylesheets
+subclassed
 subclasses
+subclassing
 subdictionaries
 subdictionary
 SubFilter
 SubFilters
+SUBLANG
 sublicense
 subparsers
 Subramanyam
@@ -1897,11 +1976,15 @@ tarball
 TARNAME
 tbuf
 tc
-Td
+td
 Te
 TerminateParsing
 terminateParsing
+testcase
+testOutlines
+testPages
 TESTSUITE
+testWrite
 tf
 tff
 TfFinder
@@ -1918,11 +2001,13 @@ Tm
 tmatrix
 tmp
 tnum
+To's
 Tobias
 tobj
 tobjid
 TODO
 toffset
+toI
 tok
 TokenFilter
 TokenFilters
@@ -1931,8 +2016,10 @@ tokenized
 tokenizer
 tokenizing
 tokenTypeName
+toO
 toolchain
 toolchains
+toS
 toupper
 toUTF
 tp
@@ -1953,21 +2040,26 @@ Tval
 tx
 txt
 ty
+typeinfo
 typename
 typeWarning
 ubuntu
 uc
+uchar
 udata
 UE
 uHHHH
 uinow
 uint
 uiter
-UL
+ul
 ULARGE
 ulink
+ull
 uLong
-ULONGLONG
+ulong
+ulonglong
+umask
 uncompresesd
 uncompress
 uncompressing
@@ -1980,6 +2072,7 @@ understandDecodeParams
 unencrypted
 unfilterable
 ungetc
+unhandled
 unicode
 uninstalled
 unistd
@@ -2010,9 +2103,11 @@ ury
 usageExit
 UseAes
 UseOutlines
+userPasswordMatched
 UserUnit
 useStaticIV
 useZeroIV
+ushort
 USLetter
 usr
 utf
@@ -2063,11 +2158,15 @@ wmain
 wmatrix
 wmode
 wmodep
-Wold
+wnew
+wold
+wpath
 wrapInArray
+wrename
 writeAppearance
 writeBinary
 writeBits
+writeBitsInt
 writeBitsSigned
 writeBuffer
 writeEncryptionDictionary
@@ -2091,6 +2190,7 @@ writeTrailer
 writeXRefStream
 writeXRefTable
 Wsign
+wunlink
 www
 WX
 wxWindows
@@ -2098,6 +2198,7 @@ xA
 xa
 xABUL
 xb
+xbc
 xbd
 xbebfbc
 xbf
@@ -2115,6 +2216,7 @@ xefcdab
 xF
 xf
 xFC
+xfc
 xfcefa
 xfd
 xfde
@@ -2161,6 +2263,7 @@ zarko
 Zarko's
 zcaron
 zdata
+zdenop
 Zeroize
 zeroizing
 zfree

@@ -27,13 +27,14 @@
 class Pl_Flate: public Pipeline
 {
   public:
-    static int const def_bufsize = 65536;
+    static unsigned int const def_bufsize = 65536;
+    static int compression_level;
 
     enum action_e { a_inflate, a_deflate };
 
     QPDF_DLL
     Pl_Flate(char const* identifier, Pipeline* next,
-	     action_e action, int out_bufsize = def_bufsize);
+	     action_e action, unsigned int out_bufsize = def_bufsize);
     QPDF_DLL
     virtual ~Pl_Flate();
 
@@ -42,15 +43,39 @@ class Pl_Flate: public Pipeline
     QPDF_DLL
     virtual void finish();
 
+    // Globally set compression level from 1 (fastest, least
+    // compression) to 9 (slowest, most compression). Use -1 to set
+    // the default compression level. This is passed directly to zlib.
+    // This method returns a pointer to the current Pl_Flate object so
+    // you can create a pipeline with
+    // Pl_Flate(...)->setCompressionLevel(...)
+    QPDF_DLL
+    static void setCompressionLevel(int);
+
   private:
-    void handleData(unsigned char* data, int len, int flush);
+    void handleData(unsigned char* data, size_t len, int flush);
     void checkError(char const* prefix, int error_code);
 
-    unsigned char* outbuf;
-    int out_bufsize;
-    action_e action;
-    bool initialized;
-    void* zdata;
+    class Members
+    {
+        friend class Pl_Flate;
+
+      public:
+        QPDF_DLL
+        ~Members();
+
+      private:
+        Members(size_t out_bufsize, action_e action);
+        Members(Members const&);
+
+        PointerHolder<unsigned char> outbuf;
+        size_t out_bufsize;
+        action_e action;
+        bool initialized;
+        void* zdata;
+    };
+
+    PointerHolder<Members> m;
 };
 
 #endif // PL_FLATE_HH

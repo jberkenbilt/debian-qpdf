@@ -2,7 +2,7 @@ dnl Process this file with autoconf to produce a configure script.
 dnl This config.in requires autoconf 2.5 or greater.
 
 AC_PREREQ([2.68])
-AC_INIT([qpdf],[8.4.2])
+AC_INIT([qpdf],[9.0.0])
 
 AC_CONFIG_MACRO_DIR([m4])
 AC_CONFIG_FILES([autoconf.mk])
@@ -51,15 +51,42 @@ LT_INIT([win32-dll])
 # * Otherwise, increment LT_REVISION
 
 # LT = libtool
-LT_CURRENT=25
-LT_AGE=4
-LT_REVISION=2
+LT_CURRENT=26
+LT_AGE=0
+LT_REVISION=0
 AC_SUBST(LT_CURRENT)
 AC_SUBST(LT_REVISION)
 AC_SUBST(LT_AGE)
 LT_SONAME=$(expr $LT_CURRENT - $LT_AGE)
 AC_SUBST(LT_SONAME)
 
+AC_MSG_CHECKING(for -fvisibility=hidden)
+try_flags=-fvisibility=hidden
+oCXXFLAGS=$CXXFLAGS
+CXXFLAGS="$CXXFLAGS $try_flags"
+AC_LANG_PUSH([C++])
+AC_LINK_IFELSE([AC_LANG_PROGRAM(
+    [[class X
+{
+  public:
+    __attribute__ ((visibility ("default")))
+    X() {}
+    __attribute__ ((visibility ("default")))
+    void f() {}
+};
+   ]],[[X x; x.f();]])],
+   [qpdf_VISIBILITY_HIDDEN=1],
+   [qpdf_VISIBILITY_HIDDEN=0])
+AC_LANG_POP
+if test "$qpdf_VISIBILITY_HIDDEN" = "0"; then
+   AC_MSG_RESULT(no)
+   CXXFLAGS=$oCXXFLAGS
+else
+   AC_MSG_RESULT(yes)
+   CFLAGS="$CFLAGS $try_flags"
+fi
+
+AC_MSG_CHECKING(whether to use insecure random numbers)
 AC_ARG_ENABLE(insecure-random,
    AS_HELP_STRING([--enable-insecure-random],
                   [whether to use stdlib's random number generator (default is no)]),
@@ -75,6 +102,7 @@ else
    AC_MSG_RESULT(no)
 fi
 
+AC_MSG_CHECKING(whether to use OS-provided secure random numbers)
 AC_ARG_ENABLE(os-secure-random,
    AS_HELP_STRING([--enable-os-secure-random],
                   [whether to try to use OS-provided secure random numbers (default is yes)]),
@@ -92,6 +120,7 @@ fi
 
 AX_RANDOM_DEVICE
 
+AC_MSG_CHECKING(whether to avoid Windows HANDLE type)
 AC_ARG_ENABLE(avoid-windows-handle,
    AS_HELP_STRING([--enable-avoid-windows-handle],
                   [whether to avoid use of HANDLE, useful for some embedded Windows builds (default is no)]),
@@ -123,26 +152,50 @@ else
    AC_MSG_RESULT(yes)
 fi
 
-WINDOWS_WORDSIZE=
-AC_SUBST(WINDOWS_WORDSIZE)
-AC_ARG_WITH(windows-wordsize,
-   AS_HELP_STRING([--with-windows-wordsize={32,64}],
-		  [Windows only: whether this is a 32-bit or 64-bit build; required if external-libs are enabled]),
-   [WINDOWS_WORDSIZE=$withval],
-   [WINDOWS_WORDSIZE=none])
-if test "$USE_EXTERNAL_LIBS" = "1"; then
-   AC_MSG_CHECKING(for windows wordsize)
-   AC_MSG_RESULT($WINDOWS_WORDSIZE)
-   if ! test "$WINDOWS_WORDSIZE" = "32" -o "$WINDOWS_WORDSIZE" = "64"; then
-      AC_MSG_ERROR(Windows wordsize of 32 or 64 must be specified if external libs are being used.)
-   fi
+AC_CHECK_SIZEOF([size_t])
+if test "$ac_cv_sizeof_size_t" = "4"; then
+   IS_32BIT=1
+   WINDOWS_WORDSIZE=32
+else
+   IS_32BIT=0
+   WINDOWS_WORDSIZE=64
 fi
+AC_SUBST(IS_32BIT)
+AC_SUBST(WINDOWS_WORDSIZE)
 
+PKG_PROG_PKG_CONFIG
 if test "$BUILD_INTERNAL_LIBS" = "0"; then
-   AC_CHECK_HEADER(zlib.h,,[MISSING_ZLIB_H=1; MISSING_ANY=1])
-   AC_SEARCH_LIBS(deflate,z zlib,,[MISSING_ZLIB=1; MISSING_ANY=1])
-   AC_CHECK_HEADER(jpeglib.h,,[MISSING_JPEG_H=1; MISSING_ANY=1])
-   AC_SEARCH_LIBS(jpeg_destroy,jpeg,,[MISSING_JPEG=1; MISSING_ANY=1])
+    if test "$PKG_CONFIG" != ""; then
+       PKG_CHECK_MODULES([pc_zlib], [zlib],
+         [CFLAGS="$CFLAGS $pc_zlib_CFLAGS"
+          CXXFLAGS="$CXXFLAGS $pc_zlib_CXXFLAGS"
+          LIBS="$LIBS $pc_zlib_LIBS"
+         ], [:])
+       PKG_CHECK_MODULES([pc_libjpeg], [libjpeg],
+         [CFLAGS="$CFLAGS $pc_libjpeg_CFLAGS"
+          CXXFLAGS="$CXXFLAGS $pc_libjpeg_CXXFLAGS"
+          LIBS="$LIBS $pc_libjpeg_LIBS"
+         ],[:])
+    fi
+    if test "$pc_zlib_LIBS" = ""; then
+        AC_CHECK_HEADER(zlib.h,,[MISSING_ZLIB_H=1; MISSING_ANY=1])
+        AC_SEARCH_LIBS(deflate,z zlib,,[MISSING_ZLIB=1; MISSING_ANY=1])
+    fi
+    if test "$pc_libjpeg_LIBS" = ""; then
+        AC_CHECK_HEADER(jpeglib.h,,[MISSING_JPEG_H=1; MISSING_ANY=1])
+        AC_SEARCH_LIBS(jpeg_destroy,jpeg,,[MISSING_JPEG=1; MISSING_ANY=1])
+    fi
+    if test "$LIBS" != ""; then
+        nLIBS=""
+        for x in $LIBS; do
+            if echo $x | grep -q '^-L'; then
+                LDFLAGS="$LDFLAGS $x"
+            else
+                nLIBS="$nLIBS $x"
+            fi
+            LIBS=$nLIBS
+        done
+    fi
 fi
 
 qpdf_USE_WMAIN=0
@@ -392,6 +445,27 @@ else
    AC_MSG_RESULT(no)
 fi
 
+if test "$BUILDRULES" = "msvc"; then
+   try_flags="-W3"
+else
+   try_flags="-Wconversion -Wsign-conversion"
+fi
+AC_MSG_CHECKING(for whether to use $try_flags)
+AC_ARG_ENABLE(int-warnings,
+   AS_HELP_STRING([--enable-int-warnings],
+                  [whether to turn on integer type warnings (default is yes)]),
+   [if test "$enableval" = "yes"; then
+      qpdf_INT_WARNINGS=1;
+    else
+      qpdf_INT_WARNINGS=0;
+    fi], [qpdf_INT_WARNINGS=1])
+if test "$qpdf_INT_WARNINGS" = "1"; then
+   AC_MSG_RESULT(yes)
+   WFLAGS="$WFLAGS $try_flags"
+else
+   AC_MSG_RESULT(no)
+fi
+
 AC_SUBST(QPDF_SKIP_TEST_COMPARE_IMAGES)
 AC_ARG_ENABLE(test-compare-images,
    AS_HELP_STRING([--enable-test-compare-images],
@@ -500,6 +574,17 @@ AC_ARG_ENABLE(validate-doc,
       VALIDATE_DOC=0;
     fi],
    [VALIDATE_DOC=$doc_default])
+
+AC_SUBST(OSS_FUZZ)
+AC_ARG_ENABLE(oss-fuzz,
+   AS_HELP_STRING([--enable-oss-fuzz],
+		  [if set, build static fuzzers for oss-fuzz]),
+   [if test "$enableval" = "yes"; then
+      OSS_FUZZ=1;
+    else
+      OSS_FUZZ=0;
+    fi],
+   [OSS_FUZZ=0])
 
 if test "$VALIDATE_DOC" = "1"; then
    if test "$XMLLINT" = ""; then

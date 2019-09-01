@@ -54,10 +54,28 @@ class BufferInputSource: public InputSource
     virtual void unreadCh(char ch);
 
   private:
-    bool own_memory;
-    std::string description;
-    Buffer* buf;
-    qpdf_offset_t cur_offset;
+    static void range_check(qpdf_offset_t cur, qpdf_offset_t delta);
+
+    class Members
+    {
+        friend class BufferInputSource;
+
+      public:
+        QPDF_DLL
+        ~Members();
+
+      private:
+        Members(bool own_memory, std::string const& description, Buffer* buf);
+        Members(Members const&);
+
+        bool own_memory;
+        std::string description;
+        Buffer* buf;
+        qpdf_offset_t cur_offset;
+        qpdf_offset_t max_offset;
+    };
+
+    PointerHolder<Members> m;
 };
 
 #endif // QPDF_BUFFERINPUTSOURCE_HH
