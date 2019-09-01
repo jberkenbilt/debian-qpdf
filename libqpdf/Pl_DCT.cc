@@ -2,6 +2,7 @@
 
 #include <qpdf/QUtil.hh>
 #include <qpdf/QTC.hh>
+#include <qpdf/QIntC.hh>
 
 #include <setjmp.h>
 #include <stdexcept>
@@ -30,10 +31,30 @@ error_handler(j_common_ptr cinfo)
     longjmp(jerr->jmpbuf, 1);
 }
 
+Pl_DCT::Members::Members(action_e action,
+                         char const* buf_description,
+                         JDIMENSION image_width,
+                         JDIMENSION image_height,
+                         int components,
+                         J_COLOR_SPACE color_space,
+                         CompressConfig* config_callback) :
+    action(action),
+    buf(buf_description),
+    image_width(image_width),
+    image_height(image_height),
+    components(components),
+    color_space(color_space),
+    config_callback(config_callback)
+{
+}
+
+Pl_DCT::Members::~Members()
+{
+}
+
 Pl_DCT::Pl_DCT(char const* identifier, Pipeline* next) :
     Pipeline(identifier, next),
-    action(a_decompress),
-    buf("DCT compressed image")
+    m(new Members(a_decompress, "DCT compressed image"))
 {
 }
 
@@ -44,13 +65,8 @@ Pl_DCT::Pl_DCT(char const* identifier, Pipeline* next,
                J_COLOR_SPACE color_space,
                CompressConfig* config_callback) :
     Pipeline(identifier, next),
-    action(a_compress),
-    buf("DCT uncompressed image"),
-    image_width(image_width),
-    image_height(image_height),
-    components(components),
-    color_space(color_space),
-    config_callback(config_callback)
+    m(new Members(a_compress, "DCT uncompressed image",
+      image_width, image_height, components, color_space, config_callback))
 {
 }
 
@@ -61,18 +77,18 @@ Pl_DCT::~Pl_DCT()
 void
 Pl_DCT::write(unsigned char* data, size_t len)
 {
-    this->buf.write(data, len);
+    this->m->buf.write(data, len);
 }
 
 void
 Pl_DCT::finish()
 {
-    this->buf.finish();
+    this->m->buf.finish();
 
     // Using a PointerHolder<Buffer> here and passing it into compress
     // and decompress causes a memory leak with setjmp/longjmp. Just
     // use a pointer and delete it.
-    Buffer* b = this->buf.getBuffer();
+    Buffer* b = this->m->buf.getBuffer();
     if (b->getSize() == 0)
     {
         // Special case: empty data will never succeed and probably
@@ -98,7 +114,7 @@ Pl_DCT::finish()
     {
         try
         {
-            if (this->action == a_compress)
+            if (this->m->action == a_compress)
             {
                 compress(reinterpret_cast<void*>(&cinfo_compress), b);
             }
@@ -122,11 +138,11 @@ Pl_DCT::finish()
     }
     delete b;
 
-    if (this->action == a_compress)
+    if (this->m->action == a_compress)
     {
         jpeg_destroy_compress(&cinfo_compress);
     }
-    if (this->action == a_decompress)
+    if (this->m->action == a_decompress)
     {
         jpeg_destroy_decompress(&cinfo_decompress);
     }
@@ -213,7 +229,7 @@ skip_buffer_input_data(j_decompress_ptr cinfo, long num_bytes)
             "reading jpeg: jpeg library requested"
             " skipping a negative number of bytes");
     }
-    size_t to_skip = static_cast<size_t>(num_bytes);
+    size_t to_skip = QIntC::to_size(num_bytes);
     if ((to_skip > 0) && (to_skip <= cinfo->src->bytes_in_buffer))
     {
         cinfo->src->next_input_byte += to_skip;
@@ -271,27 +287,29 @@ Pl_DCT::compress(void* cinfo_p, Buffer* b)
     unsigned char* outbuffer = outbuffer_ph.getPointer();
     jpeg_pipeline_dest(cinfo, outbuffer, BUF_SIZE, this->getNext());
 
-    cinfo->image_width = this->image_width;
-    cinfo->image_height = this->image_height;
-    cinfo->input_components = this->components;
-    cinfo->in_color_space = this->color_space;
+    cinfo->image_width = this->m->image_width;
+    cinfo->image_height = this->m->image_height;
+    cinfo->input_components = this->m->components;
+    cinfo->in_color_space = this->m->color_space;
     jpeg_set_defaults(cinfo);
-    if (this->config_callback)
+    if (this->m->config_callback)
     {
-        this->config_callback->apply(cinfo);
+        this->m->config_callback->apply(cinfo);
     }
 
     jpeg_start_compress(cinfo, TRUE);
 
-    int width = cinfo->image_width * cinfo->input_components;
+    unsigned int width = cinfo->image_width *
+        QIntC::to_uint(cinfo->input_components);
     size_t expected_size =
-        cinfo->image_height * cinfo->image_width * cinfo->input_components;
+        cinfo->image_height * cinfo->image_width *
+        QIntC::to_uint(cinfo->input_components);
     if (b->getSize() != expected_size)
     {
         throw std::runtime_error(
             "Pl_DCT: image buffer size = " +
-            QUtil::int_to_string(b->getSize()) + "; expected size = " +
-            QUtil::int_to_string(expected_size));
+            QUtil::uint_to_string(b->getSize()) + "; expected size = " +
+            QUtil::uint_to_string(expected_size));
     }
     JSAMPROW row_pointer[1];
     unsigned char* buffer = b->getBuffer();
@@ -326,7 +344,8 @@ Pl_DCT::decompress(void* cinfo_p, Buffer* b)
     (void) jpeg_read_header(cinfo, TRUE);
     (void) jpeg_calc_output_dimensions(cinfo);
 
-    int width = cinfo->output_width * cinfo->output_components;
+    unsigned int width = cinfo->output_width *
+        QIntC::to_uint(cinfo->output_components);
     JSAMPARRAY buffer = (*cinfo->mem->alloc_sarray)
         (reinterpret_cast<j_common_ptr>(cinfo), JPOOL_IMAGE, width, 1);
 

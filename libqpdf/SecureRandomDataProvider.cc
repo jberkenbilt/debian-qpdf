@@ -53,6 +53,7 @@ class WindowsCryptProvider
 #           pragma GCC diagnostic push
 #           pragma GCC diagnostic ignored "-Wold-style-cast"
 #           pragma GCC diagnostic ignored "-Wsign-compare"
+#           pragma GCC diagnostic ignored "-Wsign-conversion"
 #endif
             if (GetLastError() == NTE_BAD_KEYSET)
 #if ((defined(__GNUC__) && ((__GNUC__ * 100) + __GNUC_MINOR__) >= 406) || \
@@ -61,18 +62,21 @@ class WindowsCryptProvider
 #endif
             {
                 if (! CryptAcquireContext(&crypt_prov,
-                                         "Container",
-                                         NULL,
-                                         PROV_RSA_FULL,
-                                         CRYPT_NEWKEYSET))
+                                          "Container",
+                                          NULL,
+                                          PROV_RSA_FULL,
+                                          CRYPT_NEWKEYSET))
                 {
                     throw std::runtime_error(
-                        "unable to acquire crypt context with new keyset");
+                        "unable to acquire crypt context with new keyset: " +
+                        getErrorMessage());
                 }
             }
             else
             {
-                throw std::runtime_error("unable to acquire crypt context");
+                throw std::runtime_error(
+                    "unable to acquire crypt context: " +
+                    getErrorMessage());
             }
         }
     }
@@ -83,6 +87,24 @@ class WindowsCryptProvider
     }
 
     HCRYPTPROV crypt_prov;
+
+  private:
+    std::string getErrorMessage()
+    {
+        DWORD errorMessageID = ::GetLastError();
+        LPSTR messageBuffer = nullptr;
+        size_t size = FormatMessageA(
+            FORMAT_MESSAGE_ALLOCATE_BUFFER |
+            FORMAT_MESSAGE_FROM_SYSTEM |
+            FORMAT_MESSAGE_IGNORE_INSERTS, NULL, errorMessageID,
+            MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
+            reinterpret_cast<LPSTR>(&messageBuffer), 0, NULL);
+        std::string message(messageBuffer, size);
+        LocalFree(messageBuffer);
+        return ("error number " +
+                QUtil::int_to_string_base(errorMessageID, 16) +
+                ": " + message);
+    }
 };
 #endif
 
@@ -94,7 +116,8 @@ SecureRandomDataProvider::provideRandomData(unsigned char* data, size_t len)
     // Optimization: make the WindowsCryptProvider static as long as
     // it can be done in a thread-safe fashion.
     WindowsCryptProvider c;
-    if (! CryptGenRandom(c.crypt_prov, len, reinterpret_cast<BYTE*>(data)))
+    if (! CryptGenRandom(c.crypt_prov, static_cast<DWORD>(len),
+                         reinterpret_cast<BYTE*>(data)))
     {
         throw std::runtime_error("unable to generate secure random data");
     }
@@ -112,7 +135,7 @@ SecureRandomDataProvider::provideRandomData(unsigned char* data, size_t len)
     {
         throw std::runtime_error(
             "unable to read " +
-            QUtil::int_to_string(len) +
+            QUtil::uint_to_string(len) +
             " bytes from " + std::string(RANDOM_DEVICE));
     }
 

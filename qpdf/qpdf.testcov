@@ -27,7 +27,6 @@ QPDF lin outlines in part 1
 QPDF lin nshared_total > nshared_first_page 1
 QPDF lin part 8 empty 1
 QPDF lin check shared past first page 0
-QPDFWriter flatten array null 0
 main QTest implicit 0
 main QTest indirect 1
 main QTest null 0
@@ -81,7 +80,6 @@ QPDFObjectHandle clone array 0
 QPDFObjectHandle clone dictionary 0
 QPDFObjectHandle makeDirect loop 0
 QPDFObjectHandle ERR clone stream 0
-QPDFTokenizer allow pound anywhere in name 0
 QPDF default for xref stream field 0 0
 QPDF prev key in xref stream dictionary 0
 QPDF prev key in trailer dictionary 0
@@ -276,7 +274,6 @@ QPDFObjectHandle no val for last key 0
 QPDF resolve failure to null 0
 QPDFWriter preserve unreferenced standard 0
 QPDFObjectHandle errors in parsecontent 0
-QPDF stream with non-space 0
 qpdf same file error 0
 qpdf read args from stdin 0
 qpdf read args from file 0
@@ -431,11 +428,20 @@ qpdf from_nr from repeat_nr 0
 QPDF resolve duplicated page object 0
 QPDF handle direct page object 0
 QPDFTokenizer finder found wrong word 0
-QPDFTokenizer found EI the old way 0
 QPDFTokenizer found EI by byte count 0
-QPDFTokenizer inline image at EOF the old way 0
 QPDFTokenizer found EI after more than one try 0
 QPDFPageObjectHelper externalize inline image 0
 QPDFPageObjectHelper keep inline image 0
 qpdf image optimize colorspace 0
 qpdf image optimize bits per component 0
+QPDFWriter remove empty DecodeParms 0
+QPDFObjectHandle uint returning 0 0
+QPDFObjectHandle int returning INT_MIN 0
+QPDFObjectHandle int returning INT_MAX 0
+QPDFObjectHandle uint returning UINT_MAX 0
+QPDFObjectHandle uint uint returning 0 0
+QPDF xref skipped space 0
+QPDF eof skipping spaces before xref 1
+QPDF_encryption user matches owner V < 5 0
+QPDF_encryption same password 1
+QPDFWriter stream in ostream 0

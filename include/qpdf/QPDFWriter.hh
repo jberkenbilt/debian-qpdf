@@ -76,7 +76,7 @@ class QPDFWriter
     QPDF_DLL
     ~QPDFWriter();
 
-    class ProgressReporter
+    class QPDF_DLL_CLASS ProgressReporter
     {
       public:
         virtual ~ProgressReporter()
@@ -189,14 +189,15 @@ class QPDFWriter
     // filters on the input. When combined with
     // setCompressStreams(true), which the default, the effect of this
     // is that streams filtered with these older and less efficient
-    // filters will be recompressed with the Flate filter. As a
-    // special case, if a stream is already compressed with
+    // filters will be recompressed with the Flate filter. By default,
+    // as a special case, if a stream is already compressed with
     // FlateDecode and setCompressStreams is enabled, the original
-    // compressed data will be preserved.
+    // compressed data will be preserved. This behavior can be
+    // overridden by calling setRecompressFlate(true).
     //
     // qpdf_dl_specialized: In addition to uncompressing the
     // generalized compression formats, supported non-lossy
-    // compression will also be be decoded. At present, this includes
+    // compression will also be decoded. At present, this includes
     // the RunLengthDecode filter.
     //
     // qpdf_dl_all: In addition to generalized and non-lossy
@@ -208,6 +209,15 @@ class QPDFWriter
     // retrieving image data.
     QPDF_DLL
     void setDecodeLevel(qpdf_stream_decode_level_e);
+
+    // By default, when both the input and output contents of a stream
+    // are compressed with Flate, qpdf does not uncompress and
+    // recompress the stream. Passing true here causes it to do so.
+    // This can be useful if recompressing all streams with a higher
+    // compression level, which can be set by calling the static
+    // method Pl_Flate::setCompressionLevel.
+    QPDF_DLL
+    void setRecompressFlate(bool);
 
     // Set value of content stream normalization.  The default is
     // "false".  If true, we attempt to normalize newlines inside of
@@ -248,9 +258,7 @@ class QPDFWriter
     // R3 encryption parameters are used, and to 1.5 when object
     // streams are used.
     QPDF_DLL
-    void setMinimumPDFVersion(std::string const&);
-    QPDF_DLL
-    void setMinimumPDFVersion(std::string const&, int extension_level);
+    void setMinimumPDFVersion(std::string const&, int extension_level = 0);
 
     // Force the PDF version of the output file to be a given version.
     // Use of this function may create PDF files that will not work
@@ -268,9 +276,7 @@ class QPDFWriter
     // Additionally, forcing to a version below 1.5 will disable
     // object streams.
     QPDF_DLL
-    void forcePDFVersion(std::string const&);
-    QPDF_DLL
-    void forcePDFVersion(std::string const&, int extension_level);
+    void forcePDFVersion(std::string const&, int extension_level = 0);
 
     // Provide additional text to insert in the PDF file somewhere
     // near the beginning of the file.  This can be used to add
@@ -467,7 +473,35 @@ class QPDFWriter
 
     enum trailer_e { t_normal, t_lin_first, t_lin_second };
 
-    int bytesNeeded(unsigned long long n);
+    // An reference to a PipelinePopper instance is passed into
+    // activatePipelineStack. When the PipelinePopper goes out of
+    // scope, the pipeline stack is popped. PipelinePopper's
+    // destructor calls finish on the current pipeline and pops the
+    // pipeline stack until the top of stack is a previous active top
+    // of stack, and restores the pipeline to that point. It deletes
+    // any pipelines that it pops. If the bp argument is non-null and
+    // any of the stack items are of type Pl_Buffer, the buffer is
+    // retrieved.
+    class PipelinePopper
+    {
+        friend class QPDFWriter;
+      public:
+        PipelinePopper(QPDFWriter* qw,
+                       PointerHolder<Buffer>* bp = 0) :
+            qw(qw),
+            bp(bp)
+        {
+        }
+        ~PipelinePopper();
+
+      private:
+        QPDFWriter* qw;
+        PointerHolder<Buffer>* bp;
+        std::string stack_id;
+    };
+    friend class PipelinePopper;
+
+    unsigned int bytesNeeded(long long n);
     void writeBinary(unsigned long long val, unsigned int bytes);
     void writeString(std::string const& str);
     void writeBuffer(PointerHolder<Buffer>&);
@@ -483,12 +517,9 @@ class QPDFWriter
     void writeTrailer(trailer_e which, int size,
 		      bool xref_stream, qpdf_offset_t prev,
                       int linearization_pass);
-    void unparseObject(QPDFObjectHandle object, int level,
-		       unsigned int flags);
-    void unparseObject(QPDFObjectHandle object, int level,
-		       unsigned int flags,
+    void unparseObject(QPDFObjectHandle object, int level, int flags,
 		       // for stream dictionaries
-		       size_t stream_length, bool compress);
+		       size_t stream_length = 0, bool compress = false);
     void unparseChild(QPDFObjectHandle child, int level, int flags);
     void initializeSpecialStreams();
     void preserveObjectStreams();
@@ -510,7 +541,7 @@ class QPDFWriter
 	char const* user_password, char const* owner_password,
 	int V, int R, int key_len, std::set<int>& bits_to_clear);
     void setEncryptionParametersInternal(
-	int V, int R, int key_len, long P,
+	int V, int R, int key_len, int P,
 	std::string const& O, std::string const& U,
 	std::string const& OE, std::string const& UE, std::string const& Perms,
 	std::string const& id1, std::string const& user_password,
@@ -554,27 +585,20 @@ class QPDFWriter
         qpdf_offset_t hint_length,
         bool skip_compression,
         int linearization_pass);
-    int calculateXrefStreamPadding(int xref_bytes);
+    int calculateXrefStreamPadding(qpdf_offset_t xref_bytes);
 
     // When filtering subsections, push additional pipelines to the
-    // stack.  When ready to switch, activate the pipeline stack.
-    // Pipelines passed to pushPipeline are deleted when
-    // clearPipelineStack is called.
+    // stack. When ready to switch, activate the pipeline stack. When
+    // the passed in PipelinePopper goes out of scope, the stack is
+    // popped.
     Pipeline* pushPipeline(Pipeline*);
-    void activatePipelineStack();
+    void activatePipelineStack(PipelinePopper&);
     void initializePipelineStack(Pipeline *);
 
-    // Calls finish on the current pipeline and pops the pipeline
-    // stack until the top of stack is a previous active top of stack,
-    // and restores the pipeline to that point.  Deletes any pipelines
-    // that it pops.  If the bp argument is non-null and any of the
-    // stack items are of type Pl_Buffer, the buffer is retrieved.
-    void popPipelineStack(PointerHolder<Buffer>* bp = 0);
-
     void adjustAESStreamLength(size_t& length);
-    void pushEncryptionFilter();
-    void pushDiscardFilter();
-    void pushMD5Pipeline();
+    void pushEncryptionFilter(PipelinePopper&);
+    void pushDiscardFilter(PipelinePopper&);
+    void pushMD5Pipeline(PipelinePopper&);
     void computeDeterministicIDData();
 
     void discardGeneration(std::map<QPDFObjGen, int> const& in,
@@ -604,6 +628,7 @@ class QPDFWriter
         bool compress_streams_set;
         qpdf_stream_decode_level_e stream_decode_level;
         bool stream_decode_level_set;
+        bool recompress_flate;
         bool qdf_mode;
         bool preserve_unreferenced_objects;
         bool newline_before_endstream;
@@ -650,6 +675,7 @@ class QPDFWriter
         std::map<QPDFObjGen, int> object_to_object_stream;
         std::map<int, std::set<QPDFObjGen> > object_stream_to_objects;
         std::list<Pipeline*> pipeline_stack;
+        unsigned long long next_stack_id;
         bool deterministic_id;
         Pl_MD5* md5_pipeline;
         std::string deterministic_id_data;

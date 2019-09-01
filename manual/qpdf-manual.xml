@@ -5,8 +5,8 @@
 <!ENTITY mdash "&#x2014;">
 <!ENTITY ndash "&#x2013;">
 <!ENTITY nbsp "&#xA0;">
-<!ENTITY swversion "8.4.2">
-<!ENTITY lastreleased "May 18, 2019">
+<!ENTITY swversion "9.0.0">
+<!ENTITY lastreleased "August 31, 2019">
 ]>
 <book>
  <bookinfo>
@@ -331,10 +331,12 @@ make
     <option>outfilename</option> does not have to be seekable, even
     when generating linearized files.  Specifying
     &ldquo;<option>-</option>&rdquo; as <option>outfilename</option>
-    means to write to standard output.  However, you can't specify the
-    same file as both the input and the output because qpdf reads data
-    from the input file as it writes to the output file. QPDF attempts
-    to detect this case and fail without overwriting the output file.
+    means to write to standard output. If you want to overwrite the
+    input file with the output, use the option
+    <option>--replace-input</option> and omit the output file name.
+    You can't specify the same file as both the input and the output.
+    If you do this, qpdf will tell you about the
+    <option>--replace-input</option> option.
    </para>
    <para>
     Most options require an output file, but some testing or
@@ -446,6 +448,21 @@ make
       <listitem>
        <para>
         Causes generation of a linearized (web-optimized) output file.
+       </para>
+      </listitem>
+     </varlistentry>
+     <varlistentry>
+      <term><option>--replace-input</option></term>
+      <listitem>
+       <para>
+        If specified, the output file name should be omitted. This
+        option tells qpdf to replace the input file with the output.
+        It does this by writing to
+        <filename>.~qpdf-temp.<replaceable>infilename</replaceable>#</filename>
+        and, when done, overwriting the input file with the temporary
+        file. If there were any warnings, the original input is saved
+        as
+        <filename><replaceable>infilename</replaceable>.~qpdf-orig</filename>.
        </para>
       </listitem>
      </varlistentry>
@@ -1433,27 +1450,32 @@ outfile.pdf</option>
          <listitem>
           <para>
            <option>generalized</option>: decode streams filtered with
-           supported generalized filters: <option>/LZWDecode</option>,
-           <option>/FlateDecode</option>,
-           <option>/ASCII85Decode</option>, and
-           <option>/ASCIIHexDecode</option>. We define generalized
+           supported generalized filters:
+           <literal>/LZWDecode</literal>,
+           <literal>/FlateDecode</literal>,
+           <literal>/ASCII85Decode</literal>, and
+           <literal>/ASCIIHexDecode</literal>. We define generalized
            filters as those to be used for general-purpose compression
            or encoding, as opposed to filters specifically designed
-           for image data.
+           for image data. Note that, by default, streams already
+           compressed with <literal>/FlateDecode</literal> are not
+           uncompressed and recompressed unless you also specify
+           <option>--recompress-flate</option>.
           </para>
          </listitem>
          <listitem>
           <para>
            <option>specialized</option>: in addition to generalized,
            decode streams with supported non-lossy specialized
-           filters; currently this is just <option>/RunLengthDecode</option>
+           filters; currently this is just
+           <literal>/RunLengthDecode</literal>
           </para>
          </listitem>
          <listitem>
           <para>
            <option>all</option>: in addition to generalized and
            specialized, decode streams with supported lossy filters;
-           currently this is just <option>/DCTDecode</option> (JPEG)
+           currently this is just <literal>/DCTDecode</literal> (JPEG)
           </para>
          </listitem>
         </itemizedlist>
@@ -1476,7 +1498,10 @@ outfile.pdf</option>
            <option>compress</option>: recompress stream data when
            possible (default); equivalent to
            <option>--compress-streams=y</option>
-           <option>--decode-level=generalized</option>
+           <option>--decode-level=generalized</option>. Does not
+           recompress streams already compressed with
+           <literal>/FlateDecode</literal> unless
+           <option>--recompress-flate</option> is also specified.
           </para>
          </listitem>
          <listitem>
@@ -1495,6 +1520,37 @@ outfile.pdf</option>
           </para>
          </listitem>
         </itemizedlist>
+       </para>
+      </listitem>
+     </varlistentry>
+     <varlistentry>
+      <term><option>--recompress-flate</option></term>
+      <listitem>
+       <para>
+        By default, streams already compressed with
+        <literal>/FlateDecode</literal> are left alone rather than
+        being uncompressed and recompressed. This option causes qpdf
+        to uncompress and recompress the streams. There is a
+        significant performance cost to using this option, but you
+        probably want to use it if you specify
+        <option>--compression-level</option>.
+       </para>
+      </listitem>
+     </varlistentry>
+     <varlistentry>
+      <term><option>--compression-level=<replaceable>level</replaceable></option></term>
+      <listitem>
+       <para>
+        When writing new streams that are compressed with
+        <literal>/FlateDecode</literal>, use the specified compression
+        level. The value of <option>level</option> should be a number
+        from 1 to 9 and is passed directly to zlib, which implements
+        deflate compression. Note that qpdf doesn't uncompress and
+        recompress streams by default. To have this option apply to
+        already compressed streams, you should also specify
+        <option>--recompress-flate</option>. If your goal is to shrink
+        the size of PDF files, you should also use
+        <option>--object-streams=generate</option>.
        </para>
       </listitem>
      </varlistentry>
@@ -3340,139 +3396,68 @@ outfile.pdf</option>
     and C++ code.
    </para>
    <para>
-    The casting policy explicitly prohibits casting between integer
-    sizes for no purpose other than to quiet a compiler warning when
-    there is no reasonable chance of a problem resulting.  The reason
-    for this exclusion is that the practice of adding these additional
-    casts precludes future use of additional compiler warnings as a
-    tool for making future improvements to this aspect of the code,
-    and it also damages the readability of the code.
+    The <classname>QIntC</classname> namespace, provided by
+    <filename>include/qpdf/QIntC.hh</filename>, implements safe
+    functions for converting between integer types. These functions do
+    range checking and throw a <type>std::range_error</type>, which is
+    subclass of <type>std::runtime_error</type>, if conversion from one
+    integer type to another results in loss of information. There are
+    many cases in which we have to move between different integer
+    types because of incompatible integer types used in interoperable
+    interfaces. Some are unavoidable, such as moving between sizes and
+    offsets, and others are there because of old code that is too in
+    entrenched to be fixable without breaking source compatibility and
+    causing pain for users. QPDF is compiled with extra warnings to
+    detect conversions with potential data loss, and all such cases
+    should be fixed by either using a function from
+    <classname>QIntC</classname> or a
+    <function>static_cast</function>.
    </para>
    <para>
-    There are a few significant areas where casting is common in the
-    qpdf sources or where casting would be required to quiet higher
-    levels of compiler warnings but is omitted at present:
-    <itemizedlist>
-     <listitem>
-      <para>
-       <type>char</type> vs. <type>unsigned char</type>.  For
-       historical reasons, there are a lot of places in qpdf's
-       internals that deal with <type>unsigned char</type>, which
-       means that a lot of casting is required to interoperate with
-       standard library calls and <type>std::string</type>.  In
-       retrospect, qpdf should have probably used regular (signed)
-       <type>char</type> and <type>char*</type> everywhere and just
-       cast to <type>unsigned char</type> when needed, but it's too
-       late to make that change now.  There are
-       <function>reinterpret_cast</function> calls to go between
-       <type>char*</type> and <type>unsigned char*</type>, and there
-       are <function>static_cast</function> calls to go between
-       <type>char</type> and <type>unsigned char</type>.  These should
-       always be safe.
-      </para>
-     </listitem>
-     <listitem>
-      <para>
-       Non-const <type>unsigned char*</type> used in the
-       <type>Pipeline</type> interface.  The pipeline interface has a
-       <function>write</function> call that uses <type>unsigned
-       char*</type> without a <type>const</type> qualifier.  The main
-       reason for this is to support pipelines that make calls to
-       third-party libraries, such as zlib, that don't include
-       <type>const</type> in their interfaces.  Unfortunately, there
-       are many places in the code where it is desirable to have
-       <type>const char*</type> with pipelines.  None of the pipeline
-       implementations in qpdf currently modify the data passed to
-       write, and doing so would be counter to the intent of
-       <type>Pipeline</type>, but there is nothing in the code to
-       prevent this from being done.  There are places in the code
-       where <function>const_cast</function> is used to remove the
-       const-ness of pointers going into <type>Pipeline</type>s.  This
-       could theoretically be unsafe, but there is adequate testing to
-       assert that it is safe and will remain safe in qpdf's code.
-      </para>
-     </listitem>
-     <listitem>
-      <para>
-       <type>size_t</type> vs. <type>qpdf_offset_t</type>.  This is
-       pretty much unavoidable since sizes are unsigned types and
-       offsets are signed types.  Whenever it is necessary to seek by
-       an amount given by a <type>size_t</type>, it becomes necessary
-       to mix and match between <type>size_t</type> and
-       <type>qpdf_offset_t</type>.  Additionally, qpdf sometimes
-       treats memory buffers like files (as with
-       <type>BufferInputSource</type>, and those seek interfaces have
-       to be consistent with file-based input sources.  Neither gcc
-       nor MSVC give warnings for this case by default, but both have
-       warning flags that can enable this.  (MSVC:
-       <option>/W14267</option> or <option>/W3</option>, which also
-       enables some additional warnings that we ignore; gcc:
-       <option>-Wconversion -Wsign-conversion</option>).  This could
-       matter for files whose sizes are larger than
-       2<superscript>63</superscript> bytes, but it is reasonable to
-       expect that a world where such files are common would also have
-       larger <type>size_t</type> and <type>qpdf_offset_t</type> types
-       in it.  On most 64-bit systems at the time of this writing (the
-       release of version 4.1.0 of qpdf), both <type>size_t</type> and
-       <type>qpdf_offset_t</type> are 64-bit integer types, while on
-       many current 32-bit systems, <type>size_t</type> is a 32-bit
-       type while <type>qpdf_offset_t</type> is a 64-bit type.  I am
-       not aware of any cases where 32-bit systems that have
-       <type>size_t</type> smaller than <type>qpdf_offset_t</type>
-       could run into problems.  Although I can't conclusively rule
-       out the possibility of such problems existing, I suspect any
-       cases would be pretty contrived.  In the event that someone
-       should produce a file that qpdf can't handle because of what is
-       suspected to be issues involving the handling of
-       <type>size_t</type> vs. <type>qpdf_offset_t</type> (such files
-       may behave properly on 64-bit systems but not on 32-bit systems
-       because they have very large embedded files or streams, for
-       example), the above mentioned warning flags could be enabled
-       and all those implicit conversions could be carefully
-       scrutinized.  (I have already gone through that exercise once
-       in adding support for files larger than 4&nbsp;GB in size.)  I
-       continue to be committed to supporting large files on 32-bit
-       systems, but I would not go to any lengths to support corner
-       cases involving large embedded files or large streams that work
-       on 64-bit systems but not on 32-bit systems because of
-       <type>size_t</type> being too small.  It is reasonable to
-       assume that anyone working with such files would be using a
-       64-bit system anyway since many 32-bit applications would have
-       similar difficulties.
-      </para>
-     </listitem>
-     <listitem>
-      <para>
-       <type>size_t</type> vs. <type>int</type> or <type>long</type>.
-       There are some cases where <type>size_t</type> and
-       <type>int</type> or <type>long</type> or <type>size_t</type>
-       and <type>unsigned int</type> or <type>unsigned long</type> are
-       used interchangeably.  These cases occur when working with very
-       small amounts of memory, such as with the bit readers (where
-       we're working with just a few bytes at a time), some cases of
-       <function>strlen</function>, and a few other cases.  I have
-       scrutinized all of these cases and determined them to be safe,
-       but there is no mechanism in the code to ensure that new unsafe
-       conversions between <type>int</type> and <type>size_t</type>
-       aren't introduced short of good testing and strong awareness of
-       the issues.  Again, if any such bugs are suspected in the
-       future, enabling the additional warning flags and scrutinizing
-       the warnings would be in order.
-      </para>
-     </listitem>
-    </itemizedlist>
+    When the intention is just to switch the type because of
+    exchanging data between incompatible interfaces, use
+    <classname>QIntC</classname>. This is the usual case. However,
+    there are some cases in which we are explicitly intending to use
+    the exact same bit pattern with a different type. This is most
+    common when switching between signed and unsigned characters. A
+    lot of qpdf's code uses unsigned characters internally, but
+    <type>std::string</type> and <type>char</type> are signed. Using
+    <function>QIntC::to_char</function> would be wrong for converting
+    from unsigned to signed characters because a negative
+    <type>char</type> value and the corresponding <type>unsigned
+    char</type> value greater than 127 <emphasis>mean the same
+    thing</emphasis>. There are also cases in which we use
+    <function>static_cast</function> when working with bit fields
+    where we are not representing a numerical value but rather a bunch
+    of bits packed together in some integer type. Also note that
+    <type>size_t</type> and <type>long</type> both typically differ
+    between 32-bit and 64-bit environments, so sometimes an explicit
+    cast may not be needed to avoid warnings on one platform but may
+    be needed on another. A conversion with
+    <classname>QIntC</classname> should always be used when the types
+    are different even if the underlying size is the same. QPDF's CI
+    build builds on 32-bit and 64-bit platforms, and the test suite is
+    very thorough, so it is hard to make any of the potential errors
+    here without being caught in build or test.
    </para>
    <para>
-    To be clear, I believe qpdf to be well-behaved with respect to
-    sizes and offsets, and qpdf's test suite includes actual
-    generation and full processing of files larger than 4&nbsp;GB in
-    size.  The issues raised here are largely academic and should not
-    in any way be interpreted to mean that qpdf has practical problems
-    involving sloppiness with integer types.  I also believe that
-    appropriate measures have been taken in the code to avoid problems
-    with signed vs. unsigned integers from resulting in memory
-    overwrites or other issues with potential security implications,
-    though there are never any absolute guarantees.
+    Non-const <type>unsigned char*</type> is used in the
+    <type>Pipeline</type> interface. The pipeline interface has a
+    <function>write</function> call that uses <type>unsigned
+    char*</type> without a <type>const</type> qualifier. The main
+    reason for this is to support pipelines that make calls to
+    third-party libraries, such as zlib, that don't include
+    <type>const</type> in their interfaces. Unfortunately, there are
+    many places in the code where it is desirable to have <type>const
+    char*</type> with pipelines. None of the pipeline implementations
+    in qpdf currently modify the data passed to write, and doing so
+    would be counter to the intent of <type>Pipeline</type>, but there
+    is nothing in the code to prevent this from being done. There are
+    places in the code where <function>const_cast</function> is used
+    to remove the const-ness of pointers going into
+    <type>Pipeline</type>s. This could theoretically be unsafe, but
+    there is adequate testing to assert that it is safe and will
+    remain safe in qpdf's code.
    </para>
   </sect1>
   <sect1 id="ref.encryption">
@@ -3521,6 +3506,38 @@ outfile.pdf</option>
     multiple encryption formats, qpdf will choose the newest format.
     The only exception to this is that clear-text metadata will be
     preserved as clear-text if it is that way in the original file.
+   </para>
+   <para>
+    One point of confusion some people have about encrypted PDF files
+    is that encryption is not the same as password protection.
+    Password protected files are always encrypted, but it is also
+    possible to create encrypted files that do not have passwords.
+    Internally, such files use the empty string as a password, and
+    most readers try the empty string first to see if it works and
+    prompt for a password only if the empty string doesn't work.
+    Normally such files have an empty user password and a non-empty
+    owner password. In that way, if the file is opened by an ordinary
+    reader without specification of password, the restrictions
+    specified in the encryption dictionary can be enforced. Most users
+    wouldn't even realize such a file was encrypted. Since qpdf always
+    ignores the restrictions (except for the purpose of reporting what
+    they are), qpdf doesn't care which password you use. QPDF will
+    allow you to create PDF files with non-empty user passwords and
+    empty owner passwords. Some readers will require a password when
+    you open these files, and others will open the files without a
+    password and not enforce restrictions. Having a non-empty user
+    password and an empty owner password doesn't really make sense
+    because it would mean that opening the file with the user password
+    would be more restrictive than not supplying a password at all.
+    QPDF also allows you to create PDF files with the same password as
+    both the user and owner password. Some readers will not ever allow
+    such files to be accessed without restrictions because they never
+    try the password as the owner password if it works as the user
+    password. Nonetheless, one of the powerful aspects of qpdf is that
+    it allows you to finely specify the way encrypted files are
+    created, even if the results are not useful to some readers. One
+    use case for this would be for testing a PDF reader to ensure that
+    it handles odd configurations of input files.
    </para>
   </sect1>
   <sect1 id="ref.random-numbers">
@@ -4347,6 +4364,375 @@ print "\n";
    <filename>ChangeLog</filename> in the source distribution.
   </para>
   <variablelist>
+   <varlistentry>
+    <term>9.0.0: August 31, 2019</term>
+    <listitem>
+     <itemizedlist>
+      <listitem>
+       <para>
+        Incompatible API (source-level) Changes (minor)
+       </para>
+       <itemizedlist>
+        <listitem>
+         <para>
+          The method <function>QUtil::strcasecmp</function> has been
+          renamed to <function>QUtil::str_compare_nocase</function>.
+          This incompatible change is necessary to enable qpdf to
+          build on platforms that define
+          <function>strcasecmp</function> as a macro.
+         </para>
+        </listitem>
+        <listitem>
+         <para>
+          The <function>QPDF::copyForeignObject</function> method had
+          an overloaded version that took a boolean parameter that was
+          not used. If you were using this version, just omit the
+          extra parameter.
+         </para>
+        </listitem>
+        <listitem>
+         <para>
+          There was a version
+          <function>QPDFTokenizer::expectInlineImage</function> that
+          took no arguments. This version has been removed since it
+          caused the tokenizer to return incorrect inline images. A
+          new version was added some time ago that produces correct
+          output. This is a very low level method that doesn't make
+          sense to call outside of qpdf's lexical engine. There are
+          higher level methods for tokenizing content streams.
+         </para>
+        </listitem>
+        <listitem>
+         <para>
+          Change
+          <function>QPDFOutlineDocumentHelper::getTopLevelOutlines</function>
+          and <function>QPDFOutlineObjectHelper::getKids</function> to
+          return a <type>std::vector</type> instead of a
+          <type>std::list</type> of
+          <classname>QPDFOutlineObjectHelper</classname> objects.
+         </para>
+        </listitem>
+        <listitem>
+         <para>
+          Remove method
+          <function>QPDFTokenizer::allowPoundAnywhereInName</function>.
+          This function would allow creation of name tokens whose
+          value would change when unparsed, which is never the correct
+          behavior.
+         </para>
+        </listitem>
+        <listitem>
+         <para>
+          When <command>qpdf --check</command> or <command>qpdf
+          --check-linearization</command> encounters a file with
+          linearization warnings but not errors, it now properly exits
+          with exit code 3 instead of 2.
+         </para>
+        </listitem>
+       </itemizedlist>
+      </listitem>
+      <listitem>
+       <para>
+        CLI Enhancements
+       </para>
+       <itemizedlist>
+        <listitem>
+         <para>
+          The <option>--replace-input</option> option may be given in
+          place of an output file name. This causes qpdf to overwrite
+          the input file with the output. See the description of
+          <option>--replace-input</option> in <xref
+          linkend="ref.basic-options"/> for more details.
+         </para>
+        </listitem>
+        <listitem>
+         <para>
+          The <option>--recompress-flate</option> instructs
+          <command>qpdf</command> to recompress streams that are
+          already compressed with <literal>/FlateDecode</literal>.
+          Useful with <option>--compression-level</option>.
+         </para>
+        </listitem>
+        <listitem>
+         <para>
+          The
+          <option>--compression-level=<replaceable>level</replaceable></option>
+          sets the zlib compression level used for any streams
+          compressed by <literal>/FlateDecode</literal>. Most
+          effective when combined with
+          <option>--recompress-flate</option>.
+         </para>
+        </listitem>
+       </itemizedlist>
+      </listitem>
+      <listitem>
+       <para>
+        Library Enhancements
+       </para>
+       <itemizedlist>
+        <listitem>
+         <para>
+          A new namespace <classname>QIntC</classname>, provided by
+          <filename>qpdf/QIntC.hh</filename>, provides safe conversion
+          methods between different integer types. These conversion
+          methods do range checking to ensure that the cast can be
+          performed with no loss of information. Every use of
+          <function>static_cast</function> in the library was
+          inspected to see if it could use one of these safe
+          converters instead. See <xref linkend="ref.casting"/> for
+          additional details.
+         </para>
+        </listitem>
+        <listitem>
+         <para>
+          Method <function>QPDF::anyWarnings</function> tells whether
+          there have been any warnings without clearing the list of
+          warnings.
+         </para>
+        </listitem>
+        <listitem>
+         <para>
+          Method <function>QPDF::closeInputSource</function> closes or
+          otherwise releases the input source. This enables the input
+          file to be deleted or renamed.
+         </para>
+        </listitem>
+        <listitem>
+         <para>
+          New methods have been added to <classname>QUtil</classname>
+          for converting back and forth between strings and unsigned
+          integers: <function>uint_to_string</function>,
+          <function>uint_to_string_base</function>,
+          <function>string_to_uint</function>, and
+          <function>string_to_ull</function>.
+         </para>
+        </listitem>
+        <listitem>
+         <para>
+          New methods have been added to
+          <classname>QPDFObjectHandle</classname> that return the
+          value of <classname>Integer</classname> objects as
+          <type>int</type> or <type>unsigned int</type> with range
+          checking and sensible fallback values, and a new method was
+          added to return an unsigned value. This makes it easier to
+          write code that is safe from unintentional data loss.
+          Functions: <function>getUIntValue</function>,
+          <function>getIntVauleAsInt</function>,
+          <function>getUIntValueAsUInt</function>.
+         </para>
+        </listitem>
+        <listitem>
+         <para>
+          When parsing content streams with
+          <classname>QPDFObjectHandle::ParserCallbacks</classname>, in
+          place of the method
+          <function>handleObject(QPDFObjectHandle)</function>, the
+          developer may override
+          <function>handleObject(QPDFObjectHandle, size_t offset,
+          size_t length)</function>. If this method is defined, it
+          will be invoked with the object along with its offset and
+          length within the overall contents being parsed. Intervening
+          spaces and comments are not included in offset and length.
+          Additionally, a new method
+          <function>contentSize(size_t)</function> may be implemented.
+          If present, it will be called prior to the first call to
+          <function>handleObject</function> with the total size in
+          bytes of the combined contents.
+         </para>
+        </listitem>
+        <listitem>
+         <para>
+          New methods <function>QPDF::userPasswordMatched</function>
+          and <function>QPDF::ownerPasswordMatched</function> have
+          been added to enable a caller to determine whether the
+          supplied password was the user password, the owner password,
+          or both. This information is also displayed by <command>qpdf
+          --show-encryption</command> and <command>qpdf
+          --check</command>.
+         </para>
+        </listitem>
+        <listitem>
+         <para>
+          Static method
+          <function>Pl_Flate::setCompressionLevel</function> can be
+          called to set the zlib compression level globally used by
+          all instances of Pl_Flate in deflate mode.
+         </para>
+        </listitem>
+        <listitem>
+         <para>
+          The method
+          <function>QPDFWriter::setRecompressFlate</function> can be
+          called to tell <classname>QPDFWriter</classname> to
+          uncompress and recompress streams already compressed with
+          <literal>/FlateDecode</literal>.
+         </para>
+        </listitem>
+        <listitem>
+         <para>
+          The underlying implementation of QPDF arrays has been
+          enhanced to be much more memory efficient when dealing with
+          arrays with lots of nulls. This enables qpdf to use
+          drastically less memory for certain types of files.
+         </para>
+        </listitem>
+        <listitem>
+         <para>
+          When traversing the pages tree, if nodes are encountered
+          with invalid types, the types are fixed, and a warning is
+          issued.
+         </para>
+        </listitem>
+        <listitem>
+         <para>
+          A new helper method
+          <function>QUtil::read_file_into_memory</function> was added.
+         </para>
+        </listitem>
+        <listitem>
+         <para>
+          All conditions previously reported by
+          <function>QPDF::checkLinearization()</function> as errors
+          are now presented as warnings.
+         </para>
+        </listitem>
+        <listitem>
+         <para>
+          Name tokens containing the <literal>#</literal> character
+          not preceded by two hexadecimal digits, which is invalid in
+          PDF 1.2 and above, are properly handled by the library: a
+          warning is generated, and the name token is properly
+          preserved, even if invalid, in the output. See
+          <filename>ChangeLog</filename> for a more complete
+          description of this change.
+         </para>
+        </listitem>
+       </itemizedlist>
+      </listitem>
+      <listitem>
+       <para>
+        Bug Fixes
+       </para>
+       <itemizedlist>
+        <listitem>
+         <para>
+          A small handful of memory issues, assertion failures, and
+          unhandled exceptions that could occur on badly mangled input
+          files have been fixed. Most of these problems were found by
+          Google's OSS-Fuzz project.
+         </para>
+        </listitem>
+        <listitem>
+         <para>
+          When <command>qpdf --check</command> or <command>qpdf
+          --check-linearization</command> encounters a file with
+          linearization warnings but not errors, it now properly exits
+          with exit code 3 instead of 2.
+         </para>
+        </listitem>
+        <listitem>
+         <para>
+          The <option>--completion-bash</option> and
+          <option>--completion-zsh</option> options now work properly
+          when qpdf is invoked as an AppImage.
+         </para>
+        </listitem>
+        <listitem>
+         <para>
+          Calling
+          <function>QPDFWriter::set*EncryptionParameters</function> on
+          a <classname>QPDFWriter</classname> object whose output
+          filename has not yet been set no longer produces a
+          segmentation fault.
+         </para>
+        </listitem>
+        <listitem>
+         <para>
+          When reading encrypted files, follow the spec more closely
+          regarding encryption key length. This allows qpdf to open
+          encrypted files in most cases when they have invalid or
+          missing /Length keys in the encryption dictionary.
+         </para>
+        </listitem>
+        <listitem>
+         <para>
+          When <command>qpdf --check</command> or <command>qpdf
+          --check-linearization</command> encounters a file with
+          linearization warnings but not errors, it now properly exits
+          with exit code 3 instead of 2.
+         </para>
+        </listitem>
+       </itemizedlist>
+      </listitem>
+      <listitem>
+       <para>
+        Build Changes
+       </para>
+       <itemizedlist>
+        <listitem>
+         <para>
+          On platforms that support it, qpdf now builds with
+          <option>-fvisibility=hidden</option>. If you build qpdf with
+          your own build system, this is now safe to use. This
+          prevents methods that are not part of the public API from
+          being exported by the shared library, and makes qpdf's ELF
+          shared libraries (used on Linux, MacOS, and most other UNIX
+          flavors) behave more like the Windows DLL. Since the DLL
+          already behaves in much this way, it is unlikely that there
+          are any methods that were accidentally not exported.
+          However, with ELF shared libraries, typeinfo for some
+          classes has to be explicitly exported. If there are problems
+          in dynamically linked code catching exceptions or
+          subclassing, this could be the reason. If you see this,
+          please report a bug at <ulink
+          url="https://github.com/qpdf/qpdf/issues/">pikepdf</ulink>.
+         </para>
+        </listitem>
+        <listitem>
+         <para>
+          QPDF is now compiled with integer conversion and sign
+          conversion warnings enabled. Numerous changes were made to
+          the library to make this safe.
+         </para>
+        </listitem>
+        <listitem>
+         <para>
+          QPDF's <command>make install</command> target explicitly
+          specifies the mode to use when installing files instead of
+          relying the user's umask. It was previously doing this for
+          some files but not others.
+         </para>
+        </listitem>
+        <listitem>
+         <para>
+          If <command>pkg-config</command> is available, use it to
+          locate <filename>libjpeg</filename> and
+          <filename>zlib</filename> dependencies, falling back on old
+          behavior if unsuccessful.
+         </para>
+        </listitem>
+       </itemizedlist>
+      </listitem>
+      <listitem>
+       <para>
+        Other Notes
+       </para>
+       <itemizedlist>
+        <listitem>
+         <para>
+          QPDF has been fully integrated into <ulink
+          url="https://github.com/google/oss-fuzz">Google's OSS-Fuzz
+          project</ulink>. This project exercises code with randomly
+          mutated inputs and is great for discovering hidden security
+          crashes and security issues. Several bugs found by oss-fuzz
+          have already been fixed in qpdf.
+         </para>
+        </listitem>
+       </itemizedlist>
+      </listitem>
+     </itemizedlist>
+    </listitem>
+   </varlistentry>
    <varlistentry>
     <term>8.4.2: May 18, 2019</term>
     <listitem>
@@ -5477,9 +5863,9 @@ print "\n";
       <listitem>
        <para>
         Disregard data check errors when uncompressing
-        <option>/FlateDecode</option> streams. This is consistent with
-        most other PDF readers and allows qpdf to recover data from
-        another class of malformed PDF files.
+        <literal>/FlateDecode</literal> streams. This is consistent
+        with most other PDF readers and allows qpdf to recover data
+        from another class of malformed PDF files.
        </para>
       </listitem>
       <listitem>

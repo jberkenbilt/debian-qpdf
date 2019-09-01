@@ -45,7 +45,7 @@ QPDFOutlineObjectHelper::getParent()
     return this->m->parent;
 }
 
-std::list<QPDFOutlineObjectHelper>
+std::vector<QPDFOutlineObjectHelper>
 QPDFOutlineObjectHelper::getKids()
 {
     return this->m->kids;
@@ -100,7 +100,7 @@ QPDFOutlineObjectHelper::getCount()
     int count = 0;
     if (this->oh.hasKey("/Count"))
     {
-        count = this->oh.getKey("/Count").getIntValue();
+        count = this->oh.getKey("/Count").getIntValueAsInt();
     }
     return count;
 }

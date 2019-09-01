@@ -17,11 +17,13 @@ BINS_libtests = \
 	numrange \
 	pointer_holder \
 	predictors \
+	qintc \
 	qutil \
 	random \
 	rc4 \
 	runlength \
-	sha2
+	sha2 \
+	sparse_array
 
 TARGETS_libtests = $(foreach B,$(BINS_libtests),libtests/$(OUTPUT_DIR)/$(call binname,$(B)))
 

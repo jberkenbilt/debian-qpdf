@@ -45,9 +45,10 @@
 #define PIPELINE_HH
 
 #include <qpdf/DLL.h>
+#include <qpdf/PointerHolder.hh>
 #include <string>
 
-class Pipeline
+class QPDF_DLL_CLASS Pipeline
 {
   public:
     QPDF_DLL
@@ -69,6 +70,8 @@ class Pipeline
     virtual void write(unsigned char* data, size_t len) = 0;
     QPDF_DLL
     virtual void finish() = 0;
+    QPDF_DLL
+    std::string getIdentifier() const;
 
   protected:
     Pipeline* getNext(bool allow_null = false);
@@ -79,7 +82,22 @@ class Pipeline
     Pipeline(Pipeline const&);
     Pipeline& operator=(Pipeline const&);
 
-    Pipeline* next;
+    class Members
+    {
+        friend class Pipeline;
+
+      public:
+        QPDF_DLL
+        ~Members();
+
+      private:
+        Members(Pipeline* next);
+        Members(Members const&);
+
+        Pipeline* next;
+    };
+
+    PointerHolder<Members> m;
 };
 
 #endif // PIPELINE_HH

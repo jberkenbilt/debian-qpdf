@@ -17,6 +17,7 @@
 #include <qpdf/Pl_Flate.hh>
 #include <qpdf/QPDFWriter.hh>
 #include <qpdf/QPDFSystemError.hh>
+#include <qpdf/QIntC.hh>
 #include <iostream>
 #include <sstream>
 #include <algorithm>
@@ -24,6 +25,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <assert.h>
+#include <limits.h>
 #include <map>
 
 static char const* whoami = 0;
@@ -74,19 +76,28 @@ class ParserCallbacks: public QPDFObjectHandle::ParserCallbacks
     {
     }
 
-    virtual void handleObject(QPDFObjectHandle);
+    virtual void contentSize(size_t size);
+    virtual void handleObject(QPDFObjectHandle, size_t, size_t);
     virtual void handleEOF();
 };
 
 void
-ParserCallbacks::handleObject(QPDFObjectHandle obj)
+ParserCallbacks::contentSize(size_t size)
+{
+    std::cout << "content size: " << size << std::endl;
+}
+
+void
+ParserCallbacks::handleObject(QPDFObjectHandle obj,
+                              size_t offset, size_t length)
 {
     if (obj.isName() && (obj.getName() == "/Abort"))
     {
         std::cout << "test suite: terminating parsing" << std::endl;
         terminateParsing();
     }
-    std::cout << obj.getTypeName() << ": ";
+    std::cout << obj.getTypeName() << ", offset=" << offset
+              << ", length=" << length << ": ";
     if (obj.isInlineImage())
     {
         // Exercise getTypeCode
@@ -166,42 +177,18 @@ static void print_rect(std::ostream& out,
         << r.urx << ", " << r.ury << "]";
 }
 
-static void read_file_into_memory(
-    char const* filename,
-    PointerHolder<char>& file_buf, size_t& size)
+#define assert_compare_numbers(expected, expr) \
+    compare_numbers(#expr, expected, expr)
+
+template <typename T1, typename T2>
+static void compare_numbers(
+    char const* description, T1 const& expected, T2 const& actual)
 {
-    FILE* f = QUtil::safe_fopen(filename, "rb");
-    fseek(f, 0, SEEK_END);
-    size = QUtil::tell(f);
-    fseek(f, 0, SEEK_SET);
-    file_buf = PointerHolder<char>(true, new char[size]);
-    char* buf_p = file_buf.getPointer();
-    size_t bytes_read = 0;
-    size_t len = 0;
-    while ((len = fread(buf_p + bytes_read, 1, size - bytes_read, f)) > 0)
+    if (expected != actual)
     {
-        bytes_read += len;
+        std::cerr << description << ": expected = " << expected
+                  << "; actual = " << actual << std::endl;
     }
-    if (bytes_read != size)
-    {
-        if (ferror(f))
-        {
-            throw std::runtime_error(
-                std::string("failure reading file ") + filename +
-                " into memory: read " +
-                QUtil::int_to_string(bytes_read) + "; wanted " +
-                QUtil::int_to_string(size));
-        }
-        else
-        {
-            throw std::logic_error(
-                std::string("premature eof reading file ") + filename +
-                " into memory: read " +
-                QUtil::int_to_string(bytes_read) + "; wanted " +
-                QUtil::int_to_string(size));
-        }
-    }
-    fclose(f);
 }
 
 void runtest(int n, char const* filename1, char const* arg2)
@@ -261,11 +248,11 @@ void runtest(int n, char const* filename1, char const* arg2)
 
         std::string filename(std::string(filename1) + ".obfuscated");
         size_t size = 0;
-        read_file_into_memory(filename.c_str(), file_buf, size);
+        QUtil::read_file_into_memory(filename.c_str(), file_buf, size);
         char* p = file_buf.getPointer();
         for (size_t i = 0; i < size; ++i)
         {
-            p[i] ^= 0xcc;
+            p[i] = static_cast<char>(p[i] ^ 0xcc);
         }
 	pdf.processMemoryFile((std::string(filename1) + ".pdf").c_str(),
                               p, size);
@@ -292,7 +279,7 @@ void runtest(int n, char const* filename1, char const* arg2)
     {
         QTC::TC("qpdf", "exercise processMemoryFile");
         size_t size = 0;
-        read_file_into_memory(filename1, file_buf, size);
+        QUtil::read_file_into_memory(filename1, file_buf, size);
 	pdf.processMemoryFile(filename1, file_buf.getPointer(), size);
     }
 
@@ -529,8 +516,8 @@ void runtest(int n, char const* filename1, char const* arg2)
 		std::string const& name = (*iter).first;
 		QPDFObjectHandle image = (*iter).second;
 		QPDFObjectHandle dict = image.getDict();
-		int width = dict.getKey("/Width").getIntValue();
-		int height = dict.getKey("/Height").getIntValue();
+		long long width = dict.getKey("/Width").getIntValue();
+		long long height = dict.getKey("/Height").getIntValue();
 		std::cout << "    " << name
 			  << ": " << width << " x " << height
 			  << std::endl;
@@ -914,7 +901,8 @@ void runtest(int n, char const* filename1, char const* arg2)
         page.replaceKey("/Parent", pages);
         pages.replaceKey(
             "/Count",
-            QPDFObjectHandle::newInteger(1 + all_pages.size()));
+            QPDFObjectHandle::newInteger(
+                1 + QIntC::to_longlong(all_pages.size())));
         kids.appendItem(page);
         assert(all_pages.size() == 10);
         pdf.updateAllPagesCache();
@@ -1081,8 +1069,8 @@ void runtest(int n, char const* filename1, char const* arg2)
 
         // Verify that the previously added reserved keys can be
         // dereferenced properly now
-        int i1 = res1.getArrayItem(0).getArrayItem(1).getIntValue();
-        int i2 = res2.getArrayItem(0).getArrayItem(1).getIntValue();
+        int i1 = res1.getArrayItem(0).getArrayItem(1).getIntValueAsInt();
+        int i2 = res2.getArrayItem(0).getArrayItem(1).getIntValueAsInt();
         if ((i1 == 2) && (i2 == 1))
         {
             std::cout << "circular access and lazy resolution worked" << std::endl;
@@ -1409,7 +1397,7 @@ void runtest(int n, char const* filename1, char const* arg2)
             {
                 std::string t;
                 for (size_t i = 0;
-                     i < std::min(data.size(), static_cast<size_t>(20));
+                     i < std::min(data.size(), QIntC::to_size(20));
                      ++i)
                 {
                     if ((data.at(i) >= 32) && (data.at(i) <= 126))
@@ -1421,7 +1409,7 @@ void runtest(int n, char const* filename1, char const* arg2)
                         t += ".";
                     }
                 }
-                t += " (" + QUtil::int_to_string(data.size()) + " bytes)";
+                t += " (" + QUtil::uint_to_string(data.size()) + " bytes)";
                 data = t;
             }
             std::cout << filename << ":\n" << data << "--END--\n";
@@ -1782,7 +1770,7 @@ void runtest(int n, char const* filename1, char const* arg2)
     {
         // Test page labels.
         QPDFPageLabelDocumentHelper pldh(pdf);
-        size_t npages = pdf.getRoot().getKey("/Pages").
+        long long npages = pdf.getRoot().getKey("/Pages").
             getKey("/Count").getIntValue();
         std::vector<QPDFObjectHandle> labels;
         pldh.getLabelsForPageRange(0, npages - 1, 1, labels);
@@ -1826,9 +1814,9 @@ void runtest(int n, char const* filename1, char const* arg2)
         for (std::vector<QPDFPageObjectHelper>::iterator iter = pages.begin();
              iter != pages.end(); ++iter, ++pageno)
         {
-            std::list<QPDFOutlineObjectHelper> outlines =
+            std::vector<QPDFOutlineObjectHelper> outlines =
                 odh.getOutlinesForPage((*iter).getObjectHandle().getObjGen());
-            for (std::list<QPDFOutlineObjectHelper>::iterator oiter =
+            for (std::vector<QPDFOutlineObjectHelper>::iterator oiter =
                      outlines.begin();
                  oiter != outlines.end(); ++oiter)
             {
@@ -2061,7 +2049,7 @@ void runtest(int n, char const* filename1, char const* arg2)
         {
             pdf.processMemoryFile("empty", "", 0);
         }
-        catch (QPDFExc& e)
+        catch (QPDFExc const&)
         {
             std::cout << "Caught QPDFExc as expected" << std::endl;
         }
@@ -2069,7 +2057,7 @@ void runtest(int n, char const* filename1, char const* arg2)
         {
             QUtil::safe_fopen("/does/not/exist", "r");
         }
-        catch (QPDFSystemError& e)
+        catch (QPDFSystemError const&)
         {
             std::cout << "Caught QPDFSystemError as expected" << std::endl;
         }
@@ -2077,7 +2065,7 @@ void runtest(int n, char const* filename1, char const* arg2)
         {
             QUtil::int_to_string_base(0, 12);
         }
-        catch (std::logic_error& e)
+        catch (std::logic_error const&)
         {
             std::cout << "Caught logic_error as expected" << std::endl;
         }
@@ -2085,10 +2073,48 @@ void runtest(int n, char const* filename1, char const* arg2)
         {
             QUtil::toUTF8(0xffffffff);
         }
-        catch (std::runtime_error& e)
+        catch (std::runtime_error const&)
         {
             std::cout << "Caught runtime_error as expected" << std::endl;
         }
+    }
+    else if (n == 62)
+    {
+        // Test int size checks. This test will fail if int and long
+        // long are the same size.
+        QPDFObjectHandle t = pdf.getTrailer();
+        unsigned long long q1_l = 3ULL * QIntC::to_ulonglong(INT_MAX);
+        long long q1 = QIntC::to_longlong(q1_l);
+        long long q2_l = 3LL * QIntC::to_longlong(INT_MIN);
+        long long q2 = QIntC::to_longlong(q2_l);
+        unsigned int q3_i = UINT_MAX;
+        long long q3 = QIntC::to_longlong(q3_i);
+        t.replaceKey("/Q1", QPDFObjectHandle::newInteger(q1));
+        t.replaceKey("/Q2", QPDFObjectHandle::newInteger(q2));
+        t.replaceKey("/Q3", QPDFObjectHandle::newInteger(q3));
+        assert_compare_numbers(q1, t.getKey("/Q1").getIntValue());
+        assert_compare_numbers(q1_l, t.getKey("/Q1").getUIntValue());
+        assert_compare_numbers(INT_MAX, t.getKey("/Q1").getIntValueAsInt());
+        assert_compare_numbers(UINT_MAX, t.getKey("/Q1").getUIntValueAsUInt());
+        assert_compare_numbers(q2_l, t.getKey("/Q2").getIntValue());
+        assert_compare_numbers(0U, t.getKey("/Q2").getUIntValue());
+        assert_compare_numbers(INT_MIN, t.getKey("/Q2").getIntValueAsInt());
+        assert_compare_numbers(0U, t.getKey("/Q2").getUIntValueAsUInt());
+        assert_compare_numbers(INT_MAX, t.getKey("/Q3").getIntValueAsInt());
+        assert_compare_numbers(UINT_MAX, t.getKey("/Q3").getUIntValueAsUInt());
+    }
+    else if (n == 63)
+    {
+        QPDFWriter w(pdf);
+        // Exercise setting encryption parameters before setting the
+        // output filename. The previous bug does not happen if static
+        // or deterministic ID is used because the filename is not
+        // used as part of the input data for ID generation in those
+        // cases.
+        w.setR6EncryptionParameters(
+            "u", "o", true, true, true, true, true, true, qpdf_r3p_full, true);
+        w.setOutputFilename("a.pdf");
+        w.write();
     }
     else
     {

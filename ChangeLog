@@ -1,3 +1,244 @@
+2019-08-31  Jay Berkenbilt  <ejb@ql.org>
+
+	* 9.0.0: release
+
+	* Add QPDF::anyWarnings() method to find out whether there have
+	been any warnings without resetting the list.
+
+	* Add QPDF::closeInputSource() method to release the input source
+	so the input file can be deleted or renamed.
+
+	* Add methods rename_file and remove_file to QUtil.
+
+2019-08-24  Jay Berkenbilt  <ejb@ql.org>
+
+	* Add QPDF::userPasswordMatched() and QPDF::ownerPasswordMatched()
+	methods so it can be determined separately whether the supplied
+	password matched the user password, the owner password, or both.
+	Fixes #159.
+
+2019-08-23  Jay Berkenbilt  <ejb@ql.org>
+
+	* Add --recompress-streams option to qpdf and
+	QPDFWriter::setRecompressFlate to cause QPDFWriter to recompress
+	streams that are already compressed with /FlateDecode.
+
+	* Add option Pl_Flate::setCompressionLevel to globally set the
+	zlib compression level used by all Pl_Flate pipelines.
+
+	* Add --compression-level flag to qpdf to set the zlib compression
+	level. When combined with --recompress-flate, this will cause most
+	of qpdf's streams to use the maximum compression level. This
+	results in only a very small amount of savings in size that comes
+	at a fairly significant performance cost, but it could be useful
+	for archival files or other cases where every byte counts and
+	creation time doesn't matter so much. Note that using
+	--object-streams=generate in combination with these options gives
+	you the biggest advantage. Fixes #113.
+
+2019-08-22  Jay Berkenbilt  <ejb@ql.org>
+
+	* In QPDFObjectHandle::ParserCallbacks, in addition to
+	handleObject(QPDFObjectHandle), allow developers to override
+	handleObject(QPDFObjectHandle, size_t offset, size_t length). If
+	this method appears instead, it is called with the offset of the
+	object in the content stream (which may be concatenated from an
+	array of streams) and the length of the object. Intervening
+	whitespace and comments are not included in offset and length.
+
+	* Add method
+	QPDFObjectHandle::ParserCallbacks::contentSize(size_t). If
+	defined, it is called by the content stream parser before the
+	first call to handleObject, and the argument is the total size in
+	bytes of the content streams.
+
+	* Add QPDFObjectHandle::isDirectNull() -- a const method that
+	allows determining whether an object is a literal null without
+	attempting to resolve it.
+
+	* Stop replacing indirect references to null with literal null in
+	arrays when writing output with QPDFWriter.
+
+2019-08-19  Jay Berkenbilt  <ejb@ql.org>
+
+	* Accept (and warn for) extraneous whitespace preceding the xref
+	table. Fixes #341.
+
+	* Accept (and warn for) extraneous whitespace between the stream
+	keyword and newline. Fixes #329.
+
+	* Properly handle name tokens containing # not preceding two
+	hexadecimal digits. Such names are invalid in PDF >= 1.2 but valid
+	in PDF 1.0 and 1.1. Prior to this fix, qpdf's behavior was to
+	treat such tokens as an error for PDF >= 1.2, but for older PDF
+	tokens, the name was silently accepted, and when the name token
+	was written out, the # was changed to #23, which is the correct
+	way to represent a # character. This behavior was problematic for
+	several reasons: one is that, ordinarily, content streams are not
+	parsed, so this would cause things like image references whose
+	names contained # to break. Also, even if the input file was 1.0
+	or 1.1, there's no guarantee that the output file wouldn't be
+	written at a new version, resulting in invalid name tokens. The
+	new behavior is to issue a warning upon encountering such a token
+	but to accept it, regardless of the PDF version. Such tokens are
+	written out properly as well. Additionally, the warning message
+	indicates that the tokens are invalid for PDF >= 1.2. Fixes #332.
+
+	* Non-compatible API change: remove
+	QPDFTokenizer::allowPoundAnywhereInName(). There were a lot of
+	problems with this. When it was used, any name tokens read would
+	always be modified on output, which is never the correct behavior.
+	This method used to signal QPDFTokenizer to not treat # specially
+	in name tokens, which resulted in the incorrect behavior whose fix
+	is described in the preceding item.
+
+2019-08-18  Jay Berkenbilt  <ejb@ql.org>
+
+	* When traversing the pages tree, if an invalid /Type key is
+	encountered, fix it. This is not done for all operations, but it
+	will be done for any case in which getAllPages is called. This
+	includes all page-based CLI operations. (Hopefully) Fixes #349.
+
+2019-08-17  Jay Berkenbilt  <ejb@ql.org>
+
+	* Change internal implementation of QPDF arrays to use sparse
+	arrays, which results in using much less memory for arrays with
+	large numbers of nulls. Various files have been encountered in the
+	wild that contains thousands of arrays with millions of nulls.
+	Fixes #305, #311.
+
+2019-07-03  Jay Berkenbilt  <ejb@ql.org>
+
+	* Non-compatible API change: change
+	QPDFOutlineDocumentHelper::getTopLevelOutlines and
+	QPDFOutlineObjectHelper::getKids to return a std::vector instead
+	of a std::list of QPDFOutlineObjectHelper objects. This is to work
+	around bugs with some compilers' STL implementations that are
+	choking with list here. There's no deep reason for these to be
+	lists instead of vectors. Fixes #297.
+
+2019-06-22  Jay Berkenbilt  <ejb@ql.org>
+
+	* Handle encrypted files with missing or invalid /Length entries
+	in the encryption dictionary.
+
+	* QPDFWriter: allow calling set*EncryptionParameters before
+	calling setFilename. Fixes #336.
+
+	* It now works to run --completion-bash and --completion-zsh when
+	qpdf is started from an AppImage.
+
+	* Provided a more useful error message when Windows can't get
+	security context. Thanks to user zdenop for supplying some code.
+	Fixes #286.
+
+	* Favor PointerHolder over manual memory allocation in shippable
+	code where possible. Fixes #235.
+
+	* If pkg-config is available, use it to local libjpeg and zlib. If
+	not, fall back to old behavior. Fixes #324.
+
+	* The "make install" target explicitly sets a mode rather than
+	relying the user's umask. Fixes #326.
+
+	* When a file has linearization warnings but no errors, qpdf
+	--check and --check-linearization now exit with code 3 instead
+	of 2. Fixes #50.
+
+	* Add new function QUtil::read_file_into_memory.
+
+2019-06-21  Jay Berkenbilt  <ejb@ql.org>
+
+	* When supported, qpdf builds with -fvisibility=hidden, which
+	removes non-exported symbols from the shared library in a manner
+	similar to how Windows DLLs work. This is better for performance
+	and also better for safety and protection of private interfaces.
+	See https://gcc.gnu.org/wiki/Visibility. *NOTE*: If you are
+	getting linker errors trying to catch exceptions or derive things
+	from a base class in the qpdf library, it's possible that a
+	QPDF_DLL_CLASS declaration is missing somewhere. Please report
+	this as a bug at https://github.com/qpdf/qpdf/issues.
+
+	* Source-level incompatibility: remove the version
+	QPDF::copyForeignObject with an unused boolean parameter. If you
+	were, for some reason, calling this, just take the parameter away.
+
+	* Source-level incompatibility: remove the version
+	QPDFTokenizer::expectInlineImage with no arguments. It didn't
+	produce correct inline images. This is a very low-level routine.
+	There is little reason to call it outside of qpdf's lexical
+	engine.
+
+	* Source-level incompatibility: rename QUtil::strcasecmp to
+	QUtil::str_compare_nocase. This is a non-compatible change, but
+	QUtil::strcasecmp is hardly the most important part of qpdf's API.
+	The reason for this change is that strcasecmp is a macro on some
+	systems, and that was causing problems when QUtil.hh was included
+	in certain circumstances. Fixes #242.
+
+2019-06-20  Jay Berkenbilt  <ejb@ql.org>
+
+	* Enable compilation with additional warnings for integer
+	conversion and sign (-Wsign-conversion, -Wconversion for gcc and
+	similar; -W3 for msvc) if supported. These warnings are on by
+	default can be turned off by passing --disable-int-warnings
+
+	* Fix all integer sign and conversion warnings. This makes all
+	integer type conversions that have potential data loss explicit
+	with calls that do range checks and raise an exception.
+
+	* Change out_bufsize argument to Pl_Flate's constructor for int to
+	unsigned int for compatibility with underlying zlib
+	implementation.
+
+	* Change QPDFObjectHandle::pipeStreamData's encode_flags argument
+	from unsigned long to int since int is the underlying type of the
+	enumerated type values that are passed to it. This change should
+	be invisible to virtually all code unless you are compiling with
+	strict warning flags and explicitly casting to unsigned long.
+
+	* Add methods to QPDFObjectHandle to return the value of Integer
+	objects as int and unsigned int with range checking and fallback
+	behavior to avoid silent underflow/overflow conditions.
+
+	* Add functions to QUtil to convert unsigned integers to strings,
+	avoiding implicit conversion between unsigned and signed integer
+	types.
+
+	* Add QIntC.hh, containing integer type converters that do range
+	checking.
+
+2019-06-18  Jay Berkenbilt  <ejb@ql.org>
+
+	* Remove previously submitted qpdf_read_memory_fuzzer as it is a
+	small subset of qpdf_fuzzer.
+
+2019-06-15  Jay Berkenbilt  <ejb@ql.org>
+
+	* Update CI (Azure Pipelines) to run tests with some sanitizers.
+
+	* Do "ideal integration" with oss-fuzz. This includes adding a
+	better fuzzer with a seed corpus and adding automated tests of the
+	fuzzer with the test data.
+
+	* When parsing files, while reading an object, if there are too
+	many consecutive errors without enough intervening successes, give
+	up on the specific object. This reduces cases in which very badly
+	damaged files send qpdf into a tail spin reading one character at
+	a time and reporting warnings.
+
+2019-06-13  Jay Berkenbilt  <ejb@ql.org>
+
+	* Perform initial integration of Google's oss-fuzz project by
+	copying the fuzzer someone from Google already did into the qpdf
+	repository and adding build support. This shift in control is in
+	preparation for an ideal integration with oss-fuzz.
+
+2019-06-09  Jay Berkenbilt  <ejb@ql.org>
+
+	* When /DecodeParms is an empty list, ignore it on read and delete
+	it on write. Fixes #331.
+
 2019-05-18  Jay Berkenbilt  <ejb@ql.org>
 
 	* 8.4.2: release

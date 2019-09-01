@@ -4,19 +4,70 @@ ROUTINE DEVELOPMENT
 
 Default:
 
-./configure --enable-werror --disable-shared
+./configure --enable-werror
 
 Debugging:
 
 ./configure CFLAGS="-g" CXXFLAGS="-g" --enable-werror --disable-shared
+
+Profiling:
+
+./configure CFLAGS="-g -pg" CXXFLAGS="-g -pg" LDFLAGS="-pg" \
+   --enable-werror --disable-shared
+
+Then run `gprof gmon.out`. Note that gmon.out is not cumulative.
 
 Memory checks:
 
 ./configure CFLAGS="-fsanitize=address -fsanitize=undefined -g" \
    CXXFLAGS="-fsanitize=address -fsanitize=undefined -g" \
    LDFLAGS="-fsanitize=address -fsanitize=undefined" \
+   CC=clang CXX=clang++ \
    --enable-werror --disable-shared
 
+GOOGLE OSS-FUZZ
+
+* See ../misc/fuzz (not in repo) for unfixed, downloaded fuzz test cases
+
+* qpdf project: https://github.com/google/oss-fuzz/tree/master/projects/qpdf
+
+* To test locally, see https://github.com/google/oss-fuzz/tree/master/docs/,
+  especially new_project_guide.md. Summary:
+
+  Clone the oss-fuzz project. From the root directory of the repository:
+
+  Add `-e GITHUB_FORK=fork -e GITHUB_BRANCH=branch` to build_fuzzers
+  from a qpdf fork/branch rather than qpdf/master.
+
+  python infra/helper.py build_image --pull qpdf
+  python infra/helper.py build_fuzzers [ --sanitizer memory|undefined|address qpdf
+  python infra/helper.py check_build qpdf
+  python infra/helper.py build_fuzzers --sanitizer coverage qpdf
+  python infra/helper.py coverage qpdf
+
+  To reproduce a test case, build with the correct sanitizer, then run
+
+  python infra/helper.py reproduce qpdf fuzzer testcase
+
+  where fuzzer is the fuzzer used in the crash.
+
+  The fuzzer is in build/out/qpdf. It can be run with a directory as
+  an argument to run against files in a directory. You can use
+
+  qpdf_fuzzer -merge=1 cur new >& /dev/null&
+
+  to add any files from new into cur if they increase coverage. You
+  need to do this with the coverage build (the one with
+  --sanitizer coverage)
+
+* General documentation: http://libfuzzer.info
+
+* Build status: https://oss-fuzz-build-logs.storage.googleapis.com/index.html
+
+* Project status: https://oss-fuzz.com/ (private -- log in with Google account)
+
+* Latest corpus:
+  gs://qpdf-backup.clusterfuzz-external.appspot.com/corpus/libFuzzer/qpdf_fuzzer/latest.zip
 
 CODING RULES
 
@@ -27,6 +78,16 @@ CODING RULES
   `std::vector`. Instead, use `at()`. See README-hardening.md for
   details.
 
+* Use QIntC for type conversions -- see casting policy in docs.
+
+* Use QPDF_DLL on all methods that are to be exported in the shared
+  library/DLL. Use QPDF_DLL_CLASS for all classes whose type
+  information is needed. This is important for exception classes and
+  it seems also for classes that are intended to be subclassed across
+  the shared library boundary.
+
+* Put private member variables in PointerHolder<Members> for all
+  public classes. Remember to use QPDF_DLL on ~Members().
 
 RELEASE PREPARATION
 
@@ -34,8 +95,10 @@ RELEASE PREPARATION
   search for copyright. Don't forget copyright in manual. Also update
   debian copyright in debian package. Last updated: 2019.
 
+* Check for open fuzz crashes at https://oss-fuzz.com
+
 * Check all open issues and pull requests in github and the
-  sourceforge trackers.
+  sourceforge trackers. See ~/scripts/github-issues.
 
 * Check `TODO` file to make sure all planned items for the release are
   done or retargeted.
@@ -55,9 +118,13 @@ RELEASE PREPARATION
 * Test with clang. Pass `CC=clang CXX=clang++` to `./configure`. Test
   with newer version of gcc if available.
 
-* Test build on a mac.
+* Test 32-bit. Pass `CC=i686-linux-gnu-gcc CXX=i686-linux-gnu-g++` to
+  `./configure`. (Done in CI.)
 
-* Test with address sanitizer as described above.
+* Test build on a mac. (Done in CI.)
+
+* Test with address sanitizer as described above. (Done in CI with
+  gcc; test locally with clang.)
 
 * A small handful of additional files have been taken from autotools
   programs. These should probably be updated from time to time.
@@ -70,6 +137,7 @@ RELEASE PREPARATION
     ```
     cp /usr/share/automake-1.11/install-sh .
     cp /usr/share/automake-1.11/mkinstalldirs .
+    cp /usr/share/aclocal/pkg.m4 m4
     ```
 
   The entire contents of the `m4` directory came from `libtool.m4`. If
@@ -81,10 +149,10 @@ RELEASE PREPARATION
 * If any interfaces were added or changed, check C API to see whether
   changes are appropriate there as well. If necessary, review the
   casting policy in the manual, and ensure that integer types are
-  properly handled.
+  properly handled with QIntC or the appropriate cast.
 
 * Increment shared library version information as needed (`LT_*` in
-  `configure.ac`)
+  `configure.ac`). Remember to rerun ./autogen.sh.
 
 * Test for binary compatibility:
   * Check out the last release
@@ -212,15 +280,11 @@ zip -r qpdf-external-libs-src.zip external-libs
 When releasing on sourceforge, `external-libs` distributions go in
 `external-libs/yyyymmdd`, and qpdf distributions go in `qpdf/vvv`.
 
-For local iteration on the AppImage generation, follow the release
-procedures for building the AppImage, but instead of passing git clone
-options to the docker command, copy qpdf to /tmp/build. You can also
-pass -e SKIP_TESTS=1 to docker to skip the test suite, useful for
-rapid iteration. Set up /tmp/build as in the release process.
-
-cp -a $PWD /tmp/build
-docker run --privileged -ti --rm -e SKIP_TESTS=1 -v /tmp/build:/tmp/build qpdfbuild
-
+For local iteration on the AppImage generation, it works to just
+./azure-pipelines/build-appimage and get the resulting AppImage from
+the distribution directory. You can also pass -e SKIP_TESTS=1
+build-appimage, which passes it along to to docker, to skip the test
+suite, which useful for rapid iteration.
 
 GENERAL BUILD STUFF
 
