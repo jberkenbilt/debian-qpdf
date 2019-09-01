@@ -1,9 +1,10 @@
-qpdf (XXX) XXX; urgency=medium
+qpdf (9.0.0-1) unstable; urgency=medium
 
   * Use https on download address in copyright file. (Closes #933401)
-  * XXX Reminder: issue 345 is debian bug 933397
+  * Update standards to 4.4.0. No changes required.
+  * New upstream release.
 
- --
+ -- Jay Berkenbilt <qjb@debian.org>  Sat, 31 Aug 2019 21:45:41 -0400
 
 qpdf (8.4.2-1) unstable; urgency=medium
 
