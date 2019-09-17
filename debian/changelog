@@ -1,3 +1,11 @@
+qpdf (9.0.0-2) unstable; urgency=medium
+
+  * Patch for integer conversion warnings on big-endian systems and to fix
+    a test failure (from a bad test, not a coding error) for systems where
+    char is unsigned.
+
+ -- Jay Berkenbilt <qjb@debian.org>  Tue, 17 Sep 2019 19:18:59 -0400
+
 qpdf (9.0.0-1) unstable; urgency=medium
 
   * Use https on download address in copyright file. (Closes: #933401)

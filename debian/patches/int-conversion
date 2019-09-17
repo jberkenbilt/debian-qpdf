@@ -1,0 +1,252 @@
+Index: qpdf/ChangeLog
+===================================================================
+--- qpdf.orig/ChangeLog
++++ qpdf/ChangeLog
+@@ -1,3 +1,7 @@
++2019-09-17  Jay Berkenbilt  <ejb@ql.org>
++
++	* QIntC tests: don't assume char is signed. Fixes #361.
++
+ 2019-08-31  Jay Berkenbilt  <ejb@ql.org>
+ 
+ 	* 9.0.0: release
+Index: qpdf/include/qpdf/QIntC.hh
+===================================================================
+--- qpdf.orig/include/qpdf/QIntC.hh
++++ qpdf/include/qpdf/QIntC.hh
+@@ -51,6 +51,13 @@ namespace QIntC // QIntC = qpdf Integer
+     };
+ 
+     template <>
++    class to_u<signed char>
++    {
++      public:
++        typedef unsigned char type;
++    };
++
++    template <>
+     class to_u<short>
+     {
+       public:
+Index: qpdf/libqpdf/sph/sph_types.h
+===================================================================
+--- qpdf.orig/libqpdf/sph/sph_types.h
++++ qpdf/libqpdf/sph/sph_types.h
+@@ -1384,17 +1384,17 @@ sph_enc32be(void *dst, sph_u32 val)
+ #endif
+ 		*(sph_u32 *)dst = val;
+ 	} else {
+-		((unsigned char *)dst)[0] = (val >> 24);
+-		((unsigned char *)dst)[1] = (val >> 16);
+-		((unsigned char *)dst)[2] = (val >> 8);
+-		((unsigned char *)dst)[3] = val;
++		((unsigned char *)dst)[0] = (unsigned char)(val >> 24);
++		((unsigned char *)dst)[1] = (unsigned char)(val >> 16);
++		((unsigned char *)dst)[2] = (unsigned char)(val >> 8);
++		((unsigned char *)dst)[3] = (unsigned char)(val);
+ 	}
+ #endif
+ #else
+-	((unsigned char *)dst)[0] = (val >> 24);
+-	((unsigned char *)dst)[1] = (val >> 16);
+-	((unsigned char *)dst)[2] = (val >> 8);
+-	((unsigned char *)dst)[3] = val;
++	((unsigned char *)dst)[0] = (unsigned char)(val >> 24);
++	((unsigned char *)dst)[1] = (unsigned char)(val >> 16);
++	((unsigned char *)dst)[2] = (unsigned char)(val >> 8);
++	((unsigned char *)dst)[3] = (unsigned char)(val);
+ #endif
+ }
+ 
+@@ -1413,10 +1413,10 @@ sph_enc32be_aligned(void *dst, sph_u32 v
+ #elif SPH_BIG_ENDIAN
+ 	*(sph_u32 *)dst = val;
+ #else
+-	((unsigned char *)dst)[0] = (val >> 24);
+-	((unsigned char *)dst)[1] = (val >> 16);
+-	((unsigned char *)dst)[2] = (val >> 8);
+-	((unsigned char *)dst)[3] = val;
++	((unsigned char *)dst)[0] = (unsigned char)(val >> 24);
++	((unsigned char *)dst)[1] = (unsigned char)(val >> 16);
++	((unsigned char *)dst)[2] = (unsigned char)(val >> 8);
++	((unsigned char *)dst)[3] = (unsigned char)(val);
+ #endif
+ }
+ 
+@@ -1502,17 +1502,17 @@ sph_enc32le(void *dst, sph_u32 val)
+ #endif
+ 		*(sph_u32 *)dst = val;
+ 	} else {
+-		((unsigned char *)dst)[0] = val;
+-		((unsigned char *)dst)[1] = (val >> 8);
+-		((unsigned char *)dst)[2] = (val >> 16);
+-		((unsigned char *)dst)[3] = (val >> 24);
++		((unsigned char *)dst)[0] = (unsigned char)(val);
++		((unsigned char *)dst)[1] = (unsigned char)(val >> 8);
++		((unsigned char *)dst)[2] = (unsigned char)(val >> 16);
++		((unsigned char *)dst)[3] = (unsigned char)(val >> 24);
+ 	}
+ #endif
+ #else
+-	((unsigned char *)dst)[0] = val;
+-	((unsigned char *)dst)[1] = (val >> 8);
+-	((unsigned char *)dst)[2] = (val >> 16);
+-	((unsigned char *)dst)[3] = (val >> 24);
++	((unsigned char *)dst)[0] = (unsigned char)(val);
++	((unsigned char *)dst)[1] = (unsigned char)(val >> 8);
++	((unsigned char *)dst)[2] = (unsigned char)(val >> 16);
++	((unsigned char *)dst)[3] = (unsigned char)(val >> 24);
+ #endif
+ }
+ 
+@@ -1531,10 +1531,10 @@ sph_enc32le_aligned(void *dst, sph_u32 v
+ #elif SPH_BIG_ENDIAN
+ 	*(sph_u32 *)dst = sph_bswap32(val);
+ #else
+-	((unsigned char *)dst)[0] = val;
+-	((unsigned char *)dst)[1] = (val >> 8);
+-	((unsigned char *)dst)[2] = (val >> 16);
+-	((unsigned char *)dst)[3] = (val >> 24);
++	((unsigned char *)dst)[0] = (unsigned char)(val);
++	((unsigned char *)dst)[1] = (unsigned char)(val >> 8);
++	((unsigned char *)dst)[2] = (unsigned char)(val >> 16);
++	((unsigned char *)dst)[3] = (unsigned char)(val >> 24);
+ #endif
+ }
+ 
+@@ -1682,14 +1682,14 @@ sph_enc64be(void *dst, sph_u64 val)
+ 	}
+ #endif
+ #else
+-	((unsigned char *)dst)[0] = (val >> 56);
+-	((unsigned char *)dst)[1] = (val >> 48);
+-	((unsigned char *)dst)[2] = (val >> 40);
+-	((unsigned char *)dst)[3] = (val >> 32);
+-	((unsigned char *)dst)[4] = (val >> 24);
+-	((unsigned char *)dst)[5] = (val >> 16);
+-	((unsigned char *)dst)[6] = (val >> 8);
+-	((unsigned char *)dst)[7] = val;
++	((unsigned char *)dst)[0] = (unsigned char)(val >> 56);
++	((unsigned char *)dst)[1] = (unsigned char)(val >> 48);
++	((unsigned char *)dst)[2] = (unsigned char)(val >> 40);
++	((unsigned char *)dst)[3] = (unsigned char)(val >> 32);
++	((unsigned char *)dst)[4] = (unsigned char)(val >> 24);
++	((unsigned char *)dst)[5] = (unsigned char)(val >> 16);
++	((unsigned char *)dst)[6] = (unsigned char)(val >> 8);
++	((unsigned char *)dst)[7] = (unsigned char)(val);
+ #endif
+ }
+ 
+@@ -1708,14 +1708,14 @@ sph_enc64be_aligned(void *dst, sph_u64 v
+ #elif SPH_BIG_ENDIAN
+ 	*(sph_u64 *)dst = val;
+ #else
+-	((unsigned char *)dst)[0] = (val >> 56);
+-	((unsigned char *)dst)[1] = (val >> 48);
+-	((unsigned char *)dst)[2] = (val >> 40);
+-	((unsigned char *)dst)[3] = (val >> 32);
+-	((unsigned char *)dst)[4] = (val >> 24);
+-	((unsigned char *)dst)[5] = (val >> 16);
+-	((unsigned char *)dst)[6] = (val >> 8);
+-	((unsigned char *)dst)[7] = val;
++	((unsigned char *)dst)[0] = (unsigned char)(val >> 56);
++	((unsigned char *)dst)[1] = (unsigned char)(val >> 48);
++	((unsigned char *)dst)[2] = (unsigned char)(val >> 40);
++	((unsigned char *)dst)[3] = (unsigned char)(val >> 32);
++	((unsigned char *)dst)[4] = (unsigned char)(val >> 24);
++	((unsigned char *)dst)[5] = (unsigned char)(val >> 16);
++	((unsigned char *)dst)[6] = (unsigned char)(val >> 8);
++	((unsigned char *)dst)[7] = (unsigned char)(val);
+ #endif
+ }
+ 
+@@ -1824,14 +1824,14 @@ sph_enc64le(void *dst, sph_u64 val)
+ 	}
+ #endif
+ #else
+-	((unsigned char *)dst)[0] = val;
+-	((unsigned char *)dst)[1] = (val >> 8);
+-	((unsigned char *)dst)[2] = (val >> 16);
+-	((unsigned char *)dst)[3] = (val >> 24);
+-	((unsigned char *)dst)[4] = (val >> 32);
+-	((unsigned char *)dst)[5] = (val >> 40);
+-	((unsigned char *)dst)[6] = (val >> 48);
+-	((unsigned char *)dst)[7] = (val >> 56);
++	((unsigned char *)dst)[0] = (unsigned char)(val);
++	((unsigned char *)dst)[1] = (unsigned char)(val >> 8);
++	((unsigned char *)dst)[2] = (unsigned char)(val >> 16);
++	((unsigned char *)dst)[3] = (unsigned char)(val >> 24);
++	((unsigned char *)dst)[4] = (unsigned char)(val >> 32);
++	((unsigned char *)dst)[5] = (unsigned char)(val >> 40);
++	((unsigned char *)dst)[6] = (unsigned char)(val >> 48);
++	((unsigned char *)dst)[7] = (unsigned char)(val >> 56);
+ #endif
+ }
+ 
+@@ -1850,14 +1850,14 @@ sph_enc64le_aligned(void *dst, sph_u64 v
+ #elif SPH_BIG_ENDIAN
+ 	*(sph_u64 *)dst = sph_bswap64(val);
+ #else
+-	((unsigned char *)dst)[0] = val;
+-	((unsigned char *)dst)[1] = (val >> 8);
+-	((unsigned char *)dst)[2] = (val >> 16);
+-	((unsigned char *)dst)[3] = (val >> 24);
+-	((unsigned char *)dst)[4] = (val >> 32);
+-	((unsigned char *)dst)[5] = (val >> 40);
+-	((unsigned char *)dst)[6] = (val >> 48);
+-	((unsigned char *)dst)[7] = (val >> 56);
++	((unsigned char *)dst)[0] = (unsigned char)(val);
++	((unsigned char *)dst)[1] = (unsigned char)(val >> 8);
++	((unsigned char *)dst)[2] = (unsigned char)(val >> 16);
++	((unsigned char *)dst)[3] = (unsigned char)(val >> 24);
++	((unsigned char *)dst)[4] = (unsigned char)(val >> 32);
++	((unsigned char *)dst)[5] = (unsigned char)(val >> 40);
++	((unsigned char *)dst)[6] = (unsigned char)(val >> 48);
++	((unsigned char *)dst)[7] = (unsigned char)(val >> 56);
+ #endif
+ }
+ 
+Index: qpdf/libtests/qintc.cc
+===================================================================
+--- qpdf.orig/libtests/qintc.cc
++++ qpdf/libtests/qintc.cc
+@@ -32,12 +32,13 @@ int main()
+     uint64_t ul1 = 1099511627776LL; // Too big for 32-bit
+     uint64_t ul2 = 12345;           // Fits into 32-bit
+     int32_t i2 = 81;                // Fits in char and uchar
+-    char c1 = '\xf7';               // Signed value when char
++    signed char c1 = static_cast<signed char>('\xf7'); // Signed value when char
++    char c2 = 'W';                  // char; may be signed or unsigned
+ 
+     // Verify i1 and u1 have same bit pattern
+     assert(static_cast<uint32_t>(i1) == u1);
+-    // Verify that we can unsafely convert between char and unsigned char
+-    assert(c1 == static_cast<char>(static_cast<unsigned char>(c1)));
++    // Verify that we can unsafely convert between signed and unsigned char
++    assert(c1 == static_cast<signed char>(static_cast<unsigned char>(c1)));
+ 
+     try_convert(true,  QIntC::to_int<int32_t>, i1);
+     try_convert(true,  QIntC::to_uint<uint32_t>, u1);
+@@ -51,7 +52,9 @@ int main()
+     try_convert(false, QIntC::to_ulonglong<int32_t>, i1);
+     try_convert(true,  QIntC::to_char<int32_t>, i2);
+     try_convert(true,  QIntC::to_uchar<int32_t>, i2);
+-    try_convert(false, QIntC::to_uchar<char>, c1);
++    try_convert(false, QIntC::to_uchar<signed char>, c1);
++    try_convert(true,  QIntC::to_uchar<char>, c2);
++    try_convert(true,  QIntC::to_char<char>, c2);
+ 
+     return 0;
+ }
+Index: qpdf/libtests/qtest/qintc/qintc.out
+===================================================================
+--- qpdf.orig/libtests/qtest/qintc/qintc.out
++++ qpdf/libtests/qtest/qintc/qintc.out
+@@ -10,4 +10,6 @@ QIntC::to_offset<int32_t>(i1): -11533746
+ QIntC::to_ulonglong<int32_t>(i1): integer out of range converting -1153374643 from a 4-byte signed type to a 8-byte unsigned type PASSED
+ QIntC::to_char<int32_t>(i2): 81 Q PASSED
+ QIntC::to_uchar<int32_t>(i2): 81 Q PASSED
+-QIntC::to_uchar<char>(c1): integer out of range converting ÷ from a 1-byte signed type to a 1-byte unsigned type PASSED
++QIntC::to_uchar<signed char>(c1): integer out of range converting ÷ from a 1-byte signed type to a 1-byte unsigned type PASSED
++QIntC::to_uchar<char>(c2): W W PASSED
++QIntC::to_char<char>(c2): W W PASSED
