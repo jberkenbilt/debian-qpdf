@@ -5,8 +5,8 @@
 <!ENTITY mdash "&#x2014;">
 <!ENTITY ndash "&#x2013;">
 <!ENTITY nbsp "&#xA0;">
-<!ENTITY swversion "9.0.0">
-<!ENTITY lastreleased "August 31, 2019">
+<!ENTITY swversion "9.0.1">
+<!ENTITY lastreleased "September 20, 2019">
 ]>
 <book>
  <bookinfo>
@@ -4365,6 +4365,45 @@ print "\n";
   </para>
   <variablelist>
    <varlistentry>
+    <term>9.0.1: September 20, 2019</term>
+    <listitem>
+     <itemizedlist>
+      <listitem>
+       <para>
+        Bug Fixes/Enhancements
+       </para>
+       <itemizedlist>
+        <listitem>
+         <para>
+          Fix some build and test issues on big-endian systems and
+          compilers with characters that are unsigned by default.
+          The problems were in build and test only. There were no
+          actual bugs in the qpdf library itself relating to
+          endianness or unsigned characters.
+         </para>
+        </listitem>
+        <listitem>
+         <para>
+          When a dictionary has a duplicated key, report this with a
+          warning. The behavior of the library in this case is
+          unchanged, but the error condition is no longer silently
+          ignored.
+         </para>
+        </listitem>
+        <listitem>
+         <para>
+          When a form field's display rectangle is erroneously
+          specified with inverted coordinates, detect and correct this
+          situation. This avoids some form fields from being flipped
+          when flattening annotations on files with this condition.
+         </para>
+        </listitem>
+       </itemizedlist>
+      </listitem>
+     </itemizedlist>
+    </listitem>
+   </varlistentry>
+   <varlistentry>
     <term>9.0.0: August 31, 2019</term>
     <listitem>
      <itemizedlist>
@@ -4419,14 +4458,6 @@ print "\n";
           This function would allow creation of name tokens whose
           value would change when unparsed, which is never the correct
           behavior.
-         </para>
-        </listitem>
-        <listitem>
-         <para>
-          When <command>qpdf --check</command> or <command>qpdf
-          --check-linearization</command> encounters a file with
-          linearization warnings but not errors, it now properly exits
-          with exit code 3 instead of 2.
          </para>
         </listitem>
        </itemizedlist>
@@ -4652,14 +4683,6 @@ print "\n";
           regarding encryption key length. This allows qpdf to open
           encrypted files in most cases when they have invalid or
           missing /Length keys in the encryption dictionary.
-         </para>
-        </listitem>
-        <listitem>
-         <para>
-          When <command>qpdf --check</command> or <command>qpdf
-          --check-linearization</command> encounters a file with
-          linearization warnings but not errors, it now properly exits
-          with exit code 3 instead of 2.
          </para>
         </listitem>
        </itemizedlist>
