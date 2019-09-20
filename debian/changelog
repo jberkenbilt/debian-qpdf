@@ -1,3 +1,11 @@
+qpdf (9.0.1-1) unstable; urgency=medium
+
+  * New upstream release.
+  * Upstream release includes detection of duplicated dictionary keys.
+    (Closes: #933397)
+
+ -- Jay Berkenbilt <qjb@debian.org>  Fri, 20 Sep 2019 09:35:45 -0400
+
 qpdf (9.0.0-2) unstable; urgency=medium
 
   * Patch for integer conversion warnings on big-endian systems and to fix
