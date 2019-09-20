@@ -30,6 +30,7 @@
 #include <ctype.h>
 #include <limits.h>
 #include <cstring>
+#include <algorithm>
 
 class TerminateParsing
 {
@@ -717,10 +718,17 @@ QPDFObjectHandle::getArrayAsRectangle()
     Rectangle result;
     if (isRectangle())
     {
-        result = Rectangle(getArrayItem(0).getNumericValue(),
-                           getArrayItem(1).getNumericValue(),
-                           getArrayItem(2).getNumericValue(),
-                           getArrayItem(3).getNumericValue());
+        // Rectangle coordinates are always supposed to be llx, lly,
+        // urx, ury, but files have been found in the wild where
+        // llx > urx or lly > ury.
+        double i0 = getArrayItem(0).getNumericValue();
+        double i1 = getArrayItem(1).getNumericValue();
+        double i2 = getArrayItem(2).getNumericValue();
+        double i3 = getArrayItem(3).getNumericValue();
+        result = Rectangle(std::min(i0, i2),
+                           std::min(i1, i3),
+                           std::max(i0, i2),
+                           std::max(i1, i3));
     }
     return result;
 }
@@ -2135,7 +2143,18 @@ QPDFObjectHandle::parseInternal(PointerHolder<InputSource> input,
                     {
                         val = olist.at(++i);
                     }
-                    dict[key_obj.getName()] = val;
+                    std::string key = key_obj.getName();
+                    if (dict.count(key) > 0)
+                    {
+                        QTC::TC("qpdf", "QPDFObjectHandle duplicate dict key");
+                        warn(context,
+                             QPDFExc(
+                                 qpdf_e_damaged_pdf,
+                                 input->getName(), object_description, offset,
+                                 "dictionary has duplicated key " + key +
+                                 "; last occurrence overrides earlier ones"));
+                    }
+                    dict[key] = val;
                 }
                 object = newDictionary(dict);
                 setObjectDescriptionFromInput(
