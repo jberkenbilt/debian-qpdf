@@ -1,3 +1,11 @@
+qpdf (9.1~rc1-1) experimental; urgency=medium
+
+  * New upstream release.
+  * Includes build dependency on gnutls to use gnutls crypto provider
+    instead of qpdf's native crypto.
+
+ -- Jay Berkenbilt <qjb@debian.org>  Sun, 10 Nov 2019 21:38:01 -0500
+
 qpdf (9.0.2-1) unstable; urgency=medium
 
   * New upstream release.

@@ -1,7 +1,7 @@
 Source: qpdf
 Section: libs
 Priority: optional
-Build-Depends: debhelper (>> 10.3~), libjpeg-dev, zlib1g-dev
+Build-Depends: debhelper (>> 10.3~), libjpeg-dev, zlib1g-dev, libgnutls28-dev
 Maintainer: Jay Berkenbilt <qjb@debian.org>
 Standards-Version: 4.4.1
 Homepage: http://qpdf.sourceforge.net

@@ -6,7 +6,7 @@ It can be downloaded from https://github.com/qpdf/qpdf/releases
 Upstream Maintainers:
   Jay Berkenbilt <ejb@ql.org>
 
-For these files:
+For these files, which are no longer built in the debian package:
 
 libqpdf/sph/sph_sha2.h
 libqpdf/sph/sph_types.h
@@ -39,7 +39,8 @@ TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
 SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ----------------------------------------------------------------------
 
-For the file libqpdf/MD5.cc, the following copyright applies:
+For the file libqpdf/MD5_native.cc, which is no longer built in the
+debian package, the following copyright applies:
 
 ----------------------------------------------------------------------
 Copyright (C) 1991-2, RSA Data Security, Inc. Created 1991. All
