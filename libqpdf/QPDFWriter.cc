@@ -762,7 +762,7 @@ QPDFWriter::copyEncryptionParameters(QPDF& qpdf)
 	    V,
 	    encrypt.getKey("/R").getIntValueAsInt(),
     	    key_len,
-	    encrypt.getKey("/P").getIntValueAsInt(),
+	    static_cast<int>(encrypt.getKey("/P").getIntValue()),
 	    encrypt.getKey("/O").getStringValue(),
 	    encrypt.getKey("/U").getStringValue(),
             OE,
@@ -1687,7 +1687,20 @@ QPDFWriter::unparseObject(QPDFObjectHandle object, int level,
 	    writeStringNoQDF(" ");
 	    writeString(QPDF_Name::normalizeName(key));
 	    writeString(" ");
-            unparseChild(object.getKey(key), level + 1, child_flags);
+	    if (key == "/Contents" &&
+		object.hasKey("/Type") &&
+		object.getKey("/Type").isName() &&
+		object.getKey("/Type").getName() == "/Sig" &&
+		object.hasKey("/ByteRange"))
+	    {
+                QTC::TC("qpdf", "QPDFWriter no encryption sig contents");
+		unparseChild(object.getKey(key), level + 1,
+			     child_flags | f_hex_string | f_no_encryption);
+	    }
+	    else
+	    {
+		unparseChild(object.getKey(key), level + 1, child_flags);
+	    }
 	    writeStringQDF("\n");
 	}
 
@@ -1853,6 +1866,7 @@ QPDFWriter::unparseObject(QPDFObjectHandle object, int level,
 	std::string val;
 	if (this->m->encrypted &&
 	    (! (flags & f_in_ostream)) &&
+	    (! (flags & f_no_encryption)) &&
 	    (! this->m->cur_data_key.empty()))
 	{
 	    val = object.getStringValue();
@@ -1881,6 +1895,10 @@ QPDFWriter::unparseObject(QPDFObjectHandle object, int level,
 		rc4.process(QUtil::unsigned_char_pointer(tmp), vlen);
 		val = QPDF_String(std::string(tmp, vlen)).unparse();
 	    }
+	}
+	else if (flags & f_hex_string)
+	{
+	    val = QPDF_String(object.getStringValue()).unparse(true);
 	}
 	else
 	{
@@ -2722,6 +2740,29 @@ QPDFWriter::write()
 	this->m->buffer_pipeline = 0;
     }
     indicateProgress(false, true);
+}
+
+QPDFObjGen
+QPDFWriter::getRenumberedObjGen(QPDFObjGen og)
+{
+    return QPDFObjGen(this->m->obj_renumber[og], 0);
+}
+
+std::map<QPDFObjGen, QPDFXRefEntry>
+QPDFWriter::getWrittenXRefTable()
+{
+    std::map<QPDFObjGen, QPDFXRefEntry> result;
+
+    for (std::map<int, QPDFXRefEntry>::iterator iter = this->m->xref.begin();
+         iter != this->m->xref.end(); ++iter)
+    {
+        if (iter->first != 0 && iter->second.getType() != 0)
+        {
+            result[QPDFObjGen(iter->first, 0)] = iter->second;
+        }
+    }
+
+    return result;
 }
 
 void

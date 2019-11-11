@@ -465,11 +465,23 @@ class QPDFWriter
     QPDF_DLL
     void write();
 
+    // Return renumbered ObjGen that was written into the final file.
+    // This method can be used after calling write().
+    QPDF_DLL
+    QPDFObjGen getRenumberedObjGen(QPDFObjGen);
+
+    // Return XRef entry that was written into the final file.
+    // This method can be used after calling write().
+    QPDF_DLL
+    std::map<QPDFObjGen, QPDFXRefEntry> getWrittenXRefTable();
+
   private:
     // flags used by unparseObject
     static int const f_stream = 	1 << 0;
     static int const f_filtered =	1 << 1;
     static int const f_in_ostream =     1 << 2;
+    static int const f_hex_string =     1 << 3;
+    static int const f_no_encryption =  1 << 4;
 
     enum trailer_e { t_normal, t_lin_first, t_lin_second };
 

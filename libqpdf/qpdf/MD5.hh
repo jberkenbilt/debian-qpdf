@@ -2,15 +2,10 @@
 #define MD5_HH
 
 #include <qpdf/DLL.h>
-#include <qpdf/qpdf-config.h>
 #include <qpdf/Types.h>
-#ifdef HAVE_INTTYPES_H
-# include <inttypes.h>
-#endif
-#ifdef HAVE_STDINT_H
-# include <stdint.h>
-#endif
+#include <qpdf/QPDFCryptoImpl.hh>
 #include <string>
+#include <memory>
 
 class MD5
 {
@@ -66,29 +61,10 @@ class MD5
                                   qpdf_offset_t up_to_offset = -1);
 
   private:
-    // POINTER defines a generic pointer type
-    typedef void *POINTER;
-
-    // UINT2 defines a two byte word
-    typedef uint16_t UINT2;
-
-    // UINT4 defines a four byte word
-    typedef uint32_t UINT4;
-
     void init();
-    void update(unsigned char *, size_t);
-    void final();
+    void finalize();
 
-    static void transform(UINT4 [4], unsigned char [64]);
-    static void encode(unsigned char *, UINT4 *, size_t);
-    static void decode(UINT4 *, unsigned char *, size_t);
-
-    UINT4 state[4];		// state (ABCD)
-    UINT4 count[2];		// number of bits, modulo 2^64 (lsb first)
-    unsigned char buffer[64];	// input buffer
-
-    bool finalized;
-    Digest digest_val;
+    std::shared_ptr<QPDFCryptoImpl> crypto;
 };
 
 #endif // MD5_HH

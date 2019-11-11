@@ -2,7 +2,7 @@ dnl Process this file with autoconf to produce a configure script.
 dnl This config.in requires autoconf 2.5 or greater.
 
 AC_PREREQ([2.68])
-AC_INIT([qpdf],[9.0.2])
+AC_INIT([qpdf],[9.1.rc1])
 
 AC_CONFIG_MACRO_DIR([m4])
 AC_CONFIG_FILES([autoconf.mk])
@@ -29,13 +29,14 @@ AC_CHECK_PROG(ACLOCAL,aclocal,1,0)
 AC_CHECK_PROG(SHA256SUM,sha256sum,1,0)
 if test "$CHECK_AUTOFILES$AUTOCONF$AUTOHEADER$ACLOCAL$SHA256SUM" = "11111"; then
    if ! sha256sum -c autofiles.sums; then
-       AC_MSG_ERROR(autofiles are autodated; rerun autogen.sh)
+       AC_MSG_ERROR(autofiles are outdated; rerun autogen.sh)
    fi
 fi
 
 AC_PROG_CC
 AC_PROG_CC_C99
 AC_PROG_CXX
+AX_CXX_COMPILE_STDCXX([11], [noext], [mandatory])
 AC_HEADER_STDC
 LT_INIT([win32-dll])
 
@@ -51,9 +52,9 @@ LT_INIT([win32-dll])
 # * Otherwise, increment LT_REVISION
 
 # LT = libtool
-LT_CURRENT=26
-LT_AGE=0
-LT_REVISION=2
+LT_CURRENT=27
+LT_AGE=1
+LT_REVISION=0
 AC_SUBST(LT_CURRENT)
 AC_SUBST(LT_REVISION)
 AC_SUBST(LT_AGE)
@@ -115,7 +116,7 @@ if test "$qpdf_OS_SECURE_RANDOM" = "1"; then
    AC_MSG_RESULT(yes)
 else
    AC_MSG_RESULT(no)
-   AC_DEFINE([SKIP_OS_SECURE_RANDOM], [1], [Whether to suppres use of OS-provided secure random numbers])
+   AC_DEFINE([SKIP_OS_SECURE_RANDOM], [1], [Whether to suppress use of OS-provided secure random numbers])
 fi
 
 AX_RANDOM_DEVICE
@@ -267,8 +268,6 @@ AC_ARG_WITH(large-file-test-path,
 AC_SYS_LARGEFILE
 AC_FUNC_FSEEKO
 AC_CHECK_FUNCS([fseeko64])
-AC_TYPE_UINT16_T
-AC_TYPE_UINT32_T
 
 AC_CHECK_FUNCS(random)
 
@@ -465,6 +464,137 @@ if test "$qpdf_INT_WARNINGS" = "1"; then
 else
    AC_MSG_RESULT(no)
 fi
+
+AC_SUBST(WINDOWS_WMAIN_XLINK_FLAGS)
+AC_SUBST(WINDOWS_MAIN_XLINK_FLAGS)
+if test "$BUILDRULES" = "msvc"; then
+  WINDOWS_WMAIN_XLINK_FLAGS="-link wsetargv.obj"
+  WINDOWS_MAIN_XLINK_FLAGS="-link setargv.obj"
+fi
+
+dnl BEGIN CRYPTO
+
+dnl By default, we build in support for every crypto provider that we
+dnl can. If implicit crypto is disabled, we don't build support for
+dnl any crypto that is not explicitly enabled. Test for various crypto
+dnl providers in increasing order of priority. The last one found
+dnl becomes the default unless a default is explicitly specified.
+
+AC_MSG_CHECKING(for whether to use implicit crypto)
+AC_ARG_ENABLE(implicit-crypto,
+   AS_HELP_STRING([--enable-implicit-crypto],
+		  [whether to enable available crypto providers that are not explicitly requested; true by default]),
+   [if test "$enableval" = "yes"; then
+      IMPLICIT_CRYPTO=1
+    else
+      IMPLICIT_CRYPTO=0
+    fi],
+   [IMPLICIT_CRYPTO=1])
+if test "$IMPLICIT_CRYPTO" = "1"; then
+   AC_MSG_RESULT(yes)
+else
+   AC_MSG_RESULT(no)
+fi
+
+dnl Native crypto is always available unless explicitly disabled.
+
+AC_SUBST(USE_CRYPTO_NATIVE)
+AC_ARG_ENABLE(crypto-native,
+   AS_HELP_STRING([--enable-crypto-native],
+                  [whether to include support for native crypto provider]),
+   [if test "$enableval" = "yes"; then
+      USE_CRYPTO_NATIVE=1
+    else
+      USE_CRYPTO_NATIVE=0
+    fi],
+   [USE_CRYPTO_NATIVE=$IMPLICIT_CRYPTO])
+if test "$USE_CRYPTO_NATIVE" = "1"; then
+  AC_DEFINE([USE_CRYPTO_NATIVE], 1, [Whether to use the native crypto provider])
+  DEFAULT_CRYPTO=native
+fi
+
+dnl If the gnutls provider is explicitly requested, require gnutls. If
+dnl the gnutls provider is not explicitly disabled, enable it if
+dnl gnutls is available. If the gnutls provider is explicitly
+dnl disabled, do not link with gnutls even if present.
+
+PKG_CHECK_MODULES([pc_gnutls], [gnutls], [GNUTLS_FOUND=1], [GNUTLS_FOUND=0])
+if test "$GNUTLS_FOUND" = "0"; then
+  AC_CHECK_HEADER(gnutls/gnutls.h,[GNUTLS_FOUND=1],[GNUTLS_FOUND=0])
+  AC_SEARCH_LIBS(gnutls_hash_init,gnutls,[GNUTLS_FOUND=1],[GNUTLS_FOUND=0])
+fi
+
+IMPLICIT_GNUTLS=0
+USE_CRYPTO_GNUTLS=0
+AC_SUBST(USE_CRYPTO_GNUTLS)
+AC_ARG_ENABLE(crypto-gnutls,
+   AS_HELP_STRING([--enable-crypto-gnutls],
+                  [whether to include support for gnutls crypto provider]),
+   [if test "$enableval" = "yes"; then
+      USE_CRYPTO_GNUTLS=1
+    else
+      USE_CRYPTO_GNUTLS=0
+    fi],
+   [IMPLICIT_GNUTLS=$IMPLICIT_CRYPTO])
+
+if test "$IMPLICIT_GNUTLS" = "1"; then
+  USE_CRYPTO_GNUTLS=$GNUTLS_FOUND
+  if test "$USE_CRYPTO_GNUTLS" = "1"; then
+    AC_MSG_NOTICE(enabling gnutls crypto provider since gnutls is available)
+  else
+    AC_MSG_NOTICE(not enabling gnutls crypto provider since gnutls was not found)
+  fi
+fi
+
+if test "$USE_CRYPTO_GNUTLS" = "1" -a "$GNUTLS_FOUND" = "0"; then
+  AC_MSG_ERROR(unable to use requested gnutls crypto provider without gnutls)
+fi
+
+if test "$USE_CRYPTO_GNUTLS" = "1"; then
+  CFLAGS="$CFLAGS $pc_gnutls_CFLAGS"
+  CXXFLAGS="$CXXFLAGS $pc_gnutls_CXXFLAGS"
+  LIBS="$LIBS $pc_gnutls_LIBS"
+  AC_DEFINE([USE_CRYPTO_GNUTLS], 1, [Whether to use the gnutls crypto provider])
+  DEFAULT_CRYPTO=gnutls
+elif test "$GNUTLS_FOUND" = "1"; then
+  AC_MSG_NOTICE(not linking with gnutls even though it is available)
+fi
+
+dnl Allow the default crypto provider to be specified explicitly.
+
+AC_MSG_CHECKING(which crypto to use by default)
+AC_SUBST(DEFAULT_CRYPTO)
+AC_ARG_WITH(default-crypto,
+   AS_HELP_STRING([--with-default-crypto=provider],
+		  [which crypto provider to use by default; see README.md]),
+   [DEFAULT_CRYPTO=$withval],
+   [])
+AC_MSG_RESULT($DEFAULT_CRYPTO)
+AC_DEFINE_UNQUOTED([DEFAULT_CRYPTO], "$DEFAULT_CRYPTO", [Default crypto provider])
+
+dnl Make sure the default crypto provider is actually being built.
+
+bad_crypto=0
+case "$DEFAULT_CRYPTO" in
+  "native")
+    if test "$USE_CRYPTO_NATIVE" != "1"; then
+      bad_crypto=1
+    fi
+  ;;
+  "gnutls")
+    if test "$USE_CRYPTO_GNUTLS" != "1"; then
+      bad_crypto=1
+    fi
+  ;;
+  *)
+    bad_crypto=1
+  ;;
+esac
+if test "$bad_crypto" = "1"; then
+  AC_MSG_ERROR(Unsupported default crypto: $DEFAULT_CRYPTO)
+fi
+
+dnl END CRYPTO
 
 AC_SUBST(QPDF_SKIP_TEST_COMPARE_IMAGES)
 AC_ARG_ENABLE(test-compare-images,

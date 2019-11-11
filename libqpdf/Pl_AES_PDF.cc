@@ -3,8 +3,8 @@
 #include <cstring>
 #include <assert.h>
 #include <stdexcept>
-#include <qpdf/rijndael.h>
 #include <qpdf/QIntC.hh>
+#include <qpdf/QPDFCryptoProvider.hh>
 #include <string>
 #include <stdlib.h>
 
@@ -14,38 +14,23 @@ Pl_AES_PDF::Pl_AES_PDF(char const* identifier, Pipeline* next,
 		       bool encrypt, unsigned char const* key,
                        size_t key_bytes) :
     Pipeline(identifier, next),
+    crypto(QPDFCryptoProvider::getImpl()),
     encrypt(encrypt),
     cbc_mode(true),
     first(true),
     offset(0),
-    nrounds(0),
+    key_bytes(key_bytes),
     use_zero_iv(false),
     use_specified_iv(false),
     disable_padding(false)
 {
-    size_t keybits = 8 * key_bytes;
-    assert(key_bytes == KEYLENGTH(keybits));
-    this->key = PointerHolder<unsigned char>(
-        true, new unsigned char[key_bytes]);
-    this->rk = PointerHolder<uint32_t>(
-        true, new uint32_t[RKLENGTH(keybits)]);
-    size_t rk_bytes = RKLENGTH(keybits) * sizeof(uint32_t);
-    std::memcpy(this->key.getPointer(), key, key_bytes);
-    std::memset(this->rk.getPointer(), 0, rk_bytes);
+    this->key = std::unique_ptr<unsigned char[]>(
+        new unsigned char[key_bytes],
+        std::default_delete<unsigned char[]>());
+    std::memcpy(this->key.get(), key, key_bytes);
     std::memset(this->inbuf, 0, this->buf_size);
     std::memset(this->outbuf, 0, this->buf_size);
     std::memset(this->cbc_block, 0, this->buf_size);
-    if (encrypt)
-    {
-	this->nrounds = rijndaelSetupEncrypt(
-            this->rk.getPointer(), this->key.getPointer(), keybits);
-    }
-    else
-    {
-	this->nrounds = rijndaelSetupDecrypt(
-            this->rk.getPointer(), this->key.getPointer(), keybits);
-    }
-    assert(this->nrounds == NROUNDS(keybits));
 }
 
 Pl_AES_PDF::~Pl_AES_PDF()
@@ -148,6 +133,7 @@ Pl_AES_PDF::finish()
 	}
 	flush(! this->disable_padding);
     }
+    this->crypto->rijndael_finalize();
     getNext()->finish();
 }
 
@@ -186,6 +172,7 @@ Pl_AES_PDF::flush(bool strip_padding)
     if (first)
     {
 	first = false;
+        bool return_after_init = false;
 	if (this->cbc_mode)
 	{
 	    if (encrypt)
@@ -210,39 +197,25 @@ Pl_AES_PDF::flush(bool strip_padding)
 		// vector.  There's nothing to write at this time.
 		memcpy(this->cbc_block, this->inbuf, this->buf_size);
 		this->offset = 0;
-		return;
+                return_after_init = true;
 	    }
 	}
+        this->crypto->rijndael_init(
+            encrypt, this->key.get(), key_bytes,
+            this->cbc_mode, this->cbc_block);
+        if (return_after_init)
+        {
+            return;
+        }
     }
 
     if (this->encrypt)
     {
-	if (this->cbc_mode)
-	{
-	    for (unsigned int i = 0; i < this->buf_size; ++i)
-	    {
-		this->inbuf[i] ^= this->cbc_block[i];
-	    }
-	}
-	rijndaelEncrypt(this->rk.getPointer(),
-                        this->nrounds, this->inbuf, this->outbuf);
-	if (this->cbc_mode)
-	{
-	    memcpy(this->cbc_block, this->outbuf, this->buf_size);
-	}
+	this->crypto->rijndael_process(this->inbuf, this->outbuf);
     }
     else
     {
-	rijndaelDecrypt(this->rk.getPointer(),
-                        this->nrounds, this->inbuf, this->outbuf);
-	if (this->cbc_mode)
-	{
-	    for (unsigned int i = 0; i < this->buf_size; ++i)
-	    {
-		this->outbuf[i] ^= this->cbc_block[i];
-	    }
-	    memcpy(this->cbc_block, this->inbuf, this->buf_size);
-	}
+	this->crypto->rijndael_process(this->inbuf, this->outbuf);
     }
     unsigned int bytes = this->buf_size;
     if (strip_padding)

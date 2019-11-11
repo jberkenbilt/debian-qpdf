@@ -1767,6 +1767,7 @@ QPDFObjectHandle::parseInternal(PointerHolder<InputSource> input,
     empty = false;
 
     QPDFObjectHandle object;
+    bool set_offset = false;
 
     std::vector<SparseOHArray> olist_stack;
     olist_stack.push_back(SparseOHArray());
@@ -1778,14 +1779,22 @@ QPDFObjectHandle::parseInternal(PointerHolder<InputSource> input,
     bool done = false;
     int bad_count = 0;
     int good_count = 0;
+    bool b_contents = false;
+    std::vector<std::string> contents_string_stack;
+    contents_string_stack.push_back("");
+    std::vector<qpdf_offset_t> contents_offset_stack;
+    contents_offset_stack.push_back(-1);
     while (! done)
     {
         bool bad = false;
         SparseOHArray& olist = olist_stack.back();
         parser_state_e state = state_stack.back();
         offset = offset_stack.back();
+        std::string& contents_string = contents_string_stack.back();
+        qpdf_offset_t& contents_offset = contents_offset_stack.back();
 
 	object = QPDFObjectHandle();
+	set_offset = false;
 
 	QPDFTokenizer::Token token =
             tokenizer.readToken(input, object_description, true);
@@ -1892,6 +1901,9 @@ QPDFObjectHandle::parseInternal(PointerHolder<InputSource> input,
                 state_stack.push_back(
                     (token.getType() == QPDFTokenizer::tt_array_open) ?
                     st_array : st_dictionary);
+                b_contents = false;
+                contents_string_stack.push_back("");
+                contents_offset_stack.push_back(-1);
             }
 	    break;
 
@@ -1912,7 +1924,19 @@ QPDFObjectHandle::parseInternal(PointerHolder<InputSource> input,
 	    break;
 
 	  case QPDFTokenizer::tt_name:
-	    object = newName(token.getValue());
+	    {
+		std::string name = token.getValue();
+		object = newName(name);
+
+		if (name == "/Contents")
+		{
+		    b_contents = true;
+		}
+		else
+		{
+		    b_contents = false;
+		}
+	    }
 	    break;
 
 	  case QPDFTokenizer::tt_word:
@@ -1973,6 +1997,12 @@ QPDFObjectHandle::parseInternal(PointerHolder<InputSource> input,
 		std::string val = token.getValue();
                 if (decrypter)
                 {
+                    if (b_contents)
+                    {
+                        contents_string = val;
+                        contents_offset = input->getLastOffset();
+                        b_contents = false;
+                    }
                     decrypter->decryptString(val);
                 }
 		object = QPDFObjectHandle::newString(val);
@@ -2054,6 +2084,8 @@ QPDFObjectHandle::parseInternal(PointerHolder<InputSource> input,
             setObjectDescriptionFromInput(
                 object, context, object_description, input,
                 input->getLastOffset());
+            object.setParsedOffset(input->getLastOffset());
+            set_offset = true;
             olist.append(object);
             break;
 
@@ -2080,6 +2112,14 @@ QPDFObjectHandle::parseInternal(PointerHolder<InputSource> input,
                 object = QPDFObjectHandle(new QPDF_Array(olist));
                 setObjectDescriptionFromInput(
                     object, context, object_description, input, offset);
+                // The `offset` points to the next of "[". Set the
+                // rewind offset to point to the beginning of "[".
+                // This has been explicitly tested with whitespace
+                // surrounding the array start delimiter.
+                // getLastOffset points to the array end token and
+                // therefore can't be used here.
+                object.setParsedOffset(offset - 1);
+                set_offset = true;
             }
             else if (old_state == st_dictionary)
             {
@@ -2156,9 +2196,29 @@ QPDFObjectHandle::parseInternal(PointerHolder<InputSource> input,
                     }
                     dict[key] = val;
                 }
+		if (!contents_string.empty() &&
+		    dict.count("/Type") &&
+		    dict["/Type"].isName() &&
+		    dict["/Type"].getName() == "/Sig" &&
+		    dict.count("/ByteRange") &&
+		    dict.count("/Contents") &&
+		    dict["/Contents"].isString())
+		{
+		    dict["/Contents"]
+		      = QPDFObjectHandle::newString(contents_string);
+		    dict["/Contents"].setParsedOffset(contents_offset);
+		}
                 object = newDictionary(dict);
                 setObjectDescriptionFromInput(
                     object, context, object_description, input, offset);
+                // The `offset` points to the next of "<<". Set the
+                // rewind offset to point to the beginning of "<<".
+                // This has been explicitly tested with whitespace
+                // surrounding the dictionary start delimiter.
+                // getLastOffset points to the dictionary end token
+                // and therefore can't be used here.
+                object.setParsedOffset(offset - 2);
+                set_offset = true;
             }
             olist_stack.pop_back();
             offset_stack.pop_back();
@@ -2170,12 +2230,34 @@ QPDFObjectHandle::parseInternal(PointerHolder<InputSource> input,
             {
                 olist_stack.back().append(object);
             }
+            contents_string_stack.pop_back();
+            contents_offset_stack.pop_back();
         }
     }
 
-    setObjectDescriptionFromInput(
-        object, context, object_description, input, offset);
+    if (! set_offset)
+    {
+        setObjectDescriptionFromInput(
+            object, context, object_description, input, offset);
+        object.setParsedOffset(offset);
+    }
     return object;
+}
+
+qpdf_offset_t
+QPDFObjectHandle::getParsedOffset()
+{
+    dereference();
+    return this->m->obj->getParsedOffset();
+}
+
+void
+QPDFObjectHandle::setParsedOffset(qpdf_offset_t offset)
+{
+    if (this->m->obj.getPointer())
+    {
+        this->m->obj->setParsedOffset(offset);
+    }
 }
 
 QPDFObjectHandle
@@ -2321,9 +2403,14 @@ QPDFObjectHandle::newStream(QPDF* qpdf, int objid, int generation,
 			    QPDFObjectHandle stream_dict,
 			    qpdf_offset_t offset, size_t length)
 {
-    return QPDFObjectHandle(new QPDF_Stream(
+    QPDFObjectHandle result = QPDFObjectHandle(new QPDF_Stream(
 				qpdf, objid, generation,
 				stream_dict, offset, length));
+    if (offset)
+    {
+        result.setParsedOffset(offset);
+    }
+    return result;
 }
 
 QPDFObjectHandle

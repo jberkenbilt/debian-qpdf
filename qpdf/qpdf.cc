@@ -24,6 +24,7 @@
 #include <qpdf/QPDFAcroFormDocumentHelper.hh>
 #include <qpdf/QPDFExc.hh>
 #include <qpdf/QPDFSystemError.hh>
+#include <qpdf/QPDFCryptoProvider.hh>
 
 #include <qpdf/QPDFWriter.hh>
 #include <qpdf/QIntC.hh>
@@ -33,7 +34,7 @@ static int const EXIT_WARNING = 3;
 
 static char const* whoami = 0;
 
-static std::string expected_version = "9.0.2";
+static std::string expected_version = "9.1.rc1";
 
 struct PageSpec
 {
@@ -624,6 +625,7 @@ class ArgParser
     void argCompletionBash();
     void argCompletionZsh();
     void argJsonHelp();
+    void argShowCrypto();
     void argPositional(char* arg);
     void argPassword(char* parameter);
     void argEmpty();
@@ -829,6 +831,7 @@ ArgParser::initOptionTable()
     (*t)["completion-bash"] = oe_bare(&ArgParser::argCompletionBash);
     (*t)["completion-zsh"] = oe_bare(&ArgParser::argCompletionZsh);
     (*t)["json-help"] = oe_bare(&ArgParser::argJsonHelp);
+    (*t)["show-crypto"] = oe_bare(&ArgParser::argShowCrypto);
 
     t = &this->main_option_table;
     char const* yn[] = {"y", "n", 0};
@@ -1098,6 +1101,7 @@ ArgParser::argHelp()
         << "--version               show version of qpdf\n"
         << "--copyright             show qpdf's copyright and license information\n"
         << "--help                  show command-line argument help\n"
+        << "--show-crypto           show supported crypto providers; default is first\n"
         << "--completion-bash       output a bash complete command you can eval\n"
         << "--completion-zsh        output a zsh complete command you can eval\n"
         << "--password=password     specify a password for accessing encrypted files\n"
@@ -1282,8 +1286,9 @@ ArgParser::argHelp()
         << "to count from the end, so \"r3-r1\" would be the last three pages of the\n"
         << "document.  Pages can appear in any order.  Ranges can appear with a\n"
         << "high number followed by a low number, which causes the pages to appear in\n"
-        << "reverse.  Repeating a number will cause an error, but the manual discusses\n"
-        << "a workaround should you really want to include the same page twice.\n"
+        << "reverse.  Numbers may be repeated.  A page range may be appended with :odd\n"
+        << "to indicate odd pages in the selected range or :even to indicate even\n"
+        << "pages.\n"
         << "\n"
         << "If the page range is omitted, the range of 1-z is assumed.  qpdf decides\n"
         << "that the page range is omitted if the range argument is either -- or a\n"
@@ -1549,6 +1554,21 @@ ArgParser::argJsonHelp()
         << std::endl
         << json_schema().unparse()
         << std::endl;
+}
+
+void
+ArgParser::argShowCrypto()
+{
+    auto crypto = QPDFCryptoProvider::getRegisteredImpls();
+    std::string default_crypto = QPDFCryptoProvider::getDefaultProvider();
+    std::cout << default_crypto << std::endl;
+    for (auto iter = crypto.begin(); iter != crypto.end(); ++iter)
+    {
+        if (*iter != default_crypto)
+        {
+            std::cout << *iter << std::endl;
+        }
+    }
 }
 
 void
@@ -5228,10 +5248,10 @@ int realmain(int argc, char* argv[])
     // it holds dynamic memory used for argv.
     Options o;
     ArgParser ap(argc, argv, o);
-    ap.parseOptions();
 
     try
     {
+        ap.parseOptions();
 	PointerHolder<QPDF> pdf_ph =
             process_file(o.infilename, o.password, o);
         QPDF& pdf = *pdf_ph;
