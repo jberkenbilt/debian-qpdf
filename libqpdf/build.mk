@@ -4,6 +4,19 @@ INCLUDES_libqpdf = include libqpdf
 LDFLAGS_libqpdf = -Llibqpdf/$(OUTPUT_DIR)
 LIBS_libqpdf = -lqpdf
 
+CRYPTO_NATIVE = \
+	libqpdf/AES_PDF_native.cc \
+	libqpdf/MD5_native.cc \
+	libqpdf/QPDFCrypto_native.cc \
+	libqpdf/RC4_native.cc \
+	libqpdf/SHA2_native.cc \
+	libqpdf/rijndael.cc \
+	libqpdf/sha2.c \
+	libqpdf/sha2big.c
+
+CRYPTO_GNUTLS = \
+	libqpdf/QPDFCrypto_gnutls.cc
+
 SRCS_libqpdf = \
 	libqpdf/BitStream.cc \
 	libqpdf/BitWriter.cc \
@@ -39,6 +52,7 @@ SRCS_libqpdf = \
 	libqpdf/QPDF.cc \
 	libqpdf/QPDFAcroFormDocumentHelper.cc \
 	libqpdf/QPDFAnnotationObjectHelper.cc \
+	libqpdf/QPDFCryptoProvider.cc \
 	libqpdf/QPDFExc.cc \
 	libqpdf/QPDFFormFieldObjectHelper.cc \
 	libqpdf/QPDFMatrix.cc \
@@ -77,10 +91,15 @@ SRCS_libqpdf = \
 	libqpdf/RC4.cc \
 	libqpdf/SecureRandomDataProvider.cc \
 	libqpdf/SparseOHArray.cc \
-	libqpdf/qpdf-c.cc \
-	libqpdf/rijndael.cc \
-	libqpdf/sha2.c \
-	libqpdf/sha2big.c
+	libqpdf/qpdf-c.cc
+
+ifeq ($(USE_CRYPTO_NATIVE), 1)
+SRCS_libqpdf += $(CRYPTO_NATIVE)
+endif
+
+ifeq ($(USE_CRYPTO_GNUTLS), 1)
+SRCS_libqpdf += $(CRYPTO_GNUTLS)
+endif
 
 # -----
 

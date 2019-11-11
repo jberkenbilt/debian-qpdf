@@ -3,11 +3,11 @@
 #include <cstdio>
 #include <qpdf/PointerHolder.hh>
 #include <qpdf/QUtil.hh>
+#include <qpdf/QPDFCryptoProvider.hh>
 
 Pl_SHA2::Pl_SHA2(int bits, Pipeline* next) :
     Pipeline("sha2", next),
-    in_progress(false),
-    bits(0)
+    in_progress(false)
 {
     if (bits)
     {
@@ -20,31 +20,10 @@ Pl_SHA2::~Pl_SHA2()
 }
 
 void
-Pl_SHA2::badBits()
-{
-    throw std::logic_error("Pl_SHA2 has unexpected value for bits");
-}
-
-void
 Pl_SHA2::write(unsigned char* buf, size_t len)
 {
     if (! this->in_progress)
     {
-        switch (bits)
-        {
-          case 256:
-            sph_sha256_init(&this->ctx256);
-            break;
-          case 384:
-            sph_sha384_init(&this->ctx384);
-            break;
-          case 512:
-            sph_sha512_init(&this->ctx512);
-            break;
-          default:
-            badBits();
-            break;
-        }
 	this->in_progress = true;
     }
 
@@ -56,21 +35,7 @@ Pl_SHA2::write(unsigned char* buf, size_t len)
     while (bytes_left > 0)
     {
 	size_t bytes = (bytes_left >= max_bytes ? max_bytes : bytes_left);
-        switch (bits)
-        {
-          case 256:
-            sph_sha256(&this->ctx256, data, bytes);
-            break;
-          case 384:
-            sph_sha384(&this->ctx384, data, bytes);
-            break;
-          case 512:
-            sph_sha512(&this->ctx512, data, bytes);
-            break;
-          default:
-            badBits();
-            break;
-        }
+        this->crypto->SHA2_update(data, bytes);
 	bytes_left -= bytes;
         data += bytes;
     }
@@ -88,21 +53,7 @@ Pl_SHA2::finish()
     {
         this->getNext()->finish();
     }
-    switch (bits)
-    {
-      case 256:
-        sph_sha256_close(&this->ctx256, sha256sum);
-        break;
-      case 384:
-        sph_sha384_close(&this->ctx384, sha384sum);
-        break;
-      case 512:
-        sph_sha512_close(&this->ctx512, sha512sum);
-        break;
-      default:
-        badBits();
-        break;
-    }
+    this->crypto->SHA2_finalize();
     this->in_progress = false;
 }
 
@@ -114,36 +65,19 @@ Pl_SHA2::resetBits(int bits)
 	throw std::logic_error(
 	    "bit reset requested for in-progress SHA2 Pipeline");
     }
-    if (! ((bits == 256) || (bits == 384) || (bits == 512)))
-    {
-	throw std::logic_error("Pl_SHA2 called with bits != 256, 384, or 512");
-    }
-    this->bits = bits;
+    this->crypto = QPDFCryptoProvider::getImpl();
+    this->crypto->SHA2_init(bits);
 }
 
 std::string
 Pl_SHA2::getRawDigest()
 {
-    std::string result;
-    switch (bits)
+    if (this->in_progress)
     {
-      case 256:
-        result = std::string(reinterpret_cast<char*>(this->sha256sum),
-                             sizeof(this->sha256sum));
-        break;
-      case 384:
-        result = std::string(reinterpret_cast<char*>(this->sha384sum),
-                             sizeof(this->sha384sum));
-        break;
-      case 512:
-        result = std::string(reinterpret_cast<char*>(this->sha512sum),
-                             sizeof(this->sha512sum));
-        break;
-      default:
-        badBits();
-        break;
+	throw std::logic_error(
+	    "digest requested for in-progress SHA2 Pipeline");
     }
-    return result;
+    return this->crypto->SHA2_digest();
 }
 
 std::string

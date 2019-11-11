@@ -2,10 +2,8 @@
 #define PL_AES_PDF_HH
 
 #include <qpdf/Pipeline.hh>
-#include <qpdf/qpdf-config.h>
-#ifdef HAVE_STDINT_H
-# include <stdint.h>
-#endif
+#include <qpdf/QPDFCryptoImpl.hh>
+#include <memory>
 
 // This pipeline implements AES-128 and AES-256 with CBC and block
 // padding as specified in the PDF specification.
@@ -48,20 +46,20 @@ class Pl_AES_PDF: public Pipeline
     void flush(bool discard_padding);
     void initializeVector();
 
-    static unsigned int const buf_size = 16;
+    static unsigned int const buf_size = QPDFCryptoImpl::rijndael_buf_size;
     static bool use_static_iv;
 
+    std::shared_ptr<QPDFCryptoImpl> crypto;
     bool encrypt;
     bool cbc_mode;
     bool first;
     size_t offset;              // offset into memory buffer
-    PointerHolder<unsigned char> key;
-    PointerHolder<uint32_t> rk;
+    std::unique_ptr<unsigned char[]> key;
+    size_t key_bytes;
     unsigned char inbuf[buf_size];
     unsigned char outbuf[buf_size];
     unsigned char cbc_block[buf_size];
     unsigned char specified_iv[buf_size];
-    unsigned int nrounds;
     bool use_zero_iv;
     bool use_specified_iv;
     bool disable_padding;

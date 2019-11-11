@@ -1,3 +1,80 @@
+2019-11-09  Jay Berkenbilt  <ejb@ql.org>
+
+	* 9.1.rc1: release
+
+	* Improve behavior of wildcard expansion for msvc executable when
+	run from the Windows cmd.exe shell. Unlike in UNIX environments,
+	Windows leaves it up to the executable to expand its own
+	wildcards. Fixes #224.
+
+	* When reading /P from the encryption dictionary, use static_cast
+	instead of QIntC to convert the value to a signed integer. The
+	value of /P is a bit field, and PDF files have been found in the
+	wild where /P is represented as an unsigned integer even though
+	the spec states that it is a signed 32-bit value. By using
+	static_cast, we allow qpdf to compensate for writers that
+	incorrectly represent the correct bit field as an unsigned value.
+	Fixes #382.
+
+2019-11-05  Jay Berkenbilt  <ejb@ql.org>
+
+	* Add support for pluggable crypto providers, enabling multiple
+	implementations of the cryptographic functions needed by qpdf.
+	This feature was added by request of Red Hat, which recognized the
+	use of qpdf's native crypto implementations as a potential
+	security liability, preferring instead to get all crypto
+	functionality from a third-party library that receives a lot of
+	scrutiny. However it was also important to me to not impose any
+	unnecessary third party dependencies on my users or packagers,
+	some of which build qpdf for lots of environments, some of which
+	may not easily support gnutls. Starting in qpdf 9.1.0, it is be
+	possible to build qpdf with both the native and gnutls crypto
+	providers or with either in isolation. In support of this feature,
+	new classes QPDFCryptoProvider and QPDFCryptoImpl have been added
+	to the public interface. See QPDFCryptoImpl.hh for details about
+	adding your own crypto provider and QPDFCryptoProvider.hh for
+	details about choosing which one is used. Note that selection of
+	crypto providers is invisible to anyone who doesn't explicitly
+	care. Neither end users nor developers have to be concerned about
+	it.
+
+	* The environment variable QPDF_CRYPTO_PROVIDER can be used to
+	override qpdf's default choice of crypto provider. The
+	--show-crypto flag to the qpdf CLI can be used to present a list
+	of supported crypto providers with the default provider always
+	listed first.
+
+	* Add gnutls crypto provider. Thanks to Zdenek Dohnal for
+	contributing the code that I ultimately used in the gnutls crypto
+	provider and for engaging in an extended discussion about this
+	feature. Fixes #218.
+
+2019-10-22  Jay Berkenbilt  <ejb@ql.org>
+
+	* Incorporate changes from Masamichi Hosoda <trueroad@trueroad.jp>
+	to properly handle signature in the following ways:
+	  - Always represent /Contents in a signature dictionary as a hex
+	    string
+	  - Do not compress signature dictionaries when generating object
+	    streams
+	  - Do not encrypt/decrypt the /Contents field of the signature
+	    dictionary when creating or reading encrypted files
+
+	* Incorporate changes from Masamichi Hosoda <trueroad@trueroad.jp>
+	to add additional methods for making it possible to gain deeper
+	insight into cross reference tables and object renumbering. These
+	new API calls make it possible for applications to go into PDF
+	files created by qpdf and make changes to them that go beyond
+	working with the PDF at the object level. The specific use case
+	for these changes was to write an external tool to perform digital
+	signature, but there could be other uses as well. New methods
+	include the following, all of which are described in their
+	respective headers:
+	  - QPDF::getXRefTable()
+	  - QPDFObjectHandle::getParsedOffset()
+	  - QPDFWriter::getRenumberedObjGen(QPDFObjGen)
+	  - QPDFWriter::getWrittenXRefTable()
+
 2019-10-12  Jay Berkenbilt  <ejb@ql.org>
 
 	* 9.0.2: release

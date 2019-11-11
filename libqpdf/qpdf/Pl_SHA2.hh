@@ -14,7 +14,8 @@
 // called between finish and the next call to write.
 
 #include <qpdf/Pipeline.hh>
-#include <sph/sph_sha2.h>
+#include <qpdf/QPDFCryptoImpl.hh>
+#include <memory>
 
 class Pl_SHA2: public Pipeline
 {
@@ -35,16 +36,8 @@ class Pl_SHA2: public Pipeline
     std::string getRawDigest();
 
   private:
-    void badBits();
-
     bool in_progress;
-    int bits;
-    sph_sha256_context ctx256;
-    sph_sha384_context ctx384;
-    sph_sha512_context ctx512;
-    unsigned char sha256sum[32];
-    unsigned char sha384sum[48];
-    unsigned char sha512sum[64];
+    std::shared_ptr<QPDFCryptoImpl> crypto;
 };
 
 #endif // PL_SHA2_HH

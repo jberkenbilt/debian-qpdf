@@ -24,7 +24,7 @@
 #include <qpdf/QPDF_Stream.hh>
 #include <qpdf/QPDF_Array.hh>
 
-std::string QPDF::qpdf_version = "9.0.2";
+std::string QPDF::qpdf_version = "9.1.rc1";
 
 static char const* EMPTY_PDF =
     "%PDF-1.3\n"
@@ -155,6 +155,7 @@ QPDF::Members::Members() :
     fixed_dangling_refs(false),
     immediate_copy_from(false),
     in_parse(false),
+    parsed(false),
     first_xref_item_offset(0),
     uncompressed_after_compressed(false)
 {
@@ -431,6 +432,7 @@ QPDF::parse(char const* password)
 
     initializeEncryption();
     findAttachmentStreams();
+    this->m->parsed = true;
 }
 
 void
@@ -686,7 +688,7 @@ QPDF::read_xref(qpdf_offset_t xref_offset)
     {
 	max_obj = std::max(max_obj, *(this->m->deleted_objects.rbegin()));
     }
-    if (size - 1 != max_obj)
+    if ((size < 1) || (size - 1 != max_obj))
     {
 	QTC::TC("qpdf", "QPDF xref size mismatch");
 	warn(QPDFExc(qpdf_e_damaged_pdf, this->m->file->getName(), "", 0,
@@ -1204,7 +1206,8 @@ QPDF::processXRefStream(qpdf_offset_t xref_offset, QPDFObjectHandle& xref_obj)
 	// an uncompressed object record, in which case the generation
 	// number appears as the third field.
 	int obj = toI(indx.at(cur_chunk));
-        if ((std::numeric_limits<int>::max() - obj) < chunk_count)
+        if ((obj < 0) ||
+            ((std::numeric_limits<int>::max() - obj) < chunk_count))
         {
             std::ostringstream msg;
             msg << "adding " << chunk_count << " to " << obj
@@ -2620,6 +2623,17 @@ QPDF::getRoot()
     return root;
 }
 
+std::map<QPDFObjGen, QPDFXRefEntry>
+QPDF::getXRefTable()
+{
+    if (! this->m->parsed)
+    {
+        throw std::logic_error("QPDF::getXRefTable called before parsing.");
+    }
+
+    return this->m->xref_table;
+}
+
 void
 QPDF::getObjectStreamData(std::map<int, int>& omap)
 {
@@ -2673,7 +2687,13 @@ QPDF::getCompressibleObjGens()
 	    {
 		QTC::TC("qpdf", "QPDF exclude encryption dictionary");
 	    }
-	    else if (! obj.isStream())
+	    else if ((! obj.isStream()) &&
+		     (! (obj.isDictionary() &&
+                         obj.hasKey("/ByteRange") &&
+                         obj.hasKey("/Contents") &&
+                         obj.hasKey("/Type") &&
+                         obj.getKey("/Type").isName() &&
+                         obj.getKey("/Type").getName() == "/Sig")))
 	    {
 		result.push_back(og);
 	    }
