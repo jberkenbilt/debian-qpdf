@@ -252,6 +252,28 @@ $td->runtest("check exception handling",
 
 show_ntests();
 # ----------
+$td->notify("--- Check encryption/password ---");
+my @check_encryption_password = (
+    # file, password, is-encrypted, requires-password
+    ["minimal.pdf", "", 2, 2],
+    ["20-pages.pdf", "", 0, 0],
+    ["20-pages.pdf", "user", 0, 3],
+    );
+$n_tests += 2 * scalar(@check_encryption_password);
+foreach my $d (@check_encryption_password)
+{
+    my ($file, $pass, $is_encrypted, $requires_password) = @$d;
+    $td->runtest("is encrypted ($file, pass=$pass)",
+                 {$td->COMMAND => "qpdf --is-encrypted --password=$pass $file"},
+                 {$td->STRING => "", $td->EXIT_STATUS => $is_encrypted});
+    $td->runtest("requires password ($file, pass=$pass)",
+                 {$td->COMMAND => "qpdf --requires-password" .
+                      " --password=$pass $file"},
+                 {$td->STRING => "", $td->EXIT_STATUS => $requires_password});
+}
+
+show_ntests();
+# ----------
 $td->notify("--- Dangling Refs ---");
 my @dangling = (qw(minimal dangling-refs));
 $n_tests += 2 * scalar(@dangling);
@@ -585,6 +607,7 @@ my @json_files = (
     ['image-streams', []],
     ['image-streams-small', []],
     ['field-types', []],
+    ['field-types', ['--show-encryption-key']],
     ['image-streams', ['--decode-level=all']],
     ['image-streams', ['--decode-level=specialized']],
     ['page-labels-and-outlines', ['--json-key=objects']],
@@ -599,6 +622,8 @@ my @json_files = (
      ['--json-key=objects', '--json-object=trailer', '--json-object=2 0 R']],
     ['field-types', ['--json-key=acroform']],
     ['need-appearances', ['--json-key=acroform']],
+    ['V4-aes', ['--json-key=encrypt']],
+    ['V4-aes', ['--json-key=encrypt', '--show-encryption-key']],
 );
 $n_tests += scalar(@json_files);
 foreach my $d (@json_files)
@@ -784,7 +809,7 @@ $td->runtest("check pass1 file",
 show_ntests();
 # ----------
 $td->notify("--- Inline Images ---");
-$n_tests += 8;
+$n_tests += 10;
 
 # The file large-inline-image.pdf is a hand-crafted file with several
 # inline images of various sizes including one that is two megabytes,
@@ -828,6 +853,16 @@ $td->runtest("externalize damaged image",
 $td->runtest("check output",
 	     {$td->FILE => "a.pdf"},
 	     {$td->FILE => "damaged-inline-image-out.pdf"});
+$td->runtest("named colorspace",
+             {$td->COMMAND =>
+                  "qpdf --static-id --externalize-inline-images" .
+                  " --ii-min-bytes=0 inline-image-colorspace-lookup.pdf a.pdf"},
+             {$td->STRING => "", $td->EXIT_STATUS => 0},
+             $td->NORMALIZE_NEWLINES);
+$td->runtest("check output",
+	     {$td->FILE => "a.pdf"},
+	     {$td->FILE => "inline-image-colorspace-lookup-out.pdf"});
+
 
 my @eii_tests = (
     ['inline-images', 80],
@@ -2744,7 +2779,7 @@ for (my $n = 16; $n <= 19; ++$n)
 show_ntests();
 # ----------
 $td->notify("--- Specific File Tests ---");
-$n_tests += 4;
+$n_tests += 7;
 
 # Special PDF files that caused problems at some point
 
@@ -2765,6 +2800,16 @@ $td->runtest("compress objstm and xref",
 $td->runtest("check output",
 	     {$td->FILE => "a.pdf"},
 	     {$td->FILE => "compress-objstm-xref.pdf"});
+$td->runtest("qdf + preserved-unreferenced + xref streams",
+	     {$td->COMMAND => "qpdf --qdf --preserve-unreferenced" .
+                  " --static-id compress-objstm-xref.pdf a.pdf"},
+             {$td->STRING => "", $td->EXIT_STATUS => 0});
+$td->runtest("check output",
+	     {$td->FILE => "a.pdf"},
+	     {$td->FILE => "compress-objstm-xref-qdf.pdf"});
+$td->runtest("check fix-qdf idempotency",
+	     {$td->COMMAND => "fix-qdf a.pdf"},
+	     {$td->FILE => "a.pdf", $td->EXIT_STATUS => 0});
 
 show_ntests();
 # ----------
@@ -3078,7 +3123,7 @@ my @encrypted_files =
      ['R3,V2', '',              # 2
       '-accessibility=n -extract=n -print=full -modify=all', -532,
       1, 1, 0, 0, 1, 1, 1, 1, 1, 1, 1],
-     ['R3,V2,U=view', 'view',   # 3
+     ['R3,V2,U=view,O=view', 'view', # 3
       '-accessibility=y -extract=n -print=none -modify=none', -3392,
       1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0],
      ['R3,V2,O=master', 'master', # 4
@@ -3114,7 +3159,7 @@ my @encrypted_files =
      ['R2,V1', '',              # 14
       '-print=n -modify=n -extract=n -annotate=n', -64,
       1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-     ['R2,V1,U=view', 'view',   # 15
+     ['R2,V1,U=view,O=view', 'view', # 15
       '-print=y -modify=n -extract=n -annotate=n', -60,
       1, 1, 0, 0, 1, 1, 0, 0, 0, 0, 0],
      ['R2,V1,O=master', 'master', # 16
@@ -3154,7 +3199,7 @@ my @encrypted_files =
       1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
     );
 
-$n_tests += 5 + (2 * (@encrypted_files)) + (6 * (@encrypted_files - 6)) + 9;
+$n_tests += 5 + (2 * (@encrypted_files)) + (7 * (@encrypted_files - 6)) + 9;
 
 $td->runtest("encrypted file",
 	     {$td->COMMAND => "test_driver 2 encrypted-with-images.pdf"},
@@ -3194,7 +3239,9 @@ foreach my $d (@encrypted_files)
 	$modifyother, $modifyall) = @$d;
 
     my $f = sub { $_[0] ? "allowed" : "not allowed" };
+    my $jf = sub { $_[0] ? "true" : "false" };
     my $enc_details = "";
+    my $enc_json = "{\n  \"encrypt\": {\n    \"capabilities\": {\n";
     if ($match_owner)
     {
         $enc_details .= "Supplied password is owner password\n";
@@ -3213,6 +3260,37 @@ foreach my $d (@encrypted_files)
 	"modify annotations: " . &$f($modifyannot) . "\n" .
 	"modify other: " . &$f($modifyother) . "\n" .
 	"modify anything: " . &$f($modifyall) . "\n";
+    $enc_json .=
+        "      \"accessibility\": " . &$jf($accessible) . ",\n" .
+        "      \"extract\": " . &$jf($extract) . ",\n" .
+        "      \"moddifyannotations\": " . &$jf($modifyannot) . ",\n" .
+        "      \"modify\": " . &$jf($modifyall) . ",\n" .
+        "      \"modifyassembly\": " . &$jf($modifyassembly) . ",\n" .
+        "      \"modifyforms\": " . &$jf($modifyform) . ",\n" .
+        "      \"modifyother\": " . &$jf($modifyother) . ",\n" .
+        "      \"printhigh\": " . &$jf($printhigh) . ",\n" .
+        "      \"printlow\": " . &$jf($printlow) . "\n" .
+        "    },\n" .
+        "    \"encrypted\": true,\n" .
+        "    \"ownerpasswordmatched\": ---opm---,\n" .
+        "    \"parameters\": {\n" .
+        "      \"P\": ---P---,\n" .
+        "      \"R\": ---R---,\n" .
+        "      \"V\": ---V---,\n" .
+        "      \"bits\": ---bits---,\n" .
+        "      \"filemethod\": \"---method---\",\n" .
+        "      \"key\": null,\n" .
+        "      \"method\": \"---method---\",\n" .
+        "      \"streammethod\": \"---method---\",\n" .
+        "      \"stringmethod\": \"---method---\"\n" .
+        "    },\n" .
+        "    \"userpasswordmatched\": ---upm---\n" .
+        "  },\n" .
+        "  \"parameters\": {\n" .
+        "    \"decodelevel\": \"generalized\"\n" .
+        "  },\n" .
+        "  \"version\": 1\n" .
+        "}\n";
     if ($file =~ m/XI-/)
     {
         $enc_details .=
@@ -3255,6 +3333,16 @@ foreach my $d (@encrypted_files)
 	my $upass = $3 || "";
 	my $opass = $4 || "";
 	my $bits = (($V == 5) ? 256 : ($V == 2) ? 128 : 40);
+        my $method = $bits == 256 ? "AESv3" : "RC4";
+        my $opm = ($pass eq $opass ? "true" : "false");
+        my $upm = ($pass eq $upass ? "true" : "false");
+        $enc_json =~ s/---R---/$R/;
+        $enc_json =~ s/---P---/$P/;
+        $enc_json =~ s/---V---/$V/;
+        $enc_json =~ s/---bits---/$bits/;
+        $enc_json =~ s/---method---/$method/g;
+        $enc_json =~ s/---opm---/$opm/;
+        $enc_json =~ s/---upm---/$upm/;
 
 	my $eflags = "-encrypt \"$upass\" \"$opass\" $bits $xeflags --";
         if (($pass ne $upass) && ($V >= 5))
@@ -3284,6 +3372,13 @@ foreach my $d (@encrypted_files)
 		     {$td->STRING => "R = $R\nP = $P\n" .
 			  "User password = $upass\n$enc_details",
 			  $td->EXIT_STATUS => 0},
+		     $td->NORMALIZE_NEWLINES);
+        $td->runtest("json encrypt key ($enc_n)",
+		     {$td->COMMAND =>
+			  "qpdf --json --json-key=encrypt" .
+                          " --password=\"$pass\"" .
+			  " $file.enc2"},
+		     {$td->STRING => $enc_json, $td->EXIT_STATUS => 0},
 		     $td->NORMALIZE_NEWLINES);
 	$td->runtest("decrypt again",
 		     {$td->COMMAND =>
@@ -3320,12 +3415,13 @@ $td->runtest("non-encrypted",
 
 $td->runtest("invalid password",
 	     {$td->COMMAND => "qpdf -qdf --password=quack" .
-		  " enc-R2,V1,U=view.pdf a.qdf"},
-	     {$td->STRING => "enc-R2,V1,U=view.pdf: invalid password\n",
+		  " enc-R2,V1,U=view,O=view.pdf a.qdf"},
+	     {$td->STRING => "enc-R2,V1,U=view,O=view.pdf: invalid password\n",
 	      $td->EXIT_STATUS => 2},
 	     $td->NORMALIZE_NEWLINES);
 $td->runtest("C API: invalid password",
-	     {$td->COMMAND => "qpdf-ctest 2 enc-R2,V1,U=view.pdf '' a.qdf"},
+	     {$td->COMMAND =>
+                  "qpdf-ctest 2 enc-R2,V1,U=view,O=view.pdf '' a.qdf"},
 	     {$td->FILE => "c-invalid-password.out", $td->EXIT_STATUS => 0},
 	     $td->NORMALIZE_NEWLINES);
 

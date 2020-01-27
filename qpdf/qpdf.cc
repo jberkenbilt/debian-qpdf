@@ -29,12 +29,16 @@
 #include <qpdf/QPDFWriter.hh>
 #include <qpdf/QIntC.hh>
 
-static int const EXIT_ERROR = 2;
-static int const EXIT_WARNING = 3;
+static int constexpr EXIT_ERROR = 2;
+static int constexpr EXIT_WARNING = 3;
+
+// For is-encrypted and requires-password
+static int constexpr EXIT_IS_NOT_ENCRYPTED = 2;
+static int constexpr EXIT_CORRECT_PASSWORD = 3;
 
 static char const* whoami = 0;
 
-static std::string expected_version = "9.1.0";
+static std::string expected_version = "9.1.1";
 
 struct PageSpec
 {
@@ -183,6 +187,8 @@ struct Options
         under_overlay(0),
         require_outfile(true),
         replace_input(false),
+        check_is_encrypted(false),
+        check_requires_password(false),
         infilename(0),
         outfilename(0)
     {
@@ -287,6 +293,8 @@ struct Options
     std::map<std::string, RotationSpec> rotations;
     bool require_outfile;
     bool replace_input;
+    bool check_is_encrypted;
+    bool check_requires_password;
     char const* infilename;
     char const* outfilename;
 };
@@ -556,6 +564,83 @@ static JSON json_schema(std::set<std::string>* keys = 0)
                 "annotation flags from /F --"
                 " see pdf_annotation_flag_e in qpdf/Constants.h"));
     }
+    if (all_keys || keys->count("encrypt"))
+    {
+        JSON encrypt = schema.addDictionaryMember(
+            "encrypt", JSON::makeDictionary());
+        encrypt.addDictionaryMember(
+            "encrypted",
+            JSON::makeString("whether the document is encrypted"));
+        encrypt.addDictionaryMember(
+            "userpasswordmatched",
+            JSON::makeString("whether supplied password matched user password;"
+                             " always false for non-encrypted files"));
+        encrypt.addDictionaryMember(
+            "ownerpasswordmatched",
+            JSON::makeString("whether supplied password matched owner password;"
+                             " always false for non-encrypted files"));
+        JSON capabilities = encrypt.addDictionaryMember(
+            "capabilities", JSON::makeDictionary());
+        capabilities.addDictionaryMember(
+            "accessibility",
+            JSON::makeString("allow extraction for accessibility?"));
+        capabilities.addDictionaryMember(
+            "extract",
+            JSON::makeString("allow extraction?"));
+        capabilities.addDictionaryMember(
+            "printlow",
+            JSON::makeString("allow low resolution printing?"));
+        capabilities.addDictionaryMember(
+            "printhigh",
+            JSON::makeString("allow high resolution printing?"));
+        capabilities.addDictionaryMember(
+            "modifyassembly",
+            JSON::makeString("allow modifying document assembly?"));
+        capabilities.addDictionaryMember(
+            "modifyforms",
+            JSON::makeString("allow modifying forms?"));
+        capabilities.addDictionaryMember(
+            "moddifyannotations",
+            JSON::makeString("allow modifying annotations?"));
+        capabilities.addDictionaryMember(
+            "modifyother",
+            JSON::makeString("allow other modifications?"));
+        capabilities.addDictionaryMember(
+            "modify",
+            JSON::makeString("allow all modifications?"));
+
+        JSON parameters = encrypt.addDictionaryMember(
+            "parameters", JSON::makeDictionary());
+        parameters.addDictionaryMember(
+            "R",
+            JSON::makeString("R value from Encrypt dictionary"));
+        parameters.addDictionaryMember(
+            "V",
+            JSON::makeString("V value from Encrypt dictionary"));
+        parameters.addDictionaryMember(
+            "P",
+            JSON::makeString("P value from Encrypt dictionary"));
+        parameters.addDictionaryMember(
+            "bits",
+            JSON::makeString("encryption key bit length"));
+        parameters.addDictionaryMember(
+            "key",
+            JSON::makeString("encryption key; will be null"
+                             " unless --show-encryption-key was specified"));
+        parameters.addDictionaryMember(
+            "method",
+            JSON::makeString("overall encryption method:"
+                             " none, mixed, RC4, AESv2, AESv3"));
+        parameters.addDictionaryMember(
+            "streammethod",
+            JSON::makeString("encryption method for streams"));
+        parameters.addDictionaryMember(
+            "stringmethod",
+            JSON::makeString("encryption method for string"));
+        parameters.addDictionaryMember(
+            "filemethod",
+            JSON::makeString("encryption method for attachments"));
+    }
     return schema;
 }
 
@@ -718,6 +803,8 @@ class ArgParser
     void argUOpassword(char* parameter);
     void argEndUnderOverlay();
     void argReplaceInput();
+    void argIsEncrypted();
+    void argRequiresPassword();
 
     void usage(std::string const& message);
     void checkCompletion();
@@ -926,7 +1013,8 @@ ArgParser::initOptionTable()
     // The list of selectable top-level keys id duplicated in three
     // places: json_schema, do_json, and initOptionTable.
     char const* json_key_choices[] = {
-        "objects", "pages", "pagelabels", "outlines", "acroform", 0};
+        "objects", "pages", "pagelabels", "outlines", "acroform",
+        "encrypt", 0};
     (*t)["json-key"] = oe_requiredChoices(
         &ArgParser::argJsonKey, json_key_choices);
     (*t)["json-object"] = oe_requiredParameter(
@@ -948,6 +1036,8 @@ ArgParser::initOptionTable()
     (*t)["overlay"] = oe_bare(&ArgParser::argOverlay);
     (*t)["underlay"] = oe_bare(&ArgParser::argUnderlay);
     (*t)["replace-input"] = oe_bare(&ArgParser::argReplaceInput);
+    (*t)["is-encrypted"] = oe_bare(&ArgParser::argIsEncrypted);
+    (*t)["requires-password"] = oe_bare(&ArgParser::argRequiresPassword);
 
     t = &this->encrypt40_option_table;
     (*t)["--"] = oe_bare(&ArgParser::argEndEncrypt);
@@ -1042,7 +1132,7 @@ ArgParser::argCopyright()
     std::cout
         << whoami << " version " << QPDF::QPDFVersion() << std::endl
         << std::endl
-        << "Copyright (c) 2005-2019 Jay Berkenbilt"
+        << "Copyright (c) 2005-2020 Jay Berkenbilt"
         << std::endl
         << "QPDF is licensed under the Apache License, Version 2.0 (the \"License\");"
         << std::endl
@@ -1105,6 +1195,13 @@ ArgParser::argHelp()
         << "--completion-bash       output a bash complete command you can eval\n"
         << "--completion-zsh        output a zsh complete command you can eval\n"
         << "--password=password     specify a password for accessing encrypted files\n"
+        << "--is-encrypted          silently exit 0 if the file is encrypted or 2\n"
+        << "                        if not; useful for shell scripts\n"
+        << "--requires-password     silently exit 0 if a password (other than as\n"
+        << "                        supplied) is required, 2 if the file is not\n"
+        << "                        encrypted, or 3 if the file is encrypted\n"
+        << "                        but requires no password or the supplied password\n"
+        << "                        is correct; useful for shell scripts\n"
         << "--verbose               provide additional informational output\n"
         << "--progress              give progress indicators while writing output\n"
         << "--no-warn               suppress warnings\n"
@@ -1549,8 +1646,11 @@ ArgParser::argJsonHelp()
         << std::endl
         << "specify a subset of top-level keys when you invoke qpdf, but the \"version\""
         << std::endl
-        << "and \"parameters\" keys will always be present."
+        << "and \"parameters\" keys will always be present. Note that the \"encrypt\""
         << std::endl
+        << "key's values will be populated for non-encrypted files. Some values will"
+        << std::endl
+        << "be null, and others will have values that apply to unencrypted files."
         << std::endl
         << json_schema().unparse()
         << std::endl;
@@ -2353,6 +2453,20 @@ ArgParser::argReplaceInput()
 }
 
 void
+ArgParser::argIsEncrypted()
+{
+    o.check_is_encrypted = true;
+    o.require_outfile = false;
+}
+
+void
+ArgParser::argRequiresPassword()
+{
+    o.check_requires_password = true;
+    o.require_outfile = false;
+}
+
+void
 ArgParser::handleArgFileArguments()
 {
     // Support reading arguments from files. Create a new argv. Ensure
@@ -3113,6 +3227,11 @@ ArgParser::doFinalChecks()
     {
         o.externalize_inline_images = true;
     }
+    if (o.check_requires_password && o.check_is_encrypted)
+    {
+        usage("--requires-password and --is-encrypted may not be given"
+              " together");
+    }
 
     if (o.require_outfile && o.outfilename &&
         (strcmp(o.outfilename, "-") == 0))
@@ -3779,6 +3898,106 @@ static void do_json_acroform(QPDF& pdf, Options& o, JSON& j)
     }
 }
 
+static void do_json_encrypt(QPDF& pdf, Options& o, JSON& j)
+{
+    int R = 0;
+    int P = 0;
+    int V = 0;
+    QPDF::encryption_method_e stream_method = QPDF::e_none;
+    QPDF::encryption_method_e string_method = QPDF::e_none;
+    QPDF::encryption_method_e file_method = QPDF::e_none;
+    bool is_encrypted = pdf.isEncrypted(
+        R, P, V, stream_method, string_method, file_method);
+    JSON j_encrypt = j.addDictionaryMember(
+        "encrypt", JSON::makeDictionary());
+    j_encrypt.addDictionaryMember(
+        "encrypted",
+        JSON::makeBool(is_encrypted));
+    j_encrypt.addDictionaryMember(
+        "userpasswordmatched",
+        JSON::makeBool(is_encrypted && pdf.userPasswordMatched()));
+    j_encrypt.addDictionaryMember(
+        "ownerpasswordmatched",
+        JSON::makeBool(is_encrypted && pdf.ownerPasswordMatched()));
+    JSON j_capabilities = j_encrypt.addDictionaryMember(
+        "capabilities", JSON::makeDictionary());
+    j_capabilities.addDictionaryMember(
+        "accessibility",
+        JSON::makeBool(pdf.allowAccessibility()));
+    j_capabilities.addDictionaryMember(
+        "extract",
+        JSON::makeBool(pdf.allowExtractAll()));
+    j_capabilities.addDictionaryMember(
+        "printlow",
+        JSON::makeBool(pdf.allowPrintLowRes()));
+    j_capabilities.addDictionaryMember(
+        "printhigh",
+        JSON::makeBool(pdf.allowPrintHighRes()));
+    j_capabilities.addDictionaryMember(
+        "modifyassembly",
+        JSON::makeBool(pdf.allowModifyAssembly()));
+    j_capabilities.addDictionaryMember(
+        "modifyforms",
+        JSON::makeBool(pdf.allowModifyForm()));
+    j_capabilities.addDictionaryMember(
+        "moddifyannotations",
+        JSON::makeBool(pdf.allowModifyAnnotation()));
+    j_capabilities.addDictionaryMember(
+        "modifyother",
+        JSON::makeBool(pdf.allowModifyOther()));
+    j_capabilities.addDictionaryMember(
+        "modify",
+        JSON::makeBool(pdf.allowModifyAll()));
+    JSON j_parameters = j_encrypt.addDictionaryMember(
+        "parameters", JSON::makeDictionary());
+    j_parameters.addDictionaryMember("R", JSON::makeInt(R));
+    j_parameters.addDictionaryMember("V", JSON::makeInt(V));
+    j_parameters.addDictionaryMember("P", JSON::makeInt(P));
+    int bits = 0;
+    JSON key = JSON::makeNull();
+    if (is_encrypted)
+    {
+        std::string encryption_key = pdf.getEncryptionKey();
+        bits = QIntC::to_int(encryption_key.length() * 8);
+        if (o.show_encryption_key)
+        {
+            key = JSON::makeString(QUtil::hex_encode(encryption_key));
+        }
+    }
+    j_parameters.addDictionaryMember("bits", JSON::makeInt(bits));
+    j_parameters.addDictionaryMember("key", key);
+    auto fix_method = [is_encrypted](QPDF::encryption_method_e& m) {
+                          if (is_encrypted && m == QPDF::e_none)
+                          {
+                              m = QPDF::e_rc4;
+                          }
+                      };
+    fix_method(stream_method);
+    fix_method(string_method);
+    fix_method(file_method);
+    std::string s_stream_method = show_encryption_method(stream_method);
+    std::string s_string_method = show_encryption_method(string_method);
+    std::string s_file_method = show_encryption_method(file_method);
+    std::string s_overall_method;
+    if ((stream_method == string_method) &&
+        (stream_method == file_method))
+    {
+        s_overall_method = s_stream_method;
+    }
+    else
+    {
+        s_overall_method = "mixed";
+    }
+    j_parameters.addDictionaryMember(
+        "method", JSON::makeString(s_overall_method));
+    j_parameters.addDictionaryMember(
+        "streammethod", JSON::makeString(s_stream_method));
+    j_parameters.addDictionaryMember(
+        "stringmethod", JSON::makeString(s_string_method));
+    j_parameters.addDictionaryMember(
+        "filemethod", JSON::makeString(s_file_method));
+}
+
 static void do_json(QPDF& pdf, Options& o)
 {
     JSON j = JSON::makeDictionary();
@@ -3830,6 +4049,10 @@ static void do_json(QPDF& pdf, Options& o)
     if (all_keys || o.json_keys.count("acroform"))
     {
         do_json_acroform(pdf, o, j);
+    }
+    if (all_keys || o.json_keys.count("encrypt"))
+    {
+        do_json_encrypt(pdf, o, j);
     }
 
     // Check against schema
@@ -5252,9 +5475,45 @@ int realmain(int argc, char* argv[])
     try
     {
         ap.parseOptions();
-	PointerHolder<QPDF> pdf_ph =
-            process_file(o.infilename, o.password, o);
+	PointerHolder<QPDF> pdf_ph;
+        try
+        {
+            pdf_ph = process_file(o.infilename, o.password, o);
+        }
+        catch (QPDFExc& e)
+        {
+            if ((e.getErrorCode() == qpdf_e_password) &&
+                (o.check_is_encrypted || o.check_requires_password))
+            {
+                // Allow --is-encrypted and --requires-password to
+                // work when an incorrect password is supplied.
+                exit(0);
+            }
+            throw e;
+        }
         QPDF& pdf = *pdf_ph;
+        if (o.check_is_encrypted)
+        {
+            if (pdf.isEncrypted())
+            {
+                exit(0);
+            }
+            else
+            {
+                exit(EXIT_IS_NOT_ENCRYPTED);
+            }
+        }
+        else if (o.check_requires_password)
+        {
+            if (pdf.isEncrypted())
+            {
+                exit(EXIT_CORRECT_PASSWORD);
+            }
+            else
+            {
+                exit(EXIT_IS_NOT_ENCRYPTED);
+            }
+        }
         if (! o.page_specs.empty())
         {
             handle_page_specs(pdf, o);
@@ -5304,36 +5563,7 @@ int realmain(int argc, char* argv[])
 extern "C"
 int wmain(int argc, wchar_t* argv[])
 {
-    // If wmain is supported, argv contains UTF-16-encoded strings
-    // with a 16-bit wchar_t. Convert this to UTF-8-encoded strings
-    // for compatibility with other systems. That way the rest of
-    // qpdf.cc can just act like arguments are UTF-8.
-    std::vector<PointerHolder<char> > utf8_argv;
-    for (int i = 0; i < argc; ++i)
-    {
-        std::string utf16;
-        for (size_t j = 0; j < wcslen(argv[i]); ++j)
-        {
-            unsigned short codepoint = static_cast<unsigned short>(argv[i][j]);
-            utf16.append(1, static_cast<char>(
-                             QIntC::to_uchar(codepoint >> 8)));
-            utf16.append(1, static_cast<char>(
-                             QIntC::to_uchar(codepoint & 0xff)));
-        }
-        std::string utf8 = QUtil::utf16_to_utf8(utf16);
-        utf8_argv.push_back(
-            PointerHolder<char>(true, QUtil::copy_string(utf8.c_str())));
-    }
-    PointerHolder<char*> utf8_argv_ph =
-        PointerHolder<char*>(true, new char*[1+utf8_argv.size()]);
-    char** new_argv = utf8_argv_ph.getPointer();
-    for (size_t i = 0; i < utf8_argv.size(); ++i)
-    {
-        new_argv[i] = utf8_argv.at(i).getPointer();
-    }
-    argc = QIntC::to_int(utf8_argv.size());
-    new_argv[argc] = 0;
-    return realmain(argc, new_argv);
+    return QUtil::call_main_from_wmain(argc, argv, realmain);
 }
 
 #else

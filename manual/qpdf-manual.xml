@@ -5,8 +5,8 @@
 <!ENTITY mdash "&#x2014;">
 <!ENTITY ndash "&#x2013;">
 <!ENTITY nbsp "&#xA0;">
-<!ENTITY swversion "9.1.0">
-<!ENTITY lastreleased "November 17, 2019">
+<!ENTITY swversion "9.1.1">
+<!ENTITY lastreleased "January 26, 2020">
 ]>
 <book>
  <bookinfo>
@@ -16,7 +16,7 @@
    <firstname>Jay</firstname><surname>Berkenbilt</surname>
   </author>
   <copyright>
-   <year>2005&ndash;2019</year>
+   <year>2005&ndash;2020</year>
    <holder>Jay Berkenbilt</holder>
   </copyright>
  </bookinfo>
@@ -150,7 +150,8 @@
       <para>
        perl version 5.8 or newer:
        <ulink url="http://www.perl.org/">http://www.perl.org/</ulink>;
-       required for <command>fix-qdf</command> and the test suite.
+       required for running the test suite. Starting with qpdf version
+       9.1.1, perl is no longer required at runtime.
       </para>
      </listitem>
      <listitem>
@@ -266,7 +267,7 @@ make
     without modifying the qpdf library.
    </para>
    <sect2 id="ref.crypto.build">
-    <title>Build Support For Cyrpto Providers</title>
+    <title>Build Support For Crypto Providers</title>
     <para>
      When building with qpdf's build system, crypto providers can be
      enabled at build time using various
@@ -473,6 +474,13 @@ make
     <itemizedlist>
      <listitem>
       <para>
+       Starting in qpdf version 9.1.1, qpdf no longer has a runtime
+       dependency on perl. This is because fix-qdf was rewritten in
+       C++. However, qpdf still has a build-time dependency on perl.
+      </para>
+     </listitem>
+     <listitem>
+      <para>
        Make sure you are getting the intended behavior with regard to
        crypto providers. Read <xref linkend="ref.crypto.build"/> for
        details.
@@ -654,6 +662,40 @@ make
         as described above to put the password in a file or pass it
         via standard input so you can avoid specifying it on the
         command line.
+       </para>
+      </listitem>
+     </varlistentry>
+     <varlistentry>
+      <term><option>--is-encrypted</option></term>
+      <listitem>
+       <para>
+        Silently exit with status 0 if the file is encrypted or status
+        2 if the file is not encrypted. This is useful for shell
+        scripts. Other options are ignored if this is given. This
+        option is mutually exclusive with
+        <option>--requires-password</option>. Both this option and
+        <option>--requires-password</option> exit with status 2 for
+        non-encrypted files.
+       </para>
+      </listitem>
+     </varlistentry>
+     <varlistentry>
+      <term><option>--requires-password</option></term>
+      <listitem>
+       <para>
+        Silently exit with status 0 if a password (other than as
+        supplied) is required. Exit with status 2 if the file is not
+        encrypted. Exit with status 3 if the file is encrypted but
+        requires no password or the correct password has been
+        supplied. This is useful for shell scripts. Note that any
+        supplied password is used when opening the file. When used
+        with a <option>--password</option> option, this option can be
+        used to check the correctness of the password. In that case,
+        an exit status of 3 means the file works with the supplied
+        password. This option is mutually exclusive with
+        <option>--is-encrypted</option>. Both this option and
+        <option>--is-encrypted</option> exit with status 2 for
+        non-encrypted files.
        </para>
       </listitem>
      </varlistentry>
@@ -4623,6 +4665,112 @@ print "\n";
    For a detailed list of changes, please see the file
    <filename>ChangeLog</filename> in the source distribution.
   </para>
+  <variablelist>
+   <varlistentry>
+   <term>9.1.1: January 26, 2020</term>
+    <listitem>
+     <itemizedlist>
+      <listitem>
+       <para>
+        Build/Packaging Changes
+       </para>
+       <itemizedlist>
+        <listitem>
+         <para>
+          The fix-qdf program was converted from perl to C++. As such,
+          qpdf no longer has a runtime dependency on perl.
+         </para>
+        </listitem>
+       </itemizedlist>
+      </listitem>
+      <listitem>
+       <para>
+        Library Enhancements
+       </para>
+       <itemizedlist>
+        <listitem>
+         <para>
+          Added new helper routine
+          <function>QUtil::call_main_from_wmain</function> which
+          converts <type>wchar_t</type> arguments to UTF-8 encoded
+          strings. This is useful for qpdf because library methods
+          expect file names to be UTF-8 encoded, even on Windows
+         </para>
+        </listitem>
+        <listitem>
+         <para>
+          Added new <function>QUtil::read_lines_from_file</function>
+          methods that take <type>FILE*</type> arguments and that
+          allow preservation of end-of-line characters. This also
+          fixes a bug where
+          <function>QUtil::read_lines_from_file</function> wouldn't
+          work properly with Unicode filenames.
+         </para>
+        </listitem>
+       </itemizedlist>
+      </listitem>
+      <listitem>
+       <para>
+        CLI Enhancements
+       </para>
+       <itemizedlist>
+        <listitem>
+         <para>
+          Added options <option>--is-encrypted</option> and
+          <option>--requires-password</option> for testing whether a
+          file is encrypted or requires a password other than the
+          supplied (or empty) password. These communicate via exit
+          status, making them useful for shell scripts. They also work
+          on encrypted files with unknown passwords.
+         </para>
+        </listitem>
+       </itemizedlist>
+       <itemizedlist>
+        <listitem>
+         <para>
+          Added <literal>encrypt</literal> key to JSON options. With
+          the exception of the reconstructed user password for older
+          encryption formats, this provides the same information as
+          <option>--show-encryption</option> but in a consistent,
+          parseable format. See output of <command>qpdf
+          --json-help</command> for details.
+         </para>
+        </listitem>
+       </itemizedlist>
+      </listitem>
+      <listitem>
+       <para>
+        Bug Fixes
+       </para>
+       <itemizedlist>
+        <listitem>
+         <para>
+          In QDF mode, be sure not to write more than one XRef stream
+          to a file, even when
+          <option>--preserve-unreferenced</option> is used.
+          <command>fix-qdf</command> assumes that there is only one
+          XRef stream, and that it appears at the end of the file.
+         </para>
+        </listitem>
+        <listitem>
+         <para>
+          When externalizing inline images, properly handle images
+          whose color space is a reference to an object in the page's
+          resource dictionary.
+         </para>
+        </listitem>
+        <listitem>
+         <para>
+          Windows-specific fix for acquiring crypt context with a new
+          keyset.
+         </para>
+        </listitem>
+       </itemizedlist>
+      </listitem>
+     </itemizedlist>
+    </listitem>
+   </varlistentry>
+  </variablelist>
   <variablelist>
    <varlistentry>
     <term>9.1.0: November 17, 2019</term>

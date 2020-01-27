@@ -1,3 +1,50 @@
+2020-01-26  Jay Berkenbilt  <ejb@ql.org>
+
+	* 9.1.1: release
+
+	* Bug fix: in qdf mode, do not write out any XRef streams that may
+	have appeared in the original file. These are usually
+	unreferenced, but with --preserve-unreferenced, they could be
+	written out, which breaks fix-qdf's assumption that there is at
+	most one XRef stream and that it appears at the end of the file.
+	Fixes #386.
+
+	* Bug fix: when externalizing inline images, a colorspace value
+	that was a lookup key in the page's /Resource -> /ColorSpace
+	dictionary was not properly handled. Fixes #392.
+
+	* Add "encrypt" key to the json output. This contains largely the
+	same information as given by --show-encryption but in a
+	consistent, parseable format.
+
+	* Add options --is-encrypted and --requires-password. These can be
+	used with files, including encrypted files with unknown passwords,
+	to determine whether or not a file is encrypted and whether a
+	password is required to open the file. The --requires-password
+	option can also be used to determine whether a supplied password
+	is correct. Information is supplied through exit codes, making
+	these options particularly useful for shell scripts. Fixes #390.
+
+2020-01-14  Jay Berkenbilt  <ejb@ql.org>
+
+	* Fix for Windows being unable to acquire crypt context with a new
+	keyset. Thanks to Cloudmersive for the fix. Fixes #387.
+
+	* Rewrite fix-qdf in C++. This means fix-qdf is a proper
+	executable now, and there is no longer a runtime requirement on
+	perl.
+
+	* Add QUtil::call_main_from_wmain, a helper function that can be
+	called in the body of wmain to convert UTF-16 arguments to UTF-8
+	arguments and then call another main function.
+
+2020-01-13  Jay Berkenbilt  <ejb@ql.org>
+
+	* QUtil::read_lines_from_file: add new versions that use FILE*,
+	use FILE* instead if std::ifstream internally to support correct
+	handling of Unicode filenames in Windows, and add the option to
+	preserve line endings.
+
 2019-11-17  Jay Berkenbilt  <ejb@ql.org>
 
 	* 9.1.0: release
