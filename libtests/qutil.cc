@@ -9,6 +9,7 @@
 #include <string.h>
 #include <limits.h>
 #include <assert.h>
+#include <fstream>
 
 #ifdef _WIN32
 # include <io.h>
@@ -408,6 +409,40 @@ void read_from_file_test()
     {
         std::cout << *iter << std::endl;
     }
+    // Test the other versions and make sure we get the same results
+    {
+        std::ifstream infs("other-file", std::ios_base::binary);
+        assert(QUtil::read_lines_from_file(infs) == lines);
+        FILE* fp = QUtil::safe_fopen("other-file", "rb");
+        assert(QUtil::read_lines_from_file(fp) == lines);
+        fclose(fp);
+    }
+
+    // Test with EOL preservation
+    std::list<std::string> lines2 =
+        QUtil::read_lines_from_file("other-file", true);
+    auto line = lines2.begin();
+    assert(37 == (*line).length());
+    assert('.' == (*line).at(35));
+    assert('\n' == (*line).at(36));
+    ++line;
+    assert(24 == (*line).length());
+    assert('.' == (*line).at(21));
+    assert('\r' == (*line).at(22));
+    assert('\n' == (*line).at(23));
+    ++line;
+    assert(24591 == (*line).length());
+    assert('.' == (*line).at(24589));
+    assert('\n' == (*line).at(24590));
+    // Test the other versions and make sure we get the same results
+    {
+        std::ifstream infs("other-file", std::ios_base::binary);
+        assert(QUtil::read_lines_from_file(infs, true) == lines2);
+        FILE* fp = QUtil::safe_fopen("other-file", "rb");
+        assert(QUtil::read_lines_from_file(fp, true) == lines2);
+        fclose(fp);
+    }
+
     PointerHolder<char> buf;
     size_t size = 0;
     QUtil::read_file_into_memory("other-file", buf, size);
@@ -508,6 +543,17 @@ void rename_delete_test()
     assert_no_file("old\xcf\x80.~tmp");
 }
 
+void wmain_test()
+{
+    auto realmain = [](int argc, char* argv[]) {
+                        for (int i = 0; i < argc; ++i) { std::cout << argv[i] << std::endl; } return 0; };
+    wchar_t* argv[3];
+    argv[0] = const_cast<wchar_t*>(L"ascii");
+    argv[1] = const_cast<wchar_t*>(L"10 \xf7 2 = 5");
+    argv[2] = const_cast<wchar_t*>(L"qwww\xf7\x03c0");
+    QUtil::call_main_from_wmain(3, argv, realmain);
+}
+
 int main(int argc, char* argv[])
 {
     try
@@ -538,6 +584,8 @@ int main(int argc, char* argv[])
 	hex_encode_decode_test();
 	std::cout << "---- rename/delete" << std::endl;
 	rename_delete_test();
+	std::cout << "---- wmain" << std::endl;
+	wmain_test();
     }
     catch (std::exception& e)
     {

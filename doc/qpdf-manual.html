@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>QPDF Manual</title><link rel="stylesheet" type="text/css" href="stylesheet.css" /><meta name="generator" content="DocBook XSL Stylesheets V1.79.1" /></head><body><div class="book"><div class="titlepage"><div><div><h1 class="title"><a id="idm46068929421040"></a>QPDF Manual</h1></div><div><h2 class="subtitle">For QPDF Version 9.1.0, November 17, 2019</h2></div><div><div class="author"><h3 class="author"><span class="firstname">Jay</span> <span class="surname">Berkenbilt</span></h3></div></div><div><p class="copyright">Copyright © 2005–2019 Jay Berkenbilt</p></div></div><hr /></div><div class="toc"><p><strong>Table of Contents</strong></p><dl class="toc"><dt><span class="preface"><a href="#acknowledgments">General Information</a></span></dt><dt><span class="chapter"><a href="#ref.overview">1. What is QPDF?</a></span></dt><dt><span class="chapter"><a href="#ref.installing">2. Building and Installing QPDF</a></span></dt><dd><dl><dt><span class="sect1"><a href="#ref.prerequisites">2.1. System Requirements</a></span></dt><dt><span class="sect1"><a href="#ref.building">2.2. Build Instructions</a></span></dt><dt><span class="sect1"><a href="#ref.crypto">2.3. Crypto Providers</a></span></dt><dd><dl><dt><span class="sect2"><a href="#ref.crypto.build">2.3.1. Build Support For Cyrpto Providers</a></span></dt><dt><span class="sect2"><a href="#ref.crypto.runtime">2.3.2. Runtime Crypto Provider Selection</a></span></dt><dt><span class="sect2"><a href="#ref.crypto.develop">2.3.3. Crypto Provider Information for Developers</a></span></dt><dt><span class="sect2"><a href="#ref.crypto.design">2.3.4. Crypto Provider Design Notes</a></span></dt></dl></dd><dt><span class="sect1"><a href="#ref.packaging">2.4. Notes for Packagers</a></span></dt></dl></dd><dt><span class="chapter"><a href="#ref.using">3. Running QPDF</a></span></dt><dd><dl><dt><span class="sect1"><a href="#ref.invocation">3.1. Basic Invocation</a></span></dt><dt><span class="sect1"><a href="#ref.shell-completion">3.2. Shell Completion</a></span></dt><dt><span class="sect1"><a href="#ref.basic-options">3.3. Basic Options</a></span></dt><dt><span class="sect1"><a href="#ref.encryption-options">3.4. Encryption Options</a></span></dt><dt><span class="sect1"><a href="#ref.page-selection">3.5. Page Selection Options</a></span></dt><dt><span class="sect1"><a href="#ref.overlay-underlay">3.6. Overlay and Underlay Options</a></span></dt><dt><span class="sect1"><a href="#ref.advanced-parsing">3.7. Advanced Parsing Options</a></span></dt><dt><span class="sect1"><a href="#ref.advanced-transformation">3.8. Advanced Transformation Options</a></span></dt><dt><span class="sect1"><a href="#ref.testing-options">3.9. Testing, Inspection, and Debugging Options</a></span></dt><dt><span class="sect1"><a href="#ref.unicode-passwords">3.10. Unicode Passwords</a></span></dt></dl></dd><dt><span class="chapter"><a href="#ref.qdf">4. QDF Mode</a></span></dt><dt><span class="chapter"><a href="#ref.using-library">5. Using the QPDF Library</a></span></dt><dd><dl><dt><span class="sect1"><a href="#ref.using.from-cxx">5.1. Using QPDF from C++</a></span></dt><dt><span class="sect1"><a href="#ref.using.other-languages">5.2. Using QPDF from other languages</a></span></dt><dt><span class="sect1"><a href="#ref.unicode-files">5.3. A Note About Unicode File Names</a></span></dt></dl></dd><dt><span class="chapter"><a href="#ref.json">6. QPDF JSON</a></span></dt><dd><dl><dt><span class="sect1"><a href="#ref.json-overview">6.1. Overview</a></span></dt><dt><span class="sect1"><a href="#ref.json-guarantees">6.2. JSON Guarantees</a></span></dt><dt><span class="sect1"><a href="#json.limitations">6.3. Limitations of JSON Representation</a></span></dt><dt><span class="sect1"><a href="#json.considerations">6.4. JSON: Special Considerations</a></span></dt></dl></dd><dt><span class="chapter"><a href="#ref.design">7. Design and Library Notes</a></span></dt><dd><dl><dt><span class="sect1"><a href="#ref.design.intro">7.1. Introduction</a></span></dt><dt><span class="sect1"><a href="#ref.design-goals">7.2. Design Goals</a></span></dt><dt><span class="sect1"><a href="#ref.helper-classes">7.3. Helper Classes</a></span></dt><dt><span class="sect1"><a href="#ref.implementation-notes">7.4. Implementation Notes</a></span></dt><dt><span class="sect1"><a href="#ref.casting">7.5. Casting Policy</a></span></dt><dt><span class="sect1"><a href="#ref.encryption">7.6. Encryption</a></span></dt><dt><span class="sect1"><a href="#ref.random-numbers">7.7. Random Number Generation</a></span></dt><dt><span class="sect1"><a href="#ref.adding-and-remove-pages">7.8. Adding and Removing Pages</a></span></dt><dt><span class="sect1"><a href="#ref.reserved-objects">7.9. Reserving Object Numbers</a></span></dt><dt><span class="sect1"><a href="#ref.foreign-objects">7.10. Copying Objects From Other PDF Files</a></span></dt><dt><span class="sect1"><a href="#ref.rewriting">7.11. Writing PDF Files</a></span></dt><dt><span class="sect1"><a href="#ref.filtered-streams">7.12. Filtered Streams</a></span></dt></dl></dd><dt><span class="chapter"><a href="#ref.linearization">8. Linearization</a></span></dt><dd><dl><dt><span class="sect1"><a href="#ref.linearization-strategy">8.1. Basic Strategy for Linearization</a></span></dt><dt><span class="sect1"><a href="#ref.linearized.preparation">8.2. Preparing For Linearization</a></span></dt><dt><span class="sect1"><a href="#ref.optimization">8.3. Optimization</a></span></dt><dt><span class="sect1"><a href="#ref.linearization.writing">8.4. Writing Linearized Files</a></span></dt><dt><span class="sect1"><a href="#ref.linearization-data">8.5. Calculating Linearization Data</a></span></dt><dt><span class="sect1"><a href="#ref.linearization-issues">8.6. Known Issues with Linearization</a></span></dt><dt><span class="sect1"><a href="#ref.linearization-debugging">8.7. Debugging Note</a></span></dt></dl></dd><dt><span class="chapter"><a href="#ref.object-and-xref-streams">9. Object and Cross-Reference Streams</a></span></dt><dd><dl><dt><span class="sect1"><a href="#ref.object-streams">9.1. Object Streams</a></span></dt><dt><span class="sect1"><a href="#ref.xref-streams">9.2. Cross-Reference Streams</a></span></dt><dd><dl><dt><span class="sect2"><a href="#ref.xref-stream-data">9.2.1. Cross-Reference Stream Data</a></span></dt></dl></dd><dt><span class="sect1"><a href="#ref.object-streams-linearization">9.3. Implications for Linearized Files</a></span></dt><dt><span class="sect1"><a href="#ref.object-stream-implementation">9.4. Implementation Notes</a></span></dt></dl></dd><dt><span class="appendix"><a href="#ref.release-notes">A. Release Notes</a></span></dt><dt><span class="appendix"><a href="#ref.upgrading-to-2.1">B. Upgrading from 2.0 to 2.1</a></span></dt><dt><span class="appendix"><a href="#ref.upgrading-to-3.0">C. Upgrading to 3.0</a></span></dt><dt><span class="appendix"><a href="#ref.upgrading-to-4.0">D. Upgrading to 4.0</a></span></dt></dl></div><div class="preface"><div class="titlepage"><div><div><h1 class="title"><a id="acknowledgments"></a>General Information</h1></div></div></div><p>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>QPDF Manual</title><link rel="stylesheet" type="text/css" href="stylesheet.css" /><meta name="generator" content="DocBook XSL Stylesheets V1.79.1" /></head><body><div class="book"><div class="titlepage"><div><div><h1 class="title"><a id="idm45697085126848"></a>QPDF Manual</h1></div><div><h2 class="subtitle">For QPDF Version 9.1.1, January 26, 2020</h2></div><div><div class="author"><h3 class="author"><span class="firstname">Jay</span> <span class="surname">Berkenbilt</span></h3></div></div><div><p class="copyright">Copyright © 2005–2020 Jay Berkenbilt</p></div></div><hr /></div><div class="toc"><p><strong>Table of Contents</strong></p><dl class="toc"><dt><span class="preface"><a href="#acknowledgments">General Information</a></span></dt><dt><span class="chapter"><a href="#ref.overview">1. What is QPDF?</a></span></dt><dt><span class="chapter"><a href="#ref.installing">2. Building and Installing QPDF</a></span></dt><dd><dl><dt><span class="sect1"><a href="#ref.prerequisites">2.1. System Requirements</a></span></dt><dt><span class="sect1"><a href="#ref.building">2.2. Build Instructions</a></span></dt><dt><span class="sect1"><a href="#ref.crypto">2.3. Crypto Providers</a></span></dt><dd><dl><dt><span class="sect2"><a href="#ref.crypto.build">2.3.1. Build Support For Crypto Providers</a></span></dt><dt><span class="sect2"><a href="#ref.crypto.runtime">2.3.2. Runtime Crypto Provider Selection</a></span></dt><dt><span class="sect2"><a href="#ref.crypto.develop">2.3.3. Crypto Provider Information for Developers</a></span></dt><dt><span class="sect2"><a href="#ref.crypto.design">2.3.4. Crypto Provider Design Notes</a></span></dt></dl></dd><dt><span class="sect1"><a href="#ref.packaging">2.4. Notes for Packagers</a></span></dt></dl></dd><dt><span class="chapter"><a href="#ref.using">3. Running QPDF</a></span></dt><dd><dl><dt><span class="sect1"><a href="#ref.invocation">3.1. Basic Invocation</a></span></dt><dt><span class="sect1"><a href="#ref.shell-completion">3.2. Shell Completion</a></span></dt><dt><span class="sect1"><a href="#ref.basic-options">3.3. Basic Options</a></span></dt><dt><span class="sect1"><a href="#ref.encryption-options">3.4. Encryption Options</a></span></dt><dt><span class="sect1"><a href="#ref.page-selection">3.5. Page Selection Options</a></span></dt><dt><span class="sect1"><a href="#ref.overlay-underlay">3.6. Overlay and Underlay Options</a></span></dt><dt><span class="sect1"><a href="#ref.advanced-parsing">3.7. Advanced Parsing Options</a></span></dt><dt><span class="sect1"><a href="#ref.advanced-transformation">3.8. Advanced Transformation Options</a></span></dt><dt><span class="sect1"><a href="#ref.testing-options">3.9. Testing, Inspection, and Debugging Options</a></span></dt><dt><span class="sect1"><a href="#ref.unicode-passwords">3.10. Unicode Passwords</a></span></dt></dl></dd><dt><span class="chapter"><a href="#ref.qdf">4. QDF Mode</a></span></dt><dt><span class="chapter"><a href="#ref.using-library">5. Using the QPDF Library</a></span></dt><dd><dl><dt><span class="sect1"><a href="#ref.using.from-cxx">5.1. Using QPDF from C++</a></span></dt><dt><span class="sect1"><a href="#ref.using.other-languages">5.2. Using QPDF from other languages</a></span></dt><dt><span class="sect1"><a href="#ref.unicode-files">5.3. A Note About Unicode File Names</a></span></dt></dl></dd><dt><span class="chapter"><a href="#ref.json">6. QPDF JSON</a></span></dt><dd><dl><dt><span class="sect1"><a href="#ref.json-overview">6.1. Overview</a></span></dt><dt><span class="sect1"><a href="#ref.json-guarantees">6.2. JSON Guarantees</a></span></dt><dt><span class="sect1"><a href="#json.limitations">6.3. Limitations of JSON Representation</a></span></dt><dt><span class="sect1"><a href="#json.considerations">6.4. JSON: Special Considerations</a></span></dt></dl></dd><dt><span class="chapter"><a href="#ref.design">7. Design and Library Notes</a></span></dt><dd><dl><dt><span class="sect1"><a href="#ref.design.intro">7.1. Introduction</a></span></dt><dt><span class="sect1"><a href="#ref.design-goals">7.2. Design Goals</a></span></dt><dt><span class="sect1"><a href="#ref.helper-classes">7.3. Helper Classes</a></span></dt><dt><span class="sect1"><a href="#ref.implementation-notes">7.4. Implementation Notes</a></span></dt><dt><span class="sect1"><a href="#ref.casting">7.5. Casting Policy</a></span></dt><dt><span class="sect1"><a href="#ref.encryption">7.6. Encryption</a></span></dt><dt><span class="sect1"><a href="#ref.random-numbers">7.7. Random Number Generation</a></span></dt><dt><span class="sect1"><a href="#ref.adding-and-remove-pages">7.8. Adding and Removing Pages</a></span></dt><dt><span class="sect1"><a href="#ref.reserved-objects">7.9. Reserving Object Numbers</a></span></dt><dt><span class="sect1"><a href="#ref.foreign-objects">7.10. Copying Objects From Other PDF Files</a></span></dt><dt><span class="sect1"><a href="#ref.rewriting">7.11. Writing PDF Files</a></span></dt><dt><span class="sect1"><a href="#ref.filtered-streams">7.12. Filtered Streams</a></span></dt></dl></dd><dt><span class="chapter"><a href="#ref.linearization">8. Linearization</a></span></dt><dd><dl><dt><span class="sect1"><a href="#ref.linearization-strategy">8.1. Basic Strategy for Linearization</a></span></dt><dt><span class="sect1"><a href="#ref.linearized.preparation">8.2. Preparing For Linearization</a></span></dt><dt><span class="sect1"><a href="#ref.optimization">8.3. Optimization</a></span></dt><dt><span class="sect1"><a href="#ref.linearization.writing">8.4. Writing Linearized Files</a></span></dt><dt><span class="sect1"><a href="#ref.linearization-data">8.5. Calculating Linearization Data</a></span></dt><dt><span class="sect1"><a href="#ref.linearization-issues">8.6. Known Issues with Linearization</a></span></dt><dt><span class="sect1"><a href="#ref.linearization-debugging">8.7. Debugging Note</a></span></dt></dl></dd><dt><span class="chapter"><a href="#ref.object-and-xref-streams">9. Object and Cross-Reference Streams</a></span></dt><dd><dl><dt><span class="sect1"><a href="#ref.object-streams">9.1. Object Streams</a></span></dt><dt><span class="sect1"><a href="#ref.xref-streams">9.2. Cross-Reference Streams</a></span></dt><dd><dl><dt><span class="sect2"><a href="#ref.xref-stream-data">9.2.1. Cross-Reference Stream Data</a></span></dt></dl></dd><dt><span class="sect1"><a href="#ref.object-streams-linearization">9.3. Implications for Linearized Files</a></span></dt><dt><span class="sect1"><a href="#ref.object-stream-implementation">9.4. Implementation Notes</a></span></dt></dl></dd><dt><span class="appendix"><a href="#ref.release-notes">A. Release Notes</a></span></dt><dt><span class="appendix"><a href="#ref.upgrading-to-2.1">B. Upgrading from 2.0 to 2.1</a></span></dt><dt><span class="appendix"><a href="#ref.upgrading-to-3.0">C. Upgrading to 3.0</a></span></dt><dt><span class="appendix"><a href="#ref.upgrading-to-4.0">D. Upgrading to 4.0</a></span></dt></dl></div><div class="preface"><div class="titlepage"><div><div><h1 class="title"><a id="acknowledgments"></a>General Information</h1></div></div></div><p>
    QPDF is a program that does structural, content-preserving
    transformations on PDF files.  QPDF's website is located at <a class="ulink" href="http://qpdf.sourceforge.net/" target="_top">http://qpdf.sourceforge.net/</a>.
    QPDF's source code is hosted on github at <a class="ulink" href="https://github.com/qpdf/qpdf" target="_top">https://github.com/qpdf/qpdf</a>.
@@ -64,7 +64,7 @@
    your original PDF creation can't handle.  For example, many
    programs generate simple PDF files but can't password-protect them,
    web-optimize them, or perform other transformations of that type.
-  </p></div><div class="chapter"><div class="titlepage"><div><div><h1 class="title"><a id="ref.installing"></a>Chapter 2. Building and Installing QPDF</h1></div></div></div><div class="toc"><p><strong>Table of Contents</strong></p><dl class="toc"><dt><span class="sect1"><a href="#ref.prerequisites">2.1. System Requirements</a></span></dt><dt><span class="sect1"><a href="#ref.building">2.2. Build Instructions</a></span></dt><dt><span class="sect1"><a href="#ref.crypto">2.3. Crypto Providers</a></span></dt><dd><dl><dt><span class="sect2"><a href="#ref.crypto.build">2.3.1. Build Support For Cyrpto Providers</a></span></dt><dt><span class="sect2"><a href="#ref.crypto.runtime">2.3.2. Runtime Crypto Provider Selection</a></span></dt><dt><span class="sect2"><a href="#ref.crypto.develop">2.3.3. Crypto Provider Information for Developers</a></span></dt><dt><span class="sect2"><a href="#ref.crypto.design">2.3.4. Crypto Provider Design Notes</a></span></dt></dl></dd><dt><span class="sect1"><a href="#ref.packaging">2.4. Notes for Packagers</a></span></dt></dl></div><p>
+  </p></div><div class="chapter"><div class="titlepage"><div><div><h1 class="title"><a id="ref.installing"></a>Chapter 2. Building and Installing QPDF</h1></div></div></div><div class="toc"><p><strong>Table of Contents</strong></p><dl class="toc"><dt><span class="sect1"><a href="#ref.prerequisites">2.1. System Requirements</a></span></dt><dt><span class="sect1"><a href="#ref.building">2.2. Build Instructions</a></span></dt><dt><span class="sect1"><a href="#ref.crypto">2.3. Crypto Providers</a></span></dt><dd><dl><dt><span class="sect2"><a href="#ref.crypto.build">2.3.1. Build Support For Crypto Providers</a></span></dt><dt><span class="sect2"><a href="#ref.crypto.runtime">2.3.2. Runtime Crypto Provider Selection</a></span></dt><dt><span class="sect2"><a href="#ref.crypto.develop">2.3.3. Crypto Provider Information for Developers</a></span></dt><dt><span class="sect2"><a href="#ref.crypto.design">2.3.4. Crypto Provider Design Notes</a></span></dt></dl></dd><dt><span class="sect1"><a href="#ref.packaging">2.4. Notes for Packagers</a></span></dt></dl></div><p>
    This chapter describes how to build and install qpdf.  Please see
    also the <code class="filename">README.md</code> and
    <code class="filename">INSTALL</code> files in the source distribution.
@@ -87,7 +87,8 @@
       </p></li><li class="listitem"><p>
        perl version 5.8 or newer:
        <a class="ulink" href="http://www.perl.org/" target="_top">http://www.perl.org/</a>;
-       required for <span class="command"><strong>fix-qdf</strong></span> and the test suite.
+       required for running the test suite. Starting with qpdf version
+       9.1.1, perl is no longer required at runtime.
       </p></li><li class="listitem"><p>
        GNU diffutils (any version): <a class="ulink" href="http://www.gnu.org/software/diffutils/" target="_top">http://www.gnu.org/software/diffutils/</a>
        is required to run the test suite.  Note that this is the
@@ -172,7 +173,7 @@ make
     Additional implementations may be added if needed. It is also
     possible for a developer to provide their own implementation
     without modifying the qpdf library.
-   </p><div class="sect2"><div class="titlepage"><div><div><h3 class="title"><a id="ref.crypto.build"></a>2.3.1. Build Support For Cyrpto Providers</h3></div></div></div><p>
+   </p><div class="sect2"><div class="titlepage"><div><div><h3 class="title"><a id="ref.crypto.build"></a>2.3.1. Build Support For Crypto Providers</h3></div></div></div><p>
      When building with qpdf's build system, crypto providers can be
      enabled at build time using various
      <span class="command"><strong>./configure</strong></span> options. The default behavior is
@@ -339,8 +340,12 @@ make
     If you are packaging qpdf for an operating system distribution,
     here are some things you may want to keep in mind:
     </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+       Starting in qpdf version 9.1.1, qpdf no longer has a runtime
+       dependency on perl. This is because fix-qdf was rewritten in
+       C++. However, qpdf still has a build-time dependency on perl.
+      </p></li><li class="listitem"><p>
        Make sure you are getting the intended behavior with regard to
-       crypto providers. Read <a class="xref" href="#ref.crypto.build" title="2.3.1. Build Support For Cyrpto Providers">Section 2.3.1, “Build Support For Cyrpto Providers”</a> for
+       crypto providers. Read <a class="xref" href="#ref.crypto.build" title="2.3.1. Build Support For Crypto Providers">Section 2.3.1, “Build Support For Crypto Providers”</a> for
        details.
       </p></li><li class="listitem"><p>
        Passing <code class="option">--enable-show-failed-test-output</code> to
@@ -445,6 +450,28 @@ make
         as described above to put the password in a file or pass it
         via standard input so you can avoid specifying it on the
         command line.
+       </p></dd><dt><span class="term"><code class="option">--is-encrypted</code></span></dt><dd><p>
+        Silently exit with status 0 if the file is encrypted or status
+        2 if the file is not encrypted. This is useful for shell
+        scripts. Other options are ignored if this is given. This
+        option is mutually exclusive with
+        <code class="option">--requires-password</code>. Both this option and
+        <code class="option">--requires-password</code> exit with status 2 for
+        non-encrypted files.
+       </p></dd><dt><span class="term"><code class="option">--requires-password</code></span></dt><dd><p>
+        Silently exit with status 0 if a password (other than as
+        supplied) is required. Exit with status 2 if the file is not
+        encrypted. Exit with status 3 if the file is encrypted but
+        requires no password or the correct password has been
+        supplied. This is useful for shell scripts. Note that any
+        supplied password is used when opening the file. When used
+        with a <code class="option">--password</code> option, this option can be
+        used to check the correctness of the password. In that case,
+        an exit status of 3 means the file works with the supplied
+        password. This option is mutually exclusive with
+        <code class="option">--is-encrypted</code>. Both this option and
+        <code class="option">--is-encrypted</code> exit with status 2 for
+        non-encrypted files.
        </p></dd><dt><span class="term"><code class="option">--verbose</code></span></dt><dd><p>
         Increase verbosity of output. For now, this just prints some
         indication of any file that it creates.
@@ -2150,7 +2177,7 @@ outfile.pdf</code>
     password-protected files.  QPDF does not enforce encryption
     parameters and will treat user and owner passwords equivalently.
     Either password may be used to access an encrypted file.
-    <a href="#ftn.idm46068922565472" class="footnote" id="idm46068922565472"><sup class="footnote">[1]</sup></a>
+    <a href="#ftn.idm45697078162144" class="footnote" id="idm45697078162144"><sup class="footnote">[1]</sup></a>
     <code class="classname">QPDF</code> will allow recovery of a user password
     given an owner password.  The input PDF file must be seekable.
     (Output files written by <code class="classname">QPDFWriter</code> need
@@ -2774,7 +2801,7 @@ outfile.pdf</code>
     filter should write to whatever type of output is required.  The
     <code class="classname">QPDF</code> class has an interface to write raw or
     filtered stream contents to a given pipeline.
-   </p></div><div class="footnotes"><br /><hr style="width:100; text-align:left;margin-left: 0" /><div id="ftn.idm46068922565472" class="footnote"><p><a href="#idm46068922565472" class="para"><sup class="para">[1] </sup></a>
+   </p></div><div class="footnotes"><br /><hr style="width:100; text-align:left;margin-left: 0" /><div id="ftn.idm45697078162144" class="footnote"><p><a href="#idm45697078162144" class="para"><sup class="para">[1] </sup></a>
       As pointed out earlier, the intention is not for qpdf to be used
       to bypass security on files. but as any open source PDF consumer
       may be easily modified to bypass basic PDF document security,
@@ -3137,14 +3164,65 @@ print "\n";
    </p></div></div><div class="appendix"><div class="titlepage"><div><div><h1 class="title"><a id="ref.release-notes"></a>Appendix A. Release Notes</h1></div></div></div><p>
    For a detailed list of changes, please see the file
    <code class="filename">ChangeLog</code> in the source distribution.
-  </p><div class="variablelist"><dl class="variablelist"><dt><span class="term">9.1.0: November 17, 2019</span></dt><dd><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+  </p><div class="variablelist"><dl class="variablelist"><dt><span class="term">9.1.1: January 26, 2020</span></dt><dd><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+        Build/Packaging Changes
+       </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: circle; "><li class="listitem"><p>
+          The fix-qdf program was converted from perl to C++. As such,
+          qpdf no longer has a runtime dependency on perl.
+         </p></li></ul></div></li><li class="listitem"><p>
+        Library Enhancements
+       </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: circle; "><li class="listitem"><p>
+          Added new helper routine
+          <code class="function">QUtil::call_main_from_wmain</code> which
+          converts <span class="type">wchar_t</span> arguments to UTF-8 encoded
+          strings. This is useful for qpdf because library methods
+          expect file names to be UTF-8 encoded, even on Windows
+         </p></li><li class="listitem"><p>
+          Added new <code class="function">QUtil::read_lines_from_file</code>
+          methods that take <span class="type">FILE*</span> arguments and that
+          allow preservation of end-of-line characters. This also
+          fixes a bug where
+          <code class="function">QUtil::read_lines_from_file</code> wouldn't
+          work properly with Unicode filenames.
+         </p></li></ul></div></li><li class="listitem"><p>
+        CLI Enhancements
+       </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: circle; "><li class="listitem"><p>
+          Added options <code class="option">--is-encrypted</code> and
+          <code class="option">--requires-password</code> for testing whether a
+          file is encrypted or requires a password other than the
+          supplied (or empty) password. These communicate via exit
+          status, making them useful for shell scripts. They also work
+          on encrypted files with unknown passwords.
+         </p></li></ul></div><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: circle; "><li class="listitem"><p>
+          Added <code class="literal">encrypt</code> key to JSON options. With
+          the exception of the reconstructed user password for older
+          encryption formats, this provides the same information as
+          <code class="option">--show-encryption</code> but in a consistent,
+          parseable format. See output of <span class="command"><strong>qpdf
+          --json-help</strong></span> for details.
+         </p></li></ul></div></li><li class="listitem"><p>
+        Bug Fixes
+       </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: circle; "><li class="listitem"><p>
+          In QDF mode, be sure not to write more than one XRef stream
+          to a file, even when
+          <code class="option">--preserve-unreferenced</code> is used.
+          <span class="command"><strong>fix-qdf</strong></span> assumes that there is only one
+          XRef stream, and that it appears at the end of the file.
+         </p></li><li class="listitem"><p>
+          When externalizing inline images, properly handle images
+          whose color space is a reference to an object in the page's
+          resource dictionary.
+         </p></li><li class="listitem"><p>
+          Windows-specific fix for acquiring crypt context with a new
+          keyset.
+         </p></li></ul></div></li></ul></div></dd></dl></div><div class="variablelist"><dl class="variablelist"><dt><span class="term">9.1.0: November 17, 2019</span></dt><dd><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
         Build Changes
        </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: circle; "><li class="listitem"><p>
           A C++-11 compiler is now required to build qpdf.
          </p></li><li class="listitem"><p>
           A new crypto provider that uses gnutls for crypto functions
           is now available and can be enabled at build time. See <a class="xref" href="#ref.crypto" title="2.3. Crypto Providers">Section 2.3, “Crypto Providers”</a> for more information about crypto
-          providers and <a class="xref" href="#ref.crypto.build" title="2.3.1. Build Support For Cyrpto Providers">Section 2.3.1, “Build Support For Cyrpto Providers”</a> for
+          providers and <a class="xref" href="#ref.crypto.build" title="2.3.1. Build Support For Crypto Providers">Section 2.3.1, “Build Support For Crypto Providers”</a> for
           specific information about the build.
          </p></li></ul></div></li><li class="listitem"><p>
         Library Enhancements

@@ -23,6 +23,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <fcntl.h>
+#include <memory>
 #ifdef _WIN32
 #include <windows.h>
 #include <direct.h>
@@ -232,6 +233,23 @@ static unsigned short mac_roman_to_unicode[] = {
     0x030b,    // 0xfd
     0x0328,    // 0xfe
     0x02c7,    // 0xff
+};
+
+class FileCloser
+{
+  public:
+    FileCloser(FILE* f) :
+        f(f)
+    {
+    }
+
+    ~FileCloser()
+    {
+        fclose(f);
+    }
+
+  private:
+    FILE* f;
 };
 
 template <typename T>
@@ -987,19 +1005,6 @@ QUtil::is_number(char const* p)
     return found_digit;
 }
 
-std::list<std::string>
-QUtil::read_lines_from_file(char const* filename)
-{
-    std::ifstream in(filename, std::ios_base::binary);
-    if (! in.is_open())
-    {
-        throw_system_error(std::string("open ") + filename);
-    }
-    std::list<std::string> lines = read_lines_from_file(in);
-    in.close();
-    return lines;
-}
-
 void
 QUtil::read_file_into_memory(
     char const* filename,
@@ -1039,19 +1044,84 @@ QUtil::read_file_into_memory(
     fclose(f);
 }
 
+static bool read_char_from_FILE(char& ch, FILE* f)
+{
+    auto len = fread(&ch, 1, 1, f);
+    if (len == 0)
+    {
+        if (ferror(f))
+        {
+            throw std::runtime_error("failure reading character from file");
+        }
+        return false;
+    }
+    return true;
+}
+
+std::list<std::string>
+QUtil::read_lines_from_file(char const* filename)
+{
+    // ABI: remove this method
+    std::list<std::string> lines;
+    FILE* f = safe_fopen(filename, "rb");
+    FileCloser fc(f);
+    auto next_char = [&f](char& ch) { return read_char_from_FILE(ch, f); };
+    read_lines_from_file(next_char, lines, false);
+    return lines;
+}
+
+std::list<std::string>
+QUtil::read_lines_from_file(char const* filename, bool preserve_eol)
+{
+    std::list<std::string> lines;
+    FILE* f = safe_fopen(filename, "rb");
+    FileCloser fc(f);
+    auto next_char = [&f](char& ch) { return read_char_from_FILE(ch, f); };
+    read_lines_from_file(next_char, lines, preserve_eol);
+    return lines;
+}
+
 std::list<std::string>
 QUtil::read_lines_from_file(std::istream& in)
 {
-    std::list<std::string> result;
-    std::string* buf = 0;
+    // ABI: remove this method
+    std::list<std::string> lines;
+    auto next_char = [&in](char& ch) { return (in.get(ch)) ? true: false; };
+    read_lines_from_file(next_char, lines, false);
+    return lines;
+}
 
+std::list<std::string>
+QUtil::read_lines_from_file(std::istream& in, bool preserve_eol)
+{
+    std::list<std::string> lines;
+    auto next_char = [&in](char& ch) { return (in.get(ch)) ? true: false; };
+    read_lines_from_file(next_char, lines, preserve_eol);
+    return lines;
+}
+
+std::list<std::string>
+QUtil::read_lines_from_file(FILE* f, bool preserve_eol)
+{
+    std::list<std::string> lines;
+    auto next_char = [&f](char& ch) { return read_char_from_FILE(ch, f); };
+    read_lines_from_file(next_char, lines, preserve_eol);
+    return lines;
+}
+
+void
+QUtil::read_lines_from_file(std::function<bool(char&)> next_char,
+                            std::list<std::string>& lines,
+                            bool preserve_eol)
+{
+    std::string* buf = 0;
     char c;
-    while (in.get(c))
+    while (next_char(c))
     {
 	if (buf == 0)
 	{
-	    result.push_back("");
-	    buf = &(result.back());
+	    lines.push_back("");
+	    buf = &(lines.back());
 	    buf->reserve(80);
 	}
 
@@ -1061,11 +1131,18 @@ QUtil::read_lines_from_file(std::istream& in)
 	}
 	if (c == '\n')
 	{
-            // Remove any carriage return that preceded the
-            // newline and discard the newline
-            if ((! buf->empty()) && ((*(buf->rbegin())) == '\r'))
+            if (preserve_eol)
             {
-                buf->erase(buf->length() - 1);
+                buf->append(1, c);
+            }
+            else
+            {
+                // Remove any carriage return that preceded the
+                // newline and discard the newline
+                if ((! buf->empty()) && ((*(buf->rbegin())) == '\r'))
+                {
+                    buf->erase(buf->length() - 1);
+                }
             }
 	    buf = 0;
 	}
@@ -1074,8 +1151,6 @@ QUtil::read_lines_from_file(std::istream& in)
 	    buf->append(1, c);
 	}
     }
-
-    return result;
 }
 
 int
@@ -2286,4 +2361,39 @@ QUtil::possible_repaired_encodings(std::string supplied)
         }
     }
     return t;
+}
+
+int
+QUtil::call_main_from_wmain(int argc, wchar_t* argv[], std::function<int(int, char*[])> realmain)
+{
+    // argv contains UTF-16-encoded strings with a 16-bit wchar_t.
+    // Convert this to UTF-8-encoded strings for compatibility with
+    // other systems. That way the rest of qpdf.cc can just act like
+    // arguments are UTF-8.
+
+    std::vector<std::shared_ptr<char>> utf8_argv;
+    for (int i = 0; i < argc; ++i)
+    {
+        std::string utf16;
+        for (size_t j = 0; j < wcslen(argv[i]); ++j)
+        {
+            unsigned short codepoint = static_cast<unsigned short>(argv[i][j]);
+            utf16.append(1, static_cast<char>(
+                             QIntC::to_uchar(codepoint >> 8)));
+            utf16.append(1, static_cast<char>(
+                             QIntC::to_uchar(codepoint & 0xff)));
+        }
+        std::string utf8 = QUtil::utf16_to_utf8(utf16);
+        utf8_argv.push_back(std::shared_ptr<char>(QUtil::copy_string(utf8.c_str()), std::default_delete<char[]>()));
+    }
+    auto utf8_argv_sp =
+        std::shared_ptr<char*>(new char*[1+utf8_argv.size()], std::default_delete<char*[]>());
+    char** new_argv = utf8_argv_sp.get();
+    for (size_t i = 0; i < utf8_argv.size(); ++i)
+    {
+        new_argv[i] = utf8_argv.at(i).get();
+    }
+    argc = QIntC::to_int(utf8_argv.size());
+    new_argv[argc] = 0;
+    return realmain(argc, new_argv);
 }
