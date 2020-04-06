@@ -412,7 +412,7 @@ foreach my $i (@choice_values)
 show_ntests();
 # ----------
 $td->notify("--- Form XObject, underlay, overlay ---");
-$n_tests += 10;
+$n_tests += 18;
 
 $td->runtest("form xobject creation",
              {$td->COMMAND => "test_driver 55 fxo-red.pdf"},
@@ -427,6 +427,19 @@ foreach (my $i = 56; $i <= 59; ++$i)
     # the resulting files should look like.
     $td->runtest("overlay transformations",
                  {$td->COMMAND => "test_driver $i fxo-red.pdf fxo-blue.pdf"},
+                 {$td->STRING => "test $i done\n", $td->EXIT_STATUS => 0},
+                 $td->NORMALIZE_NEWLINES);
+    $td->runtest("compare files",
+                 {$td->FILE => "a.pdf"},
+                 {$td->FILE => "fx-overlay-$i.pdf"});
+}
+foreach (my $i = 64; $i <= 67; ++$i)
+{
+    # See comments in test_driver.cc for a verbal description of what
+    # the resulting files should look like.
+    $td->runtest("overlay shrink/expand",
+                 {$td->COMMAND =>
+                      "test_driver $i fxo-bigsmall.pdf fxo-smallbig.pdf"},
                  {$td->STRING => "test $i done\n", $td->EXIT_STATUS => 0},
                  $td->NORMALIZE_NEWLINES);
     $td->runtest("compare files",
@@ -1685,8 +1698,11 @@ my @sp_cases = (
     [11, '%d in middle', '--encrypt u o 128 --', 'a-%d-split-out.zdf'],
     [11, 'pdf extension', '', 'split-out.Pdf'],
     [4, 'fallback', '--pages 11-pages.pdf 1-3 minimal.pdf --', 'split-out'],
+    [1, 'broken data', '--pages broken-lzw.pdf --', 'split-out.pdf',
+     {$td->FILE => "broken-lzw.out", $td->EXIT_STATUS => 3}],
     );
-$n_tests += 23;
+$n_tests += 35;
+$n_compare_pdfs += 1;
 for (@sp_cases)
 {
     $n_tests += 1 + $_->[0];
@@ -1699,7 +1715,7 @@ $td->runtest("split page group > 1",
              $td->NORMALIZE_NEWLINES);
 foreach my $f ('01-05', '06-10', '11-11')
 {
-    $td->runtest("checkout group $f",
+    $td->runtest("check out group $f",
                  {$td->FILE => "split-out-group-$f.pdf"},
                  {$td->FILE => "split-exp-group-$f.pdf"});
 }
@@ -1747,12 +1763,17 @@ foreach my $i (qw(01-10 11-20 21-30))
 
 foreach my $d (@sp_cases)
 {
-    my ($n, $description, $xargs, $out) = @$d;
+    my ($n, $description, $xargs, $out, $exp) = @$d;
+    if (! defined $exp)
+    {
+        $exp = {$td->STRING => "", $td->EXIT_STATUS => 0};
+    }
     $td->runtest("split pages " . $description,
                  {$td->COMMAND =>
                       "qpdf --static-id --split-pages 11-pages.pdf" .
                       " $xargs $out"},
-                 {$td->STRING => "", $td->EXIT_STATUS => 0});
+                 $exp,
+                 $td->NORMALIZE_NEWLINES);
     my $pattern = $out;
     my $nlen = length($n);
     if ($pattern =~ m/\%d/)
@@ -1772,7 +1793,7 @@ foreach my $d (@sp_cases)
         my $actual = sprintf($pattern, $i);
         my $expected = $actual;
         $expected =~ s/split-out/split-exp/;
-        $td->runtest("checkout output page $i",
+        $td->runtest("check output page $i ($description)",
                      {$td->FILE => $actual},
                      {$td->FILE => $expected});
     }
@@ -1794,12 +1815,44 @@ foreach my $i (qw(1 2 3 4))
 $td->runtest("unreferenced resources with bad token",
              {$td->COMMAND =>
                   "qpdf --qdf --static-id --split-pages=2" .
+                  " --remove-unreferenced-resources=yes" .
                   " coalesce.pdf split-out-bad-token.pdf"},
              {$td->FILE => "coalesce-split.out", $td->EXIT_STATUS => 3},
              $td->NORMALIZE_NEWLINES);
 $td->runtest("check output",
              {$td->FILE => "split-out-bad-token-1-2.pdf"},
              {$td->FILE => "coalesce-split-1-2.pdf"});
+
+$td->runtest("shared images in form xobject",
+             {$td->COMMAND => "qpdf --qdf --static-id --split-pages".
+                  " shared-form-images.pdf split-out-shared-form.pdf"},
+             {$td->STRING => "", $td->EXIT_STATUS => 0});
+foreach my $i (qw(1 2 3 4 5 6))
+{
+    $td->runtest("check output ($i)",
+                 {$td->FILE => "split-out-shared-form-$i.pdf"},
+                 {$td->FILE => "shared-form-split-$i.pdf"});
+}
+$td->runtest("merge for compare",
+             {$td->COMMAND => "qpdf --static-id --empty --pages" .
+                  " split-out-shared-form*.pdf -- a.pdf"},
+             {$td->STRING => "", $td->EXIT_STATUS => 0});
+$td->runtest("check output",
+             {$td->FILE => "a.pdf"},
+             {$td->FILE => "shared-form-images-merged.pdf"});
+compare_pdfs("shared-form-images.pdf", "a.pdf");
+
+$td->runtest("shared form xobject subkey",
+             {$td->COMMAND => "qpdf --qdf --static-id --split-pages".
+                  " shared-form-images-xobject.pdf" .
+                  " split-out-shared-form-xobject.pdf"},
+             {$td->STRING => "", $td->EXIT_STATUS => 0});
+foreach my $i (qw(1 2))
+{
+    $td->runtest("check output ($i)",
+                 {$td->FILE => "split-out-shared-form-xobject-$i.pdf"},
+                 {$td->FILE => "shared-form-xobject-split-$i.pdf"});
+}
 
 show_ntests();
 # ----------
@@ -2004,7 +2057,7 @@ foreach my $f (qw(page_api_2 direct-pages))
 show_ntests();
 # ----------
 $td->notify("--- Merging and Splitting ---");
-$n_tests += 24;
+$n_tests += 26;
 
 # Select pages from the same file multiple times including selecting
 # twice from an encrypted file and specifying the password only the
@@ -2087,6 +2140,7 @@ $td->runtest("check output",
 $td->runtest("split with shared resources",
              {$td->COMMAND =>
                   "qpdf --qdf --static-id" .
+                  " --remove-unreferenced-resources=yes" .
                   " shared-images.pdf --pages . 1,3" .
                   " ./shared-images.pdf 1,2 -- a.pdf"},
              {$td->STRING => "", $td->EXIT_STATUS => 0});
@@ -2097,6 +2151,7 @@ $td->runtest("check output",
 $td->runtest("split with really shared resources",
              {$td->COMMAND =>
                   "qpdf --qdf --static-id" .
+                  " --remove-unreferenced-resources=yes" .
                   " shared-images.pdf --pages . 1,3" .
                   " . 1,2 -- a.pdf"},
              {$td->STRING => "", $td->EXIT_STATUS => 0});
@@ -2144,6 +2199,19 @@ $td->runtest("duplicate pages",
 $td->runtest("check output",
              {$td->FILE => "a.pdf"},
              {$td->FILE => "duplicate-pages.pdf"});
+
+# See https://github.com/qpdf/qpdf/issues/399 -- we don't want to
+# break this, especially if we ever implement deduplication of
+# identical streams.
+$td->runtest("force full page duplication",
+             {$td->COMMAND => "qpdf --static-id minimal.pdf" .
+                  " --pages . ./minimal.pdf -- a.pdf"},
+             {$td->STRING => "", $td->EXIT_STATUS => 0},
+             $td->NORMALIZE_NEWLINES);
+$td->runtest("check output",
+             {$td->FILE => "a.pdf"},
+             {$td->FILE => "deep-duplicate-pages.pdf"});
+
 
 show_ntests();
 # ----------
@@ -2342,7 +2410,8 @@ foreach my $d ([25, 1], [26, 2], [27, 3])
     $td->runtest("copy objects $outn",
                  {$td->COMMAND => "test_driver $testn" .
                       " minimal.pdf copy-foreign-objects-in.pdf"},
-                 {$td->STRING => "test $testn done\n", $td->EXIT_STATUS => 0},
+                 {$td->FILE => "copy-foreign-objects-$testn.out",
+                      $td->EXIT_STATUS => 0},
                  $td->NORMALIZE_NEWLINES);
     $td->runtest("check output",
                  {$td->FILE => "a.pdf"},
@@ -2779,7 +2848,7 @@ for (my $n = 16; $n <= 19; ++$n)
 show_ntests();
 # ----------
 $td->notify("--- Specific File Tests ---");
-$n_tests += 7;
+$n_tests += 9;
 
 # Special PDF files that caused problems at some point
 
@@ -2810,6 +2879,14 @@ $td->runtest("check output",
 $td->runtest("check fix-qdf idempotency",
 	     {$td->COMMAND => "fix-qdf a.pdf"},
 	     {$td->FILE => "a.pdf", $td->EXIT_STATUS => 0});
+$td->runtest("pages points to page",
+             {$td->COMMAND =>
+                  "qpdf --static-id --linearize pages-is-page.pdf a.pdf"},
+             {$td->FILE => "pages-is-page.out", $td->EXIT_STATUS => 3},
+             $td->NORMALIZE_NEWLINES);
+$td->runtest("check output",
+	     {$td->FILE => "a.pdf"},
+	     {$td->FILE => "pages-is-page-out.pdf"});
 
 show_ntests();
 # ----------

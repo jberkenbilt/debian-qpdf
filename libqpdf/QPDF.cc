@@ -1,6 +1,7 @@
 #include <qpdf/qpdf-config.h>  // include first for large file support
 #include <qpdf/QPDF.hh>
 
+#include <atomic>
 #include <vector>
 #include <map>
 #include <algorithm>
@@ -24,7 +25,7 @@
 #include <qpdf/QPDF_Stream.hh>
 #include <qpdf/QPDF_Array.hh>
 
-std::string QPDF::qpdf_version = "9.1.1";
+std::string QPDF::qpdf_version = "10.0.0";
 
 static char const* EMPTY_PDF =
     "%PDF-1.3\n"
@@ -67,27 +68,37 @@ QPDF::ForeignStreamData::ForeignStreamData(
 
 QPDF::CopiedStreamDataProvider::CopiedStreamDataProvider(
     QPDF& destination_qpdf) :
+    QPDFObjectHandle::StreamDataProvider(true),
     destination_qpdf(destination_qpdf)
 {
 }
 
-void
+bool
 QPDF::CopiedStreamDataProvider::provideStreamData(
-    int objid, int generation, Pipeline* pipeline)
+    int objid, int generation, Pipeline* pipeline,
+    bool suppress_warnings, bool will_retry)
 {
     PointerHolder<ForeignStreamData> foreign_data =
         this->foreign_stream_data[QPDFObjGen(objid, generation)];
+    bool result = false;
     if (foreign_data.getPointer())
     {
-        destination_qpdf.pipeForeignStreamData(
-            foreign_data, pipeline, 0, qpdf_dl_none);
+        result = destination_qpdf.pipeForeignStreamData(
+            foreign_data, pipeline, suppress_warnings, will_retry);
+        QTC::TC("qpdf", "QPDF copy foreign with data",
+                result ? 0 : 1);
     }
     else
     {
         QPDFObjectHandle foreign_stream =
             this->foreign_streams[QPDFObjGen(objid, generation)];
-        foreign_stream.pipeStreamData(pipeline, 0, qpdf_dl_none);
+        result = foreign_stream.pipeStreamData(
+            pipeline, nullptr, 0, qpdf_dl_none,
+            suppress_warnings, will_retry);
+        QTC::TC("qpdf", "QPDF copy foreign with foreign_stream",
+                result ? 0 : 1);
     }
+    return result;
 }
 
 void
@@ -172,9 +183,8 @@ QPDF::QPDF() :
     // Generate a unique ID. It just has to be unique among all QPDF
     // objects allocated throughout the lifetime of this running
     // application.
-    m->unique_id = static_cast<unsigned long>(QUtil::get_current_time());
-    m->unique_id <<= 32;
-    m->unique_id |= static_cast<unsigned long>(QUtil::random());
+    static std::atomic<unsigned long long> unique_id{0};
+    m->unique_id = unique_id.fetch_add(1ULL);
 }
 
 QPDF::~QPDF()
@@ -2851,8 +2861,7 @@ bool
 QPDF::pipeForeignStreamData(
     PointerHolder<ForeignStreamData> foreign,
     Pipeline* pipeline,
-    int encode_flags,
-    qpdf_stream_decode_level_e decode_level)
+    bool suppress_warnings, bool will_retry)
 {
     if (foreign->encp->encrypted)
     {
@@ -2863,7 +2872,7 @@ QPDF::pipeForeignStreamData(
         foreign->foreign_objid, foreign->foreign_generation,
         foreign->offset, foreign->length,
         foreign->local_dict, foreign->is_attachment_stream,
-        pipeline, false, false);
+        pipeline, suppress_warnings, will_retry);
 }
 
 void

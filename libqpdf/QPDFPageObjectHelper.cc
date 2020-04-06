@@ -511,16 +511,24 @@ NameWatcher::handleToken(QPDFTokenizer::Token const& token)
 }
 
 void
-QPDFPageObjectHelper::removeUnreferencedResources()
+QPDFPageObjectHelper::removeUnreferencedResourcesHelper(
+    QPDFObjectHandle oh, std::set<QPDFObjGen>& seen,
+    std::function<QPDFObjectHandle()> get_resource,
+    std::function<void(QPDFObjectHandle::TokenFilter*)> filter_content)
 {
+    if (seen.count(oh.getObjGen()))
+    {
+        return;
+    }
+    seen.insert(oh.getObjGen());
     NameWatcher nw;
     try
     {
-        filterPageContents(&nw);
+        filter_content(&nw);
     }
     catch (std::exception& e)
     {
-        this->oh.warnIfPossible(
+        oh.warnIfPossible(
             std::string("Unable to parse content stream: ") + e.what() +
             "; not attempting to remove unreferenced objects from this page");
         return;
@@ -528,7 +536,7 @@ QPDFPageObjectHelper::removeUnreferencedResources()
     if (nw.saw_bad)
     {
         QTC::TC("qpdf", "QPDFPageObjectHelper bad token finding names");
-        this->oh.warnIfPossible(
+        oh.warnIfPossible(
             "Bad token found while scanning content stream; "
             "not attempting to remove unreferenced objects from this page");
         return;
@@ -541,7 +549,7 @@ QPDFPageObjectHelper::removeUnreferencedResources()
     std::vector<std::string> to_filter;
     to_filter.push_back("/Font");
     to_filter.push_back("/XObject");
-    QPDFObjectHandle resources = getAttribute("/Resources", true);
+    QPDFObjectHandle resources = get_resource();
     for (std::vector<std::string>::iterator d_iter = to_filter.begin();
          d_iter != to_filter.end(); ++d_iter)
     {
@@ -560,8 +568,43 @@ QPDFPageObjectHelper::removeUnreferencedResources()
             {
                 dict.removeKey(*k_iter);
             }
+            QPDFObjectHandle resource = dict.getKey(*k_iter);
+            if (resource.isStream() &&
+                resource.getDict().getKey("/Type").isName() &&
+                ("/XObject" == resource.getDict().getKey("/Type").getName()) &&
+                resource.getDict().getKey("/Subtype").isName() &&
+                ("/Form" == resource.getDict().getKey("/Subtype").getName()))
+            {
+                QTC::TC("qpdf", "QPDFPageObjectHelper filter form xobject");
+                removeUnreferencedResourcesHelper(
+                    resource.getDict(), seen,
+                    [&resource]() {
+                        auto result = resource.getDict().getKey("/Resources");
+                        if (result.isDictionary())
+                        {
+                            result = result.shallowCopy();
+                            resource.getDict().replaceKey("/Resources", result);
+                        }
+                        return result;
+                    },
+                    [&resource](QPDFObjectHandle::TokenFilter* f) {
+                        resource.filterAsContents(f);
+                    });
+            }
         }
     }
+}
+
+void
+QPDFPageObjectHelper::removeUnreferencedResources()
+{
+    std::set<QPDFObjGen> seen;
+    removeUnreferencedResourcesHelper(
+        this->oh, seen,
+        [this]() { return this->getAttribute("/Resources", true); },
+        [this](QPDFObjectHandle::TokenFilter* f) {
+            this->filterPageContents(f);
+        });
 }
 
 QPDFPageObjectHelper
@@ -677,16 +720,16 @@ QPDFPageObjectHelper::getFormXObjectForPage(bool handle_transformations)
     return result;
 }
 
-// ABI: name should be std:string const&
 std::string
 QPDFPageObjectHelper::placeFormXObject(
-    QPDFObjectHandle fo, std::string name,
+    QPDFObjectHandle fo, std::string const& name,
     QPDFObjectHandle::Rectangle rect,
-    bool invert_transformations)
+    bool invert_transformations,
+    bool allow_shrink, bool allow_expand)
 {
     // Calculate the transformation matrix that will place the given
-    // form XObject fully inside the given rectangle, shrinking and
-    // centering if needed.
+    // form XObject fully inside the given rectangle, center and
+    // shrinking or expanding as needed if requested.
 
     // When rendering a form XObject, the transformation in the
     // graphics state (cm) is applied first (of course -- when it is
@@ -755,7 +798,17 @@ QPDFPageObjectHelper::placeFormXObject(
     double scale = (xscale < yscale ? xscale : yscale);
     if (scale > 1.0)
     {
-        scale = 1.0;
+        if (! allow_expand)
+        {
+            scale = 1.0;
+        }
+    }
+    else if (scale < 1.0)
+    {
+        if (! allow_shrink)
+        {
+            scale = 1.0;
+        }
     }
 
     // Step 2: figure out what translation is required to get the

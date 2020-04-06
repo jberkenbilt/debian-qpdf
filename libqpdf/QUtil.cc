@@ -3,10 +3,7 @@
 
 #include <qpdf/QUtil.hh>
 #include <qpdf/PointerHolder.hh>
-#ifdef USE_INSECURE_RANDOM
-# include <qpdf/InsecureRandomDataProvider.hh>
-#endif
-#include <qpdf/SecureRandomDataProvider.hh>
+#include <qpdf/CryptoRandomDataProvider.hh>
 #include <qpdf/QPDFSystemError.hh>
 #include <qpdf/QTC.hh>
 #include <qpdf/QIntC.hh>
@@ -24,13 +21,16 @@
 #include <string.h>
 #include <fcntl.h>
 #include <memory>
+#ifndef QPDF_NO_WCHAR_T
+# include <cwchar>
+#endif
 #ifdef _WIN32
-#include <windows.h>
-#include <direct.h>
-#include <io.h>
+# include <windows.h>
+# include <direct.h>
+# include <io.h>
 #else
-#include <unistd.h>
-#include <sys/stat.h>
+# include <unistd.h>
+# include <sys/stat.h>
 #endif
 
 // First element is 128
@@ -877,6 +877,63 @@ QUtil::toUTF16(unsigned long uval)
 
 // Random data support
 
+class RandomDataProviderProvider
+{
+  public:
+    RandomDataProviderProvider();
+    void setProvider(RandomDataProvider*);
+    RandomDataProvider* getProvider();
+
+  private:
+    RandomDataProvider* default_provider;
+    RandomDataProvider* current_provider;
+};
+
+RandomDataProviderProvider::RandomDataProviderProvider() :
+    default_provider(CryptoRandomDataProvider::getInstance()),
+    current_provider(0)
+{
+    this->current_provider = default_provider;
+}
+
+RandomDataProvider*
+RandomDataProviderProvider::getProvider()
+{
+    return this->current_provider;
+}
+
+void
+RandomDataProviderProvider::setProvider(RandomDataProvider* p)
+{
+    this->current_provider = p ? p : this->default_provider;
+}
+
+static RandomDataProviderProvider*
+getRandomDataProviderProvider()
+{
+    // Thread-safe static initializer
+    static RandomDataProviderProvider rdpp;
+    return &rdpp;
+}
+
+void
+QUtil::setRandomDataProvider(RandomDataProvider* p)
+{
+    getRandomDataProviderProvider()->setProvider(p);
+}
+
+RandomDataProvider*
+QUtil::getRandomDataProvider()
+{
+    return getRandomDataProviderProvider()->getProvider();
+}
+
+void
+QUtil::initializeWithRandomBytes(unsigned char* data, size_t len)
+{
+    getRandomDataProvider()->provideRandomData(data, len);
+}
+
 long
 QUtil::random()
 {
@@ -885,69 +942,6 @@ QUtil::random()
         reinterpret_cast<unsigned char*>(&result),
         sizeof(result));
     return result;
-}
-
-static RandomDataProvider* random_data_provider = 0;
-
-#ifdef USE_INSECURE_RANDOM
-static RandomDataProvider* insecure_random_data_provider =
-    InsecureRandomDataProvider::getInstance();
-#else
-static RandomDataProvider* insecure_random_data_provider = 0;
-#endif
-static RandomDataProvider* secure_random_data_provider =
-    SecureRandomDataProvider::getInstance();
-
-static void
-initialize_random_data_provider()
-{
-    if (random_data_provider == 0)
-    {
-        if (secure_random_data_provider)
-        {
-            random_data_provider = secure_random_data_provider;
-        }
-        else if (insecure_random_data_provider)
-        {
-            random_data_provider = insecure_random_data_provider;
-        }
-    }
-    // QUtil.hh has comments indicating that getRandomDataProvider(),
-    // which calls this method, never returns null.
-    if (random_data_provider == 0)
-    {
-        throw std::logic_error("QPDF has no random data provider");
-    }
-}
-
-void
-QUtil::setRandomDataProvider(RandomDataProvider* p)
-{
-    random_data_provider = p;
-}
-
-RandomDataProvider*
-QUtil::getRandomDataProvider()
-{
-    initialize_random_data_provider();
-    return random_data_provider;
-}
-
-void
-QUtil::initializeWithRandomBytes(unsigned char* data, size_t len)
-{
-    initialize_random_data_provider();
-    random_data_provider->provideRandomData(data, len);
-}
-
-void
-QUtil::srandom(unsigned int seed)
-{
-#ifdef HAVE_RANDOM
-    ::srandom(seed);
-#else
-    srand(seed);
-#endif
 }
 
 bool
@@ -1059,18 +1053,6 @@ static bool read_char_from_FILE(char& ch, FILE* f)
 }
 
 std::list<std::string>
-QUtil::read_lines_from_file(char const* filename)
-{
-    // ABI: remove this method
-    std::list<std::string> lines;
-    FILE* f = safe_fopen(filename, "rb");
-    FileCloser fc(f);
-    auto next_char = [&f](char& ch) { return read_char_from_FILE(ch, f); };
-    read_lines_from_file(next_char, lines, false);
-    return lines;
-}
-
-std::list<std::string>
 QUtil::read_lines_from_file(char const* filename, bool preserve_eol)
 {
     std::list<std::string> lines;
@@ -1078,16 +1060,6 @@ QUtil::read_lines_from_file(char const* filename, bool preserve_eol)
     FileCloser fc(f);
     auto next_char = [&f](char& ch) { return read_char_from_FILE(ch, f); };
     read_lines_from_file(next_char, lines, preserve_eol);
-    return lines;
-}
-
-std::list<std::string>
-QUtil::read_lines_from_file(std::istream& in)
-{
-    // ABI: remove this method
-    std::list<std::string> lines;
-    auto next_char = [&in](char& ch) { return (in.get(ch)) ? true: false; };
-    read_lines_from_file(next_char, lines, false);
     return lines;
 }
 
@@ -2363,8 +2335,10 @@ QUtil::possible_repaired_encodings(std::string supplied)
     return t;
 }
 
+#ifndef QPDF_NO_WCHAR_T
 int
-QUtil::call_main_from_wmain(int argc, wchar_t* argv[], std::function<int(int, char*[])> realmain)
+QUtil::call_main_from_wmain(int argc, wchar_t* argv[],
+                            std::function<int(int, char*[])> realmain)
 {
     // argv contains UTF-16-encoded strings with a 16-bit wchar_t.
     // Convert this to UTF-8-encoded strings for compatibility with
@@ -2375,7 +2349,7 @@ QUtil::call_main_from_wmain(int argc, wchar_t* argv[], std::function<int(int, ch
     for (int i = 0; i < argc; ++i)
     {
         std::string utf16;
-        for (size_t j = 0; j < wcslen(argv[i]); ++j)
+        for (size_t j = 0; j < std::wcslen(argv[i]); ++j)
         {
             unsigned short codepoint = static_cast<unsigned short>(argv[i][j]);
             utf16.append(1, static_cast<char>(
@@ -2397,3 +2371,4 @@ QUtil::call_main_from_wmain(int argc, wchar_t* argv[], std::function<int(int, ch
     new_argv[argc] = 0;
     return realmain(argc, new_argv);
 }
+#endif // QPDF_NO_WCHAR_T

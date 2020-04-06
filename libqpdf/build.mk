@@ -14,6 +14,9 @@ CRYPTO_NATIVE = \
 	libqpdf/sha2.c \
 	libqpdf/sha2big.c
 
+CRYPTO_OPENSSL = \
+	libqpdf/QPDFCrypto_openssl.cc
+
 CRYPTO_GNUTLS = \
 	libqpdf/QPDFCrypto_gnutls.cc
 
@@ -24,6 +27,7 @@ SRCS_libqpdf = \
 	libqpdf/BufferInputSource.cc \
 	libqpdf/ClosedFileInputSource.cc \
 	libqpdf/ContentNormalizer.cc \
+	libqpdf/CryptoRandomDataProvider.cc \
 	libqpdf/FileInputSource.cc \
 	libqpdf/InputSource.cc \
 	libqpdf/InsecureRandomDataProvider.cc \
@@ -95,6 +99,10 @@ SRCS_libqpdf = \
 
 ifeq ($(USE_CRYPTO_NATIVE), 1)
 SRCS_libqpdf += $(CRYPTO_NATIVE)
+endif
+
+ifeq ($(USE_CRYPTO_OPENSSL), 1)
+SRCS_libqpdf += $(CRYPTO_OPENSSL)
 endif
 
 ifeq ($(USE_CRYPTO_GNUTLS), 1)
