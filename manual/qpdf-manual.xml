@@ -5,8 +5,8 @@
 <!ENTITY mdash "&#x2014;">
 <!ENTITY ndash "&#x2013;">
 <!ENTITY nbsp "&#xA0;">
-<!ENTITY swversion "9.1.1">
-<!ENTITY lastreleased "January 26, 2020">
+<!ENTITY swversion "10.0.0">
+<!ENTITY lastreleased "April 6, 2020">
 ]>
 <book>
  <bookinfo>
@@ -138,7 +138,9 @@
       <para>
        <emphasis>Recommended but not required:</emphasis> gnutls:
        <ulink url="https://www.gnutls.org/">https://www.gnutls.org/</ulink>
-       to be able to use the gnutls crypto provider
+       to be able to use the gnutls crypto provider, and/or openssl:
+       <ulink url="https://openssl.org/">https://openssl.org/</ulink>
+       to be able to use the openssl crypto provider.
       </para>
      </listitem>
      <listitem>
@@ -240,6 +242,16 @@ make
     <filename>README-windows.md</filename>.
    </para>
    <para>
+    While <type>wchar_t</type> is part of the C++ standard, qpdf uses
+    it in only one place in the public API, and it's just in a helper
+    function. It is possible to build qpdf on a system that doesn't
+    have <type>wchar_t</type>, and it's also possible to compile a
+    program that uses qpdf on a system without <type>wchar_t</type> as
+    long as you don't call that one method. This is a very unusual
+    situation. For a detailed discussion, please see the top-level
+    README.md file in qpdf's source distribution.
+   </para>
+   <para>
     There are some other things you can do with the build.  Although
     qpdf uses <application>autoconf</application>, it does not use
     <application>automake</application> but instead uses a
@@ -261,10 +273,11 @@ make
    </para>
    <para>
     Starting with qpdf version 9.1.0, the available implementations
-    are <literal>native</literal> and <literal>gnutls</literal>.
-    Additional implementations may be added if needed. It is also
-    possible for a developer to provide their own implementation
-    without modifying the qpdf library.
+    are <literal>native</literal> and <literal>gnutls</literal>. In
+    qpdf 10.0.0, <literal>openssl</literal> was added. Additional
+    implementations may be added if needed. It is also possible for a
+    developer to provide their own implementation without modifying
+    the qpdf library.
    </para>
    <sect2 id="ref.crypto.build">
     <title>Build Support For Crypto Providers</title>
@@ -334,9 +347,10 @@ make
      own external dependencies that can be omitted if the crypto
      provider is not used. For example, if you are building qpdf
      yourself and are using an environment that does not support
-     gnutls, you can ensure that <literal>USE_CRYPTO_NATIVE</literal>
-     is defined, <literal>USE_CRYPTO_GNUTLS</literal> is not defined,
-     and <literal>DEFAULT_CRYPTO</literal> is defined to
+     gnutls or openssl, you can ensure that
+     <literal>USE_CRYPTO_NATIVE</literal> is defined,
+     <literal>USE_CRYPTO_GNUTLS</literal> is not defined, and
+     <literal>DEFAULT_CRYPTO</literal> is defined to
      <literal>"native"</literal>. Then you must include the source
      files used in the native implementation, some of which were added
      or renamed from earlier versions, to your build, and you can
@@ -592,6 +606,14 @@ make
     it above with an absolute path. If you invoke it with a relative
     path, it will warn you, and the completion won't work if you're in
     a different directory.
+   </para>
+   <para>
+    qpdf will use <literal>argv[0]</literal> to figure out where its
+    executable is. This may produce unwanted results in some cases,
+    especially if you are trying to use completion with copy of qpdf
+    that is built from source. You can specify a full path to the qpdf
+    you want to use for completion in the
+    <literal>QPDF_EXECUTABLE</literal> environment variable.
    </para>
   </sect1>
   <sect1 id="ref.basic-options">
@@ -1570,7 +1592,16 @@ outfile.pdf</option>
     Prior to version 8.4, it was not possible to specify the same page
     from the same file directly more than once, and the workaround of
     specifying the same file in more than one way was required.
-    Version 8.4 removes this limitation.
+    Version 8.4 removes this limitation, but there is still a valid
+    use case. When you specify the same page from the same file more
+    than once, qpdf will share objects between the pages. If you are
+    going to do further manipulation on the file and need the two
+    instances of the same original page to be deep copies, then you
+    can specify the file in two different ways. For example
+    <command>qpdf in.pdf --pages . 1 ./in.pdf 1 -- out.pdf</command>
+    would create a file with two copies of the first page of the
+    input, and the two copies would share any objects in common. This
+    includes fonts, images, and anything else the page references.
    </para>
   </sect1>
   <sect1 id="ref.overlay-underlay">
@@ -1918,20 +1949,50 @@ outfile.pdf</option>
       </listitem>
      </varlistentry>
      <varlistentry>
+      <term><option>--remove-unreferenced-resources=<replaceable>option</replaceable></option></term>
+      <listitem>
+       <para>
+        The <replaceable>option</replaceable> may be
+        <literal>auto</literal>, <literal>yes</literal>, or
+        <literal>no</literal>. The default is <literal>auto</literal>.
+       </para>
+       <para>
+        Starting with qpdf 8.1, when splitting pages, qpdf is able to
+        attempt to remove images and fonts that are not used by a page
+        even if they are referenced in the page's resources
+        dictionary. When shared resources are in use, this behavior
+        can greatly reduce the file sizes of split pages, but the
+        analysis is very slow. In versions from 8.1 through 9.1.1,
+        qpdf did this analysis by default. Starting in qpdf 10.0.0, if
+        <literal>auto</literal> is used, qpdf does a quick analysis of
+        the file to determine whether the file is likely to have
+        unreferenced objects on pages, a pattern that frequently
+        occurs when resource dictionaries are shared across multiple
+        pages and rarely occurs otherwise. If it discovers this
+        pattern, then it will attempt to remove unreferenced
+        resources. Usually this means you get the slower splitting
+        speed only when it's actually going to create smaller files.
+        You can suppress removal of unreferenced resources altogether
+        by specifying <literal>no</literal> or force it to do the full
+        algorithm by specifying <literal>yes</literal>.
+       </para>
+       <para>
+        Other than cases in which you don't care about file size and
+        care a lot about runtime, there are few reasons to use this
+        option, especially now that <literal>auto</literal> mode is
+        supported. One reason to use this is if you suspect that qpdf
+        is removing resources it shouldn't be removing. If you
+        encounter that case, please report it as bug at <ulink
+        url="https://github.com/qpdf/qpdf/issues/">https://github.com/qpdf/qpdf/issues/</ulink>.
+       </para>
+      </listitem>
+     </varlistentry>
+     <varlistentry>
       <term><option>--preserve-unreferenced-resources</option></term>
       <listitem>
        <para>
-        Starting with qpdf 8.1, when splitting pages, qpdf ordinarily
-        attempts to remove images and fonts that are not used by a
-        page even if they are referenced in the page's resources
-        dictionary. This option suppresses that behavior. There are
-        few reasons to use this option. One reason to use this is if
-        you suspect that qpdf is removing resources it shouldn't be
-        removing. If you encounter that case, please report it as a
-        bug. Another reason is that the new behavior can be much
-        slower for files that include a very large number of images or
-        other XObjects on a page. In that case, using this option will
-        return qpdf to the old behavior and speed.
+        This is a synonym for
+        <option>--remove-unreferenced-resources=no</option>.
        </para>
        <para>
         See also <option>--preserve-unreferenced</option>, which does
@@ -3064,11 +3125,18 @@ outfile.pdf</option>
         <itemizedlist>
          <listitem>
           <para>
-           A dictionary in the help output means that the corresponding
-           location in the actual JSON output is also a dictionary with
-           exactly the same keys; that is, no keys present in help are
-           absent in the real output, and no keys will be present in
-           the real output that are not in help.
+           A dictionary in the help output means that the
+           corresponding location in the actual JSON output is also a
+           dictionary with exactly the same keys; that is, no keys
+           present in help are absent in the real output, and no keys
+           will be present in the real output that are not in help. As
+           a special case, if the dictionary has a single key whose
+           name starts with <literal>&lt;</literal> and ends with
+           <literal>&gt;</literal>, it means that the JSON output is a
+           dictionary that can have any keys, each of which conforms
+           to the value of the special key. This is used for cases in
+           which the keys of the dictionary are things like object
+           IDs.
           </para>
          </listitem>
          <listitem>
@@ -3846,25 +3914,16 @@ outfile.pdf</option>
    <title>Random Number Generation</title>
    <para>
     QPDF generates random numbers to support generation of encrypted
-    data.  Versions prior to 5.0.1 used <function>random</function> or
-    <function>rand</function> from <filename>stdlib</filename> to
-    generate random numbers.  Version 5.0.1, if available, used
-    operating system-provided secure random number generation instead,
-    enabling use of <filename>stdlib</filename> random number
-    generation only if enabled by a compile-time option.  Starting in
-    version 5.1.0, use of insecure random numbers was disabled unless
-    enabled at compile time.  Starting in version 5.1.0, it is also
-    possible for you to disable use of OS-provided secure random
-    numbers.  This is especially useful on Windows if you want to
-    avoid a dependency on Microsoft's cryptography API.  In this case,
-    you must provide your own random data provider.  Regardless of how
-    you compile qpdf, starting in version 5.1.0, it is possible for
-    you to provide your own random data provider at runtime.  This
-    would enable you to use some software-based secure pseudorandom
-    number generator and to avoid use of whatever the operating system
-    provides.  For details on how to do this, please refer to the
-    top-level README.md file in the source distribution and to comments
-    in <filename>QUtil.hh</filename>.
+    data. Starting in qpdf 10.0.0, qpdf uses the crypto provider as
+    its source of random numbers. Older versions used the OS-provided
+    source of secure random numbers or, if allowed at build time,
+    insecure random numbers from stdlib. Starting with version 5.1.0,
+    you can disable use of OS-provided secure random numbers at build
+    time. This is especially useful on Windows if you want to avoid a
+    dependency on Microsoft's cryptography API. You can also supply
+    your own random data provider. For details on how to do this,
+    please refer to the top-level README.md file in the source
+    distribution and to comments in <filename>QUtil.hh</filename>.
    </para>
   </sect1>
   <sect1 id="ref.adding-and-remove-pages">
@@ -4666,6 +4725,276 @@ print "\n";
    <filename>ChangeLog</filename> in the source distribution.
   </para>
   <variablelist>
+<!--
+   <varlistentry>
+    <term>x.y.z: Month dd, YYYY</term>
+    <listitem>
+     <itemizedlist>
+      <listitem>
+       <para>
+        Category
+       </para>
+       <itemizedlist>
+        <listitem>
+         <para>
+          Item
+         </para>
+        </listitem>
+        <listitem>
+         <para>
+          Item
+         </para>
+        </listitem>
+       </itemizedlist>
+      </listitem>
+      <listitem>
+       <para>
+        Category
+       </para>
+       <itemizedlist>
+        <listitem>
+         <para>
+          Item
+         </para>
+        </listitem>
+        <listitem>
+         <para>
+          Item
+         </para>
+        </listitem>
+       </itemizedlist>
+      </listitem>
+     </itemizedlist>
+    </listitem>
+   </varlistentry>
+-->
+   <varlistentry>
+    <term>10.0.0: April 6, 2020</term>
+    <listitem>
+     <itemizedlist>
+      <listitem>
+       <para>
+        Performance Enhancements
+       </para>
+       <itemizedlist>
+        <listitem>
+         <para>
+          The qpdf library and executable should run much faster in
+          this version than in the last several releases. Several
+          internal library optimizations have been made, and there has
+          been improved behavior on page splitting as well. This
+          version of qpdf should outperform any of the 8.x or 9.x
+          versions.
+         </para>
+        </listitem>
+       </itemizedlist>
+      </listitem>
+      <listitem>
+       <para>
+        Incompatible API (source-level) Changes (minor)
+       </para>
+       <itemizedlist>
+        <listitem>
+         <para>
+          The <function>QUtil::srandom</function> method was removed.
+          It didn't do anything unless insecure random numbers were
+          compiled in, and they have been off by default for a long
+          time. If you were calling it, just remove the call since it
+          wasn't doing anything anyway.
+         </para>
+        </listitem>
+       </itemizedlist>
+      </listitem>
+      <listitem>
+       <para>
+        Build/Packaging Changes
+       </para>
+       <itemizedlist>
+        <listitem>
+         <para>
+          Add a <literal>openssl</literal> crypto provider, which is
+          implemented with OpenSSL and also works with BoringSSL.
+          Thanks to Dean Scarff for this contribution. If you maintain
+          qpdf for a distribution, pay special attention to make sure
+          that you are including support for the crypto providers you
+          want. Package maintainers will have to weigh the advantages
+          of allowing users to pick a crypto provider at runtime
+          against the disadvantages of adding more dependencies to
+          qpdf.
+         </para>
+        </listitem>
+        <listitem>
+         <para>
+          Allow qpdf to built on stripped down systems whose C/C++
+          libraries lack the <classname>wchar_t</classname> type.
+          Search for <classname>wchar_t</classname> in qpdf's
+          README.md for details. This should be very rare, but it is
+          known to be helpful in some embedded environments.
+         </para>
+        </listitem>
+       </itemizedlist>
+      </listitem>
+      <listitem>
+       <para>
+        CLI Enhancements
+       </para>
+       <itemizedlist>
+        <listitem>
+         <para>
+          Add <literal>objectinfo</literal> key to the JSON output.
+          This will be a place to put computed metadata or other
+          information about PDF objects that are not immediately
+          evident in other ways or that seem useful for some other
+          reason. In this version, information is provided about each
+          object indicating whether it is a stream and, if so, what
+          its length and filters are. Without this, it was not
+          possible to tell conclusively from the JSON output alone
+          whether or not an object was a stream. Run <command>qpdf
+          --json-help</command> for details.
+         </para>
+        </listitem>
+        <listitem>
+         <para>
+          Add new option
+          <option>--remove-unreferenced-resources</option> which takes
+          <literal>auto</literal>, <literal>yes</literal>, or
+          <literal>no</literal> as arguments. The new
+          <literal>auto</literal> mode, which is the default, performs
+          a fast heuristic over a PDF file when splitting pages to
+          determine whether the expensive process of finding and
+          removing unreferenced resources is likely to be of benefit.
+          For most files, this new default will result in a
+          significant performance improvement for splitting pages. See
+          <xref linkend="ref.advanced-transformation"/> for a more
+          detailed discussion.
+         </para>
+        </listitem>
+        <listitem>
+         <para>
+          The <option>--preserve-unreferenced-resources</option> is
+          now just a synonym for
+          <option>--remove-unreferenced-resources=no</option>.
+         </para>
+        </listitem>
+        <listitem>
+         <para>
+          If the <literal>QPDF_EXECUTABLE</literal> environment
+          variable is set when invoking <command>qpdf
+          --bash-completion</command> or <command>qpdf
+          --zsh-completion</command>, the completion command that it
+          outputs will refer to qpdf using the value of that variable
+          rather than what <command>qpdf</command> determines its
+          executable path to be. This can be useful when wrapping
+          <command>qpdf</command> with a script, working with a
+          version in the source tree, using an AppImage, or other
+          situations where there is some indirection.
+         </para>
+        </listitem>
+       </itemizedlist>
+      </listitem>
+      <listitem>
+       <para>
+        Library Enhancements
+       </para>
+       <itemizedlist>
+        <listitem>
+         <para>
+          Random number generation is now delegated to the crypto
+          provider. The old behavior is still used by the native
+          crypto provider. It is still possible to provide your own
+          random number generator.
+         </para>
+        </listitem>
+        <listitem>
+         <para>
+          Add a new version of
+          <function>QPDFObjectHandle::StreamDataProvider::provideStreamData</function>
+          that accepts the <function>suppress_warnings</function> and
+          <function>will_retry</function> options and allows a success
+          code to be returned. This makes it possible to implement a
+          <classname>StreamDataProvider</classname> that calls
+          <function>pipeStreamData</function> on another stream and to
+          pass the response back to the caller, which enables better
+          error handling on those proxied streams.
+         </para>
+        </listitem>
+        <listitem>
+         <para>
+          Update <function>QPDFObjectHandle::pipeStreamData</function>
+          to return an overall success code that goes beyond whether
+          or not filtered data was written successfully. This allows
+          better error handling of cases that were not filtering
+          errors. You have to call this explicitly. Methods in
+          previously existing APIs have the same semantics as before.
+         </para>
+        </listitem>
+        <listitem>
+         <para>
+          The
+          <function>QPDFPageObjectHelper::placeFormXObject</function>
+          method now allows separate control over whether it should be
+          willing to shrink or expand objects to fit them better into
+          the destination rectangle. The previous behavior was that
+          shrinking was allowed but expansion was not. The previous
+          behavior is still the default.
+         </para>
+        </listitem>
+        <listitem>
+         <para>
+          When calling the C API, any non-zero value passed to a
+          boolean parameter is treated as <literal>TRUE</literal>.
+          Previously only the value <literal>1</literal> was accepted.
+          This makes the C API behave more like most C interfaces and
+          is known to improve compatibility with some Windows
+          environments that dynamically load the DLL and call
+          functions from it.
+         </para>
+        </listitem>
+        <listitem>
+         <para>
+          Add <function>QPDFObjectHandle::unsafeShallowCopy</function>
+          for copying only top-level dictionary keys or array items.
+          This is unsafe because it creates a situation in which
+          changing a lower-level item in one object may also change it
+          in another object, but for cases in which you
+          <emphasis>know</emphasis> you are only inserting or
+          replacing top-level items, it is much faster than
+          <function>QPDFObjectHandle::shallowCopy</function>.
+         </para>
+        </listitem>
+        <listitem>
+         <para>
+          Add <function>QPDFObjectHandle::filterAsContents</function>,
+          which filter's a stream's data as a content stream. This is
+          useful for parsing the contents for form XObjects in the
+          same way as parsing page content streams.
+         </para>
+        </listitem>
+       </itemizedlist>
+      </listitem>
+      <listitem>
+       <para>
+        Bug Fixes
+       </para>
+       <itemizedlist>
+        <listitem>
+         <para>
+          When detecting and removing unreferenced resources during
+          page splitting, traverse into form XObjects and handle their
+          resources dictionaries as well.
+         </para>
+        </listitem>
+        <listitem>
+         <para>
+          The same error recovery is applied to streams in other than
+          the primary input file when merging or splitting pages.
+         </para>
+        </listitem>
+       </itemizedlist>
+      </listitem>
+     </itemizedlist>
+    </listitem>
+   </varlistentry>
    <varlistentry>
    <term>9.1.1: January 26, 2020</term>
     <listitem>
@@ -4770,8 +5099,6 @@ print "\n";
      </itemizedlist>
     </listitem>
    </varlistentry>
-  </variablelist>
-  <variablelist>
    <varlistentry>
     <term>9.1.0: November 17, 2019</term>
     <listitem>
@@ -4871,8 +5198,6 @@ print "\n";
      </itemizedlist>
     </listitem>
    </varlistentry>
-  </variablelist>
-  <variablelist>
    <varlistentry>
     <term>9.0.2: October 12, 2019</term>
     <listitem>
@@ -5238,7 +5563,7 @@ print "\n";
           in dynamically linked code catching exceptions or
           subclassing, this could be the reason. If you see this,
           please report a bug at <ulink
-          url="https://github.com/qpdf/qpdf/issues/">pikepdf</ulink>.
+          url="https://github.com/qpdf/qpdf/issues/">https://github.com/qpdf/qpdf/issues/</ulink>.
          </para>
         </listitem>
         <listitem>

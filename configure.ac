@@ -2,7 +2,7 @@ dnl Process this file with autoconf to produce a configure script.
 dnl This config.in requires autoconf 2.5 or greater.
 
 AC_PREREQ([2.68])
-AC_INIT([qpdf],[9.1.1])
+AC_INIT([qpdf],[10.0.0])
 
 AC_CONFIG_MACRO_DIR([m4])
 AC_CONFIG_FILES([autoconf.mk])
@@ -52,9 +52,9 @@ LT_INIT([win32-dll])
 # * Otherwise, increment LT_REVISION
 
 # LT = libtool
-LT_CURRENT=27
-LT_AGE=1
-LT_REVISION=1
+LT_CURRENT=28
+LT_AGE=0
+LT_REVISION=0
 AC_SUBST(LT_CURRENT)
 AC_SUBST(LT_REVISION)
 AC_SUBST(LT_AGE)
@@ -513,6 +513,53 @@ if test "$USE_CRYPTO_NATIVE" = "1"; then
   DEFAULT_CRYPTO=native
 fi
 
+dnl If the openssl/BoringSSL provider is explicitly requested, require openssl
+dnl If the openssl provider is not explicitly disabled, enable it if
+dnl openssl is available. If the openssl provider is explicitly
+dnl disabled, do not link with openssl even if present.
+
+PKG_CHECK_MODULES([pc_openssl], [openssl], [OPENSSL_FOUND=1], [OPENSSL_FOUND=0])
+if test "$OPENSSL_FOUND" = "0"; then
+  AC_CHECK_HEADER([openssl/evp.h],[OPENSSL_FOUND=1],[OPENSSL_FOUND=0])
+  AC_SEARCH_LIBS(EVP_DigestInit_ex,openssl,[OPENSSL_FOUND=1],[OPENSSL_FOUND=0])
+fi
+
+IMPLICIT_OPENSSL=0
+USE_CRYPTO_OPENSSL=0
+AC_SUBST(USE_CRYPTO_OPENSSL)
+AC_ARG_ENABLE(crypto-openssl,
+   AS_HELP_STRING([--enable-crypto-openssl],
+                  [whether to include support for the BoringSSL crypto provider]),
+   [if test "$enableval" = "yes"; then
+      USE_CRYPTO_OPENSSL=1
+    else
+      USE_CRYPTO_OPENSSL=0
+    fi],
+   [IMPLICIT_OPENSSL=$IMPLICIT_CRYPTO])
+
+if test "$IMPLICIT_OPENSSL" = "1"; then
+  USE_CRYPTO_OPENSSL=$OPENSSL_FOUND
+  if test "$USE_CRYPTO_OPENSSL" = "1"; then
+    AC_MSG_NOTICE(enabling openssl crypto provider since openssl is available)
+  else
+    AC_MSG_NOTICE(not enabling openssl crypto provider since openssl was not found)
+  fi
+fi
+
+if test "$USE_CRYPTO_OPENSSL" = "1" -a "$OPENSSL_FOUND" = "0"; then
+  AC_MSG_ERROR(unable to use requested openssl crypto provider without openssl)
+fi
+
+if test "$USE_CRYPTO_OPENSSL" = "1"; then
+  CFLAGS="$CFLAGS $pc_openssl_CFLAGS"
+  CXXFLAGS="$CXXFLAGS $pc_openssl_CXXFLAGS"
+  LIBS="$LIBS $pc_openssl_LIBS"
+  AC_DEFINE([USE_CRYPTO_OPENSSL], 1, [Whether to use the openssl crypto provider])
+  DEFAULT_CRYPTO=openssl
+elif test "$OPENSSL_FOUND" = "1"; then
+  AC_MSG_NOTICE(not linking with openssl even though it is available)
+fi
+
 dnl If the gnutls provider is explicitly requested, require gnutls. If
 dnl the gnutls provider is not explicitly disabled, enable it if
 dnl gnutls is available. If the gnutls provider is explicitly
@@ -578,6 +625,11 @@ bad_crypto=0
 case "$DEFAULT_CRYPTO" in
   "native")
     if test "$USE_CRYPTO_NATIVE" != "1"; then
+      bad_crypto=1
+    fi
+  ;;
+  "openssl")
+    if test "$USE_CRYPTO_OPENSSL" != "1"; then
       bad_crypto=1
     fi
   ;;

@@ -30,9 +30,7 @@ QPDF requires a C++ compiler that supports C++-11.
 
 QPDF depends on the external libraries [zlib](https://www.zlib.net/) and [jpeg](https://www.ijg.org/files/). The [libjpeg-turbo](https://libjpeg-turbo.org/) library is also known to work since it is compatible with the regular jpeg library, and QPDF doesn't use any interfaces that aren't present in the straight jpeg8 API. These are part of every Linux distribution and are readily available. Download information appears in the documentation. For Windows, you can download pre-built binary versions of these libraries for some compilers; see [README-windows.md](README-windows.md) for additional details.
 
-If the optional GnuTLS crypto provider is enabled,
-then [GnuTLS](https://www.gnutls.org/) is also required. This is
-discussed more in `Crypto providers` below.
+Depending on which crypto providers are enabled, then [GnuTLS](https://www.gnutls.org/) and [OpenSSL](https://openssl.org) may also be required. This is discussed more in `Crypto providers` below.
 
 # Licensing terms of embedded software
 
@@ -46,6 +44,7 @@ As of version 9.1.0, qpdf can use different crypto implementations. These can be
 
 Initially, the following providers are available:
 * `native`: a native implementation where all the source is embedded in qpdf and no external dependencies are required
+* `openssl`: an implementation that can use the OpenSSL (or BoringSSL) libraries to provide crypto; causes libqpdf to link with the OpenSSL library
 * `gnutls`: an implementation that uses the GnuTLS library to provide crypto; causes libqpdf to link with the GnuTLS library
 
 The default behavior is for ./configure to discover which other crypto providers can be supported based on available external libraries, to build all available crypto providers, and to use an external provider as the default over the native one. This behavior can be changed with the following flags to ./configure:
@@ -75,6 +74,20 @@ make install
 
 Packagers may set DESTDIR, in which case make install will install inside of DESTDIR, as is customary with many packages.  For more detailed general information, see the "INSTALL" file in this directory.  If you are already accustomed to building and installing software that uses autoconf, there's nothing new for you in the INSTALL file. Note that qpdf uses `autoconf` but not `automake`. We have our own system of Makefiles that allows cross-directory dependencies, doesn't use recursive make, and works better on non-UNIX platforms.
 
+# Building without wchar_t
+
+Executive summary: manually define -DQPDF_NO_WCHAR_T in your build if you are building on a system without wchar_t. For details, read the rest of this section.
+
+While wchar_t is part of the C++ standard library and should be present on virtually every system, there are some stripped down systems, such as those targeting certain embedded environments, that lack wchar_t. Internally, qpdf uses UTF-8 encoding for everything, so there is nothing important in qpdf's API that uses wchar_t. However, there is a helper method for converting between wchar_t* and char* that uses wchar_t.
+
+If you are building in an environment that does not support wchar_t, you can define the preprocessor symbol QPDF_NO_WCHAR_T in your build. This will work whether you are building qpdf and need to avoid compiling the code that uses wchar_t or whether you are building client code that uses qpdf.
+
+For example, to build qpdf on a system without wchar_t, be sure that -DQPDF_NO_WCHAR_T is part of your CXXFLAGS. Similar techniques will work in other places.
+
+Note that, when you build code with libqpdf, it is *not necessary* to have the definition of QPDF_NO_WCHAR_T in your build match what was defined when the library was built as long as you are not calling QUtil::call_main_from_wmain in your code. In other words, if your qpdf library was built on a system without wchar_t and you are using that system to build at some later time after wchar_t was available, as long as you don't call the function that uses it, you can just build normally.
+
+Note qpdf will never define QPDF_NO_WCHAR_T using autoconf or any other automated method in spite of the fact that it would be easy to do so. That is because there is a hard rule in qpdf that values determined by autoconf are not available in the public API. This is because there is never a guarantee or even expectation that those values will match between the system on which qpdf was build and the system on which a user is building code with libqpdf, and qpdf's include directory should look the same across all systems.
+
 # Building on Windows
 
 QPDF is known to build and pass its test suite with mingw (latest version tested: gcc 7.2.0), mingw64 (latest version tested: 7.2.0) and Microsoft Visual C++ 2015, both 32-bit and 64-bit versions.  MSYS2 is required to build as well in order to get make and other related tools.  See [README-windows.md](README-windows.md) for details on how to build under Windows.
@@ -98,7 +111,9 @@ If you are packaging qpdf for a distribution and preparing a build that is run b
 
 # Random Number Generation
 
-By default, when `qpdf` detects either the Windows cryptography API or the existence of `/dev/urandom`, `/dev/arandom`, or `/dev/random`, it uses them to generate cryptography secure random numbers.  If none of these conditions are true, the build will fail with an error.  This behavior can be modified in several ways:
+By default, qpdf uses the crypto provider for generating random numbers. The rest of this applies only if you are using the native crypto provider.
+
+If the native crypto provider is in use, then, when `qpdf` detects either the Windows cryptography API or the existence of `/dev/urandom`, `/dev/arandom`, or `/dev/random`, it uses them to generate cryptographically secure random numbers.  If none of these conditions are true, the build will fail with an error.  This behavior can be modified in several ways:
 * If you configure with `--disable-os-secure-random` or define `SKIP_OS_SECURE_RANDOM`, qpdf will not attempt to use Windows cryptography or the random device.  You must either supply your own random data provider or allow use of insecure random numbers.
 * If you configure qpdf with the `--enable-insecure-random` option or define `USE_INSECURE_RANDOM`, qpdf will try insecure random numbers if OS-provided secure random numbers are disabled.  This is not a fallback.  In order for insecure random numbers to be used, you must also disable OS secure random numbers since, otherwise, failure to find OS secure random numbers is a compile error.  The insecure random number source is stdlib's `random()` or `rand()` calls. These random numbers are not cryptography secure, but the qpdf library is fully functional using them.  Using non-secure random numbers means that it's easier in some cases to guess encryption keys.  If you're not generating encrypted files, there's no advantage to using secure random numbers.
 * In all cases, you may supply your own random data provider.  To do this, derive a class from `qpdf/RandomDataProvider` (since version 5.1.0) and call `QUtil::setRandomDataProvider` before you create any `QPDF` objects.  If you supply your own random data provider, it will always be used even if support for one of the other random data providers is compiled in.  If you wish to avoid any possibility of your build of qpdf from using anything but a user-supplied random data provider, you can define `SKIP_OS_SECURE_RANDOM` and not `USE_INSECURE_RANDOM`.  In this case, qpdf will throw a runtime error if any attempt is made to generate random numbers and no random data provider has been supplied.

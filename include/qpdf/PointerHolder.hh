@@ -78,8 +78,8 @@ class PointerHolder
 	bool array;
 	int refcount;
       private:
-	Data(Data const&);
-	Data& operator=(Data const&);
+	Data(Data const&) = delete;
+	Data& operator=(Data const&) = delete;
     };
 
   public:
@@ -156,9 +156,7 @@ class PointerHolder
     void init(Data* data)
 	{
 	    this->data = data;
-	    {
-		++this->data->refcount;
-	    }
+            ++this->data->refcount;
 	}
     void copy(PointerHolder const& rhs)
 	{

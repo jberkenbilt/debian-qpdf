@@ -38,7 +38,7 @@ static int constexpr EXIT_CORRECT_PASSWORD = 3;
 
 static char const* whoami = 0;
 
-static std::string expected_version = "9.1.1";
+static std::string expected_version = "10.0.0";
 
 struct PageSpec
 {
@@ -94,6 +94,8 @@ struct UnderOverlay
     std::vector<int> repeat_pagenos;
 };
 
+enum remove_unref_e { re_auto, re_yes, re_no };
+
 struct Options
 {
     Options() :
@@ -144,7 +146,7 @@ struct Options
         ignore_xref_streams(false),
         qdf_mode(false),
         preserve_unreferenced_objects(false),
-        preserve_unreferenced_page_resources(false),
+        remove_unreferenced_page_resources(re_auto),
         keep_files_open(true),
         keep_files_open_set(false),
         keep_files_open_threshold(200), // default known in help and docs
@@ -243,7 +245,7 @@ struct Options
     bool ignore_xref_streams;
     bool qdf_mode;
     bool preserve_unreferenced_objects;
-    bool preserve_unreferenced_page_resources;
+    remove_unref_e remove_unreferenced_page_resources;
     bool keep_files_open;
     bool keep_files_open_set;
     size_t keep_files_open_threshold;
@@ -379,6 +381,24 @@ static JSON json_schema(std::set<std::string>* keys = 0)
             "objects", JSON::makeString(
                 "dictionary of original objects;"
                 " keys are 'trailer' or 'n n R'"));
+    }
+    if (all_keys || keys->count("objectinfo"))
+    {
+        JSON objectinfo = schema.addDictionaryMember(
+            "objectinfo", JSON::makeDictionary());
+        JSON details = objectinfo.addDictionaryMember(
+            "<object-id>", JSON::makeDictionary());
+        JSON stream = details.addDictionaryMember(
+            "stream", JSON::makeDictionary());
+        stream.addDictionaryMember(
+            "is",
+            JSON::makeString("whether the object is a stream"));
+        stream.addDictionaryMember(
+            "length",
+            JSON::makeString("if stream, its length, otherwise null"));
+        stream.addDictionaryMember(
+            "filter",
+            JSON::makeString("if stream, its length, otherwise null"));
     }
     if (all_keys || keys->count("pages"))
     {
@@ -739,6 +759,7 @@ class ArgParser
     void argQdf();
     void argPreserveUnreferenced();
     void argPreserveUnreferencedResources();
+    void argRemoveUnreferencedResources(char* parameter);
     void argKeepFilesOpen(char* parameter);
     void argKeepFilesOpenThreshold(char* parameter);
     void argNewlineBeforeEndstream();
@@ -970,6 +991,10 @@ ArgParser::initOptionTable()
         &ArgParser::argPreserveUnreferenced);
     (*t)["preserve-unreferenced-resources"] = oe_bare(
         &ArgParser::argPreserveUnreferencedResources);
+    char const* remove_unref_choices[] = {
+        "auto", "yes", "no", 0};
+    (*t)["remove-unreferenced-resources"] = oe_requiredChoices(
+        &ArgParser::argRemoveUnreferencedResources, remove_unref_choices);
     (*t)["keep-files-open"] = oe_requiredChoices(
         &ArgParser::argKeepFilesOpen, yn);
     (*t)["keep-files-open-threshold"] = oe_requiredParameter(
@@ -1013,8 +1038,8 @@ ArgParser::initOptionTable()
     // The list of selectable top-level keys id duplicated in three
     // places: json_schema, do_json, and initOptionTable.
     char const* json_key_choices[] = {
-        "objects", "pages", "pagelabels", "outlines", "acroform",
-        "encrypt", 0};
+        "objects", "objectinfo", "pages", "pagelabels", "outlines",
+        "acroform", "encrypt", 0};
     (*t)["json-key"] = oe_requiredChoices(
         &ArgParser::argJsonKey, json_key_choices);
     (*t)["json-object"] = oe_requiredParameter(
@@ -1458,8 +1483,10 @@ ArgParser::argHelp()
         << "--normalize-content=[yn]  enables or disables normalization of content streams\n"
         << "--object-streams=mode     controls handing of object streams\n"
         << "--preserve-unreferenced   preserve unreferenced objects\n"
+        << "--remove-unreferenced-resources={auto,yes,no}\n"
+        << "                          whether to remove unreferenced page resources\n"
         << "--preserve-unreferenced-resources\n"
-        << "                          preserve unreferenced page resources\n"
+        << "                          synonym for --remove-unreferenced-resources=no\n"
         << "--newline-before-endstream  always put a newline before endstream\n"
         << "--coalesce-contents       force all pages' content to be a single stream\n"
         << "--flatten-annotations=option\n"
@@ -1599,12 +1626,17 @@ void
 ArgParser::argCompletionBash()
 {
     std::string progname = argv[0];
-    // Detect if we're in an AppImage and adjust
+    std::string executable;
     std::string appdir;
     std::string appimage;
-    if (QUtil::get_env("APPDIR", &appdir) &&
-        QUtil::get_env("APPIMAGE", &appimage))
+    if (QUtil::get_env("QPDF_EXECUTABLE", &executable))
     {
+        progname = executable;
+    }
+    else if (QUtil::get_env("APPDIR", &appdir) &&
+             QUtil::get_env("APPIMAGE", &appimage))
+    {
+        // Detect if we're in an AppImage and adjust
         if ((appdir.length() < strlen(argv[0])) &&
             (strncmp(appdir.c_str(), argv[0], appdir.length()) == 0))
         {
@@ -1968,7 +2000,30 @@ ArgParser::argPreserveUnreferenced()
 void
 ArgParser::argPreserveUnreferencedResources()
 {
-    o.preserve_unreferenced_page_resources = true;
+    o.remove_unreferenced_page_resources = re_no;
+}
+
+void
+ArgParser::argRemoveUnreferencedResources(char* parameter)
+{
+    if (strcmp(parameter, "auto") == 0)
+    {
+        o.remove_unreferenced_page_resources = re_auto;
+    }
+    else if (strcmp(parameter, "yes") == 0)
+    {
+        o.remove_unreferenced_page_resources = re_yes;
+    }
+    else if (strcmp(parameter, "no") == 0)
+    {
+        o.remove_unreferenced_page_resources = re_no;
+    }
+    else
+    {
+        // If this happens, it means remove_unref_choices in
+        // ArgParser::initOptionTable is wrong.
+        usage("invalid value for --remove-unreferenced-page-resources");
+    }
 }
 
 void
@@ -3587,25 +3642,31 @@ static void do_show_pages(QPDF& pdf, Options& o)
     }
 }
 
+static std::set<QPDFObjGen>
+get_wanted_json_objects(Options& o)
+{
+    std::set<QPDFObjGen> wanted_og;
+    for (auto iter: o.json_objects)
+    {
+        bool trailer;
+        int obj = 0;
+        int gen = 0;
+        parse_object_id(iter, trailer, obj, gen);
+        if (obj)
+        {
+            wanted_og.insert(QPDFObjGen(obj, gen));
+        }
+    }
+    return wanted_og;
+}
+
 static void do_json_objects(QPDF& pdf, Options& o, JSON& j)
 {
     // Add all objects. Do this first before other code below modifies
     // things by doing stuff like calling
     // pushInheritedAttributesToPage.
     bool all_objects = o.json_objects.empty();
-    std::set<QPDFObjGen> wanted_og;
-    for (std::set<std::string>::iterator iter = o.json_objects.begin();
-         iter != o.json_objects.end(); ++iter)
-    {
-        bool trailer;
-        int obj = 0;
-        int gen = 0;
-        parse_object_id(*iter, trailer, obj, gen);
-        if (obj)
-        {
-            wanted_og.insert(QPDFObjGen(obj, gen));
-        }
-    }
+    std::set<QPDFObjGen> wanted_og = get_wanted_json_objects(o);
     JSON j_objects = j.addDictionaryMember("objects", JSON::makeDictionary());
     if (all_objects || o.json_objects.count("trailer"))
     {
@@ -3620,6 +3681,39 @@ static void do_json_objects(QPDF& pdf, Options& o, JSON& j)
         {
             j_objects.addDictionaryMember(
                 (*iter).unparse(), (*iter).getJSON(true));
+        }
+    }
+}
+
+static void do_json_objectinfo(QPDF& pdf, Options& o, JSON& j)
+{
+    // Do this first before other code below modifies things by doing
+    // stuff like calling pushInheritedAttributesToPage.
+    bool all_objects = o.json_objects.empty();
+    std::set<QPDFObjGen> wanted_og = get_wanted_json_objects(o);
+    JSON j_objectinfo = j.addDictionaryMember(
+        "objectinfo", JSON::makeDictionary());
+    for (auto obj: pdf.getAllObjects())
+    {
+        if (all_objects || wanted_og.count(obj.getObjGen()))
+        {
+            auto j_details = j_objectinfo.addDictionaryMember(
+                obj.unparse(), JSON::makeDictionary());
+            auto j_stream = j_details.addDictionaryMember(
+                "stream", JSON::makeDictionary());
+            bool is_stream = obj.isStream();
+            j_stream.addDictionaryMember(
+                "is", JSON::makeBool(is_stream));
+            j_stream.addDictionaryMember(
+                "length",
+                (is_stream
+                 ? obj.getDict().getKey("/Length").getJSON(true)
+                 : JSON::makeNull()));
+            j_stream.addDictionaryMember(
+                "filter",
+                (is_stream
+                 ? obj.getDict().getKey("/Filter").getJSON(true)
+                 : JSON::makeNull()));
         }
     }
 }
@@ -4033,6 +4127,10 @@ static void do_json(QPDF& pdf, Options& o)
     if (all_keys || o.json_keys.count("objects"))
     {
         do_json_objects(pdf, o, j);
+    }
+    if (all_keys || o.json_keys.count("objectinfo"))
+    {
+        do_json_objectinfo(pdf, o, j);
     }
     if (all_keys || o.json_keys.count("pages"))
     {
@@ -4713,6 +4811,142 @@ static void handle_transformations(QPDF& pdf, Options& o)
     }
 }
 
+static bool should_remove_unreferenced_resources(QPDF& pdf, Options& o)
+{
+    if (o.remove_unreferenced_page_resources == re_no)
+    {
+        return false;
+    }
+    else if (o.remove_unreferenced_page_resources == re_yes)
+    {
+        return true;
+    }
+
+    // Unreferenced resources are common in files where resources
+    // dictionaries are shared across pages. As a heuristic, we look
+    // in the file for shared resources dictionaries or shared XObject
+    // subkeys of resources dictionaries either on pages or on form
+    // XObjects in pages. If we find any, then there is a higher
+    // likelihood that the expensive process of finding unreferenced
+    // resources is worth it.
+
+    // Return true as soon as we find any shared resources.
+
+    std::set<QPDFObjGen> resources_seen;      // shared resources detection
+    std::set<QPDFObjGen> nodes_seen;          // loop detection
+
+    if (o.verbose)
+    {
+        std::cout << whoami << ": " << pdf.getFilename()
+                  << ": checking for shared resources" << std::endl;
+    }
+
+    std::list<QPDFObjectHandle> queue;
+    queue.push_back(pdf.getRoot().getKey("/Pages"));
+    while (! queue.empty())
+    {
+        QPDFObjectHandle node = *queue.begin();
+        queue.pop_front();
+        QPDFObjGen og = node.getObjGen();
+        if (nodes_seen.count(og))
+        {
+            continue;
+        }
+        nodes_seen.insert(og);
+        QPDFObjectHandle dict = node.isStream() ? node.getDict() : node;
+        QPDFObjectHandle kids = dict.getKey("/Kids");
+        if (kids.isArray())
+        {
+            // This is a non-leaf node.
+            if (dict.hasKey("/Resources"))
+            {
+                QTC::TC("qpdf", "qpdf found resources in non-leaf");
+                if (o.verbose)
+                {
+                    std::cout << "  found resources in non-leaf page node "
+                              << og.getObj() << " " << og.getGen()
+                              << std::endl;
+                }
+                return true;
+            }
+            int n = kids.getArrayNItems();
+            for (int i = 0; i < n; ++i)
+            {
+                queue.push_back(kids.getArrayItem(i));
+            }
+        }
+        else
+        {
+            // This is a leaf node or a form XObject.
+            QPDFObjectHandle resources = dict.getKey("/Resources");
+            if (resources.isIndirect())
+            {
+                QPDFObjGen resources_og = resources.getObjGen();
+                if (resources_seen.count(resources_og))
+                {
+                    QTC::TC("qpdf", "qpdf found shared resources in leaf");
+                    if (o.verbose)
+                    {
+                        std::cout << "  found shared resources in leaf node "
+                                  << og.getObj() << " " << og.getGen()
+                                  << ": "
+                                  << resources_og.getObj() << " "
+                                  << resources_og.getGen()
+                                  << std::endl;
+                    }
+                    return true;
+                }
+                resources_seen.insert(resources_og);
+            }
+            QPDFObjectHandle xobject = (resources.isDictionary() ?
+                                        resources.getKey("/XObject") :
+                                        QPDFObjectHandle::newNull());
+            if (xobject.isIndirect())
+            {
+                QPDFObjGen xobject_og = xobject.getObjGen();
+                if (resources_seen.count(xobject_og))
+                {
+                    QTC::TC("qpdf", "qpdf found shared xobject in leaf");
+                    if (o.verbose)
+                    {
+                        std::cout << "  found shared xobject in leaf node "
+                                  << og.getObj() << " " << og.getGen()
+                                  << ": "
+                                  << xobject_og.getObj() << " "
+                                  << xobject_og.getGen()
+                                  << std::endl;
+                    }
+                    return true;
+                }
+                resources_seen.insert(xobject_og);
+            }
+            if (xobject.isDictionary())
+            {
+                for (auto k: xobject.getKeys())
+                {
+                    QPDFObjectHandle xobj = xobject.getKey(k);
+                    if (xobj.isStream() &&
+                        xobj.getDict().getKey("/Type").isName() &&
+                        ("/XObject" ==
+                         xobj.getDict().getKey("/Type").getName()) &&
+                        xobj.getDict().getKey("/Subtype").isName() &&
+                        ("/Form" ==
+                         xobj.getDict().getKey("/Subtype").getName()))
+                    {
+                        queue.push_back(xobj);
+                    }
+                }
+            }
+        }
+    }
+
+    if (o.verbose)
+    {
+        std::cout << whoami << ": no shared resources found" << std::endl;
+    }
+    return false;
+}
+
 static void handle_page_specs(QPDF& pdf, Options& o)
 {
     // Parse all page specifications and translate them into lists of
@@ -4833,7 +5067,7 @@ static void handle_page_specs(QPDF& pdf, Options& o)
                          page_spec.range));
     }
 
-    if (! o.preserve_unreferenced_page_resources)
+    if (o.remove_unreferenced_page_resources != re_no)
     {
         for (std::map<std::string, QPDF*>::iterator iter =
                  page_spec_qpdfs.begin();
@@ -4846,8 +5080,12 @@ static void handle_page_specs(QPDF& pdf, Options& o)
                 cis = page_spec_cfis[filename];
                 cis->stayOpen(true);
             }
-            QPDFPageDocumentHelper dh(*((*iter).second));
-            dh.removeUnreferencedResources();
+            QPDF& other(*((*iter).second));
+            if (should_remove_unreferenced_resources(other, o))
+            {
+                QPDFPageDocumentHelper dh(other);
+                dh.removeUnreferencedResources();
+            }
             if (cis)
             {
                 cis->stayOpen(false);
@@ -5331,7 +5569,7 @@ static void do_split_pages(QPDF& pdf, Options& o)
         before = std::string(o.outfilename) + "-";
     }
 
-    if (! o.preserve_unreferenced_page_resources)
+    if (should_remove_unreferenced_resources(pdf, o))
     {
         QPDFPageDocumentHelper dh(pdf);
         dh.removeUnreferencedResources();

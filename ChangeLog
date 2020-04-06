@@ -1,3 +1,129 @@
+2020-04-06  Jay Berkenbilt  <ejb@ql.org>
+
+	* 10.0.0: release
+
+	* Move random number generation into the crypto providers. The old
+	os-based secure random number generation with fallback to insecure
+	random number generation (only if allowed at build time) has moved
+	into the native crypto provider. If using other providers
+	(currently gnutls or openssl), random number generation will use
+	those libraries. The old interfaces for supplying your own random
+	number generator are still in place. Fixes #418.
+
+	* Source-level incompatibility: remove QUtil::srandom. There was
+	no reason to ever call this, and it didn't do anything unless
+	insecure random number generation was compiled in, which it is not
+	by default. If you were calling this, just remove the call because
+	it wasn't doing anything anyway.
+
+	* Add openssl crypto provider, contributed by Dean Scarff. This
+	provider is implemented using OpenSSL and also works with
+	BoringSSL.
+
+2020-04-04  Jay Berkenbilt  <ejb@ql.org>
+
+	* Add a new provideStreamData method for StreamDataProvider that
+	allows a success code to be returned and that accepts the
+	suppress_warnings and will_retry methods. This makes it possible
+	to have a StreamDataProvider call pipeStreamData and propagate its
+	results back. This change allows better error handling and
+	recovery when objects are copied from other files and when
+	"immediate copy from" is enabled.
+
+	* When copying foreign streams with immediateCopyFrom set, the
+	same type of recovery from streams with filtering errors is
+	performed as when dealing with streams in the original input. This
+	could happen, for example, if you are using the --pages option to
+	take pages from another file and that file has errors in it.
+
+	* Add a new version of QPDFObjectHandle::pipeStreamData whose
+	return value indicates overall success or failure rather than
+	whether nor not filtering was attempted. It should have always
+	been this way. This change was done in a backward-compatible
+	fashion. Previously existing pipeStreamData methods' return values
+	mean the same as always.
+
+	* Add "objectinfo" section to json output. In this release,
+	information about whether each object is a stream or not is
+	provided. There's otherwise no way to tell conclusively from the
+	json output. Over time, other computed information about objects
+	may be added here.
+
+	* Add new option --remove-unreferenced-resources that takes auto,
+	yes, or no as options. This tells qpdf whether to attempt to
+	remove unreferenced resources from pages when doing page splitting
+	operations. Prior to this change, the default was to attempt to
+	remove unreferenced resources, but this operation was very slow,
+	especially for large and complex files. The new default is "auto",
+	which tells qpdf to analyze the file for shared resources. This is
+	a relatively quick test. If no shared resources are found, then we
+	don't attempt to remove unreferenced resources, because
+	unreferenced resources never occur in files without shared
+	resources. To force qpdf to look for and remove unreferenced
+	resources, use --remove-unreferenced-resources=yes. The option
+	--preserve-unreferenced-resources is now a synonym for
+	--remove-unreferenced-resources=no.
+
+	* Use std::atomic for unique ID generation internally within the
+	library. This eliminates the already extremely low chance of a
+	collision, improves thread safety, and removes a dependency on a
+	random number generator. Thanks to Dean Scarff for the
+	contribution.
+
+2020-04-03  Jay Berkenbilt  <ejb@ql.org>
+
+	* Allow qpdf to be built on systems without wchar_t. All "normal"
+	systems have wchar_t because it is part of the C++ standard, but
+	there are some stripped down environments that don't have it. See
+	README.md (search for wchar_t) for instructions and a discussion.
+	Fixes #406.
+
+	* Add two extra optional arguments to
+	QPDFPageObjectHelper::placeFormXObject to control whether the
+	placed item is allowed to be shrunk or expanded to fit within or
+	maximally fill the destination rectangle. Prior to this change,
+	placeFormXObject might shrink it but would never expand it.
+
+	* When calling the C API, accept any non-zero value as TRUE rather
+	than just 1. This appears to resolve issues on Windows when
+	calling some versions of the DLL directly from other languages.
+
+2020-04-02  Jay Berkenbilt  <ejb@ql.org>
+
+	* Add method QPDFObjectHandle::unsafeShallowCopy for copying only
+	top-level dictionary keys or array items. See comments in
+	QPDFObjectHandle.hh for when this should be used.
+
+	* Remove Members class indirection for QPDFObjectHandle. Those are
+	copied and assigned too often, and that change caused a very
+	substantial performance hit.
+
+2020-03-31  Jay Berkenbilt  <ejb@ql.org>
+
+	* When detecting unreferenced images during page splitting, if any
+	XObjects are form XObjects, recursively descend into them and
+	remove any unreferenced objects from them too. Fixes #373.
+
+	* Add QPDFObjectHandle::filterAsContents, which filters a stream's
+	data as if it were page contents. This can be useful to filter
+	form XObjects the same way we would filter page contents.
+
+	* If QPDF_EXECUTABLE is set, use it as the path to qpdf for
+	purposes of completion. This variable is only read during the
+	execution of `qpdf --completion-zsh` and `qpdf
+	--completion-bash`. It is not used during the actual evaluation of
+	completions.
+
+2020-02-22  Jay Berkenbilt  <ejb@ql.org>
+
+	* Update pdf-set-form-values.cc to use and mention
+	generateAppearance, which hadn't been added when the example was
+	originally created.
+
+	* Detect, warn, and correct the case of /Pages in the document
+	catalog incorrectly pointing to a page or intermediate node
+	instead of the root of the pages tree. Fixes #398.
+
 2020-01-26  Jay Berkenbilt  <ejb@ql.org>
 
 	* 9.1.1: release
@@ -49,6 +175,8 @@
 
 	* 9.1.0: release
 
+	* This is the first version of qpdf that requires C++-11.
+
 2019-11-09  Jay Berkenbilt  <ejb@ql.org>
 
 	* 9.1.rc1: release
@@ -57,6 +185,9 @@
 	run from the Windows cmd.exe shell. Unlike in UNIX environments,
 	Windows leaves it up to the executable to expand its own
 	wildcards. Fixes #224.
+
+	* Allow :even or :odd to be appended to numeric ranges for
+	--pages, --rotate, and other options that take page ranges.
 
 	* When reading /P from the encryption dictionary, use static_cast
 	instead of QIntC to convert the value to a signed integer. The
