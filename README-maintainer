@@ -173,8 +173,24 @@ RELEASE PREPARATION
   * ./configure --enable-werror && make -j$(nproc) build_libqpdf
   * Checkout the last release
   * make -k check NO_REBUILD=1
+  * Check out the current version
   * make -j$(nproc)
   * ./performance_check | tee -a /tmp/perf
+
+* Run pikepdf's test suite. Do this in a separate shell.
+
+cd ...qpdf-source-tree...
+export QPDF_SOURCE_TREE=$PWD
+export LD_LIBRARY_PATH=$QPDF_SOURCE_TREE/libqpdf/build/.libs
+cd /tmp/z
+git clone git@github.com:pikepdf/pikepdf
+virtualenv v
+source v/bin/activate
+cd pikepdf
+pip3 install -r requirements/test.txt
+rehash
+pip3 install .
+pytest -n auto
 
 * Update release notes in manual. Look at diffs and ChangeLog. Update
   release date in `manual/qpdf-manual.xml`. Remember to ensure that
@@ -278,6 +294,8 @@ rsync -vrlcO ./ jay_berkenbilt,qpdf@frs.sourceforge.net:/home/frs/project/q/qp/q
 (cd /tmp; mkdir -p z; cd z; \
  tar xf ~/Q/storage/releases/qpdf/qpdf/$version/qpdf-$version.tar.gz qpdf-$version/doc; \
  scp -p qpdf-$version/doc/qpdf-* jay_berkenbilt,qpdf@frs.sourceforge.net:htdocs/files/)
+
+* Upload the debian package and Ubuntu ppa backports.
 
 * Email the qpdf-announce list.
 
