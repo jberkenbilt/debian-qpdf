@@ -1,3 +1,9 @@
+qpdf (10.0.1-2) unstable; urgency=medium
+
+  * Apply patch to link with -latomic if needed. (Closes: #902642)
+
+ -- Jay Berkenbilt <qjb@debian.org>  Fri, 10 Apr 2020 13:39:17 -0400
+
 qpdf (10.0.1-1) unstable; urgency=medium
 
   * New upstream release.
