@@ -2,7 +2,9 @@
 
 [![QPDF](logo/qpdf.svg)](http://qpdf.sourceforge.net)
 
-[![Azure Pipeline Build Status](https://dev.azure.com/qpdf/qpdf/_apis/build/status/qpdf.qpdf)](https://dev.azure.com/qpdf/qpdf/_build/latest?definitionId=5) [![Travis Build Status](https://travis-ci.org/qpdf/qpdf.svg?branch=master)](https://travis-ci.org/qpdf/qpdf)
+[![QPDF Build](https://github.com/qpdf/qpdf/workflows/QPDF%20Build/badge.svg)](https://github.com/qpdf/qpdf/actions)
+[![Total lgtm alerts](https://img.shields.io/lgtm/alerts/g/qpdf/qpdf.svg?logo=lgtm&logoWidth=18)](https://lgtm.com/projects/g/qpdf/qpdf/alerts/)
+[![Language grade on lgtm: C/C++](https://img.shields.io/lgtm/grade/cpp/g/qpdf/qpdf.svg?logo=lgtm&logoWidth=18)](https://lgtm.com/projects/g/qpdf/qpdf/context:cpp)
 
 This is the QPDF package.  Information about it can be found at http://qpdf.sourceforge.net.  The source code repository is hosted at GitHub: https://github.com/qpdf/qpdf.
 
@@ -34,7 +36,7 @@ Depending on which crypto providers are enabled, then [GnuTLS](https://www.gnutl
 
 # Licensing terms of embedded software
 
-QPDF makes use of zlib and jpeg libraries for its functionality. These packages can be downloaded separately from their own download locations, or they can be downloaded in the external-libs area of the qpdf download site. If the optional GnuTLS crypto provider is enabled, then GnuTLS is also required.
+QPDF makes use of zlib and jpeg libraries for its functionality. These packages can be downloaded separately from their own download locations. If the optional GnuTLS or OpenSSL crypto providers are enabled, then GnuTLS and/or OpenSSL are also required.
 
 Please see the [NOTICE](NOTICE.md) file for information on licenses of embedded software.
 

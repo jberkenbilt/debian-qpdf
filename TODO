@@ -1,24 +1,155 @@
+Candidates for upcoming release
+===============================
+
+* Open "next" issues
+  * bugs
+    * #473: zsh completion with directories
+  * Non-bugs
+    * #446: recognize edited QDF files
+    * #436: parsing of document with form xobject
+
+* QPDFObjectHandle::pipeContentStreams calls finish() after each
+  stream. In some code paths, Pl_Concatenate is used, which suppresses
+  that, but in other code paths, it's not used, and the library relies
+  on the behavior of finish() being called. Then there's the issue of
+  nested Pl_Concatenate pipelines -- calling manualFinish() on the top
+  one doesn't call manualFinish() on the lower ones, and there are no
+  exposed methods that allow us to apply things down the pipeline
+  stack, so it's hard to fix this without changing the API (at least
+  making Pipeline::getNext() public, which may be undesirable). To see
+  this problem in action, stick a Pl_Concatenate in front of the
+  pipeline in pipeContentStreams and observe the test failure. One
+  solution might be to add an additional argument indicating whether
+  or not to delay calling finish() until the end. See comments on
+  QPDFPageObjectHelper::filterPageContents,
+  QPDFObjectHandle::filterPageContents, and
+  QPDFObjectHandle::pipeContentStreams
+
+* Remember to check work `qpdf` project for private issues
+  * file with very slow page extraction
+  * big page even with --remove-unreferenced-resources=yes, even with --empty
+  * optimize image failure because of colorspace
+
+* Make it possible for StreamDataProvider to modify the stream
+  dictionary in addition to the stream data so it can calculate things
+  about the dictionary at runtime. Will require a small change to
+  QPDFWriter.
+
+* Take flattenRotation code from pdf-split and do something with it,
+  maybe adding it to the library. Once there, call it from pdf-split
+  and bump up the required version of qpdf.
+
+* Externalize inline images doesn't walk into form XObjects. In
+  general:
+
+  * Check QPDFPageObjectHelper and see what can be applied to form
+    XObjects. Maybe think about generalizing it to work with form
+    XObjects.
+
+  * There is an increasing amount of logic in qpdf.cc that should
+    probably move into the library. This includes externalizing inline
+    images and page splitting as those operations become more
+    elaborate, particularly with handling of form XObjects.
+
+* Flattening of form XObjects seems like something that would be
+  useful in the library. We are seeing more cases of completely valid
+  PDF files with form XObjects that cause problems in other software.
+  Flattening of form XObjects could be a useful way to work around
+  those issues or to prepare files for additional processing, making
+  it possible for users of the qpdf library to not be concerned about
+  form XObjects. This could be done recursively; i.e., we could have a
+  method to embed a form XObject into whatever contains it, whether
+  that is a form XObject or a page. This would require more
+  significant interpretation of the content stream. We would need a
+  test file in which the placement of the form XObject has to be in
+  the right place, e.g., the form XObject partially obscures earlier
+  code and is partially obscured by later code.
+
+* See if the tokenizer is a performance bottleneck and, if so,
+  optimize it. We might end up with a high-performance tokenizer that
+  has a different interface but still ultimately creates the same
+  tokens.
+
 Fuzz Errors
 ===========
 
 * https://bugs.chromium.org/p/oss-fuzz/issues/detail?id=<N>
 
-* To fix:
-  * 19253 - indirect leaks. Not sure of the cause, but it might have
-    something to do with multiple instances of the same object being
-    read and discarded during file recovery. Maybe there's a missing
-    call to releaseResolved.
-
 * Ignoring these:
-  * Problems inside the jpeg library: 15470, 15751, 18633, 18732,
-    18745, 20391
   * Timeout: 15471, 17630
+  * Out of memory: 15470
 
-Windows Build
-=============
+GitHub Actions
+==============
 
-Update the Windows build so that it uses current versions of external
-libraries and uses either gnutls or openssl as its crypto provider.
+* Actions are triggered on push to main and master. When we eventually
+  rename master to main, make sure the reference to master is removed
+  from .github/workflows/*.yml.
+
+* At the time of migrating from Azure Pipelines to GitHub Actions
+  (2020-10), there was no standard test result publisher (to replace
+  the PublishTestResults@2 task). There are some third-party actions,
+  but I'd rather not depend on them. Keep an eye open for this coming
+  to GitHub Actions.
+
+External Libraries
+==================
+
+Current state (10.0.2):
+
+* qpdf/external-libs repository builds external-libs on a schedule.
+  It detects and downloads the latest versions of zlib, jpeg, and
+  openssl and creates source and binary distribution zip files in an
+  artifact called "distribution".
+
+* Releases in qpdf/external-libs are made manually. They contain
+  qpdf-external-libs-{bin,src}.zip.
+
+* The qpdf build finds the latest non-prerelease release and downloads
+  the qpdf-external-libs-*.zip files from the releases in the setup
+  stage.
+
+* To upgrade to a new version of external-libs, create a new release
+  of qpdf/external-libs (see README-maintainer in external-libs) from
+  the distribution artifact of the most recent successful build after
+  ensuring that it works.
+
+Desired state:
+
+* The qpdf/external-libs repository should create release candidates.
+  Ideally, every scheduled run would make its zip files available. A
+  personal access token with actions:read scope for the
+  qpdf/external-libs repository is required to download the artifact
+  from an action run, and qpdf/qpdf's secrets.GITHUB_TOKEN doesn't
+  have this access. We could create a service account for this
+  purpose. As an alternative, we could have a draft release in
+  qpdf/external-libs that the qpdf/external-libs build could update
+  with each candidate. It may also be possible to solve this by
+  developing a simple GitHub app.
+
+* Scheduled runs of the qpdf build in the qpdf/qpdf repository (not a
+  fork or pull request) could download external-libs from the release
+  candidate area instead of the latest stable release. Pushes to the
+  build branch should still use the latest release so it always
+  matches the main branch.
+
+* Periodically, we would create a release of external-libs from the
+  release candidate zip files. This could be done safely because we
+  know the latest qpdf works with it. This could be done at least
+  before every release of qpdf, but potentially it could be done at
+  other times, such as when a new dependency version is available or
+  after some period of time.
+
+Other notes:
+
+* The external-libs branch in qpdf/qpdf was never documented. We might
+  be able to get away with deleting it.
+
+* See README-maintainer in qpdf/external-libs for information on
+  creating a release. This could be at least partially scripted in a
+  way that works for the qpdf/qpdf repository as well since they are
+  very similar.
+
 
 ABI Changes
 ===========
@@ -113,33 +244,6 @@ Page splitting/merging
    https://mail.google.com/mail/u/0/#search/rfc822msgid%3A02aa01d3d013%249f766990%24de633cb0%24%40mono.hr)
 
  * Form fields: should be similar to outlines.
-
-MSVC Wildcard Expansion
-=======================
-
-(This section is referenced in azure_pipelines.yml.)
-
-The qpdf executable built with msvc is linked with setargv.obj or
-wsetargv.obj so that wildcard expansion works. It doesn't work exactly
-the way a UNIX system would work in that the program itself does the
-expansion (rather than the shell), which means that invoking qpdf.exe
-as built by msvc will expand "*.pdf" just as it will expand *.pdf. In
-some earlier versions, wildcard expansion didn't work with the msvc
-executable. The way to make this work appears to be different in some
-versions of MSVC than in others. As such, if upgrading MSVC or
-changing the build environment, the wildcard expansion behavior of the
-qpdf executable in Windows should be retested manually.
-
-Unfortunately, there is no automated test for wildcard expansion with
-MSVC because I can't figure out how to prevent qtest from expanding
-the wildcards before passing them in, and explicitly running "cmd /c
-..." from qtest doesn't seem to work in Azure Pipelines, though I can
-make it work locally.
-
-Ideally, we should figure out a way to test this in CI by having a
-test that fails if wildcard expansion is broken. In the absence of
-this, it will be necessary to test the behavior manually in both mingw
-and msvc when run from cmd and from msys bash.
 
 Performance
 ===========
@@ -237,6 +341,12 @@ I find it useful to make reference to them in this list
 
  * Investigate whether there is a way to automate the memory checker
    tests for Windows.
+
+ * Part of closed_file_input_source.cc is disabled on Windows because
+   of odd failures. It might be worth investigating so we can fully
+   exercise this in the test suite. That said, ClosedFileInputSource
+   is exercised elsewhere in qpdf's test suite, so this is not that
+   pressing.
 
  * Support user-pluggable stream filters.  This would enable external
    code to provide interpretation for filters that are missing from

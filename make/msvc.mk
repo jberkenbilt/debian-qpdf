@@ -32,10 +32,10 @@ define compile
 		-c $(1) -Fo$(call src_to_obj,$(1))
 endef
 
-#                       1   2
-# Usage: $(call c_compile,src,includes)
+#                         1   2        3
+# Usage: $(call c_compile,src,includes,xflags)
 define c_compile
-	cl -nologo -O2 -Zi -Gy -EHsc -MD $(CPPFLAGS) $(CFLAGS) \
+	cl -nologo -O2 -Zi -Gy -EHsc -MD $(CPPFLAGS) $(CFLAGS) $(3) \
 		$(foreach I,$(2),-I$(I)) \
 		-c $(1) -Fo$(call c_src_to_obj,$(1))
 endef
@@ -66,7 +66,7 @@ endef
 # Usage: $(call makelib,objs,library,ldflags,libs,current,revision,age)
 define makelib
 	cl -nologo -O2 -Zi -Gy -EHsc -MD -LD -Fe$(basename $(2))$(shell expr $(5) - $(7)).dll $(1) \
-		-link -SUBSYSTEM:CONSOLE,5.01 -incremental:no \
+		-link -SUBSYSTEM:CONSOLE -incremental:no \
 		$(foreach L,$(subst -L,,$(3)),-LIBPATH:$(L)) \
 		$(foreach L,$(subst -l,,$(4)),$(L).lib)
 	if [ -f $(basename $(2))$(shell expr $(5) - $(7)).dll.manifest ]; then \
@@ -81,7 +81,7 @@ endef
 define makebin
 	cl -nologo -O2 -Zi -Gy -EHsc -MD $(1) \
 		$(if $(5),$(5),$(WINDOWS_MAIN_XLINK_FLAGS)) \
-		-link -SUBSYSTEM:CONSOLE,5.01 -incremental:no -OUT:$(2) \
+		-link -SUBSYSTEM:CONSOLE -incremental:no -OUT:$(2) \
 		$(foreach L,$(subst -L,,$(3)),-LIBPATH:$(L)) \
 		$(foreach L,$(subst -l,,$(4)),$(L).lib)
 	if [ -f $(2).manifest ]; then \

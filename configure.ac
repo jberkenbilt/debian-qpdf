@@ -2,7 +2,7 @@ dnl Process this file with autoconf to produce a configure script.
 dnl This config.in requires autoconf 2.5 or greater.
 
 AC_PREREQ([2.68])
-AC_INIT([qpdf],[10.0.1])
+AC_INIT([qpdf],[10.0.2])
 
 AC_CONFIG_MACRO_DIR([m4])
 AC_CONFIG_FILES([autoconf.mk])
@@ -54,12 +54,29 @@ LT_INIT([win32-dll])
 # LT = libtool
 LT_CURRENT=28
 LT_AGE=0
-LT_REVISION=1
+LT_REVISION=2
 AC_SUBST(LT_CURRENT)
 AC_SUBST(LT_REVISION)
 AC_SUBST(LT_AGE)
 LT_SONAME=$(expr $LT_CURRENT - $LT_AGE)
 AC_SUBST(LT_SONAME)
+
+AC_MSG_CHECKING(for whether to use -rpath)
+AC_ARG_ENABLE(rpath,
+   AS_HELP_STRING([--enable-rpath],
+                  [whether to pass -rpath to the linker when building libraries]),
+   [if test "$enableval" = "yes"; then
+      qpdf_USE_RPATH=1;
+    else
+      qpdf_USE_RPATH=0;
+    fi], [qpdf_USE_RPATH=1])
+if test "$qpdf_USE_RPATH" = "1"; then
+   AC_MSG_RESULT(yes)
+   RPATH='-rpath $(libdir)'
+else
+   AC_MSG_RESULT(no)
+fi
+AC_SUBST(RPATH)
 
 AC_MSG_CHECKING(for -fvisibility=hidden)
 try_flags=-fvisibility=hidden
@@ -238,6 +255,32 @@ for i in 0 1; do
     fi
   fi
 done
+AC_LANG_POP
+
+AC_LANG_PUSH([C++])
+AC_MSG_CHECKING(whether to use -latomic)
+dnl On some platforms with some versions of gcc, you have to link with
+dnl -latomic in order for std::atomic to work. Passing --as-needed
+dnl prevents unnecessary linking with -latomic.
+oLDFLAGS="$LDFLAGS"
+LDFLAGS="$LDFLAGS -Wl,--as-needed -latomic"
+AC_LINK_IFELSE([AC_LANG_SOURCE(
+  [[#include <atomic>
+    int main()
+    {
+        static std::atomic<int> a{0};
+        a = a.fetch_add(1);
+        return 0;
+    }
+   ]])],
+   [qpdf_USE_ATOMIC=1],
+   [qpdf_USE_ATOMIC=0])
+if test "$qpdf_USE_ATOMIC" = "1"; then
+  AC_MSG_RESULT(yes)
+else
+  AC_MSG_RESULT(no)
+  LDFLAGS="$oLDFLAGS"
+fi
 AC_LANG_POP
 
 if test "x$qpdf_OS_SECURE_RANDOM" = "x1"; then
@@ -449,21 +492,68 @@ if test "$BUILDRULES" = "msvc"; then
 else
    try_flags="-Wconversion -Wsign-conversion"
 fi
+oCFLAGS=$CFLAGS
+CFLAGS="$CFLAGS $try_flags"
 AC_MSG_CHECKING(for whether to use $try_flags)
-AC_ARG_ENABLE(int-warnings,
-   AS_HELP_STRING([--enable-int-warnings],
-                  [whether to turn on integer type warnings (default is yes)]),
-   [if test "$enableval" = "yes"; then
-      qpdf_INT_WARNINGS=1;
-    else
-      qpdf_INT_WARNINGS=0;
-    fi], [qpdf_INT_WARNINGS=1])
+AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[]], [[int a = 1; int b = a; a = b;]])],
+                  [qpdf_INT_WARNINGS=1],[qpdf_INT_WARNINGS=0])
 if test "$qpdf_INT_WARNINGS" = "1"; then
    AC_MSG_RESULT(yes)
-   WFLAGS="$WFLAGS $try_flags"
+   CXXFLAGS="$CXXFLAGS $try_flags"
 else
    AC_MSG_RESULT(no)
+   CFLAGS=$oCFLAGS
 fi
+
+if test "$BUILDRULES" != "msvc"; then
+   try_flags="-Wshadow=local"
+   oCFLAGS=$CFLAGS
+   CFLAGS="$CFLAGS $try_flags -Werror"
+   AC_MSG_CHECKING(for whether to use $try_flags)
+   AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[]], [[int a = 1; int b = a; a = b;]])],
+                     [qpdf_SHADOW_WARNINGS=1],[qpdf_SHADOW_WARNINGS=0])
+   if test "$qpdf_SHADOW_WARNINGS" = "1"; then
+      AC_MSG_RESULT(yes)
+      CFLAGS="$oCFLAGS $try_flags"
+      CXXFLAGS="$CXXFLAGS $try_flags"
+   else
+      AC_MSG_RESULT(no)
+      CFLAGS=$oCFLAGS
+   fi
+fi
+
+LL_FMT=""
+oCFLAGS=$CFLAGS
+CFLAGS="$WFLAGS $CFLAGS"
+for fmt in "%lld" "%I64d" "%I64lld"; do
+  if test "$LL_FMT" = ""; then
+    AC_MSG_CHECKING(printf format for long long: $fmt)
+    AC_RUN_IFELSE([AC_LANG_PROGRAM(
+     [[
+        #define _CRT_SECURE_NO_WARNINGS
+        #include <stdio.h>
+        #include <string.h>
+     ]],
+     [[
+        long long int a = 123456789012345ll;
+        char s[30];
+        sprintf(s, "]$fmt[", a);
+        return (strcmp(s, "123456789012345") == 0) ? 0 : 1
+     ]]
+     )],
+     [LL_FMT=$fmt],[],[LL_FMT="%lld"])
+    if test "$LL_FMT" != ""; then
+       AC_MSG_RESULT(yes)
+    else
+       AC_MSG_RESULT(no)
+    fi
+  fi
+done
+CFLAGS=$oCFLAGS
+if test "LL_FMT" = ""; then
+  LL_FMT="%lld%"
+fi
+AC_DEFINE_UNQUOTED([LL_FMT], ["$LL_FMT"], [printf format for long long])
 
 AC_SUBST(WINDOWS_WMAIN_XLINK_FLAGS)
 AC_SUBST(WINDOWS_MAIN_XLINK_FLAGS)
@@ -513,23 +603,31 @@ if test "$USE_CRYPTO_NATIVE" = "1"; then
   DEFAULT_CRYPTO=native
 fi
 
-dnl If the openssl/BoringSSL provider is explicitly requested, require openssl
+dnl If the openssl/BoringSSL provider is explicitly requested, require openssl.
 dnl If the openssl provider is not explicitly disabled, enable it if
 dnl openssl is available. If the openssl provider is explicitly
 dnl disabled, do not link with openssl even if present.
 
-PKG_CHECK_MODULES([pc_openssl], [openssl], [OPENSSL_FOUND=1], [OPENSSL_FOUND=0])
-if test "$OPENSSL_FOUND" = "0"; then
-  AC_CHECK_HEADER([openssl/evp.h],[OPENSSL_FOUND=1],[OPENSSL_FOUND=0])
-  AC_SEARCH_LIBS(EVP_DigestInit_ex,openssl,[OPENSSL_FOUND=1],[OPENSSL_FOUND=0])
+if test "$USE_EXTERNAL_LIBS" = "1"; then
+  OPENSSL_FOUND=1
+else
+  PKG_CHECK_MODULES([pc_openssl], [openssl >= 1.1.0],
+                    [OPENSSL_FOUND=1], [OPENSSL_FOUND=0])
 fi
+
+dnl Override pkg-config if headers and libraries are present.
+AS_IF([test "$OPENSSL_FOUND" = "0"],
+      [AC_CHECK_HEADER(
+       [openssl/evp.h],
+       [AC_SEARCH_LIBS(EVP_MD_CTX_new,crypto,[OPENSSL_FOUND=1])])
+      ])
 
 IMPLICIT_OPENSSL=0
 USE_CRYPTO_OPENSSL=0
 AC_SUBST(USE_CRYPTO_OPENSSL)
 AC_ARG_ENABLE(crypto-openssl,
    AS_HELP_STRING([--enable-crypto-openssl],
-                  [whether to include support for the BoringSSL crypto provider]),
+                  [whether to include support for the openssl crypto provider]),
    [if test "$enableval" = "yes"; then
       USE_CRYPTO_OPENSSL=1
     else
@@ -864,7 +962,7 @@ if test "$USE_EXTERNAL_LIBS" = "1"; then
    # much trouble getting it to work with a different compiler.
    CPPFLAGS="$CPPFLAGS -Iexternal-libs/include"
    LDFLAGS="$LDFLAGS -Lexternal-libs/lib-$BUILDRULES$WINDOWS_WORDSIZE"
-   LIBS="$LIBS -lz -ljpeg"
+   LIBS="$LIBS -lz -ljpeg -lssl -lcrypto -lmsvcrt -lws2_32 -lshell32 -ladvapi32 -lgdi32 -luser32 -lcrypt32"
 fi
 
 AC_OUTPUT

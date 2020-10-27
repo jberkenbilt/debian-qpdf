@@ -61,14 +61,15 @@ BufferInputSource::findAndSkipNextEOL()
     }
 
     qpdf_offset_t result = 0;
-    size_t len = QIntC::to_size(end_pos - this->m->cur_offset);
     unsigned char const* buffer = this->m->buf->getBuffer();
+    unsigned char const* end = buffer + end_pos;
+    unsigned char const* p = buffer + this->m->cur_offset;
 
-    void* start = const_cast<unsigned char*>(buffer) + this->m->cur_offset;
-    unsigned char* p1 = static_cast<unsigned char*>(memchr(start, '\r', len));
-    unsigned char* p2 = static_cast<unsigned char*>(memchr(start, '\n', len));
-    unsigned char* p = (p1 && p2) ? std::min(p1, p2) : p1 ? p1 : p2;
-    if (p)
+    while ((p < end) && !((*p == '\r') || (*p == '\n')))
+    {
+        ++p;
+    }
+    if (p < end)
     {
         result = p - buffer;
         this->m->cur_offset = result + 1;
@@ -101,20 +102,6 @@ BufferInputSource::tell()
 }
 
 void
-BufferInputSource::range_check(qpdf_offset_t cur, qpdf_offset_t delta)
-{
-    if ((delta > 0) &&
-        ((std::numeric_limits<qpdf_offset_t>::max() - cur) < delta))
-    {
-        std::ostringstream msg;
-        msg << "seeking forward from " << cur
-            << " by " << delta
-            << " would cause an overflow of the offset type";
-        throw std::range_error(msg.str());
-    }
-}
-
-void
 BufferInputSource::seek(qpdf_offset_t offset, int whence)
 {
     switch (whence)
@@ -124,12 +111,12 @@ BufferInputSource::seek(qpdf_offset_t offset, int whence)
 	break;
 
       case SEEK_END:
-        range_check(this->m->max_offset, offset);
+        QIntC::range_check(this->m->max_offset, offset);
 	this->m->cur_offset = this->m->max_offset + offset;
 	break;
 
       case SEEK_CUR:
-        range_check(this->m->cur_offset, offset);
+        QIntC::range_check(this->m->cur_offset, offset);
 	this->m->cur_offset += offset;
 	break;
 

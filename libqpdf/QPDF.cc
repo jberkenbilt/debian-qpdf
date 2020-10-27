@@ -25,7 +25,7 @@
 #include <qpdf/QPDF_Stream.hh>
 #include <qpdf/QPDF_Array.hh>
 
-std::string QPDF::qpdf_version = "10.0.1";
+std::string QPDF::qpdf_version = "10.0.2";
 
 static char const* EMPTY_PDF =
     "%PDF-1.3\n"
@@ -1220,6 +1220,7 @@ QPDF::processXRefStream(qpdf_offset_t xref_offset, QPDFObjectHandle& xref_obj)
             ((std::numeric_limits<int>::max() - obj) < chunk_count))
         {
             std::ostringstream msg;
+            msg.imbue(std::locale::classic());
             msg << "adding " << chunk_count << " to " << obj
                 << " while computing index in xref stream would cause"
                 << " an integer overflow";
@@ -1463,7 +1464,6 @@ QPDF::fixDanglingReferences(bool force)
                 queue.push_back(sub);
             }
         }
-
     }
 }
 
@@ -2082,6 +2082,11 @@ QPDF::resolve(int objid, int generation)
 void
 QPDF::resolveObjectsInStream(int obj_stream_number)
 {
+    if (this->m->resolved_object_streams.count(obj_stream_number))
+    {
+        return;
+    }
+    this->m->resolved_object_streams.insert(obj_stream_number);
     // Force resolution of object stream
     QPDFObjectHandle obj_stream = getObjectByID(obj_stream_number, 0);
     if (! obj_stream.isStream())
@@ -2151,8 +2156,8 @@ QPDF::resolveObjectsInStream(int obj_stream_number)
 	}
 
 	int num = QUtil::string_to_int(tnum.getValue().c_str());
-	int offset = QUtil::string_to_int(toffset.getValue().c_str());
-	offsets[num] = offset + first;
+	long long offset = QUtil::string_to_int(toffset.getValue().c_str());
+	offsets[num] = QIntC::to_int(offset + first);
     }
 
     // To avoid having to read the object stream multiple times, store
@@ -2312,7 +2317,8 @@ QPDF::reserveObjects(QPDFObjectHandle foreign, ObjCopier& obj_copier,
     if (foreign.isReserved())
     {
         throw std::logic_error(
-            "QPDF: attempting to copy a foreign reserved object");
+            "QPDF: attempting to copy a foreign reserved object: " +
+            QUtil::int_to_string(foreign.getObjectID()));
     }
 
     if (foreign.isPagesObject())
@@ -2485,6 +2491,16 @@ QPDF::replaceForeignIndirectObjects(
         }
         PointerHolder<Buffer> stream_buffer =
             stream->getStreamDataBuffer();
+        // Note: at this stage, dictionary keys may still be reserved.
+        // We have to handle that explicitly if we access anything.
+        auto get_as_direct = [&old_dict] (std::string const& key) {
+            QPDFObjectHandle obj = old_dict.getKey(key);
+            obj.makeDirect();
+            return obj;
+        };
+
+        QPDFObjectHandle filter = get_as_direct("/Filter");
+        QPDFObjectHandle decode_parms = get_as_direct("/DecodeParms");
         if ((foreign_stream_qpdf->m->immediate_copy_from) &&
             (stream_buffer.getPointer() == 0))
         {
@@ -2494,8 +2510,7 @@ QPDF::replaceForeignIndirectObjects(
             // have to keep duplicating the memory.
             QTC::TC("qpdf", "QPDF immediate copy stream data");
             foreign.replaceStreamData(foreign.getRawStreamData(),
-                                      dict.getKey("/Filter"),
-                                      dict.getKey("/DecodeParms"));
+                                      filter, decode_parms);
             stream_buffer = stream->getStreamDataBuffer();
         }
         PointerHolder<QPDFObjectHandle::StreamDataProvider> stream_provider =
@@ -2503,9 +2518,7 @@ QPDF::replaceForeignIndirectObjects(
         if (stream_buffer.getPointer())
         {
             QTC::TC("qpdf", "QPDF copy foreign stream with buffer");
-            result.replaceStreamData(stream_buffer,
-                                     dict.getKey("/Filter"),
-                                     dict.getKey("/DecodeParms"));
+            result.replaceStreamData(stream_buffer, filter, decode_parms);
         }
         else if (stream_provider.getPointer())
         {
@@ -2514,8 +2527,7 @@ QPDF::replaceForeignIndirectObjects(
             this->m->copied_stream_data_provider->registerForeignStream(
                 local_og, foreign);
             result.replaceStreamData(this->m->copied_streams,
-                                     dict.getKey("/Filter"),
-                                     dict.getKey("/DecodeParms"));
+                                     filter, decode_parms);
         }
         else
         {
@@ -2533,8 +2545,7 @@ QPDF::replaceForeignIndirectObjects(
             this->m->copied_stream_data_provider->registerForeignStream(
                 local_og, foreign_stream_data);
             result.replaceStreamData(this->m->copied_streams,
-                                     dict.getKey("/Filter"),
-                                     dict.getKey("/DecodeParms"));
+                                     filter, decode_parms);
         }
     }
     else

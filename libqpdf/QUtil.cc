@@ -21,6 +21,7 @@
 #include <string.h>
 #include <fcntl.h>
 #include <memory>
+#include <locale>
 #ifndef QPDF_NO_WCHAR_T
 # include <cwchar>
 #endif
@@ -266,15 +267,26 @@ int_to_string_base_internal(T num, int base, int length)
         throw std::logic_error(
             "int_to_string_base called with unsupported base");
     }
-    std::ostringstream buf;
-    buf << std::setbase(base) << std::nouppercase << num;
+    std::string cvt;
+    if (base == 10)
+    {
+        // Use the more efficient std::to_string when possible
+        cvt = std::to_string(num);
+    }
+    else
+    {
+        std::ostringstream buf;
+        buf.imbue(std::locale::classic());
+        buf << std::setbase(base) << std::nouppercase << num;
+        cvt = buf.str();
+    }
     std::string result;
-    int str_length = QIntC::to_int(buf.str().length());
+    int str_length = QIntC::to_int(cvt.length());
     if ((length > 0) && (str_length < length))
     {
 	result.append(QIntC::to_size(length - str_length), '0');
     }
-    result += buf.str();
+    result += cvt;
     if ((length < 0) && (str_length < -length))
     {
 	result.append(QIntC::to_size(-length - str_length), ' ');
@@ -318,6 +330,7 @@ QUtil::double_to_string(double num, int decimal_places)
         decimal_places = 6;
     }
     std::ostringstream buf;
+    buf.imbue(std::locale::classic());
     buf << std::setprecision(decimal_places) << std::fixed << num;
     return buf.str();
 }
@@ -812,7 +825,7 @@ QUtil::toUTF8(unsigned long uval)
 	// maximum value that will fit in the current number of bytes
 	unsigned char maxval = 0x3f; // six bits
 
-	while (uval > maxval)
+	while (uval > QIntC::to_ulong(maxval))
 	{
 	    // Assign low six bits plus 10000000 to lowest unused
 	    // byte position, then shift
@@ -2163,12 +2176,12 @@ QUtil::win_ansi_to_utf8(std::string const& val)
     for (unsigned int i = 0; i < len; ++i)
     {
         unsigned char ch = static_cast<unsigned char>(val.at(i));
-        unsigned short val = ch;
+        unsigned short ch_short = ch;
         if ((ch >= 128) && (ch <= 160))
         {
-            val = win_ansi_to_unicode[ch - 128];
+            ch_short = win_ansi_to_unicode[ch - 128];
         }
-        result += QUtil::toUTF8(val);
+        result += QUtil::toUTF8(ch_short);
     }
     return result;
 }
@@ -2181,12 +2194,12 @@ QUtil::mac_roman_to_utf8(std::string const& val)
     for (unsigned int i = 0; i < len; ++i)
     {
         unsigned char ch = static_cast<unsigned char>(val.at(i));
-        unsigned short val = ch;
+        unsigned short ch_short = ch;
         if (ch >= 128)
         {
-            val = mac_roman_to_unicode[ch - 128];
+            ch_short = mac_roman_to_unicode[ch - 128];
         }
-        result += QUtil::toUTF8(val);
+        result += QUtil::toUTF8(ch_short);
     }
     return result;
 }
@@ -2199,12 +2212,12 @@ QUtil::pdf_doc_to_utf8(std::string const& val)
     for (unsigned int i = 0; i < len; ++i)
     {
         unsigned char ch = static_cast<unsigned char>(val.at(i));
-        unsigned short val = ch;
+        unsigned short ch_short = ch;
         if ((ch >= 128) && (ch <= 160))
         {
-            val = pdf_doc_to_unicode[ch - 128];
+            ch_short = pdf_doc_to_unicode[ch - 128];
         }
-        result += QUtil::toUTF8(val);
+        result += QUtil::toUTF8(ch_short);
     }
     return result;
 }

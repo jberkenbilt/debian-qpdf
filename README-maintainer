@@ -33,6 +33,11 @@ GOOGLE OSS-FUZZ
 
 * qpdf project: https://github.com/google/oss-fuzz/tree/master/projects/qpdf
 
+* Adding new test cases: download the file from oss-fuzz and drop it
+  in fuzz/qpdf_extra/issue-number.fuzz. If not ready to include, it
+  can be stored anywhere, and the absolute path can be passed to the
+  reproduction code as described below.
+
 * To test locally, see https://github.com/google/oss-fuzz/tree/master/docs/,
   especially new_project_guide.md. Summary:
 
@@ -41,15 +46,15 @@ GOOGLE OSS-FUZZ
   Add `-e GITHUB_FORK=fork -e GITHUB_BRANCH=branch` to build_fuzzers
   from a qpdf fork/branch rather than qpdf/master.
 
-  python infra/helper.py build_image --pull qpdf
-  python infra/helper.py build_fuzzers [ --sanitizer memory|undefined|address ] qpdf
-  python infra/helper.py check_build qpdf
-  python infra/helper.py build_fuzzers --sanitizer coverage qpdf
-  python infra/helper.py coverage qpdf
+  python3 infra/helper.py build_image --pull qpdf
+  python3 infra/helper.py build_fuzzers [ --sanitizer memory|undefined|address ] qpdf
+  python3 infra/helper.py check_build qpdf
+  python3 infra/helper.py build_fuzzers --sanitizer coverage qpdf
+  python3 infra/helper.py coverage qpdf
 
   To reproduce a test case, build with the correct sanitizer, then run
 
-  python infra/helper.py reproduce qpdf fuzzer testcase
+  python3 infra/helper.py reproduce qpdf <specific-fuzzer> testcase
 
   where fuzzer is the fuzzer used in the crash.
 
@@ -83,6 +88,14 @@ CODING RULES
 
 * Use QIntC for type conversions -- see casting policy in docs.
 
+* Remember to imbue ostringstreams with std::locale::classic() before
+  outputting numbers. This protects against the user's global locale
+  altering otherwise deterministic values. (See github issue #459.)
+  One could argue that error messages containing numbers should
+  respect the user's locale, but I think it's more important for
+  output to be consistent, since the messages in question are not
+  really targeted at the end user.
+
 * Use QPDF_DLL on all methods that are to be exported in the shared
   library/DLL. Use QPDF_DLL_CLASS for all classes whose type
   information is needed. This is important for exception classes and
@@ -99,7 +112,14 @@ RELEASE PREPARATION
   search for copyright. Don't forget copyright in manual. Also update
   debian copyright in debian package. Last updated: 2020.
 
+* Take a look at "External Libraries" in TODO to see if we need to
+  make any changes. There is still some automation work left to do, so
+  handling external-libs releases is still manual. See also
+  README-maintainer in external-libs.
+
 * Check for open fuzz crashes at https://oss-fuzz.com
+
+* Check lgtm: https://lgtm.com/projects/g/qpdf/qpdf/?mode=list
 
 * Check all open issues and pull requests in github and the
   sourceforge trackers. See ~/scripts/github-issues. Don't forget pull
@@ -107,6 +127,8 @@ RELEASE PREPARATION
 
 * Check `TODO` file to make sure all planned items for the release are
   done or retargeted.
+
+* Check work `qpdf` project for private issues
 
 * Run a spelling checker over the source code to catch errors in
   variable names, strings, and comments.
@@ -120,16 +142,17 @@ RELEASE PREPARATION
 
   For Windows, use a Windows style path, not an MSYS path for large files.
 
-* Test with clang. Pass `CC=clang CXX=clang++` to `./configure`. Test
-  with newer version of gcc if available.
+* Test with clang. Pass `CC=clang CXX=clang++` to `./configure`. (Done
+  in CI).
+
+* Test with newer version of gcc if available.
 
 * Test 32-bit. Pass `CC=i686-linux-gnu-gcc CXX=i686-linux-gnu-g++` to
   `./configure`. (Done in CI.)
 
 * Test build on a mac. (Done in CI.)
 
-* Test with address sanitizer as described above. (Done in CI with
-  gcc; test locally with clang.)
+* Test with address sanitizer as described above. (Done in CI.)
 
 * A small handful of additional files have been taken from autotools
   programs. These should probably be updated from time to time.
@@ -211,10 +234,10 @@ pytest -n auto
 
 CREATING A RELEASE
 
-* Push to master. The azure pipeline will create an artifact called
-  distribution which will contain all the distribution files. Download
-  these, verify the checksums from the job output, rename to remove
-  -ci from the names, and copy to the release archive area.
+* Push to master. This will create an artifact called distribution
+  which will contain all the distribution files. Download these,
+  verify the checksums from the job output, rename to remove -ci from
+  the names, and copy to the release archive area.
 
 * Sign the source distribution:
 
@@ -227,13 +250,11 @@ gpg --detach-sign --armor qpdf-$version.tar.gz
   Windows binaries, the AppImage, the source tarball, and the source
   tarball signature.
 
-\rm -f *.{md5,sha1,sha512}
+\rm -f *.sha256
 files=(*)
-for i in md5 sha1 sha512; do
-  ${i}sum ${files[*]} >| qpdf-$version.$i
-  gpg --clearsign --armor qpdf-$version.$i
-  mv qpdf-$version.$i.asc qpdf-$version.$i
-done
+sha256sum ${files[*]} >| qpdf-$version.sha256
+gpg --clearsign --armor qpdf-$version.sha256
+mv qpdf-$version.sha256.asc qpdf-$version.sha256
 chmod 444 *
 chmod 555 *.AppImage
 
@@ -309,22 +330,8 @@ To construct a source distribution from a pristine checkout,
 make build_manual
 make distclean
 
-To create a source release of external libs, do an export from the
-version control system into a directory called `qpdf-external-libs`
-and just make a zip file of the result called
-`qpdf-external-libs-src.zip`. See the README.txt file there for
-information on creating binary external libs releases. Run this from
-the external-libs repository:
-
-git archive --prefix=external-libs/ HEAD . | (cd /tmp; tar xf -)
-cd /tmp
-zip -r qpdf-external-libs-src.zip external-libs
-
-When releasing on sourceforge, `external-libs` distributions go in
-`external-libs/yyyymmdd`, and qpdf distributions go in `qpdf/vvv`.
-
 For local iteration on the AppImage generation, it works to just
-./azure-pipelines/build-appimage and get the resulting AppImage from
+./build-scripts/build-appimage and get the resulting AppImage from
 the distribution directory. You can also pass -e SKIP_TESTS=1
 build-appimage, which passes it along to to docker, to skip the test
 suite, which useful for rapid iteration.

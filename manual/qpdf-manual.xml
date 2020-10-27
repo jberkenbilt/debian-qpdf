@@ -5,8 +5,8 @@
 <!ENTITY mdash "&#x2014;">
 <!ENTITY ndash "&#x2013;">
 <!ENTITY nbsp "&#xA0;">
-<!ENTITY swversion "10.0.1">
-<!ENTITY lastreleased "April 9, 2020">
+<!ENTITY swversion "10.0.2">
+<!ENTITY lastreleased "October 27, 2020">
 ]>
 <book>
  <bookinfo>
@@ -594,6 +594,44 @@ make
     Most options require an output file, but some testing or
     inspection commands do not.  These are specifically noted.
    </para>
+   <sect2 id="ref.exit-status">
+    <title>Exit Status</title>
+    <para>
+     The exit status of <command>qpdf</command> may be interpreted as
+     follows:
+     <itemizedlist>
+      <listitem>
+       <para>
+        <literal>0</literal>: no errors or warnings were found. The
+        file may still have problems qpdf can't detect. If
+        <option>--warning-exit-0</option> was specified, exit status 0
+        is used even if there are warnings.
+       </para>
+      </listitem>
+      <listitem>
+       <para>
+        <literal>2</literal>: errors were found. qpdf was not able to
+        fully process the file.
+       </para>
+      </listitem>
+      <listitem>
+       <para>
+        <literal>3</literal>: qpdf encountered problems that it was
+        able to recover from. In some cases, the resulting file may
+        still be damaged. Note that qpdf still exits with status
+        <literal>3</literal> if it finds warnings even when
+        <option>--no-warn</option> is specified. With
+        <option>--warning-exit-0</option>, warnings without errors
+        exit with status 0 instead of 3.
+       </para>
+      </listitem>
+     </itemizedlist>
+     Note that <command>qpdf</command> never exists with status
+     <literal>1</literal>. If you get an exit status of
+     <literal>1</literal>, it was something else, like the shell not
+     being able to find or execute <command>qpdf</command>.
+    </para>
+   </sect2>
   </sect1>
   <sect1 id="ref.shell-completion">
    <title>Shell Completion</title>
@@ -744,7 +782,19 @@ make
        <para>
         Suppress writing of warnings to stderr. If warnings were
         detected and suppressed, <command>qpdf</command> will still
-        exit with exit code 3.
+        exit with exit code 3. See also
+        <option>--warning-exit-0</option>.
+       </para>
+      </listitem>
+     </varlistentry>
+     <varlistentry>
+      <term><option>--warning-exit-0</option></term>
+      <listitem>
+       <para>
+        If warnings are found but no errors, exit with exit code 0
+        instead 3. When combined with <option>--no-warn</option>, the
+        effect is for <command>qpdf</command> to completely ignore
+        warnings.
        </para>
       </listitem>
      </varlistentry>
@@ -777,7 +827,7 @@ make
        <para>
         Encrypt the file using the same encryption parameters,
         including user and owner password, as the specified file.  Use
-        <option>--encrypt-file-password</option> to specify a password
+        <option>--encryption-file-password</option> to specify a password
         if one is needed to open this file.  Note that copying the
         encryption parameters from a file also copies the first half
         of <literal>/ID</literal> from the file since this is part of
@@ -786,7 +836,7 @@ make
       </listitem>
      </varlistentry>
      <varlistentry>
-      <term><option>--encrypt-file-password=password</option></term>
+      <term><option>--encryption-file-password=password</option></term>
       <listitem>
        <para>
         If the file specified with <option>--copy-encryption</option>
@@ -936,14 +986,16 @@ make
         <option>angle</option> portion of the parameter may be either
         90, 180, or 270. If preceded by <option>+</option> or
         <option>-</option>, the angle is added to or subtracted from
-        the specified pages' original rotations. Otherwise the pages'
-        rotations are set to the exact value. For example, the command
-        <command>qpdf in.pdf out.pdf --rotate=+90:2,4,6
+        the specified pages' original rotations. This is almost always
+        what you want. Otherwise the pages' rotations are set to the
+        exact value, which may cause the appearances of the pages to
+        be inconsistent, especially for scans. For example, the
+        command <command>qpdf in.pdf out.pdf --rotate=+90:2,4,6
         --rotate=180:7-8</command> would rotate pages 2, 4, and 6 90
         degrees clockwise from their original rotation and force the
         rotation of pages 7 through 9 to 180 degrees regardless of
         their original rotation, and the command <command>qpdf in.pdf
-        out.pdf --rotate=180</command> would rotate all pages by 180
+        out.pdf --rotate=+180</command> would rotate all pages by 180
         degrees.
        </para>
       </listitem>
@@ -2038,14 +2090,9 @@ outfile.pdf</option>
         option causes qpdf to combine them into a single stream. Use
         of this option is never necessary for ordinary usage, but it
         can help when working with some files in some cases. For
-        example, some PDF writers split page contents into small
-        streams at arbitrary points that may fall in the middle of
-        lexical tokens within the content, and some PDF readers may
-        get confused on such files. If you use qpdf to coalesce the
-        content streams, such readers may be able to work with the
-        file more easily. This can also be combined with QDF mode or
-        content normalization to make it easier to look at all of a
-        page's contents at once.
+        example, this can also be combined with QDF mode or content
+        normalization to make it easier to look at all of a page's
+        contents at once.
        </para>
       </listitem>
      </varlistentry>
@@ -2346,25 +2393,15 @@ outfile.pdf</option>
     You should not use this for &ldquo;production&rdquo; PDF files.
    </para>
    <para>
-    This paragraph discusses edge cases of content normalization that
-    are not of concern to most users and are not relevant when content
-    normalization is not enabled. When normalizing content, if qpdf
-    runs into any lexical errors, it will print a warning indicating
-    that content may be damaged. The only situation in which qpdf is
-    known to cause damage during content normalization is when a
-    page's contents are split across multiple streams and streams are
-    split in the middle of a lexical token such as a string, name, or
-    inline image. There may be some pathological cases in which qpdf
-    could damage content without noticing this, such as if the partial
-    tokens at the end of one stream and the beginning of the next
-    stream are both valid, but usually qpdf will be able to detect
-    this case. For slightly increased safety, you can specify
-    <option>--coalesce-contents</option> in addition to
-    <option>--normalize-content</option> or <option>--qdf</option>.
-    This will cause qpdf to combine all the content streams into one,
-    thus recombining any split tokens. However doing this will prevent
-    you from being able to see the original layout of the content
-    streams. If you must inspect the original content streams in an
+    When normalizing content, if qpdf runs into any lexical errors, it
+    will print a warning indicating that content may be damaged. The
+    only situation in which qpdf is known to cause damage during
+    content normalization is when a page's contents are split across
+    multiple streams and streams are split in the middle of a lexical
+    token such as a string, name, or inline image. Note that files
+    that do this are invalid since the PDF specification states that
+    content streams are not to be split in the middle of a token. If
+    you want to inspect the original content streams in an
     uncompressed format, you can always run with <option>--qdf
     --normalize-content=n</option> for a QDF file without content
     normalization, or alternatively
@@ -4768,6 +4805,171 @@ print "\n";
     </listitem>
    </varlistentry>
 -->
+   <varlistentry>
+    <term>10.0.2: October 27, 2020</term>
+    <listitem>
+     <itemizedlist>
+      <listitem>
+       <para>
+        Bug Fixes
+       </para>
+       <itemizedlist>
+        <listitem>
+         <para>
+          When concatenating content streams, as with
+          <option>--coalesce-contents</option>, there were cases in
+          which qpdf would merge two lexical tokens together, creating
+          invalid results. A newline is now inserted between
+          merged content streams if one is not already present.
+         </para>
+        </listitem>
+        <listitem>
+         <para>
+          Fix an internal error that could occur when copying foreign
+          streams whose stream data had been replaced using a stream
+          data provider if those streams had indirect filters or
+          decode parameters. This is a rare corner case.
+         </para>
+        </listitem>
+        <listitem>
+         <para>
+          Ensure that the caller's locale settings do not change the
+          results of numeric conversions performed internally by the
+          qpdf library. Note that the problem here could only be
+          caused when the qpdf library was used programmatically.
+          Using the qpdf CLI already ignored the user's locale for
+          numeric conversion.
+         </para>
+        </listitem>
+        <listitem>
+         <para>
+          Fix several instances in which warnings were not suppressed
+          in spite of <option>--no-warn</option> and/or errors or
+          warnings were written to standard output rather than
+          standard error.
+         </para>
+        </listitem>
+        <listitem>
+         <para>
+          Fixed a memory leak that could occur under specific
+          circumstances when
+          <option>--object-streams=generate</option> was used.
+         </para>
+        </listitem>
+        <listitem>
+         <para>
+          Fix various integer overflows and similar conditions found
+          by the OSS-Fuzz project.
+         </para>
+        </listitem>
+       </itemizedlist>
+      </listitem>
+      <listitem>
+       <para>
+        Enhancements
+       </para>
+       <itemizedlist>
+        <listitem>
+         <para>
+          New option <option>--warning-exit-0</option> causes qpdf to
+          exit with a status of <literal>0</literal> rather than
+          <literal>3</literal> if there are warnings but no errors.
+          Combine with <option>--no-warn</option> to completely ignore
+          warnings.
+         </para>
+        </listitem>
+        <listitem>
+         <para>
+          Performance improvements have been made to
+          <function>QPDF::processMemoryFile</function>.
+         </para>
+        </listitem>
+        <listitem>
+         <para>
+          The OpenSSL crypto provider produces more detailed error
+          messages.
+         </para>
+        </listitem>
+       </itemizedlist>
+      </listitem>
+      <listitem>
+       <para>
+        Build Changes
+       </para>
+       <itemizedlist>
+        <listitem>
+         <para>
+          The option <option>--disable-rpath</option> is now supported
+          by qpdf's <command>./configure</command> script. Some
+          distributions' packaging standards recommended the use of
+          this option.
+         </para>
+        </listitem>
+        <listitem>
+         <para>
+          Selection of a printf format string for <type>long
+          long</type> has been moved from <literal>ifdefs</literal> to
+          an autoconf test. If you are using your own build system,
+          you will need to provide a value for
+          <literal>LL_FMT</literal> in
+          <filename>libqpdf/qpdf/qpdf-config.h</filename>, which would
+          typically be <literal>&quot;%lld&quot;</literal> or, for
+          some Windows compilers, <literal>&quot;%I64d&quot;</literal>.
+         </para>
+        </listitem>
+        <listitem>
+         <para>
+          Several improvements were made to build-time configuration
+          of the OpenSSL crypto provider.
+         </para>
+        </listitem>
+        <listitem>
+         <para>
+          A nearly stand-alone Linux binary zip file is now included
+          with the qpdf release. This is built on an older (but
+          supported) Ubuntu LTS release, but would work on most
+          reasonably recent Linux distributions. It contains only the
+          executables and required shared libraries that would not be
+          present on a minimal system. It can be used for including
+          qpdf in a minimal environment, such as a docker container.
+          The zip file is also known to work as a layer in AWS Lambda.
+         </para>
+        </listitem>
+        <listitem>
+         <para>
+          QPDF's automated build has been migrated from Azure
+          Pipelines to GitHub Actions.
+         </para>
+        </listitem>
+       </itemizedlist>
+      </listitem>
+      <listitem>
+       <para>
+        Windows-specific Changes
+       </para>
+       <itemizedlist>
+        <listitem>
+         <para>
+          The Windows executables distributed with qpdf releases now
+          use the OpenSSL crypto provider by default. The native
+          crypto provider is also compiled in and can be selected at
+          runtime with the <literal>QPDF_CRYPTO_PROVIDER</literal>
+          environment variable.
+         </para>
+        </listitem>
+        <listitem>
+         <para>
+          Improvements have been made to how a cryptographic provider
+          is obtained in the native Windows crypto implementation.
+          However mostly this is shadowed by OpenSSL being used by
+          default.
+         </para>
+        </listitem>
+       </itemizedlist>
+      </listitem>
+     </itemizedlist>
+    </listitem>
+   </varlistentry>
    <varlistentry>
     <term>10.0.1: April 9, 2020</term>
     <listitem>

@@ -1341,7 +1341,8 @@ class QPDF
         std::set<QPDFObjGen>& visited);
     void updateObjectMaps(ObjUser const& ou, QPDFObjectHandle oh);
     void updateObjectMapsInternal(ObjUser const& ou, QPDFObjectHandle oh,
-				  std::set<QPDFObjGen>& visited, bool top);
+				  std::set<QPDFObjGen>& visited, bool top,
+                                  int depth);
     void filterCompressedObjects(std::map<int, int> const& object_stream_data);
 
     // Type conversion helper methods
@@ -1402,6 +1403,7 @@ class QPDF
         bool immediate_copy_from;
         bool in_parse;
         bool parsed;
+        std::set<int> resolved_object_streams;
 
         // Linearization data
         qpdf_offset_t first_xref_item_offset; // actual value from file
