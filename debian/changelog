@@ -1,3 +1,9 @@
+qpdf (10.0.2-1) unstable; urgency=medium
+
+  * New upstream release.
+
+ -- Jay Berkenbilt <qjb@debian.org>  Tue, 27 Oct 2020 17:27:00 -0400
+
 qpdf (10.0.1-2) unstable; urgency=medium
 
   * Apply patch to link with -latomic if needed. (Closes: #956400)
