@@ -191,6 +191,17 @@ foreach my $d (['auto-ü', 1], ['auto-öπ', 2])
 
 show_ntests();
 # ----------
+$td->notify("--- Windows shell globbing ---");
+
+$td->runtest("shell wildcard expansion",
+             {$td->COMMAND => "test_shell_glob 'good*.pdf'"},
+             {$td->STRING => "PASSED\n", $td->EXIT_STATUS => 0},
+             $td->NORMALIZE_NEWLINES);
+
+$n_tests += 1;
+
+show_ntests();
+# ----------
 $td->notify("--- Replace Input ---");
 $n_tests += 8;
 
@@ -1580,12 +1591,20 @@ $td->runtest("type checks with object streams",
 
 # ----------
 $td->notify("--- Coalesce contents ---");
-$n_tests += 6;
+$n_tests += 8;
 
 $td->runtest("qdf with normalize warnings",
              {$td->COMMAND =>
-                  "qpdf --qdf --static-id coalesce.pdf a.pdf"},
+                  "qpdf --qdf --static-id split-tokens.pdf a.pdf"},
              {$td->FILE => "normalize-warnings.out", $td->EXIT_STATUS => 3},
+             $td->NORMALIZE_NEWLINES);
+$td->runtest("check output",
+             {$td->FILE => "a.pdf"},
+             {$td->FILE => "split-tokens.qdf"});
+$td->runtest("coalesce to qdf",
+             {$td->COMMAND =>
+                  "qpdf --qdf --static-id coalesce.pdf a.pdf"},
+             {$td->STRING => "", $td->EXIT_STATUS => 0},
              $td->NORMALIZE_NEWLINES);
 $td->runtest("check output",
              {$td->FILE => "a.pdf"},
@@ -1705,7 +1724,7 @@ my @sp_cases = (
     [1, 'broken data', '--pages broken-lzw.pdf --', 'split-out.pdf',
      {$td->FILE => "broken-lzw.out", $td->EXIT_STATUS => 3}],
     );
-$n_tests += 35;
+$n_tests += 36;
 $n_compare_pdfs += 1;
 for (@sp_cases)
 {
@@ -1820,12 +1839,19 @@ $td->runtest("unreferenced resources with bad token",
              {$td->COMMAND =>
                   "qpdf --qdf --static-id --split-pages=2" .
                   " --remove-unreferenced-resources=yes" .
-                  " coalesce.pdf split-out-bad-token.pdf"},
-             {$td->FILE => "coalesce-split.out", $td->EXIT_STATUS => 3},
+                  " split-tokens.pdf split-out-bad-token.pdf"},
+             {$td->FILE => "split-tokens-split.out", $td->EXIT_STATUS => 3},
              $td->NORMALIZE_NEWLINES);
 $td->runtest("check output",
              {$td->FILE => "split-out-bad-token-1-2.pdf"},
-             {$td->FILE => "coalesce-split-1-2.pdf"});
+             {$td->FILE => "split-tokens-split-1-2.pdf"});
+$td->runtest("--no-warn with proxied warnings during split",
+             {$td->COMMAND =>
+                  "qpdf --qdf --static-id --split-pages=2" .
+                  " --no-warn --remove-unreferenced-resources=yes" .
+                  " split-tokens.pdf split-out-bad-token.pdf"},
+             {$td->STRING => "", $td->EXIT_STATUS => 3},
+             $td->NORMALIZE_NEWLINES);
 
 $td->runtest("shared images in form xobject",
              {$td->COMMAND => "qpdf --qdf --static-id --split-pages".
@@ -2406,7 +2432,7 @@ $td->runtest("check output",
 show_ntests();
 # ----------
 $td->notify("--- Copy Foreign Objects ---");
-$n_tests += 7;
+$n_tests += 10;
 
 foreach my $d ([25, 1], [26, 2], [27, 3])
 {
@@ -2427,6 +2453,19 @@ $td->runtest("copy objects error",
              {$td->FILE => "copy-foreign-objects-errors.out",
               $td->EXIT_STATUS => 0},
              $td->NORMALIZE_NEWLINES);
+
+$td->runtest("indirect filters",
+             {$td->COMMAND => "test_driver 69 indirect-filter.pdf"},
+             {$td->STRING => "test 69 done\n", $td->EXIT_STATUS => 0},
+             $td->NORMALIZE_NEWLINES);
+foreach my $i (0, 1)
+{
+    $td->runtest("check output",
+                 {$td->FILE => "auto-$i.pdf"},
+                 {$td->FILE => "indirect-filter-out-$i.pdf"});
+}
+
+
 show_ntests();
 # ----------
 $td->notify("--- Error Condition Tests ---");
@@ -2472,7 +2511,7 @@ my @badfiles = ("not a PDF file", 			# 1
                 "startxref to space then eof",          # 38
 		);
 
-$n_tests += @badfiles + 6;
+$n_tests += @badfiles + 7;
 
 # Test 6 contains errors in the free table consistency, but we no
 # longer have any consistency check for this since it is not important
@@ -2499,6 +2538,10 @@ for (my $i = 1; $i <= scalar(@badfiles); ++$i)
 $td->runtest("Suppress warnings",
              {$td->COMMAND => "qpdf --no-warn bad14.pdf a.pdf"},
              {$td->STRING => "", $td->EXIT_STATUS => 3});
+$td->runtest("Suppress warnings",
+             {$td->COMMAND =>
+                  "qpdf --no-warn --warning-exit-0 bad14.pdf a.pdf"},
+             {$td->STRING => "", $td->EXIT_STATUS => 0});
 $td->runtest("Suppress warnings with --check",
              {$td->COMMAND => "qpdf --check --no-warn bad14.pdf"},
              {$td->FILE => "bad14-check-no-warn.out",

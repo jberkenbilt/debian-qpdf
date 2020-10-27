@@ -30,7 +30,7 @@
 #include <qpdf/QIntC.hh>
 
 static int constexpr EXIT_ERROR = 2;
-static int constexpr EXIT_WARNING = 3;
+static int EXIT_WARNING = 3;    // may be changed to 0 at runtime
 
 // For is-encrypted and requires-password
 static int constexpr EXIT_IS_NOT_ENCRYPTED = 2;
@@ -38,7 +38,7 @@ static int constexpr EXIT_CORRECT_PASSWORD = 3;
 
 static char const* whoami = 0;
 
-static std::string expected_version = "10.0.1";
+static std::string expected_version = "10.0.2";
 
 struct PageSpec
 {
@@ -773,6 +773,7 @@ class ArgParser
     void argVerbose();
     void argProgress();
     void argNoWarn();
+    void argWarningExitZero();
     void argDeterministicId();
     void argStaticId();
     void argStaticAesIv();
@@ -1017,6 +1018,7 @@ ArgParser::initOptionTable()
     (*t)["verbose"] = oe_bare(&ArgParser::argVerbose);
     (*t)["progress"] = oe_bare(&ArgParser::argProgress);
     (*t)["no-warn"] = oe_bare(&ArgParser::argNoWarn);
+    (*t)["warning-exit-0"] = oe_bare(&ArgParser::argWarningExitZero);
     (*t)["deterministic-id"] = oe_bare(&ArgParser::argDeterministicId);
     (*t)["static-id"] = oe_bare(&ArgParser::argStaticId);
     (*t)["static-aes-iv"] = oe_bare(&ArgParser::argStaticAesIv);
@@ -1230,6 +1232,7 @@ ArgParser::argHelp()
         << "--verbose               provide additional informational output\n"
         << "--progress              give progress indicators while writing output\n"
         << "--no-warn               suppress warnings\n"
+        << "--warning-exit-0        exit with code 0 instead of 3 if there are warnings\n"
         << "--linearize             generated a linearized (web optimized) file\n"
         << "--replace-input         use in place of specifying an output file; qpdf will\n"
         << "                        replace the input file with the output\n"
@@ -1276,7 +1279,9 @@ ArgParser::argHelp()
         << "format as with the --pages option, described below. Repeat the option\n"
         << "to rotate multiple groups of pages. If the angle is preceded by + or -,\n"
         << "it is added to or subtracted from the original rotation. Otherwise, the\n"
-        << "rotation angle is set explicitly to the given value.\n"
+        << "rotation angle is set explicitly to the given value. You almost always\n"
+        << "want to use + or - unless you are certain about the internals of the PDF\n"
+        << "you are working with.\n"
         << "\n"
         << "If --split-pages is specified, each page is written to a separate output\n"
         << "file. File names are generated as follows:\n"
@@ -1619,7 +1624,11 @@ ArgParser::argHelp()
         << "Ordinarily, qpdf exits with a status of 0 on success or a status of 2\n"
         << "if any errors occurred.  If there were warnings but not errors, qpdf\n"
         << "exits with a status of 3. If warnings would have been issued but --no-warn\n"
-        << "was given, an exit status of 3 is still used.\n";
+        << "was given, an exit status of 3 is still used. If you want qpdf to exit\n"
+        << "with status 0 when there are warnings, use the --warning-exit-0 flag.\n"
+        << "When --no-warn and --warning-exit-0 are used together, the effect is for\n"
+        << "qpdf to completely ignore warnings.  qpdf does not use exit status 1,\n"
+        << "since that is used by the shell if it can't execute qpdf.\n";
 }
 
 void
@@ -2113,6 +2122,12 @@ void
 ArgParser::argNoWarn()
 {
     o.suppress_warnings = true;
+}
+
+void
+ArgParser::argWarningExitZero()
+{
+    ::EXIT_WARNING = 0;
 }
 
 void
@@ -3510,14 +3525,14 @@ static void do_check(QPDF& pdf, Options& o, int& exit_code)
             catch (QPDFExc& e)
             {
                 okay = false;
-                std::cout << "page " << pageno << ": "
+                std::cerr << "ERROR: page " << pageno << ": "
                           << e.what() << std::endl;
             }
         }
     }
     catch (std::exception& e)
     {
-        std::cout << e.what() << std::endl;
+        std::cerr << "ERROR: " << e.what() << std::endl;
         okay = false;
     }
     if (okay)
@@ -3610,13 +3625,10 @@ static void do_show_pages(QPDF& pdf, Options& o)
             if (! images.empty())
             {
                 std::cout << "  images:" << std::endl;
-                for (std::map<std::string,
-                         QPDFObjectHandle>::iterator
-                         iter = images.begin();
-                     iter != images.end(); ++iter)
+                for (auto const& iter2: images)
                 {
-                    std::string const& name = (*iter).first;
-                    QPDFObjectHandle image = (*iter).second;
+                    std::string const& name = iter2.first;
+                    QPDFObjectHandle image = iter2.second;
                     QPDFObjectHandle dict = image.getDict();
                     int width =
                         dict.getKey("/Width").getIntValueAsInt();
@@ -3633,11 +3645,9 @@ static void do_show_pages(QPDF& pdf, Options& o)
         std::cout << "  content:" << std::endl;
         std::vector<QPDFObjectHandle> content =
             ph.getPageContents();
-        for (std::vector<QPDFObjectHandle>::iterator iter =
-                 content.begin();
-             iter != content.end(); ++iter)
+        for (auto& iter2: content)
         {
-            std::cout << "    " << (*iter).unparse() << std::endl;
+            std::cout << "    " << iter2.unparse() << std::endl;
         }
     }
 }
@@ -3693,7 +3703,7 @@ static void do_json_objectinfo(QPDF& pdf, Options& o, JSON& j)
     std::set<QPDFObjGen> wanted_og = get_wanted_json_objects(o);
     JSON j_objectinfo = j.addDictionaryMember(
         "objectinfo", JSON::makeDictionary());
-    for (auto obj: pdf.getAllObjects())
+    for (auto& obj: pdf.getAllObjects())
     {
         if (all_objects || wanted_og.count(obj.getObjGen()))
         {
@@ -3738,14 +3748,12 @@ static void do_json_pages(QPDF& pdf, Options& o, JSON& j)
             "images", JSON::makeArray());
         std::map<std::string, QPDFObjectHandle> images =
             ph.getPageImages();
-        for (std::map<std::string, QPDFObjectHandle>::iterator iter =
-                 images.begin();
-             iter != images.end(); ++iter)
+        for (auto const& iter2: images)
         {
             JSON j_image = j_images.addArrayElement(JSON::makeDictionary());
             j_image.addDictionaryMember(
-                "name", JSON::makeString((*iter).first));
-            QPDFObjectHandle image = (*iter).second;
+                "name", JSON::makeString(iter2.first));
+            QPDFObjectHandle image = iter2.second;
             QPDFObjectHandle dict = image.getDict();
             j_image.addDictionaryMember("object", image.getJSON());
             j_image.addDictionaryMember(
@@ -3783,10 +3791,9 @@ static void do_json_pages(QPDF& pdf, Options& o, JSON& j)
         JSON j_contents = j_page.addDictionaryMember(
             "contents", JSON::makeArray());
         std::vector<QPDFObjectHandle> content = ph.getPageContents();
-        for (std::vector<QPDFObjectHandle>::iterator iter = content.begin();
-             iter != content.end(); ++iter)
+        for (auto& iter2: content)
         {
-            j_contents.addArrayElement((*iter).getJSON());
+            j_contents.addArrayElement(iter2.getJSON());
         }
         j_page.addDictionaryMember(
             "label", pldh.getLabelForPage(pageno).getJSON());
@@ -4761,12 +4768,10 @@ static void handle_transformations(QPDF& pdf, Options& o)
             QPDFObjectHandle page = ph.getObjectHandle();
             std::map<std::string, QPDFObjectHandle> images =
                 ph.getPageImages();
-            for (std::map<std::string, QPDFObjectHandle>::iterator iter =
-                     images.begin();
-                 iter != images.end(); ++iter)
+            for (auto& iter2: images)
             {
-                std::string name = (*iter).first;
-                QPDFObjectHandle& image = (*iter).second;
+                std::string name = iter2.first;
+                QPDFObjectHandle& image = iter2.second;
                 ImageOptimizer* io = new ImageOptimizer(o, image);
                 PointerHolder<QPDFObjectHandle::StreamDataProvider> sdp(io);
                 if (io->evaluate("image " + name + " on page " +
@@ -4922,7 +4927,7 @@ static bool should_remove_unreferenced_resources(QPDF& pdf, Options& o)
             }
             if (xobject.isDictionary())
             {
-                for (auto k: xobject.getKeys())
+                for (auto const& k: xobject.getKeys())
                 {
                     QPDFObjectHandle xobj = xobject.getKey(k);
                     if (xobj.isStream() &&
@@ -5588,6 +5593,10 @@ static void do_split_pages(QPDF& pdf, Options& o)
         }
         QPDF outpdf;
         outpdf.emptyPDF();
+        if (o.suppress_warnings)
+        {
+            outpdf.setSuppressWarnings(true);
+        }
         for (size_t pageno = first; pageno <= last; ++pageno)
         {
             QPDFObjectHandle page = pages.at(pageno - 1);
@@ -5725,7 +5734,7 @@ int realmain(int argc, char* argv[])
             {
                 // Allow --is-encrypted and --requires-password to
                 // work when an incorrect password is supplied.
-                exit(0);
+                return 0;
             }
             throw e;
         }
@@ -5734,22 +5743,22 @@ int realmain(int argc, char* argv[])
         {
             if (pdf.isEncrypted())
             {
-                exit(0);
+                return 0;
             }
             else
             {
-                exit(EXIT_IS_NOT_ENCRYPTED);
+                return EXIT_IS_NOT_ENCRYPTED;
             }
         }
         else if (o.check_requires_password)
         {
             if (pdf.isEncrypted())
             {
-                exit(EXIT_CORRECT_PASSWORD);
+                return EXIT_CORRECT_PASSWORD;
             }
             else
             {
-                exit(EXIT_IS_NOT_ENCRYPTED);
+                return EXIT_IS_NOT_ENCRYPTED;
             }
         }
         if (! o.page_specs.empty())
@@ -5783,14 +5792,14 @@ int realmain(int argc, char* argv[])
                           << " resulting file may have some problems"
                           << std::endl;
             }
-            // Still exit with warning code even if warnings were suppressed.
-            exit(EXIT_WARNING);
+            // Still return with warning code even if warnings were suppressed.
+            return EXIT_WARNING;
 	}
     }
     catch (std::exception& e)
     {
 	std::cerr << e.what() << std::endl;
-	exit(EXIT_ERROR);
+	return EXIT_ERROR;
     }
 
     return 0;

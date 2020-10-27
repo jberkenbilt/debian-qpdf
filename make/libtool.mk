@@ -47,10 +47,10 @@ define compile
 		-c $(1) -o $(call src_to_obj,$(1))
 endef
 
-#                       1   2
-# Usage: $(call c_compile,src,includes)
+#                         1   2        3
+# Usage: $(call c_compile,src,includes,xflags)
 define c_compile
-	$(CC) $(CFLAGS) \
+	$(CC) $(CFLAGS) $(3) \
 		$(call depflags,$(basename $(call c_src_to_obj,$(1)))) \
 		$(foreach I,$(2),-I$(I)) \
 		$(CPPFLAGS) \
@@ -95,7 +95,7 @@ define makelib
 	$(LIBTOOL) --mode=link \
 		$(CXX) $(CXXFLAGS) $(LD_VERSION_FLAGS) \
 		 -o $(2) $(1) $(3) $(4) \
-		 -rpath $(libdir) -version-info $(5):$(6):$(7) -no-undefined
+		 $(RPATH) -version-info $(5):$(6):$(7) -no-undefined
 endef
 
 #                       1    2      3       4    5
@@ -106,6 +106,8 @@ endef
 
 # Install target
 
+# NOTE: If installing any new executables, remember to update the
+# lambda layer code in build-scripts/build-appimage.
 install: all
 	./mkinstalldirs -m 0755 $(DESTDIR)$(libdir)/pkgconfig
 	./mkinstalldirs -m 0755 $(DESTDIR)$(bindir)

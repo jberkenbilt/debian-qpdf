@@ -8,6 +8,7 @@ BINS_qpdf = \
     test_pdf_doc_encoding \
     test_pdf_unicode \
     test_renumber \
+    test_shell_glob \
     test_tokenizer \
     test_unicode_filenames \
     test_xref
@@ -23,15 +24,14 @@ TC_SRCS_qpdf = $(wildcard libqpdf/*.cc) $(wildcard qpdf/*.cc)
 
 # -----
 
-XCXXFLAGS_qpdf_qpdf := $(WINDOWS_WMAIN_COMPILE)
-XLDFLAGS_qpdf_qpdf := $(WINDOWS_WMAIN_LINK)
-XLINK_FLAGS_qpdf_qpdf := $(WINDOWS_WMAIN_XLINK_FLAGS)
-XCXXFLAGS_qpdf_test_unicode_filenames := $(WINDOWS_WMAIN_COMPILE)
-XLDFLAGS_qpdf_test_unicode_filenames := $(WINDOWS_WMAIN_LINK)
-XLINK_FLAGS_qpdf_test_unicode_filenames := $(WINDOWS_WMAIN_XLINK_FLAGS)
-XCXXFLAGS_qpdf_fix-qdf := $(WINDOWS_WMAIN_COMPILE)
-XLDFLAGS_qpdf_fix-qdf := $(WINDOWS_WMAIN_LINK)
-XLINK_FLAGS_qpdf_fix-qdf := $(WINDOWS_WMAIN_XLINK_FLAGS)
+define use_wmain
+  XCXXFLAGS_qpdf_$(1) := $(WINDOWS_WMAIN_COMPILE)
+  XLDFLAGS_qpdf_$(1) := $(WINDOWS_WMAIN_LINK)
+  XLINK_FLAGS_qpdf_$(1) := $(WINDOWS_WMAIN_XLINK_FLAGS)
+endef
+
+$(foreach B,qpdf test_unicode_filenames fix-qdf test_shell_glob,\
+  $(eval $(call use_wmain,$(B))))
 
 $(foreach B,$(BINS_qpdf),$(eval \
   OBJS_$(B) = $(call src_to_obj,qpdf/$(B).cc)))
@@ -48,7 +48,7 @@ $(foreach B,$(BINS_qpdf),$(eval \
 
 $(foreach B,$(CBINS_qpdf),$(eval \
   $(OBJS_$(B)): qpdf/$(OUTPUT_DIR)/%.$(OBJ): qpdf/$(B).c ; \
-	$(call c_compile,qpdf/$(B).c,$(INCLUDES_qpdf))))
+	$(call c_compile,qpdf/$(B).c,$(INCLUDES_qpdf),$(XCFLAGS_qpdf_$(B)))))
 
 $(foreach B,$(BINS_qpdf) $(CBINS_qpdf),$(eval \
   qpdf/$(OUTPUT_DIR)/$(call binname,$(B)): $(OBJS_$(B)) ; \
