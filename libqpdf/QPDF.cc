@@ -25,7 +25,7 @@
 #include <qpdf/QPDF_Stream.hh>
 #include <qpdf/QPDF_Array.hh>
 
-std::string QPDF::qpdf_version = "10.0.2";
+std::string QPDF::qpdf_version = "10.0.3";
 
 static char const* EMPTY_PDF =
     "%PDF-1.3\n"
@@ -2253,9 +2253,50 @@ QPDF::replaceReserved(QPDFObjectHandle reserved,
 QPDFObjectHandle
 QPDF::copyForeignObject(QPDFObjectHandle foreign)
 {
-    // Do not preclude use of copyForeignObject on page objects. It is
-    // a documented use case to copy pages this way if the intention
-    // is to not update the pages tree.
+    // Here's an explanation of what's going on here.
+    //
+    // A QPDFObjectHandle that is an indirect object has an owning
+    // QPDF. The object ID and generation refers to an object in the
+    // owning QPDF. When we copy the QPDFObjectHandle from a foreign
+    // QPDF into the local QPDF, we have to replace all indirect
+    // object references with references to the corresponding object
+    // in the local file.
+    //
+    // To do this, we maintain mappings from foreign object IDs to
+    // local object IDs for each foreign QPDF that we are copying
+    // from. The mapping is stored in an ObjCopier, which contains a
+    // mapping from the foreign ObjGen to the local QPDFObjectHandle.
+    //
+    // To copy, we do a deep traversal of the foreign object with loop
+    // detection to discover all indirect objects that are
+    // encountered, stopping at page boundaries. Whenever we encounter
+    // an indirect object, we check to see if we have already created
+    // a local copy of it. If not, we allocate a "reserved" object
+    // (or, for a stream, just a new stream) and store in the map the
+    // mapping from the foreign object ID to the new object. While we
+    // do this, we keep a list of objects to copy.
+    //
+    // Once we are done with the traversal, we copy all the objects
+    // that we need to copy. However, the copies will contain indirect
+    // object IDs that refer to objects in the foreign file. We need
+    // to replace them with references to objects in the local file.
+    // This is what replaceForeignIndirectObjects does. Once we have
+    // created a copy of the foreign object with all the indirect
+    // references replaced with new ones in the local context, we can
+    // replace the local reserved object with the copy. This mechanism
+    // allows us to copy objects with circular references in any
+    // order.
+
+    // For streams, rather than copying the objects, we set up the
+    // stream data to pull from the original stream by using a stream
+    // data provider. This is done in a manner that doesn't require
+    // the original QPDF object but may require the original source of
+    // the stream data with special handling for immediate_copy_from.
+    // This logic is also in replaceForeignIndirectObjects.
+
+    // Note that we explicitly allow use of copyForeignObject on page
+    // objects. It is a documented use case to copy pages this way if
+    // the intention is to not update the pages tree.
     if (! foreign.isIndirect())
     {
         QTC::TC("qpdf", "QPDF copyForeign direct");
@@ -2317,8 +2358,7 @@ QPDF::reserveObjects(QPDFObjectHandle foreign, ObjCopier& obj_copier,
     if (foreign.isReserved())
     {
         throw std::logic_error(
-            "QPDF: attempting to copy a foreign reserved object: " +
-            QUtil::int_to_string(foreign.getObjectID()));
+            "QPDF: attempting to copy a foreign reserved object");
     }
 
     if (foreign.isPagesObject())
@@ -2491,16 +2531,6 @@ QPDF::replaceForeignIndirectObjects(
         }
         PointerHolder<Buffer> stream_buffer =
             stream->getStreamDataBuffer();
-        // Note: at this stage, dictionary keys may still be reserved.
-        // We have to handle that explicitly if we access anything.
-        auto get_as_direct = [&old_dict] (std::string const& key) {
-            QPDFObjectHandle obj = old_dict.getKey(key);
-            obj.makeDirect();
-            return obj;
-        };
-
-        QPDFObjectHandle filter = get_as_direct("/Filter");
-        QPDFObjectHandle decode_parms = get_as_direct("/DecodeParms");
         if ((foreign_stream_qpdf->m->immediate_copy_from) &&
             (stream_buffer.getPointer() == 0))
         {
@@ -2510,7 +2540,8 @@ QPDF::replaceForeignIndirectObjects(
             // have to keep duplicating the memory.
             QTC::TC("qpdf", "QPDF immediate copy stream data");
             foreign.replaceStreamData(foreign.getRawStreamData(),
-                                      filter, decode_parms);
+                                      old_dict.getKey("/Filter"),
+                                      old_dict.getKey("/DecodeParms"));
             stream_buffer = stream->getStreamDataBuffer();
         }
         PointerHolder<QPDFObjectHandle::StreamDataProvider> stream_provider =
@@ -2518,7 +2549,9 @@ QPDF::replaceForeignIndirectObjects(
         if (stream_buffer.getPointer())
         {
             QTC::TC("qpdf", "QPDF copy foreign stream with buffer");
-            result.replaceStreamData(stream_buffer, filter, decode_parms);
+            result.replaceStreamData(stream_buffer,
+                                     dict.getKey("/Filter"),
+                                     dict.getKey("/DecodeParms"));
         }
         else if (stream_provider.getPointer())
         {
@@ -2527,7 +2560,8 @@ QPDF::replaceForeignIndirectObjects(
             this->m->copied_stream_data_provider->registerForeignStream(
                 local_og, foreign);
             result.replaceStreamData(this->m->copied_streams,
-                                     filter, decode_parms);
+                                     dict.getKey("/Filter"),
+                                     dict.getKey("/DecodeParms"));
         }
         else
         {
@@ -2545,7 +2579,8 @@ QPDF::replaceForeignIndirectObjects(
             this->m->copied_stream_data_provider->registerForeignStream(
                 local_og, foreign_stream_data);
             result.replaceStreamData(this->m->copied_streams,
-                                     filter, decode_parms);
+                                     dict.getKey("/Filter"),
+                                     dict.getKey("/DecodeParms"));
         }
     }
     else
