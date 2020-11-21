@@ -1,3 +1,10 @@
+qpdf (10.0.4-1) unstable; urgency=medium
+
+  * New upstream release.
+  * Update standards to 4.5.1. No changes required.
+
+ -- Jay Berkenbilt <qjb@debian.org>  Sat, 21 Nov 2020 14:34:52 -0500
+
 qpdf (10.0.3-1) unstable; urgency=medium
 
   * New upstream release.
