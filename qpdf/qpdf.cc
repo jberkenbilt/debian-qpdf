@@ -38,7 +38,7 @@ static int constexpr EXIT_CORRECT_PASSWORD = 3;
 
 static char const* whoami = 0;
 
-static std::string expected_version = "10.0.3";
+static std::string expected_version = "10.0.4";
 
 struct PageSpec
 {
@@ -398,7 +398,7 @@ static JSON json_schema(std::set<std::string>* keys = 0)
             JSON::makeString("if stream, its length, otherwise null"));
         stream.addDictionaryMember(
             "filter",
-            JSON::makeString("if stream, its length, otherwise null"));
+            JSON::makeString("if stream, its filters, otherwise null"));
     }
     if (all_keys || keys->count("pages"))
     {
@@ -2877,9 +2877,17 @@ ArgParser::parsePagesOptions()
                 // The range is invalid.  Let's see if it's a file.
                 try
                 {
-                    fclose(QUtil::safe_fopen(range, "rb"));
-                    // Yup, it's a file.
-                    QTC::TC("qpdf", "qpdf pages range omitted in middle");
+                    if (strcmp(range, ".") == 0)
+                    {
+                        // "." means the input file.
+                        QTC::TC("qpdf", "qpdf pages range omitted with .");
+                    }
+                    else
+                    {
+                        fclose(QUtil::safe_fopen(range, "rb"));
+                        QTC::TC("qpdf", "qpdf pages range omitted in middle");
+                        // Yup, it's a file.
+                    }
                     range_omitted = true;
                 }
                 catch (std::runtime_error&)
