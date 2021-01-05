@@ -14,7 +14,6 @@
 #include <qpdf/QPDF_Stream.hh>
 #include <qpdf/QPDF_Reserved.hh>
 #include <qpdf/Pl_Buffer.hh>
-#include <qpdf/Pl_Concatenate.hh>
 #include <qpdf/Pl_QPDFTokenizer.hh>
 #include <qpdf/BufferInputSource.hh>
 #include <qpdf/QPDFExc.hh>
@@ -90,13 +89,11 @@ void
 CoalesceProvider::provideStreamData(int, int, Pipeline* p)
 {
     QTC::TC("qpdf", "QPDFObjectHandle coalesce provide stream data");
-    Pl_Concatenate concat("concatenate", p);
     std::string description = "page object " +
         QUtil::int_to_string(containing_page.getObjectID()) + " " +
         QUtil::int_to_string(containing_page.getGeneration());
     std::string all_description;
-    old_contents.pipeContentStreams(&concat, description, all_description);
-    concat.manualFinish();
+    old_contents.pipeContentStreams(p, description, all_description);
 }
 
 void
@@ -1176,6 +1173,20 @@ QPDFObjectHandle::getDict()
     return dynamic_cast<QPDF_Stream*>(obj.getPointer())->getDict();
 }
 
+void
+QPDFObjectHandle::setFilterOnWrite(bool val)
+{
+    assertStream();
+    dynamic_cast<QPDF_Stream*>(obj.getPointer())->setFilterOnWrite(val);
+}
+
+bool
+QPDFObjectHandle::getFilterOnWrite()
+{
+    assertStream();
+    return dynamic_cast<QPDF_Stream*>(obj.getPointer())->getFilterOnWrite();
+}
+
 bool
 QPDFObjectHandle::isDataModified()
 {
@@ -1306,35 +1317,7 @@ QPDFObjectHandle::getGeneration() const
 std::map<std::string, QPDFObjectHandle>
 QPDFObjectHandle::getPageImages()
 {
-    std::map<std::string, QPDFObjectHandle> result;
-    QPDFObjectHandle resources =
-        QPDFPageObjectHelper(*this).getAttribute("/Resources", false);
-    if (resources.isDictionary())
-    {
-	if (resources.hasKey("/XObject"))
-	{
-	    QPDFObjectHandle xobject = resources.getKey("/XObject");
-	    std::set<std::string> keys = xobject.getKeys();
-	    for (std::set<std::string>::iterator iter = keys.begin();
-		 iter != keys.end(); ++iter)
-	    {
-		std::string key = (*iter);
-		QPDFObjectHandle value = xobject.getKey(key);
-		if (value.isStream())
-		{
-		    QPDFObjectHandle dict = value.getDict();
-		    if (dict.hasKey("/Subtype") &&
-			(dict.getKey("/Subtype").getName() == "/Image") &&
-			(! dict.hasKey("/ImageMask")))
-		    {
-			result[key] = value;
-		    }
-		}
-	    }
-	}
-    }
-
-    return result;
+    return QPDFPageObjectHelper(*this).getImages();
 }
 
 std::vector<QPDFObjectHandle>
@@ -1644,14 +1627,15 @@ QPDFObjectHandle::pipeContentStreams(
         arrayOrStreamToStreamArray(
             description, all_description);
     bool need_newline = false;
+    Pl_Buffer buf("concatenated content stream buffer");
     for (std::vector<QPDFObjectHandle>::iterator iter = streams.begin();
          iter != streams.end(); ++iter)
     {
         if (need_newline)
         {
-            p->write(QUtil::unsigned_char_pointer("\n"), 1);
+            buf.write(QUtil::unsigned_char_pointer("\n"), 1);
         }
-        LastChar lc(p);
+        LastChar lc(&buf);
         QPDFObjectHandle stream = *iter;
         std::string og =
             QUtil::int_to_string(stream.getObjectID()) + " " +
@@ -1669,6 +1653,9 @@ QPDFObjectHandle::pipeContentStreams(
         QTC::TC("qpdf", "QPDFObjectHandle need_newline",
                 need_newline ? 0 : 1);
     }
+    std::unique_ptr<Buffer> b(buf.getBuffer());
+    p->write(b->getBuffer(), b->getSize());
+    p->finish();
 }
 
 void
@@ -1679,6 +1666,15 @@ QPDFObjectHandle::parsePageContents(ParserCallbacks* callbacks)
         QUtil::int_to_string(this->generation);
     this->getKey("/Contents").parseContentStream_internal(
         description, callbacks);
+}
+
+void
+QPDFObjectHandle::parseAsContents(ParserCallbacks* callbacks)
+{
+    std::string description = "object " +
+        QUtil::int_to_string(this->objid) + " " +
+        QUtil::int_to_string(this->generation);
+    this->parseContentStream_internal(description, callbacks);
 }
 
 void
@@ -2605,18 +2601,24 @@ QPDFObjectHandle::shallowCopyInternal(QPDFObjectHandle& new_obj,
     }
 
     std::set<QPDFObjGen> visited;
-    new_obj.copyObject(visited, false, first_level_only);
+    new_obj.copyObject(visited, false, first_level_only, false);
 }
 
 void
 QPDFObjectHandle::copyObject(std::set<QPDFObjGen>& visited,
-                             bool cross_indirect, bool first_level_only)
+                             bool cross_indirect, bool first_level_only,
+                             bool stop_at_streams)
 {
     assertInitialized();
 
     if (isStream())
     {
-	QTC::TC("qpdf", "QPDFObjectHandle ERR clone stream");
+	QTC::TC("qpdf", "QPDFObjectHandle copy stream",
+                stop_at_streams ? 0 : 1);
+        if (stop_at_streams)
+        {
+            return;
+        }
 	throw std::runtime_error(
 	    "attempt to make a stream into a direct object");
     }
@@ -2690,7 +2692,8 @@ QPDFObjectHandle::copyObject(std::set<QPDFObjGen>& visited,
                 (cross_indirect || (! items.back().isIndirect())))
             {
                 items.back().copyObject(
-                    visited, cross_indirect, first_level_only);
+                    visited, cross_indirect,
+                    first_level_only, stop_at_streams);
             }
 	}
 	new_obj = new QPDF_Array(items);
@@ -2708,7 +2711,8 @@ QPDFObjectHandle::copyObject(std::set<QPDFObjGen>& visited,
                 (cross_indirect || (! items[*iter].isIndirect())))
             {
                 items[*iter].copyObject(
-                    visited, cross_indirect, first_level_only);
+                    visited, cross_indirect,
+                    first_level_only, stop_at_streams);
             }
 	}
 	new_obj = new QPDF_Dictionary(items);
@@ -2730,8 +2734,14 @@ QPDFObjectHandle::copyObject(std::set<QPDFObjGen>& visited,
 void
 QPDFObjectHandle::makeDirect()
 {
+    makeDirect(false);
+}
+
+void
+QPDFObjectHandle::makeDirect(bool allow_streams)
+{
     std::set<QPDFObjGen> visited;
-    copyObject(visited, true, false);
+    copyObject(visited, true, false, allow_streams);
 }
 
 void
@@ -2932,6 +2942,35 @@ QPDFObjectHandle::isPagesObject()
 {
     // Some PDF files have /Type broken on pages.
     return (this->isDictionary() && this->hasKey("/Kids"));
+}
+
+bool
+QPDFObjectHandle::isFormXObject()
+{
+    if (! this->isStream())
+    {
+        return false;
+    }
+    QPDFObjectHandle dict = this->getDict();
+    return (dict.getKey("/Type").isName() &&
+            ("/XObject" == dict.getKey("/Type").getName()) &&
+            dict.getKey("/Subtype").isName() &&
+            ("/Form" == dict.getKey("/Subtype").getName()));
+}
+
+bool
+QPDFObjectHandle::isImage(bool exclude_imagemask)
+{
+    if (! this->isStream())
+    {
+        return false;
+    }
+    QPDFObjectHandle dict = this->getDict();
+    return (dict.hasKey("/Subtype") &&
+            (dict.getKey("/Subtype").getName() == "/Image") &&
+            ((! exclude_imagemask) ||
+             (! (dict.getKey("/ImageMask").isBool() &&
+                 dict.getKey("/ImageMask").getBoolValue()))));
 }
 
 void

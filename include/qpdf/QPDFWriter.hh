@@ -1,4 +1,4 @@
-// Copyright (c) 2005-2020 Jay Berkenbilt
+// Copyright (c) 2005-2021 Jay Berkenbilt
 //
 // This file is part of qpdf.
 //
@@ -529,6 +529,9 @@ class QPDFWriter
     void writeTrailer(trailer_e which, int size,
 		      bool xref_stream, qpdf_offset_t prev,
                       int linearization_pass);
+    bool willFilterStream(QPDFObjectHandle stream,
+                          bool& compress_stream, bool& is_metadata,
+                          PointerHolder<Buffer>* stream_data);
     void unparseObject(QPDFObjectHandle object, int level, int flags,
 		       // for stream dictionaries
 		       size_t stream_length = 0, bool compress = false);

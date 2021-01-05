@@ -5,8 +5,8 @@
 <!ENTITY mdash "&#x2014;">
 <!ENTITY ndash "&#x2013;">
 <!ENTITY nbsp "&#xA0;">
-<!ENTITY swversion "10.0.4">
-<!ENTITY lastreleased "November 21, 2020">
+<!ENTITY swversion "10.1.0">
+<!ENTITY lastreleased "January 5, 2021">
 ]>
 <book>
  <bookinfo>
@@ -1059,6 +1059,19 @@ make
         When specified, collate rather than concatenate pages from
         files specified with <option>--pages</option>.  See <xref
         linkend="ref.page-selection"/> for additional details.
+       </para>
+      </listitem>
+     </varlistentry>
+     <varlistentry>
+      <term><option>--flatten-rotation</option></term>
+      <listitem>
+       <para>
+        For each page that is rotated using the
+        <literal>/Rotate</literal> key in the page's dictionary,
+        remove the <literal>/Rotate</literal> key and implement the
+        identical rotation semantics by modifying the page's contents.
+        This option can be useful to prepare files for buggy PDF
+        applications that don't properly handle rotated pages.
        </para>
       </listitem>
      </varlistentry>
@@ -4805,6 +4818,229 @@ print "\n";
     </listitem>
    </varlistentry>
 -->
+   <varlistentry>
+    <term>10.1.0: January 5, 2021</term>
+    <listitem>
+     <itemizedlist>
+      <listitem>
+       <para>
+        CLI Enhancements
+       </para>
+       <itemizedlist>
+        <listitem>
+         <para>
+          Add <option>--flatten-rotation</option> command-line option,
+          which causes all pages that are rotated using parameters in
+          the page's dictionary to instead be identically rotated in
+          the page's contents. The change is not user-visible for
+          compliant PDF readers but can be used to work around broken
+          PDF applications that don't properly handle page rotation.
+         </para>
+        </listitem>
+       </itemizedlist>
+      </listitem>
+      <listitem>
+       <para>
+        Library Enhancements
+       </para>
+       <itemizedlist>
+        <listitem>
+         <para>
+          Support for user-provided (pluggable, modular) stream
+          filters. It is now possible to derive a class from
+          <classname>QPDFStreamFilter</classname> and register it with
+          <classname>QPDF</classname> so that regular library methods,
+          including those used by <classname>QPDFWriter</classname>,
+          can decode streams with filters not directly supported by
+          the library. The example
+          <filename>examples/pdf-custom-filter.cc</filename>
+          illustrates how to use this capability.
+         </para>
+        </listitem>
+        <listitem>
+         <para>
+          Add methods to <classname>QPDFPageObjectHelper</classname>
+          to iterate through XObjects on a page or form XObjects,
+          possibly recursing into nested form XObjects:
+          <function>forEachXObject</function>,
+          <function>ForEachImage</function>,
+          <function>forEachFormXObject</function>.
+         </para>
+        </listitem>
+        <listitem>
+         <para>
+          Enhance several methods in
+          <classname>QPDFPageObjectHelper</classname> to work with
+          form XObjects as well as pages, as noted in comments. See
+          <filename>ChangeLog</filename> for a full list.
+         </para>
+        </listitem>
+        <listitem>
+         <para>
+          Rename some functions in
+          <classname>QPDFPageObjectHelper</classname>, while keeping
+          old names for compatibility:
+          <itemizedlist>
+           <listitem>
+            <para>
+             <function>getPageImages</function> to
+             <function>getImages</function>
+            </para>
+           </listitem>
+           <listitem>
+            <para>
+             <function>filterPageContents</function> to
+             <function>filterContents</function>
+            </para>
+           </listitem>
+           <listitem>
+            <para>
+             <function>pipePageContents</function> to
+             <function>pipeContents</function>
+            </para>
+           </listitem>
+           <listitem>
+            <para>
+             <function>parsePageContents</function> to
+             <function>parseContents</function>
+            </para>
+           </listitem>
+          </itemizedlist>
+         </para>
+        </listitem>
+        <listitem>
+         <para>
+          Add method
+          <function>QPDFPageObjectHelper::getFormXObjects</function>
+          to return a map of form XObjects directly on a page or form
+          XObject
+         </para>
+        </listitem>
+        <listitem>
+         <para>
+          Add new helper methods to
+          <classname>QPDFObjectHandle</classname>:
+          <function>isFormXObject</function>, <function>isImage</function>
+         </para>
+        </listitem>
+        <listitem>
+         <para>
+          Add the optional <function>allow_streams</function>
+          parameter <function>QPDFObjectHandle::makeDirect</function>.
+          When <function>QPDFObjectHandle::makeDirect</function> is
+          called in this way, it preserves references to streams
+          rather than throwing an exception.
+         </para>
+        </listitem>
+        <listitem>
+         <para>
+          Add <function>QPDFObjectHandle::setFilterOnWrite</function>
+          method. Calling this on a stream prevents
+          <function>QPDFWriter</function> from attempting to
+          uncompress, recompress, or otherwise filter a stream even if
+          it could. Developers can use this to protect streams that
+          are optimized should be protected from
+          <classname>QPDFWriter</classname>'s default behavior for any
+          other reason.
+         </para>
+        </listitem>
+        <listitem>
+         <para>
+          Add <classname>ostream</classname>
+          <literal>&lt;&lt;</literal> operator for
+          <classname>QPDFObjGen</classname>. This is useful to have
+          for debugging.
+         </para>
+        </listitem>
+        <listitem>
+         <para>
+          Add method
+          <function>QPDFPageObjectHelper::flattenRotation</function>,
+          which replaces a page's <literal>/Rotate</literal> keyword
+          by rotating the page within the content stream and altering
+          the page's bounding boxes so the rendering is the same. This
+          can be used to work around buggy PDF readers that can't
+          properly handle page rotation.
+         </para>
+        </listitem>
+       </itemizedlist>
+      </listitem>
+      <listitem>
+       <para>
+        C API Enhancements
+       </para>
+       <itemizedlist>
+        <listitem>
+         <para>
+          Add several new functions to the C API for working with
+          objects. These are wrappers around many of the methods in
+          <classname>QPDFObjectHandle</classname>. Their inclusion
+          adds considerable new capability to the C API.
+         </para>
+        </listitem>
+        <listitem>
+         <para>
+          Add <function>qpdf_register_progress_reporter</function> to
+          the C API, corresponding to
+          <function>QPDFWriter::registerProgressReporter</function>.
+         </para>
+        </listitem>
+       </itemizedlist>
+      </listitem>
+      <listitem>
+       <para>
+        Performance Enhancements
+       </para>
+       <itemizedlist>
+        <listitem>
+         <para>
+          Improve steps <classname>QPDFWriter</classname> takes to
+          prepare a <classname>QPDF</classname> object for writing,
+          resulting in about an 8% improvement in write performance
+          while allowing indirect objects to appear in
+          <literal>/DecodeParms</literal>.
+         </para>
+        </listitem>
+        <listitem>
+         <para>
+          When extracting pages, the <command>qpdf</command> CLI only
+          removes unreferenced resources from the pages that are being
+          kept, resulting in a significant performance improvement
+          when extracting small numbers of pages from large, complex
+          documents.
+         </para>
+        </listitem>
+       </itemizedlist>
+      </listitem>
+      <listitem>
+       <para>
+        Bug Fixes
+       </para>
+       <itemizedlist>
+        <listitem>
+         <para>
+          <function>QPDFPageObjectHelper::externalizeInlineImages</function>
+          was not externalizing images referenced from form XObjects
+          that appeared on the page.
+         </para>
+        </listitem>
+        <listitem>
+         <para>
+          <function>QPDFObjectHandle::filterPageContents</function>
+          was broken for pages with multiple content streams.
+         </para>
+        </listitem>
+        <listitem>
+         <para>
+          Tweak zsh completion code to behave a little better with
+          respect to path completion.
+         </para>
+        </listitem>
+       </itemizedlist>
+      </listitem>
+     </itemizedlist>
+    </listitem>
+   </varlistentry>
    <varlistentry>
     <term>10.0.4: November 21, 2020</term>
     <listitem>

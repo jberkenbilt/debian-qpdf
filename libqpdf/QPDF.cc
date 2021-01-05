@@ -25,7 +25,7 @@
 #include <qpdf/QPDF_Stream.hh>
 #include <qpdf/QPDF_Array.hh>
 
-std::string QPDF::qpdf_version = "10.0.4";
+std::string QPDF::qpdf_version = "10.1.0";
 
 static char const* EMPTY_PDF =
     "%PDF-1.3\n"
@@ -267,6 +267,14 @@ void
 QPDF::emptyPDF()
 {
     processMemoryFile("empty PDF", EMPTY_PDF, strlen(EMPTY_PDF));
+}
+
+void
+QPDF::registerStreamFilter(
+    std::string const& filter_name,
+    std::function<std::shared_ptr<QPDFStreamFilter> ()> factory)
+{
+    QPDF_Stream::registerStreamFilter(filter_name, factory);
 }
 
 void

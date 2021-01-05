@@ -79,14 +79,14 @@ QPDFObjectHandle clone string 0
 QPDFObjectHandle clone array 0
 QPDFObjectHandle clone dictionary 0
 QPDFObjectHandle makeDirect loop 0
-QPDFObjectHandle ERR clone stream 0
+QPDFObjectHandle copy stream 1
 QPDF default for xref stream field 0 0
 QPDF prev key in xref stream dictionary 0
 QPDF prev key in trailer dictionary 0
 QPDF found xref stream 0
 QPDF ignoring XRefStm in trailer 0
 QPDF xref deleted object 0
-QPDF_Stream PNG filter 0
+SF_FlateLzwDecode PNG filter 0
 QPDF xref /Index is null 0
 QPDF xref /Index is array 1
 QPDFWriter copy Extends 0
@@ -234,7 +234,6 @@ QPDFWriter extra header text no newline 0
 QPDFWriter extra header text add newline 0
 QPDF bogus 0 offset 0
 QPDF global offset 0
-QPDFWriter make stream key direct 0
 QPDFWriter copy V5 0
 QPDFWriter increasing extension level 0
 QPDFWriter make Extensions direct 0
@@ -294,7 +293,7 @@ qpdf-c called qpdf_set_decode_level 0
 qpdf-c called qpdf_set_compress_streams 0
 qpdf-c called qpdf_set_preserve_unreferenced_objects 0
 qpdf-c called qpdf_set_newline_before_endstream 0
-QPDF_Stream TIFF predictor 0
+SF_FlateLzwDecode TIFF predictor 0
 QPDFTokenizer inline image at EOF 0
 Pl_QPDFTokenizer found ID 0
 QPDFObjectHandle non-stream in stream array 0
@@ -423,7 +422,7 @@ QPDFFormFieldObjectHelper create AP from scratch 0
 QPDFFormFieldObjectHelper replaced BMC at EOF 0
 QPDFFormFieldObjectHelper fallback Tf 0
 QPDFPageObjectHelper non-trivial inheritance 0
-QPDFPageObjectHelper copy shared attribute 0
+QPDFPageObjectHelper copy shared attribute 1
 qpdf from_nr from repeat_nr 0
 QPDF resolve duplicated page object 0
 QPDF handle direct page object 0
@@ -457,3 +456,69 @@ QPDF copy foreign with data 1
 QPDF copy foreign with foreign_stream 1
 QPDFObjectHandle need_newline 1
 qpdf pages range omitted with . 0
+qpdf-c invalid object handle 0
+qpdf-c called qpdf_oh_release 0
+qpdf-c called qpdf_oh_release_all 0
+qpdf-c called qpdf_get_trailer 0
+qpdf-c called qpdf_get_root 0
+qpdf-c called qpdf_oh_is_bool 0
+qpdf-c called qpdf_oh_is_null 0
+qpdf-c called qpdf_oh_is_integer 0
+qpdf-c called qpdf_oh_is_real 0
+qpdf-c called qpdf_oh_is_name 0
+qpdf-c called qpdf_oh_is_string 0
+qpdf-c called qpdf_oh_is_operator 0
+qpdf-c called qpdf_oh_is_inline_image 0
+qpdf-c called qpdf_oh_is_array 0
+qpdf-c called qpdf_oh_is_dictionary 0
+qpdf-c called qpdf_oh_is_stream 0
+qpdf-c called qpdf_oh_is_indirect 0
+qpdf-c called qpdf_oh_is_scalar 0
+qpdf-c array to wrap_in_array 0
+qpdf-c non-array to wrap_in_array 0
+qpdf-c called qpdf_oh_parse 0
+qpdf-c called qpdf_oh_get_bool_value 0
+qpdf-c called qpdf_oh_get_int_value 0
+qpdf-c called qpdf_oh_get_int_value_as_int 0
+qpdf-c called qpdf_oh_get_uint_value 0
+qpdf-c called qpdf_oh_get_uint_value_as_uint 0
+qpdf-c called qpdf_oh_get_real_value 0
+qpdf-c called qpdf_oh_is_number 0
+qpdf-c called qpdf_oh_get_numeric_value 0
+qpdf-c called qpdf_oh_get_name 0
+qpdf-c called qpdf_oh_get_string_value 0
+qpdf-c called qpdf_oh_get_utf8_value 0
+qpdf-c called qpdf_oh_get_array_n_items 0
+qpdf-c called qpdf_oh_get_array_item 0
+qpdf-c called qpdf_oh_begin_dict_key_iter 0
+qpdf-c called qpdf_oh_dict_more_keys 0
+qpdf-c called qpdf_oh_dict_next_key 0
+qpdf-c called qpdf_oh_has_key 0
+qpdf-c called qpdf_oh_get_key 0
+qpdf-c called qpdf_oh_is_or_has_name 0
+qpdf-c called qpdf_oh_new_null 0
+qpdf-c called qpdf_oh_new_bool 0
+qpdf-c called qpdf_oh_new_integer 0
+qpdf-c called qpdf_oh_new_real_from_string 0
+qpdf-c called qpdf_oh_new_real_from_double 0
+qpdf-c called qpdf_oh_new_name 0
+qpdf-c called qpdf_oh_new_string 0
+qpdf-c called qpdf_oh_new_unicode_string 0
+qpdf-c called qpdf_oh_new_array 0
+qpdf-c called qpdf_oh_new_dictionary 0
+qpdf-c called qpdf_oh_make_direct 0
+qpdf-c called qpdf_oh_set_array_item 0
+qpdf-c called qpdf_oh_insert_item 0
+qpdf-c called qpdf_oh_append_item 0
+qpdf-c called qpdf_oh_erase_item 0
+qpdf-c called qpdf_oh_replace_key 0
+qpdf-c called qpdf_oh_remove_key 0
+qpdf-c called qpdf_oh_replace_or_remove_key 0
+qpdf-c called qpdf_oh_get_dict 0
+qpdf-c called qpdf_oh_get_object_id 0
+qpdf-c called qpdf_oh_get_generation 0
+qpdf-c called qpdf_oh_unparse 0
+qpdf-c called qpdf_oh_unparse_resolved 0
+qpdf-c called qpdf_oh_unparse_binary 0
+QPDFWriter getFilterOnWrite false 0
+QPDFPageObjectHelper::forEachXObject 3
