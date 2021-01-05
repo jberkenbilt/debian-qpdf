@@ -1,4 +1,4 @@
-// Copyright (c) 2005-2020 Jay Berkenbilt
+// Copyright (c) 2005-2021 Jay Berkenbilt
 //
 // This file is part of qpdf.
 //
@@ -31,6 +31,8 @@
 #include <list>
 #include <iostream>
 #include <vector>
+#include <functional>
+#include <memory>
 
 #include <qpdf/QIntC.hh>
 #include <qpdf/QPDFExc.hh>
@@ -39,6 +41,7 @@
 #include <qpdf/QPDFXRefEntry.hh>
 #include <qpdf/QPDFObjectHandle.hh>
 #include <qpdf/QPDFTokenizer.hh>
+#include <qpdf/QPDFStreamFilter.hh>
 #include <qpdf/Buffer.hh>
 #include <qpdf/InputSource.hh>
 
@@ -131,6 +134,20 @@ class QPDF
     // how to use this method to create a PDF file from scratch.
     QPDF_DLL
     void emptyPDF();
+
+    // From 10.1: register a new filter implementation for a specific
+    // stream filter. You can add your own implementations for new
+    // filter types or override existing ones provided by the library.
+    // Registered stream filters are used for decoding only as you can
+    // override encoding with stream data providers. For example, you
+    // could use this method to support for one of the other filter
+    // types by using additional third-party libraries that qpdf does
+    // not presently use. The standard filters are implemented using
+    // QPDFStreamFilter classes.
+    QPDF_DLL
+    static void registerStreamFilter(
+        std::string const& filter_name,
+        std::function<std::shared_ptr<QPDFStreamFilter> ()> factory);
 
     // Parameter settings
 
@@ -547,16 +564,28 @@ class QPDF
     // QPDF_optimization.cc
 
     // The object_stream_data map maps from a "compressed" object to
-    // the object stream that contains it.  This enables optimize to
+    // the object stream that contains it. This enables optimize to
     // populate the object <-> user maps with only uncompressed
-    // objects.  If allow_changes is false, an exception will be
-    // thrown if any changes are made during the optimization process.
-    // This is available so that the test suite can make sure that a
-    // linearized file is already optimized.  When called in this way,
-    // optimize() still populates the object <-> user maps
+    // objects. If allow_changes is false, an exception will be thrown
+    // if any changes are made during the optimization process. This
+    // is available so that the test suite can make sure that a
+    // linearized file is already optimized. When called in this way,
+    // optimize() still populates the object <-> user maps. The
+    // optional skip_stream_parameters parameter, if present, is
+    // called for each stream object. The function should return 2 if
+    // optimization should discard /Length, /Filter, and /DecodeParms;
+    // 1 if it should discard /Length, and 0 if it should preserve all
+    // keys. This is used by QPDFWriter to avoid creation of dangling
+    // objects for stream dictionary keys it will be regenerating.
     QPDF_DLL
     void optimize(std::map<int, int> const& object_stream_data,
 		  bool allow_changes = true);
+    // ABI: make function optional and merge overloaded versions
+    QPDF_DLL
+    void optimize(
+        std::map<int, int> const& object_stream_data,
+        bool allow_changes,
+        std::function<int(QPDFObjectHandle&)> skip_stream_parameters);
 
     // Traverse page tree return all /Page objects. It also detects
     // and resolves cases in which the same /Page object is
@@ -1339,10 +1368,14 @@ class QPDF
 	std::vector<QPDFObjectHandle>& all_pages,
 	bool allow_changes, bool warn_skipped_keys,
         std::set<QPDFObjGen>& visited);
-    void updateObjectMaps(ObjUser const& ou, QPDFObjectHandle oh);
-    void updateObjectMapsInternal(ObjUser const& ou, QPDFObjectHandle oh,
-				  std::set<QPDFObjGen>& visited, bool top,
-                                  int depth);
+    void updateObjectMaps(
+        ObjUser const& ou, QPDFObjectHandle oh,
+        std::function<int(QPDFObjectHandle&)> skip_stream_parameters);
+    void updateObjectMapsInternal(
+        ObjUser const& ou, QPDFObjectHandle oh,
+        std::function<int(QPDFObjectHandle&)> skip_stream_parameters,
+        std::set<QPDFObjGen>& visited, bool top,
+        int depth);
     void filterCompressedObjects(std::map<int, int> const& object_stream_data);
 
     // Type conversion helper methods

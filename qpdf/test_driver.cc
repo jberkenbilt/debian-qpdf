@@ -485,6 +485,14 @@ void runtest(int n, char const* filename1, char const* arg2)
             A.setArrayFromVector(items);
         }
 
+        QPDFObjectHandle qtest2 = trailer.getKey("/QTest2");
+        if (! qtest2.isNull())
+        {
+            // Test allow_streams=true
+            qtest2.makeDirect(true);
+            trailer.replaceKey("/QTest2", qtest2);
+        }
+
 	trailer.replaceKey("/Info", pdf.makeIndirectObject(qtest));
 	QPDFWriter w(pdf, 0);
 	w.setQDFMode(true);
@@ -508,8 +516,7 @@ void runtest(int n, char const* filename1, char const* arg2)
 	    std::cout << "page " << pageno << ":" << std::endl;
 
 	    std::cout << "  images:" << std::endl;
-	    std::map<std::string, QPDFObjectHandle> images =
-		page.getPageImages();
+	    std::map<std::string, QPDFObjectHandle> images = page.getImages();
 	    for (auto const& iter2: images)
 	    {
 		std::string const& name = iter2.first;
@@ -1456,7 +1463,7 @@ void runtest(int n, char const* filename1, char const* arg2)
         {
             QPDFPageObjectHelper& page(*iter);
             ParserCallbacks cb;
-            page.parsePageContents(&cb);
+            page.parseContents(&cb);
         }
     }
     else if (n == 38)
@@ -1480,7 +1487,7 @@ void runtest(int n, char const* filename1, char const* arg2)
         {
             std::cout << "page " << ++pageno << std::endl;
 	    std::map<std::string, QPDFObjectHandle> images =
-		(*p_iter).getPageImages();
+		(*p_iter).getImages();
 	    for (std::map<std::string, QPDFObjectHandle>::iterator i_iter =
 		     images.begin(); i_iter != images.end(); ++i_iter)
 	    {
@@ -2210,6 +2217,88 @@ void runtest(int n, char const* filename1, char const* arg2)
             w.setStaticID(true);
             w.write();
         }
+    }
+    else if (n == 70)
+    {
+        auto trailer = pdf.getTrailer();
+        trailer.getKey("/S1").setFilterOnWrite(false);
+        trailer.getKey("/S2").setFilterOnWrite(false);
+        QPDFWriter w(pdf, "a.pdf");
+        w.setStaticID(true);
+        w.setDecodeLevel(qpdf_dl_specialized);
+        w.write();
+    }
+    else if (n == 71)
+    {
+        auto show = [](QPDFObjectHandle& obj,
+                       QPDFObjectHandle& xobj_dict,
+                       std::string const& key) {
+            std::cout << xobj_dict.unparse() << " -> "
+                      << key << " -> " << obj.unparse() << std::endl;
+        };
+        auto page = QPDFPageDocumentHelper(pdf).getAllPages().at(0);
+        std::cout << "--- recursive, all ---" << std::endl;
+        page.forEachXObject(true, show);
+        std::cout << "--- non-recursive, all ---" << std::endl;
+        page.forEachXObject(false, show);
+        std::cout << "--- recursive, images ---" << std::endl;
+        page.forEachImage(true, show);
+        std::cout << "--- non-recursive, images ---" << std::endl;
+        page.forEachImage(false, show);
+        std::cout << "--- recursive, form XObjects ---" << std::endl;
+        page.forEachFormXObject(true, show);
+        std::cout << "--- non-recursive, form XObjects ---" << std::endl;
+        page.forEachFormXObject(false, show);
+        auto fx1 = QPDFPageObjectHelper(
+            page.getObjectHandle()
+            .getKey("/Resources")
+            .getKey("/XObject")
+            .getKey("/Fx1"));
+        std::cout << "--- recursive, all, from fx1 ---" << std::endl;
+        fx1.forEachXObject(true, show);
+        std::cout << "--- non-recursive, all, from fx1 ---" << std::endl;
+        fx1.forEachXObject(false, show);
+        std::cout << "--- get images, page ---" << std::endl;
+        for (auto& i: page.getImages())
+        {
+            std::cout << i.first << " -> " << i.second.unparse() << std::endl;
+        }
+        std::cout << "--- get images, fx ---" << std::endl;
+        for (auto& i: fx1.getImages())
+        {
+            std::cout << i.first << " -> " << i.second.unparse() << std::endl;
+        }
+        std::cout << "--- get form XObjects, page ---" << std::endl;
+        for (auto& i: page.getFormXObjects())
+        {
+            std::cout << i.first << " -> " << i.second.unparse() << std::endl;
+        }
+        std::cout << "--- get form XObjects, fx ---" << std::endl;
+        for (auto& i: fx1.getFormXObjects())
+        {
+            std::cout << i.first << " -> " << i.second.unparse() << std::endl;
+        }
+    }
+    else if (n == 72)
+    {
+        // Call some QPDFPageObjectHelper methods on form XObjects.
+        auto page = QPDFPageDocumentHelper(pdf).getAllPages().at(0);
+        auto fx1 = QPDFPageObjectHelper(
+            page.getObjectHandle()
+            .getKey("/Resources")
+            .getKey("/XObject")
+            .getKey("/Fx1"));
+        std::cout << "--- parseContents ---" << std::endl;
+        ParserCallbacks cb;
+        fx1.parseContents(&cb);
+        Pl_Buffer b("buffer");
+        fx1.addContentTokenFilter(new TokenFilter);
+        fx1.pipeContents(&b);
+        std::unique_ptr<Buffer> buf(b.getBuffer());
+        std::string s(
+            reinterpret_cast<char const*>(buf->getBuffer()),
+            buf->getSize());
+        assert(s.find("/bye") != std::string::npos);
     }
     else
     {

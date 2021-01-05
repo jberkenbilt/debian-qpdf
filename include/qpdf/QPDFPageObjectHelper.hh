@@ -1,4 +1,4 @@
-// Copyright (c) 2005-2020 Jay Berkenbilt
+// Copyright (c) 2005-2021 Jay Berkenbilt
 //
 // This file is part of qpdf.
 //
@@ -32,6 +32,10 @@
 
 class QPDFPageObjectHelper: public QPDFObjectHelper
 {
+    // This is a helper class for page objects, but as of qpdf 10.1,
+    // many of the methods also work for form XObjects. When this is
+    // the case, it is noted in the comment.
+
   public:
     QPDF_DLL
     QPDFPageObjectHelper(QPDFObjectHandle);
@@ -40,14 +44,15 @@ class QPDFPageObjectHelper: public QPDFObjectHelper
     {
     }
 
-    // Return the effective value of this attribute for the page. If
-    // the requested attribute is not present on the page but is
+    // Works with pages and form XObjects. Return the effective value
+    // of this attribute for the page/form XObject. For pages, if the
+    // requested attribute is not present on the page but is
     // inheritable, look up through the page's ancestors in the page
     // tree. If copy_if_shared is true, then this method will replace
     // the attribute with a shallow copy if it is in indirect or
     // inherited and return the copy. You should do this if you are
     // going to modify the returned object and want the modifications
-    // to apply to the current page only.
+    // to apply to the current page/form XObject only.
     QPDF_DLL
     QPDFObjectHandle
     getAttribute(std::string const& name, bool copy_if_shared);
@@ -67,15 +72,66 @@ class QPDFPageObjectHelper: public QPDFObjectHelper
     QPDFObjectHandle
     getMediaBox(bool copy_if_shared = false);
 
+    // Iterate through XObjects, possibly recursing into form
+    // XObjects. This works with pages or form XObjects. Call action
+    // on each XObject for which selector, if specified, returns true.
+    // With no selector, calls action for every object. In addition to
+    // the object being passed to action, the containing XObject
+    // dictionary and key are passed in. Remember that the XObject
+    // dictionary may be shared, and the object may appear in multiple
+    // XObject dictionaries.
+    QPDF_DLL
+    void forEachXObject(
+        bool recursive,
+        std::function<void(QPDFObjectHandle& obj,
+                           QPDFObjectHandle& xobj_dict,
+                           std::string const& key)> action,
+        std::function<bool(QPDFObjectHandle)> selector=nullptr);
+    // Only call action for images
+    QPDF_DLL
+    void forEachImage(
+        bool recursive,
+        std::function<void(QPDFObjectHandle& obj,
+                           QPDFObjectHandle& xobj_dict,
+                           std::string const& key)> action);
+    // Only call action for form XObjects
+    QPDF_DLL
+    void forEachFormXObject(
+        bool recursive,
+        std::function<void(QPDFObjectHandle& obj,
+                           QPDFObjectHandle& xobj_dict,
+                           std::string const& key)> action);
+
     // Returns an empty map if there are no images or no resources.
     // Prior to qpdf 8.4.0, this function did not support inherited
     // resources, but it does now. Return value is a map from XObject
-    // name to the image object, which is always a stream.
+    // name to the image object, which is always a stream. Works with
+    // form XObjects as well as pages. This method does not recurse
+    // into nested form XObjects. For that, use forEachImage.
+    QPDF_DLL
+    std::map<std::string, QPDFObjectHandle> getImages();
+
+    // Old name -- calls getImages()
     QPDF_DLL
     std::map<std::string, QPDFObjectHandle> getPageImages();
 
-    // Convert each inline image to an external (normal) image if the
-    // size is at least the specified number of bytes.
+    // Returns an empty map if there are no form XObjects or no
+    // resources. Otherwise, returns a map of keys to form XObjects
+    // directly referenced from this page or form XObjects. This does
+    // not recurse into nested form XObjects. For that, use
+    // forEachFormXObject.
+    QPDF_DLL
+    std::map<std::string, QPDFObjectHandle> getFormXObjects();
+
+    // Converts each inline image to an external (normal) image if the
+    // size is at least the specified number of bytes. This method
+    // works with pages or form XObjects. By default, it recursively
+    // processes nested form XObjects. Pass true as shallow to avoid
+    // this behavior. Prior to qpdf 10.1, form XObjects were ignored,
+    // but this was considered a bug.
+    QPDF_DLL
+    void externalizeInlineImages(size_t min_size, bool shallow);
+    // ABI: make shallow optional (default false) and merge
     QPDF_DLL
     void externalizeInlineImages(size_t min_size = 0);
 
@@ -126,38 +182,45 @@ class QPDFPageObjectHelper: public QPDFObjectHelper
 
     // Parse a page's contents through ParserCallbacks, described
     // above. This method works whether the contents are a single
-    // stream or an array of streams. Call on a page object.
+    // stream or an array of streams. Call on a page object. Also
+    // works for form XObjects.
+    QPDF_DLL
+    void parseContents(QPDFObjectHandle::ParserCallbacks* callbacks);
+    // Old name
     QPDF_DLL
     void parsePageContents(QPDFObjectHandle::ParserCallbacks* callbacks);
 
-    // Pass a page's contents through the given TokenFilter. If a
-    // pipeline is also provided, it will be the target of the write
-    // methods from the token filter. If a pipeline is not specified,
-    // any output generated by the token filter will be discarded. Use
-    // this interface if you need to pass a page's contents through
-    // filter for work purposes without having that filter
-    // automatically applied to the page's contents, as happens with
-    // addContentTokenFilter. See examples/pdf-count-strings.cc for an
-    // example.
+    // Pass a page's or form XObject's contents through the given
+    // TokenFilter. If a pipeline is also provided, it will be the
+    // target of the write methods from the token filter. If a
+    // pipeline is not specified, any output generated by the token
+    // filter will be discarded. Use this interface if you need to
+    // pass a page's contents through filter for work purposes without
+    // having that filter automatically applied to the page's
+    // contents, as happens with addContentTokenFilter. See
+    // examples/pdf-count-strings.cc for an example.
+    QPDF_DLL
+    void filterContents(QPDFObjectHandle::TokenFilter* filter,
+                        Pipeline* next = 0);
+
+    // Old name -- calls filterContents()
     QPDF_DLL
     void filterPageContents(QPDFObjectHandle::TokenFilter* filter,
                             Pipeline* next = 0);
 
     // Pipe a page's contents through the given pipeline. This method
     // works whether the contents are a single stream or an array of
-    // streams. Call on a page object. Please note that if there is an
-    // array of content streams, p->finish() is called after each
-    // stream. If you pass a pipeline that doesn't allow write() to be
-    // called after finish(), you can wrap it in an instance of
-    // Pl_Concatenate and then call manualFinish() on the
-    // Pl_Concatenate pipeline at the end.
+    // streams. Also works on form XObjects.
+    QPDF_DLL
+    void pipeContents(Pipeline* p);
+    // Old name
     QPDF_DLL
     void pipePageContents(Pipeline* p);
 
     // Attach a token filter to a page's contents. If the page's
     // contents is an array of streams, it is automatically coalesced.
     // The token filter is applied to the page's contents as a single
-    // stream.
+    // stream. Also works on form XObjects.
     QPDF_DLL
     void addContentTokenFilter(
         PointerHolder<QPDFObjectHandle::TokenFilter> token_filter);
@@ -171,11 +234,12 @@ class QPDFPageObjectHelper: public QPDFObjectHelper
     // QPDFPageDocumentHelper::pushInheritedAttributesToPage(). This
     // method is used by page splitting code to avoid copying unused
     // objects in files that used shared resource dictionaries across
-    // multiple pages.
+    // multiple pages. This method recurses into form XObjects and can
+    // be called with a form XObject as well as a page.
     QPDF_DLL
     void removeUnreferencedResources();
 
-    // Return a new QPDFPageDocumentHelper that is a duplicate of the
+    // Return a new QPDFPageObjectHelper that is a duplicate of the
     // page. The returned object is an indirect object that is ready
     // to be inserted into the same or a different QPDF object using
     // any of the addPage methods in QPDFPageDocumentHelper or QPDF.
@@ -242,12 +306,20 @@ class QPDFPageObjectHelper: public QPDFObjectHelper
         bool allow_shrink = true,
         bool allow_expand = false);
 
+    // If a page is rotated using /Rotate in the page's dictionary,
+    // instead rotate the page by the same amount by altering the
+    // contents and removing the /Rotate key. This method adjusts the
+    // various page bounding boxes (/MediaBox, etc.) so that the page
+    // will have the same semantics. This can be useful to work around
+    // problems with PDF applications that can't properly handle
+    // rotated pages.
+    QPDF_DLL
+    void flattenRotation();
+
   private:
     static void
     removeUnreferencedResourcesHelper(
-        QPDFObjectHandle oh, std::set<QPDFObjGen>& seen,
-        std::function<QPDFObjectHandle()> get_resource,
-        std::function<void(QPDFObjectHandle::TokenFilter*)> filter_content);
+        QPDFPageObjectHelper ph, std::set<QPDFObjGen>& seen);
 
     class Members
     {

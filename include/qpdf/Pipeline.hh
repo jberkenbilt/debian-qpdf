@@ -1,4 +1,4 @@
-// Copyright (c) 2005-2020 Jay Berkenbilt
+// Copyright (c) 2005-2021 Jay Berkenbilt
 //
 // This file is part of qpdf.
 //
@@ -74,6 +74,7 @@ class QPDF_DLL_CLASS Pipeline
     std::string getIdentifier() const;
 
   protected:
+    QPDF_DLL
     Pipeline* getNext(bool allow_null = false);
     std::string identifier;
 

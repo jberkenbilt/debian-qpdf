@@ -5,6 +5,10 @@
 
 #include <qpdf/QPDFObject.hh>
 #include <qpdf/QPDFObjectHandle.hh>
+#include <qpdf/QPDFStreamFilter.hh>
+
+#include <functional>
+#include <memory>
 
 class Pipeline;
 class QPDF;
@@ -23,6 +27,8 @@ class QPDF_Stream: public QPDFObject
     virtual void setDescription(QPDF*, std::string const&);
     QPDFObjectHandle getDict() const;
     bool isDataModified() const;
+    void setFilterOnWrite(bool);
+    bool getFilterOnWrite() const;
 
     // Methods to help QPDF copy foreign streams
     qpdf_offset_t getOffset() const;
@@ -49,6 +55,10 @@ class QPDF_Stream: public QPDFObject
 
     void replaceDict(QPDFObjectHandle new_dict);
 
+    static void registerStreamFilter(
+        std::string const& filter_name,
+        std::function<std::shared_ptr<QPDFStreamFilter>()> factory);
+
     // Replace object ID and generation.  This may only be called if
     // object ID and generation are 0.  It is used by QPDFObjectHandle
     // when adding streams to files.
@@ -59,20 +69,15 @@ class QPDF_Stream: public QPDFObject
 
   private:
     static std::map<std::string, std::string> filter_abbreviations;
+    static std::map<
+        std::string,
+        std::function<std::shared_ptr<QPDFStreamFilter>()>> filter_factories;
 
     void replaceFilterData(QPDFObjectHandle const& filter,
 			   QPDFObjectHandle const& decode_parms,
 			   size_t length);
-    bool understandDecodeParams(
-        std::string const& filter, QPDFObjectHandle decode_params,
-        int& predictor, int& columns,
-        int& colors, int& bits_per_component,
-        bool& early_code_change);
-    bool filterable(std::vector<std::string>& filters,
-                    bool& specialized_compression, bool& lossy_compression,
-		    int& predictor, int& columns,
-                    int& colors, int& bits_per_component,
-                    bool& early_code_change);
+    bool filterable(std::vector<std::shared_ptr<QPDFStreamFilter>>& filters,
+                    bool& specialized_compression, bool& lossy_compression);
     void warn(QPDFExc const& e);
     void setDictDescription();
     void setStreamDescription();
@@ -80,6 +85,7 @@ class QPDF_Stream: public QPDFObject
     QPDF* qpdf;
     int objid;
     int generation;
+    bool filter_on_write;
     QPDFObjectHandle stream_dict;
     qpdf_offset_t offset;
     size_t length;

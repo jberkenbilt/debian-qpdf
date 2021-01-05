@@ -1,4 +1,4 @@
-// Copyright (c) 2005-2020 Jay Berkenbilt
+// Copyright (c) 2005-2021 Jay Berkenbilt
 //
 // This file is part of qpdf.
 //
@@ -70,13 +70,37 @@ class QPDFObjectHandle
 	// QPDFWriter may, in some cases, add compression, but if it
 	// does, it will update the filters as needed. Every call to
 	// provideStreamData for a given stream must write the same
-	// data. The object ID and generation passed to this method
-	// are those that belong to the stream on behalf of which the
-	// provider is called. They may be ignored or used by the
-	// implementation for indexing or other purposes. This
-	// information is made available just to make it more
-	// convenient to use a single StreamDataProvider object to
-	// provide data for multiple streams.
+	// data. Note that, when writing linearized files, qpdf will
+	// call your provideStreamData twice, and if it generates
+	// different output, you risk generating invalid output or
+	// having qpdf throw an exception. The object ID and
+	// generation passed to this method are those that belong to
+	// the stream on behalf of which the provider is called. They
+	// may be ignored or used by the implementation for indexing
+	// or other purposes. This information is made available just
+	// to make it more convenient to use a single
+	// StreamDataProvider object to provide data for multiple
+	// streams.
+
+        // A few things to keep in mind:
+        //
+        // * Stream data providers must not modify any objects since
+        //   they may be called after some parts of the file have
+        //   already been written.
+        //
+        // * Since qpdf may call provideStreamData multiple times when
+        //   writing linearized files, if the work done by your stream
+        //   data provider is slow or computationally intensive, you
+        //   might want to implement your own cache.
+        //
+        // * Once you have called replaceStreamData, the original
+        //   stream data is no longer directly accessible from the
+        //   stream, but this is easy to work around by copying the
+        //   stream to a separate QPDF object. The qpdf library
+        //   implements this very efficiently without actually making
+        //   a copy of the stream data. You can find examples of this
+        //   pattern in some of the examples, including
+        //   pdf-custom-filter.cc and pdf-invert-images.cc.
 
         // Prior to qpdf 10.0.0, it was not possible to handle errors
         // the way pipeStreamData does or to pass back success.
@@ -424,7 +448,7 @@ class QPDFObjectHandle
     void parsePageContents(ParserCallbacks* callbacks);
     QPDF_DLL
     void filterPageContents(TokenFilter* filter, Pipeline* next = 0);
-    // See comments for QPDFPageObjectHelper::pipePageContents.
+    // See comments for QPDFPageObjectHelper::pipeContents.
     QPDF_DLL
     void pipePageContents(Pipeline* p);
     QPDF_DLL
@@ -436,6 +460,10 @@ class QPDFObjectHandle
     // XObject, whose data is in the same format as a content stream.
     QPDF_DLL
     void filterAsContents(TokenFilter* filter, Pipeline* next = 0);
+    // Called on a stream to parse the stream as page contents. This
+    // can be used to parse a form XObject.
+    QPDF_DLL
+    void parseAsContents(ParserCallbacks* callbacks);
 
     // Type-specific factories
     QPDF_DLL
@@ -721,8 +749,20 @@ class QPDFObjectHandle
 
     // Mutator methods.  Use with caution.
 
-    // Recursively copy this object, making it direct.  Throws an
-    // exception if a loop is detected or any sub-object is a stream.
+    // Recursively copy this object, making it direct. An exception is
+    // thrown if a loop is detected. With allow_streams true, keep
+    // indirect object references to streams. Otherwise, throw an
+    // exception if any sub-object is a stream. Note that, when
+    // allow_streams is true and a stream is found, the resulting
+    // object is still associated with the containing qpdf. When
+    // allow_streams is false, the object will no longer be connected
+    // to the original QPDF object after this call completes
+    // successfully.
+    QPDF_DLL
+    void makeDirect(bool allow_streams);
+    // Zero-arg version is equivalent to makeDirect(false).
+    // ABI: delete zero-arg version of makeDirect, and make
+    // allow_streams default to false.
     QPDF_DLL
     void makeDirect();
 
@@ -758,6 +798,22 @@ class QPDFObjectHandle
     // Methods for stream objects
     QPDF_DLL
     QPDFObjectHandle getDict();
+
+    // By default, or if true passed, QPDFWriter will attempt to
+    // filter a stream based on decode level, whether compression is
+    // enabled, and its ability to filter. Passing false will prevent
+    // QPDFWriter from attempting to filter the stream even if it can.
+    // This includes both decoding and compressing. This makes it
+    // possible for you to prevent QPDFWriter from uncompressing and
+    // recompressing a stream that it knows how to operate on for any
+    // application-specific reason, such as that you have already
+    // optimized its filtering. Note that this doesn't affect any
+    // other ways to get the stream's data, such as pipeStreamData or
+    // getStreamData.
+    QPDF_DLL
+    void setFilterOnWrite(bool);
+    QPDF_DLL
+    bool getFilterOnWrite();
 
     // If addTokenFilter has been called for this stream, then the
     // original data should be considered to be modified. This means we
@@ -1095,6 +1151,14 @@ class QPDFObjectHandle
     QPDF_DLL
     void assertPageObject();
 
+    QPDF_DLL
+    bool isFormXObject();
+
+    // Indicate if this is an image. If exclude_imagemask is true,
+    // don't count image masks as images.
+    QPDF_DLL
+    bool isImage(bool exclude_imagemask=true);
+
   private:
     QPDFObjectHandle(QPDF*, int objid, int generation);
     QPDFObjectHandle(QPDFObject*);
@@ -1121,7 +1185,7 @@ class QPDFObjectHandle
     void assertType(char const* type_name, bool istype);
     void dereference();
     void copyObject(std::set<QPDFObjGen>& visited, bool cross_indirect,
-                    bool first_level_only);
+                    bool first_level_only, bool stop_at_streams);
     void shallowCopyInternal(QPDFObjectHandle& oh, bool first_level_only);
     void releaseResolved();
     static void setObjectDescriptionFromInput(

@@ -1,3 +1,142 @@
+2021-01-05  Jay Berkenbilt  <ejb@ql.org>
+
+	* 10.1.0: release
+
+2021-01-04  Jay Berkenbilt  <ejb@ql.org>
+
+	* When qpdf CLI extracts pages, it now only attempts to remove
+	unreferenced resources from the pages that it is keeping. This
+	change dramatically reduces the time it takes to extract a small
+	number of pages from a large, complex file.
+
+	* Move getNext()->write() calls in some pipelines to ensure that
+	state gates properly reset even if the next pipeline's write
+	throws an exception (fuzz issue 28262).
+
+2021-01-03  Jay Berkenbilt  <ejb@ql.org>
+
+	* Don't include -o nospace with zsh completion setup so file
+	completion works normally. Fixes #473.
+
+2021-01-02  Jay Berkenbilt  <ejb@ql.org>
+
+	* Make QPDFPageObjectHelper methods pipeContents, parseContents,
+	and addContentTokenFilter work with form XObjects.
+
+	* Rename some QPDFPageObjectHelper methods and make them support
+	form XObjects as well as pages. The old names will be preserved
+	from compatibility.
+	- pipePageContents -> pipeContents
+	- parsePageContents -> parseContents
+
+	* Add QPDFObjectHandle::parseAsContents to apply ParserCallbacks
+	to a form XObject.
+
+	* QPDFPageObjectHelper::externalizeInlineImages can be called with
+	form XObjects as well as pages.
+
+	* Bug fix: QPDFPageObjectHelper::externalizeInlineImages was not
+	descending into form XObjects on a page. It now does this by
+	default. In the extremely unlikely event that anyone was actually
+	depending on the old behavior, it is available by passing
+	shallow=true to the externalizeInlineImages call.
+
+	* Bug fix: QPDFObjectHandle::filterPageContents was broken for
+	pages with an array of content streams. This caused
+	externalize-inline-images to also be broken for this case.
+
+2021-01-01  Jay Berkenbilt  <ejb@ql.org>
+
+	* Add methods to QPDFPageObjectHelper: forEachXObject,
+	forEachImage, forEachFormXObject to call a function on each
+	XObject (or image or form XObject) in a page or form XObject,
+	possibly recursing into nested form XObjects.
+
+	* Add method QPDFPageObjectHelper::getFormXObjects to return a map
+	of keys to form XObjects (non-recursively) from a page or form
+	XObject.
+
+	* Add method QPDFObjectHandle::isImage to test whether an object
+	is an image.
+
+2020-12-31  Jay Berkenbilt  <ejb@ql.org>
+
+	* QPDFPageObjectHelper::removeUnreferencedResources can now be
+	called with a QPDFPageObjectHelper created from a form XObject.
+	The method already recursed into form XObjects.
+
+	* Rename some QPDFPageObjectHelper methods and make them support
+	form XObjects as well as pages. The old names will be preserved
+	from compatibility.
+	- getPageImages -> getImages
+	- filterPageContents -> filterContents
+
+	* Add QPDFObjectHandle::isFormXObject to test whether an object is
+	a form XObject.
+
+2020-12-30  Jay Berkenbilt  <ejb@ql.org>
+
+	* Add QPDFPageObjectHelper::flattenRotation and --flatten-rotation
+	option to the qpdf CLI. The flattenRotation method removes any
+	/Rotate key from a page dictionary and implements the same
+	rotation by modifying the page's contents such that the various
+	page boxes are altered and the page renders identically. This can
+	be used to work around buggy PDF applications that don't properly
+	handle page rotation. The --flatten-rotation option to the qpdf
+	CLI calls flattenRotation for every page.
+
+2020-12-26  Jay Berkenbilt  <ejb@ql.org>
+
+	* Add QPDFObjectHandle::setFilterOnWrite, which can be used to
+	tell QPDFWriter not to filter a stream on output even if it can.
+	You can use this to prevent QPDFWriter from touching a stream
+	(either uncompressing or compressing) that you have optimized or
+	otherwise ensured looks exactly the way you want it, even if
+	decode level or stream compression would otherwise cause
+	QPDFWriter to modify the stream.
+
+	* Add ostream << for QPDFObjGen. (Don't ask why it took 7.5 years
+	for me to decide to do this.)
+
+2020-12-25  Jay Berkenbilt  <ejb@ql.org>
+
+	* Refactor write code to eliminate an extra full traversal of
+	objects in the file and to remove assumptions that preclude stream
+	references from appearing in /DecodeParms of filterable streams.
+	This results in an approximately 8% performance reduction in write
+	times.
+
+2020-12-23  Jay Berkenbilt  <ejb@ql.org>
+
+	* Allow library users to provide their own decoders for stream
+	filters by deriving classes from QPDFStreamFilter and registering
+	them using QPDF::registerStreamFilter. Registered stream filters
+	provide code to validate and interpret /DecodeParms for a specific
+	/Filter and also to provide a pipeline that will decode. Note that
+	it is possible to encode to a filter type that is not supported
+	even without this feature. See examples/pdf-custom-filter.cc for
+	an example of using custom stream filters.
+
+2020-12-22  Jay Berkenbilt  <ejb@ql.org>
+
+	* Add QPDFObjectHandle::makeDirect(bool allow_streams) -- if
+	allow_streams is true, preserve indirect references to streams
+	rather than throwing an exception. This allows the object to be
+	made as direct as possible while preserving stream references.
+
+2020-12-20  Jay Berkenbilt  <ejb@ql.org>
+
+	* Add qpdf_register_progress_reporter method to C API,
+	corresponding to QPDFWriter::registerProgressReporter. Fixes #487.
+
+2020-11-28  Jay Berkenbilt  <ejb@ql.org>
+
+	* Add new functions to the C API for manipulating
+	QPDFObjectHandles. The new functions allow creation and
+	modification of objects, which brings a lot of additional power to
+	the C API. See include/qpdf/qpdf-c.h for details and
+	examples/pdf-c-objects.c for a simple example.
+
 2020-11-21  Jay Berkenbilt  <ejb@ql.org>
 
 	* 10.0.4: release

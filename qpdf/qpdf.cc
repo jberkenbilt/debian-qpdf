@@ -38,7 +38,7 @@ static int constexpr EXIT_CORRECT_PASSWORD = 3;
 
 static char const* whoami = 0;
 
-static std::string expected_version = "10.0.4";
+static std::string expected_version = "10.1.0";
 
 struct PageSpec
 {
@@ -174,6 +174,7 @@ struct Options
         show_pages(false),
         show_page_images(false),
         collate(false),
+        flatten_rotation(false),
         json(false),
         check(false),
         optimize_images(false),
@@ -276,6 +277,7 @@ struct Options
     bool show_pages;
     bool show_page_images;
     bool collate;
+    bool flatten_rotation;
     bool json;
     std::set<std::string> json_keys;
     std::set<std::string> json_objects;
@@ -724,6 +726,8 @@ class ArgParser
     OptionEntry oe_optionalParameter(param_arg_handler_t);
     OptionEntry oe_requiredChoices(param_arg_handler_t, char const** choices);
 
+    void completionCommon(bool zsh);
+
     void argHelp();
     void argVersion();
     void argCopyright();
@@ -747,6 +751,7 @@ class ArgParser
     void argOverlay();
     void argRotate(char* parameter);
     void argCollate();
+    void argFlattenRotation();
     void argStreamData(char* parameter);
     void argCompressStreams(char* parameter);
     void argRecompressFlate();
@@ -968,6 +973,7 @@ ArgParser::initOptionTable()
     char const* stream_data_choices[] =
         {"compress", "preserve", "uncompress", 0};
     (*t)["collate"] = oe_bare(&ArgParser::argCollate);
+    (*t)["flatten-rotation"] = oe_bare(&ArgParser::argFlattenRotation);
     (*t)["stream-data"] = oe_requiredChoices(
         &ArgParser::argStreamData, stream_data_choices);
     (*t)["compress-streams"] = oe_requiredChoices(
@@ -1159,7 +1165,7 @@ ArgParser::argCopyright()
     std::cout
         << whoami << " version " << QPDF::QPDFVersion() << std::endl
         << std::endl
-        << "Copyright (c) 2005-2020 Jay Berkenbilt"
+        << "Copyright (c) 2005-2021 Jay Berkenbilt"
         << std::endl
         << "QPDF is licensed under the Apache License, Version 2.0 (the \"License\");"
         << std::endl
@@ -1250,6 +1256,7 @@ ArgParser::argHelp()
         << "--pages options --      select specific pages from one or more files\n"
         << "--collate               causes files specified in --pages to be collated\n"
         << "                        rather than concatenated\n"
+        << "--flatten-rotation      move page rotation from /Rotate key to content\n"
         << "--rotate=[+|-]angle[:page-range]\n"
         << "                        rotate each specified page 90, 180, or 270 degrees;\n"
         << "                        rotate all pages if no page range is given\n"
@@ -1632,7 +1639,7 @@ ArgParser::argHelp()
 }
 
 void
-ArgParser::argCompletionBash()
+ArgParser::completionCommon(bool zsh)
 {
     std::string progname = argv[0];
     std::string executable;
@@ -1652,8 +1659,16 @@ ArgParser::argCompletionBash()
             progname = appimage;
         }
     }
-    std::cout << "complete -o bashdefault -o default -o nospace"
-              << " -C " << progname << " " << whoami << std::endl;
+    if (zsh)
+    {
+        std::cout << "autoload -U +X bashcompinit && bashcompinit && ";
+    }
+    std::cout << "complete -o bashdefault -o default";
+    if (! zsh)
+    {
+        std::cout << " -o nospace";
+    }
+    std::cout << " -C " << progname << " " << whoami << std::endl;
     // Put output before error so calling from zsh works properly
     std::string path = progname;
     size_t slash = path.find('/');
@@ -1665,10 +1680,15 @@ ArgParser::argCompletionBash()
 }
 
 void
+ArgParser::argCompletionBash()
+{
+    completionCommon(false);
+}
+
+void
 ArgParser::argCompletionZsh()
 {
-    std::cout << "autoload -U +X bashcompinit && bashcompinit && ";
-    argCompletionBash();
+    completionCommon(true);
 }
 void
 ArgParser::argJsonHelp()
@@ -1877,6 +1897,12 @@ void
 ArgParser::argRotate(char* parameter)
 {
     parseRotationParameter(parameter);
+}
+
+void
+ArgParser::argFlattenRotation()
+{
+    o.flatten_rotation = true;
 }
 
 void
@@ -3362,10 +3388,20 @@ ArgParser::addOptionsToCompletions()
          iter != this->option_table->end(); ++iter)
     {
         std::string const& arg = (*iter).first;
+        if (arg == "--")
+        {
+            continue;
+        }
         OptionEntry& oe = (*iter).second;
         std::string base = "--" + arg;
         if (oe.param_arg_handler)
         {
+            if (zsh_completion)
+            {
+                // zsh doesn't treat = as a word separator, so add all
+                // the options so we don't get a space after the =.
+                addChoicesToCompletions(arg, base + "=");
+            }
             completions.insert(base + "=");
         }
         if (! oe.parameter_needed)
@@ -3528,7 +3564,7 @@ static void do_check(QPDF& pdf, Options& o, int& exit_code)
             ++pageno;
             try
             {
-                page.parsePageContents(&discard_contents);
+                page.parseContents(&discard_contents);
             }
             catch (QPDFExc& e)
             {
@@ -3628,8 +3664,7 @@ static void do_show_pages(QPDF& pdf, Options& o)
                   << page.getGeneration() << " R" << std::endl;
         if (o.show_page_images)
         {
-            std::map<std::string, QPDFObjectHandle> images =
-                ph.getPageImages();
+            std::map<std::string, QPDFObjectHandle> images = ph.getImages();
             if (! images.empty())
             {
                 std::cout << "  images:" << std::endl;
@@ -3754,8 +3789,7 @@ static void do_json_pages(QPDF& pdf, Options& o, JSON& j)
         j_page.addDictionaryMember("object", page.getJSON());
         JSON j_images = j_page.addDictionaryMember(
             "images", JSON::makeArray());
-        std::map<std::string, QPDFObjectHandle> images =
-            ph.getPageImages();
+        std::map<std::string, QPDFObjectHandle> images = ph.getImages();
         for (auto const& iter2: images)
         {
             JSON j_image = j_images.addArrayElement(JSON::makeDictionary());
@@ -4774,8 +4808,7 @@ static void handle_transformations(QPDF& pdf, Options& o)
             ++pageno;
             QPDFPageObjectHelper& ph(*iter);
             QPDFObjectHandle page = ph.getObjectHandle();
-            std::map<std::string, QPDFObjectHandle> images =
-                ph.getPageImages();
+            std::map<std::string, QPDFObjectHandle> images = ph.getImages();
             for (auto& iter2: images)
             {
                 std::string name = iter2.first;
@@ -4816,6 +4849,13 @@ static void handle_transformations(QPDF& pdf, Options& o)
              iter != pages.end(); ++iter)
         {
             (*iter).coalesceContentStreams();
+        }
+    }
+    if (o.flatten_rotation)
+    {
+        for (auto& page: dh.getAllPages())
+        {
+            page.flattenRotation();
         }
     }
     if (o.remove_page_labels)
@@ -5080,6 +5120,7 @@ static void handle_page_specs(QPDF& pdf, Options& o)
                          page_spec.range));
     }
 
+    std::map<unsigned long long, bool> remove_unreferenced;
     if (o.remove_unreferenced_page_resources != re_no)
     {
         for (std::map<std::string, QPDF*>::iterator iter =
@@ -5094,10 +5135,11 @@ static void handle_page_specs(QPDF& pdf, Options& o)
                 cis->stayOpen(true);
             }
             QPDF& other(*((*iter).second));
-            if (should_remove_unreferenced_resources(other, o))
+            auto other_uuid = other.getUniqueId();
+            if (remove_unreferenced.count(other_uuid) == 0)
             {
-                QPDFPageDocumentHelper dh(other);
-                dh.removeUnreferencedResources();
+                remove_unreferenced[other_uuid] =
+                    should_remove_unreferenced_resources(other, o);
             }
             if (cis)
             {
@@ -5206,6 +5248,10 @@ static void handle_page_specs(QPDF& pdf, Options& o)
             else
             {
                 copied_pages[from_uuid].insert(to_copy_og);
+                if (remove_unreferenced[from_uuid])
+                {
+                    to_copy.removeUnreferencedResources();
+                }
             }
             dh.addPage(to_copy, false);
             if (page_data.qpdf == &pdf)
@@ -5554,7 +5600,7 @@ static void set_writer_options(QPDF& pdf, Options& o, QPDFWriter& w)
     }
 }
 
-static void do_split_pages(QPDF& pdf, Options& o)
+static void do_split_pages(QPDF& pdf, Options& o, bool& warnings)
 {
     // Generate output file pattern
     std::string before;
@@ -5637,6 +5683,10 @@ static void do_split_pages(QPDF& pdf, Options& o)
         if (o.verbose)
         {
             std::cout << whoami << ": wrote file " << outfile << std::endl;
+        }
+        if (outpdf.anyWarnings())
+        {
+            warnings = true;
         }
     }
 }
@@ -5779,6 +5829,7 @@ int realmain(int argc, char* argv[])
         }
         handle_under_overlay(pdf, o);
         handle_transformations(pdf, o);
+        bool split_warnings = false;
 
 	if ((o.outfilename == 0) && (! o.replace_input))
 	{
@@ -5786,13 +5837,13 @@ int realmain(int argc, char* argv[])
 	}
         else if (o.split_pages)
         {
-            do_split_pages(pdf, o);
+            do_split_pages(pdf, o, split_warnings);
         }
 	else
 	{
             write_outfile(pdf, o);
 	}
-	if (! pdf.getWarnings().empty())
+	if ((! pdf.getWarnings().empty()) || split_warnings)
 	{
             if (! o.suppress_warnings)
             {
