@@ -30,6 +30,7 @@
 #include <vector>
 #include <set>
 #include <map>
+#include <functional>
 
 #include <qpdf/QPDFObjGen.hh>
 #include <qpdf/PointerHolder.hh>
@@ -46,6 +47,7 @@ class QPDF_Array;
 class QPDFTokenizer;
 class QPDFExc;
 class Pl_QPDFTokenizer;
+class QPDFMatrix;
 
 class QPDFObjectHandle
 {
@@ -265,7 +267,10 @@ class QPDFObjectHandle
         double ury;
     };
 
-    // Convenience object for transformation matrices
+    // Convenience object for transformation matrices. See also
+    // QPDFMatrix. Unfortunately we can't replace this with QPDFMatrix
+    // because QPDFMatrix's default constructor creates the identity
+    // transform matrix and this one is all zeroes.
     class Matrix
     {
       public:
@@ -378,6 +383,20 @@ class QPDFObjectHandle
     static QPDFObjectHandle parse(std::string const& object_str,
                                   std::string const& object_description = "");
 
+    // Construct an object of any type from a string representation of
+    // the object. Indirect object syntax (obj gen R) is allowed and
+    // will create indirect references within the passed-in context.
+    // If object_description is provided, it will appear in the
+    // message of any QPDFExc exception thrown for invalid syntax.
+    // Note that you can't parse an indirect object reference all by
+    // itself as parse will stop at the end of the first complete
+    // object, which will just be the first number and will report
+    // that there is trailing data at the end of the string.
+    QPDF_DLL
+    static QPDFObjectHandle parse(QPDF* context,
+                                  std::string const& object_str,
+                                  std::string const& object_description = "");
+
     // Construct an object as above by reading from the given
     // InputSource at its current position and using the tokenizer you
     // supply.  Indirect objects and encrypted strings are permitted.
@@ -476,14 +495,21 @@ class QPDFObjectHandle
     static QPDFObjectHandle newReal(std::string const& value);
     QPDF_DLL
     static QPDFObjectHandle newReal(double value, int decimal_places = 0);
+    // ABI: combine with other newReal by adding trim_trailing_zeroes
+    // above as an optional parameter with a default of true.
+    QPDF_DLL
+    static QPDFObjectHandle newReal(double value, int decimal_places,
+                                    bool trim_trailing_zeroes);
     QPDF_DLL
     static QPDFObjectHandle newName(std::string const& name);
     QPDF_DLL
     static QPDFObjectHandle newString(std::string const& str);
-    // Create a string encoded in UTF-16 from the given utf8-encoded
-    // string. Such strings are appropriately encoded to appear in PDF
-    // files outside of content streams, such as in document metadata
-    // form field values, page labels, outlines, and similar locations.
+    // Create a string encoded from the given utf8-encoded string
+    // appropriately encoded to appear in PDF files outside of content
+    // streams, such as in document metadata form field values, page
+    // labels, outlines, and similar locations. We try ASCII first,
+    // then PDFDocEncoding, then UTF-16 as needed to successfully
+    // encode all the characters.
     QPDF_DLL
     static QPDFObjectHandle newUnicodeString(std::string const& utf8_str);
     QPDF_DLL
@@ -500,6 +526,8 @@ class QPDFObjectHandle
     QPDF_DLL
     static QPDFObjectHandle newArray(Matrix const&);
     QPDF_DLL
+    static QPDFObjectHandle newArray(QPDFMatrix const&);
+    QPDF_DLL
     static QPDFObjectHandle newDictionary();
     QPDF_DLL
     static QPDFObjectHandle newDictionary(
@@ -513,6 +541,8 @@ class QPDFObjectHandle
     // form of newArray.
     QPDF_DLL
     static QPDFObjectHandle newFromMatrix(Matrix const&);
+    QPDF_DLL
+    static QPDFObjectHandle newFromMatrix(QPDFMatrix const&);
 
     // Create a new stream and associate it with the given qpdf
     // object.  A subsequent call must be made to replaceStreamData()
@@ -629,7 +659,19 @@ class QPDFObjectHandle
     QPDF_DLL
     std::string getInlineImageValue();
 
-    // Methods for array objects; see also name and array objects
+    // Methods for array objects; see also name and array objects.
+
+    // Return an object that enables iteration over members. You can
+    // do
+    //
+    // for (auto iter: obj.aitems())
+    // {
+    //     // iter is an array element
+    // }
+    class QPDFArrayItems;
+    QPDF_DLL
+    QPDFArrayItems aitems();
+
     QPDF_DLL
     int getArrayNItems();
     QPDF_DLL
@@ -653,7 +695,20 @@ class QPDFObjectHandle
     QPDF_DLL
     Matrix getArrayAsMatrix();
 
-    // Methods for dictionary objects
+    // Methods for dictionary objects.
+
+    // Return an object that enables iteration over members. You can
+    // do
+    //
+    // for (auto iter: obj.ditems())
+    // {
+    //     // iter.first is the key
+    //     // iter.second is the value
+    // }
+    class QPDFDictItems;
+    QPDF_DLL
+    QPDFDictItems ditems();
+
     QPDF_DLL
     bool hasKey(std::string const&);
     QPDF_DLL
@@ -732,7 +787,8 @@ class QPDFObjectHandle
     // the same place. In the strictest sense, this is not a shallow
     // copy because it recursively descends arrays and dictionaries;
     // it just doesn't cross over indirect objects. See also
-    // unsafeShallowCopy().
+    // unsafeShallowCopy(). You can't copy a stream this way. See
+    // copyStream() instead.
     QPDF_DLL
     QPDFObjectHandle shallowCopy();
 
@@ -746,6 +802,19 @@ class QPDFObjectHandle
     // shallowCopy().
     QPDF_DLL
     QPDFObjectHandle unsafeShallowCopy();
+
+    // Create a copy of this stream. The new stream and the old stream
+    // are independent: after the copy, either the original or the
+    // copy's dictionary or data can be modified without affecting the
+    // other. This uses StreamDataProvider internally, so no
+    // unnecessary copies of the stream's data are made. If the source
+    // stream's data is already being provided by a
+    // StreamDataProvider, the new stream will use the same one, so
+    // you have to make sure your StreamDataProvider can handle that
+    // case. But if you're already using a StreamDataProvider, you
+    // probably don't need to call this method.
+    QPDF_DLL
+    QPDFObjectHandle copyStream();
 
     // Mutator methods.  Use with caution.
 
@@ -976,6 +1045,26 @@ class QPDFObjectHandle
     void replaceStreamData(PointerHolder<StreamDataProvider> provider,
 			   QPDFObjectHandle const& filter,
 			   QPDFObjectHandle const& decode_parms);
+
+    // Starting in qpdf 10.2, you can use C++-11 function objects
+    // instead of StreamDataProvider.
+
+    // The provider should write the stream data to the pipeline. For
+    // a one-liner to replace stream data with the contents of a file,
+    // pass QUtil::file_provider(filename) as provider.
+    QPDF_DLL
+    void replaceStreamData(std::function<void(Pipeline*)> provider,
+			   QPDFObjectHandle const& filter,
+			   QPDFObjectHandle const& decode_parms);
+    // The provider should write the stream data to the pipeline,
+    // returning true if it succeeded without errors.
+    QPDF_DLL
+    void replaceStreamData(
+        std::function<bool(Pipeline*,
+                           bool suppress_warnings,
+                           bool will_retry)> provider,
+        QPDFObjectHandle const& filter,
+        QPDFObjectHandle const& decode_parms);
 
     // Access object ID and generation.  For direct objects, return
     // object ID 0.
@@ -1221,5 +1310,186 @@ class QPDFObjectHandle
     PointerHolder<QPDFObject> obj;
     bool reserved;
 };
+
+class QPDFObjectHandle::QPDFDictItems
+{
+    // This class allows C++-style iteration, including range-for
+    // iteration, around dictionaries. You can write
+
+    // for (auto iter: QPDFDictItems(dictionary_obj))
+    // {
+    //     // iter.first is a string
+    //     // iter.second is a QPDFObjectHandle
+    // }
+
+    // See examples/pdf-name-number-tree.cc for a demonstration of
+    // using this API.
+
+  public:
+    QPDF_DLL
+    QPDFDictItems(QPDFObjectHandle const& oh);
+
+    class iterator: public std::iterator<
+        std::bidirectional_iterator_tag,
+        std::pair<std::string, QPDFObjectHandle>>
+    {
+        friend class QPDFDictItems;
+      public:
+        QPDF_DLL
+        virtual ~iterator() = default;
+        QPDF_DLL
+        iterator& operator++();
+        QPDF_DLL
+        iterator operator++(int)
+        {
+            iterator t = *this;
+            ++(*this);
+            return t;
+        }
+        QPDF_DLL
+        iterator& operator--();
+        QPDF_DLL
+        iterator operator--(int)
+        {
+            iterator t = *this;
+            --(*this);
+            return t;
+        }
+        QPDF_DLL
+        reference operator*();
+        QPDF_DLL
+        pointer operator->();
+        QPDF_DLL
+        bool operator==(iterator const& other) const;
+        QPDF_DLL
+        bool operator!=(iterator const& other) const
+        {
+            return ! operator==(other);
+        }
+
+      private:
+        iterator(QPDFObjectHandle& oh, bool for_begin);
+        void updateIValue();
+
+        class Members
+        {
+            friend class QPDFDictItems::iterator;
+
+          public:
+            QPDF_DLL
+            ~Members() = default;
+
+          private:
+            Members(QPDFObjectHandle& oh, bool for_begin);
+            Members() = delete;
+            Members(Members const&) = delete;
+
+            QPDFObjectHandle& oh;
+            std::set<std::string> keys;
+            std::set<std::string>::iterator iter;
+            bool is_end;
+        };
+        PointerHolder<Members> m;
+        value_type ivalue;
+    };
+
+    QPDF_DLL
+    iterator begin();
+    QPDF_DLL
+    iterator end();
+
+  private:
+    QPDFObjectHandle oh;
+};
+
+class QPDFObjectHandle::QPDFArrayItems
+{
+    // This class allows C++-style iteration, including range-for
+    // iteration, around arrays. You can write
+
+    // for (auto iter: QPDFArrayItems(array_obj))
+    // {
+    //     // iter is a QPDFObjectHandle
+    // }
+
+    // See examples/pdf-name-number-tree.cc for a demonstration of
+    // using this API.
+
+  public:
+    QPDF_DLL
+    QPDFArrayItems(QPDFObjectHandle const& oh);
+
+    class iterator: public std::iterator<
+        std::bidirectional_iterator_tag,
+        QPDFObjectHandle>
+    {
+        friend class QPDFArrayItems;
+      public:
+        QPDF_DLL
+        virtual ~iterator() = default;
+        QPDF_DLL
+        iterator& operator++();
+        QPDF_DLL
+        iterator operator++(int)
+        {
+            iterator t = *this;
+            ++(*this);
+            return t;
+        }
+        QPDF_DLL
+        iterator& operator--();
+        QPDF_DLL
+        iterator operator--(int)
+        {
+            iterator t = *this;
+            --(*this);
+            return t;
+        }
+        QPDF_DLL
+        reference operator*();
+        QPDF_DLL
+        pointer operator->();
+        QPDF_DLL
+        bool operator==(iterator const& other) const;
+        QPDF_DLL
+        bool operator!=(iterator const& other) const
+        {
+            return ! operator==(other);
+        }
+
+      private:
+        iterator(QPDFObjectHandle& oh, bool for_begin);
+        void updateIValue();
+
+        class Members
+        {
+            friend class QPDFArrayItems::iterator;
+
+          public:
+            QPDF_DLL
+            ~Members() = default;
+
+          private:
+            Members(QPDFObjectHandle& oh, bool for_begin);
+            Members() = delete;
+            Members(Members const&) = delete;
+
+            QPDFObjectHandle& oh;
+            int item_number;
+            bool is_end;
+        };
+        PointerHolder<Members> m;
+        value_type ivalue;
+    };
+
+    QPDF_DLL
+    iterator begin();
+    QPDF_DLL
+    iterator end();
+
+  private:
+    QPDFObjectHandle oh;
+};
+
 
 #endif // QPDFOBJECTHANDLE_HH

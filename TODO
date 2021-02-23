@@ -1,3 +1,39 @@
+Document-level work
+===================
+
+* See also issues tagged with "pages"
+
+* There is going to be a lot of duplicated code for doc-level stuff
+  between pages and split pages. That should be refactored. Perhaps
+  some kind of general method should be added to
+  QPDFPageDocumentHelper for copying a page from one file to another
+  and preserving document-level features. I will need to think about
+  how to make it efficient for bulk operations. Probably making it
+  work from qpdf.cc will be sufficient. I also need to think about how
+  to selectively turn on or off specific document-level features,
+  perhaps using flags or something.
+
+* Add flags to CLI to select which document-level options to
+  preserve or not preserve. We will probably need a pair of mutually
+  exclusive, repeatable options with a way to specify all, none, only
+  {x,y}, or all but {x,y}.
+
+* If a page contains a reference a file attachment annotation, when
+  that page is copied, if the file attachment appears in the top-level
+  EmbeddedFiles tree, that entry should be preserved in the
+  destination file. Otherwise, we probably will require the use of
+  --copy-attachments-from to preserve these. What will the strategy be
+  for deduplicating in the automatic case?
+
+* When I get to tagged PDF, note that the presence of /Artifact and
+  /Standard (and maybe others?) causes a false positive on detection
+  of unresolved names. Example: form-fields-and-annotations.pdf. This
+  used to give a warning (never in a released version), but the
+  warning was removed. See comments about tagged pdf in
+  QPDFPageObjectHelper::removeUnreferencedResourcesHelper. Another
+  potential solution is to recognize names that refer to fonts and
+  xobjects but only looking at names used with Tf and Do operators.
+
 Fuzz Errors
 ===========
 
@@ -84,7 +120,19 @@ ABI Changes
 This is a list of changes to make next time there is an ABI change.
 Comments appear in the code prefixed by "ABI"
 
+* Search for ABI to find items not listed here.
 * Merge two versions of QPDFObjectHandle::makeDirect per comment
+* After removing legacy QPDFNameTreeObjectHelper and
+  QPDFNumberTreeObjectHelper constructors, NNTreeImpl can switch to
+  having a QPDF reference and assume that the reference is always
+  valid.
+* Use `= delete` and `= default` for constructors and destructors
+  where possible
+* Consider having setters return Class& where possible to allow for
+  use of fluent interfaces
+* Consider having addArrayItem, replaceKey, etc. return the new value
+  so you can say
+  auto oh = dict.replaceKey("/Key", QPDFObjectHandle::newSomething());
 
 Page splitting/merging
 ======================
@@ -237,6 +285,14 @@ directory or that are otherwise not publicly accessible. This includes
 things sent to me by email that are specifically not public. Even so,
 I find it useful to make reference to them in this list.
 
+ * Consider updating the fuzzer with code that exercises
+   copyAnnotations, file attachments, and name and number trees. Check
+   fuzzer coverage.
+
+ * Add code for creation of a file attachment annotation. It should
+   also be possible to create a widget annotation and a form field.
+   Update the pdf-attach-file.cc example with new APIs when ready.
+
  * If I do more with json, take a look at this C++ header-only JSON
    library: https://github.com/nlohmann/json/releases
 
@@ -255,8 +311,6 @@ I find it useful to make reference to them in this list.
    code and is partially obscured by later code. Keys in the resource
    dictionary may need to be changed -- create test cases with lots of
    duplicated/overlapping keys.
-
- * Add support for writing name and number trees
 
  * Figure out how to render Gajić correctly in the PDF version of the
    qpdf manual.
@@ -281,6 +335,10 @@ I find it useful to make reference to them in this list.
       endobj collides with the start of the next object
 
     - See ../misc/broken-files
+
+    - See ../misc/bad-files-issue-476. This directory contains a
+      snapshot of the google doc and linked PDF files from issue #476.
+      Please see the issue for details.
 
  * Additional form features
    * set value from CLI? Specify title, and provide way to
@@ -418,25 +476,13 @@ I find it useful to make reference to them in this list.
    http://multivalent.sourceforge.net/Tools/pdf/Extract.html
    http://multivalent.sourceforge.net/Tools/pdf/Embed.html
 
- * The description of Crypt filters is unclear with respect to how to
-   use them to override /StmF for specific streams.  I'm not sure
-   whether qpdf will do the right thing for any specific individual
-   streams that might have crypt filters, but I believe it does based
-   on my testing of a limited subset.  The specification seems to imply
-   that only embedded file streams and metadata streams can have crypt
-   filters, and there are already special cases in the code to handle
-   those.  Most likely, it won't be a problem, but someday someone may
-   find a file that qpdf doesn't work on because of crypt filters.
-   There is an example in the spec of using a crypt filter on a
-   metadata stream.
-
-   For now, we notice /Crypt filters and decode parameters consistent
-   with the example in the PDF specification, and the right thing
-   happens for metadata filters that happen to be uncompressed or
-   otherwise compressed in a way we can filter.  This should handle
-   all normal cases, but it's more or less just a guess since I don't
-   have any test files that actually use stream-specific crypt filters
-   in them.
+ * Qpdf does not honor /EFF when adding new file attachments. When it
+   encrypts, it never generates streams with explicit crypt filters.
+   Prior to 10.2, there was an incorrect attempt to treat /EFF as a
+   default value for decrypting file attachment streams, but it is not
+   supposed to mean that. Instead, it is intended for conforming
+   writers to obey this when adding new attachments. Qpdf is not a
+   conforming writer in that respect.
 
  * The second xref stream for linearized files has to be padded only
    because we need file_size as computed in pass 1 to be accurate.  If
@@ -488,17 +534,19 @@ I find it useful to make reference to them in this list.
    by making it possible to run the lexer (tokenizer) over a whole
    file. Make it possible to replace all strings in a file lexically
    even on badly broken files. Ideally this should work files that are
-   lacking xref, have broken links, etc., and ideally it should work
-   with encrypted files if possible. This should go through the
-   streams and strings and replace them with fixed or random
-   characters, preferably, but not necessarily, in a manner that works
-   with fonts. One possibility would be to detect whether a string
-   contains characters with normal encoding, and if so, use 0x41. If
-   the string uses character maps, use 0x01. The output should
-   otherwise be unrelated to the input. This could be built after the
-   filtering and tokenizer rewrite and should be done in a manner that
-   takes advantage of the other lexical features. This sanitizer
-   should also clear metadata and replace images.
+   lacking xref, have broken links, duplicated dictionary keys, syntax
+   errors, etc., and ideally it should work with encrypted files if
+   possible. This should go through the streams and strings and
+   replace them with fixed or random characters, preferably, but not
+   necessarily, in a manner that works with fonts. One possibility
+   would be to detect whether a string contains characters with normal
+   encoding, and if so, use 0x41. If the string uses character maps,
+   use 0x01. The output should otherwise be unrelated to the input.
+   This could be built after the filtering and tokenizer rewrite and
+   should be done in a manner that takes advantage of the other
+   lexical features. This sanitizer should also clear metadata and
+   replace images. If I ever do this, the file from issue #494 would
+   be a great one to look at.
 
  * Here are some notes about having stream data providers modify
    stream dictionaries. I had wanted to add this functionality to make

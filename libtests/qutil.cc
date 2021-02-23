@@ -6,6 +6,7 @@
 #include <qpdf/QUtil.hh>
 #include <qpdf/PointerHolder.hh>
 #include <qpdf/QPDFSystemError.hh>
+#include <qpdf/Pl_Buffer.hh>
 #include <string.h>
 #include <limits.h>
 #include <assert.h>
@@ -116,13 +117,19 @@ void string_conversion_test()
     std::cout << QUtil::int_to_string(16059) << std::endl
 	      << QUtil::int_to_string(16059, 7) << std::endl
 	      << QUtil::int_to_string(16059, -7) << std::endl
-	      << QUtil::double_to_string(3.14159) << std::endl
+	      << QUtil::double_to_string(3.14159, 0, false) << std::endl
 	      << QUtil::double_to_string(3.14159, 3) << std::endl
-	      << QUtil::double_to_string(1000.123, -1024) << std::endl
-              << QUtil::double_to_string(.1234, 5) << std::endl
+	      << QUtil::double_to_string(1000.123, -1024, false) << std::endl
+              << QUtil::double_to_string(.1234, 5, false) << std::endl
               << QUtil::double_to_string(.0001234, 5) << std::endl
               << QUtil::double_to_string(.123456, 5) << std::endl
               << QUtil::double_to_string(.000123456, 5) << std::endl
+              << QUtil::double_to_string(1.01020, 5, true) << std::endl
+              << QUtil::double_to_string(1.00000, 5, true) << std::endl
+              << QUtil::double_to_string(1, 5, true) << std::endl
+              << QUtil::double_to_string(1, 5, false) << std::endl
+              << QUtil::double_to_string(10, 2, false) << std::endl
+              << QUtil::double_to_string(10, 2, true) << std::endl
               << QUtil::int_to_string_base(16059, 10) << std::endl
               << QUtil::int_to_string_base(16059, 8) << std::endl
               << QUtil::int_to_string_base(16059, 16) << std::endl
@@ -432,6 +439,29 @@ void same_file_test()
     assert_same_file("", "qutil.out", false);
 }
 
+void path_test()
+{
+    auto check = [](bool print, std::string const& a, std::string const& b) {
+        auto result = QUtil::path_basename(a);
+        if (print)
+        {
+            std::cout << a << " -> " << result << std::endl;
+        }
+        assert(result == b);
+    };
+
+#ifdef _WIN32
+    check(false, "asdf\\qwer", "qwer");
+    check(false, "asdf\\qwer/\\", "qwer");
+#endif
+    check(true, "////", "/");
+    check(true, "a/b/cdef", "cdef");
+    check(true, "a/b/cdef/", "cdef");
+    check(true, "/", "/");
+    check(true, "", "");
+    check(true, "quack", "quack");
+}
+
 void read_from_file_test()
 {
     std::list<std::string> lines = QUtil::read_lines_from_file("other-file");
@@ -483,6 +513,12 @@ void read_from_file_test()
     assert(memcmp(p, "This file is used for qutil testing.", 36) == 0);
     assert(p[59] == static_cast<char>(13));
     assert(memcmp(p + 24641, "very long.", 10) == 0);
+    Pl_Buffer b2("buffer");
+    // QUtil::file_provider also exercises QUtil::pipe_file
+    QUtil::file_provider("other-file")(&b2);
+    PointerHolder<Buffer> buf2 = b2.getBuffer();
+    assert(buf2->getSize() == size);
+    assert(memcmp(buf2->getBuffer(), p, size) == 0);
 }
 
 void assert_hex_encode(std::string const& input, std::string const& expected)
@@ -574,6 +610,31 @@ void rename_delete_test()
     assert_no_file("old\xcf\x80.~tmp");
 }
 
+void timestamp_test()
+{
+    auto check = [](QUtil::QPDFTime const& t) {
+        std::string pdf = QUtil::qpdf_time_to_pdf_time(t);
+        std::cout << pdf << std::endl;
+        QUtil::QPDFTime t2;
+        assert(QUtil::pdf_time_to_qpdf_time(pdf, &t2));
+        assert(QUtil::qpdf_time_to_pdf_time(t2) == pdf);
+    };
+    check(QUtil::QPDFTime(2021, 2, 9, 14, 49, 25, 300));
+    check(QUtil::QPDFTime(2021, 2, 10, 1, 19, 25, -330));
+    check(QUtil::QPDFTime(2021, 2, 9, 19, 19, 25, 0));
+    assert(! QUtil::pdf_time_to_qpdf_time("potato"));
+    assert(QUtil::pdf_time_to_qpdf_time("D:20210211064743Z"));
+    assert(QUtil::pdf_time_to_qpdf_time("D:20210211064743-05'00'"));
+    assert(QUtil::pdf_time_to_qpdf_time("D:20210211064743+05'30'"));
+    assert(QUtil::pdf_time_to_qpdf_time("D:20210211064743"));
+    // Round trip on the current time without actually printing it.
+    // Manual testing was done to ensure that we are actually getting
+    // back the current time in various time zones.
+    assert(QUtil::pdf_time_to_qpdf_time(
+               QUtil::qpdf_time_to_pdf_time(
+                   QUtil::get_current_qpdf_time())));
+}
+
 int main(int argc, char* argv[])
 {
     try
@@ -598,12 +659,16 @@ int main(int argc, char* argv[])
 	get_whoami_test();
 	std::cout << "---- file" << std::endl;
 	same_file_test();
+	std::cout << "---- path" << std::endl;
+	path_test();
 	std::cout << "---- read from file" << std::endl;
 	read_from_file_test();
 	std::cout << "---- hex encode/decode" << std::endl;
 	hex_encode_decode_test();
 	std::cout << "---- rename/delete" << std::endl;
 	rename_delete_test();
+	std::cout << "---- timestamp" << std::endl;
+	timestamp_test();
     }
     catch (std::exception& e)
     {

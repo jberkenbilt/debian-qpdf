@@ -9,13 +9,6 @@
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
-#ifdef _WIN32
-#include <windows.h>
-#include <direct.h>
-#include <io.h>
-#else
-#include <unistd.h>
-#endif
 
 static char const* version = "1.1";
 static char const* whoami = 0;
@@ -39,26 +32,22 @@ void dumpInfoDict(QPDF& pdf,
     QPDFObjectHandle trailer = pdf.getTrailer();
     if (trailer.hasKey("/Info"))
     {
-	QPDFObjectHandle info = trailer.getKey("/Info");
-	std::set<std::string> keys = info.getKeys();
-	for (std::set<std::string>::const_iterator it = keys.begin();
-	     keys.end() != it; ++it)
+	for (auto& it: trailer.getKey("/Info").ditems())
 	{
-	    QPDFObjectHandle elt = info.getKey(*it);
 	    std::string val;
-	    if (elt.isString())
+	    if (it.second.isString())
 	    {
-		val = elt.getStringValue();
+		val = it.second.getStringValue();
 	    }
-	    else if (elt.isName())
+	    else if (it.second.isName())
 	    {
-		val = elt.getName();
+		val = it.second.getName();
 	    }
 	    else // according to PDF Spec 1.5, shouldn't happen
 	    {
-		val = elt.unparseResolved();
+		val = it.second.unparseResolved();
 	    }
-	    os << it->substr(1) << sep << val << std::endl; // skip '/'
+	    os << it.first.substr(1) << sep << val << std::endl; // skip '/'
 	}
     }
 }

@@ -24,27 +24,47 @@
 
 #include <qpdf/QPDFObjectHelper.hh>
 #include <qpdf/QPDFObjGen.hh>
-#include <functional>
 #include <map>
+#include <memory>
 
 #include <qpdf/DLL.h>
 
 // This is an object helper for number trees. See section 7.9.7 in the
-// PDF spec (ISO 32000) for a description of number trees. This
-// implementation disregards stated limits and sequencing and simply
-// builds a map from numerical index to object. If the array of
-// numbers does not contain a numerical value where expected, this
-// implementation silently skips forward until it finds a number.
+// PDF spec (ISO 32000) for a description of number trees.
+
+// See examples/pdf-name-number-tree.cc for a demonstration of using
+// QPDFNumberTreeObjectHelper.
+
+class NNTreeImpl;
+class NNTreeIterator;
+class NNTreeDetails;
 
 class QPDFNumberTreeObjectHelper: public QPDFObjectHelper
 {
   public:
+    // The qpdf object is required so that this class can issue
+    // warnings, attempt repairs, and add indirect objects.
+    QPDF_DLL
+    QPDFNumberTreeObjectHelper(QPDFObjectHandle, QPDF&,
+                               bool auto_repair = true);
+
+    // ABI: Legacy Constructor will be removed in QPDF 11. A
+    // QPDFNumberTreeObjectHelper constructed in this way can't be
+    // modified or repaired and will silently ignore problems in the
+    // structure.
+    [[deprecated]]
     QPDF_DLL
     QPDFNumberTreeObjectHelper(QPDFObjectHandle);
+
+    // ABI: = default
     QPDF_DLL
     virtual ~QPDFNumberTreeObjectHelper()
     {
     }
+
+    // Create an empty number tree
+    QPDF_DLL
+    static QPDFNumberTreeObjectHelper newEmpty(QPDF&, bool auto_repair = true);
 
     typedef long long int numtree_number;
 
@@ -60,7 +80,7 @@ class QPDFNumberTreeObjectHelper: public QPDFObjectHelper
     bool hasIndex(numtree_number idx);
 
     // Find an object with a specific index. If found, returns true
-    // and initializes oh.
+    // and initializes oh. See also find().
     QPDF_DLL
     bool findObject(numtree_number idx, QPDFObjectHandle& oh);
     // Find the object at the index or, if not found, the object whose
@@ -70,14 +90,116 @@ class QPDFNumberTreeObjectHelper: public QPDFObjectHelper
     // offset to the difference between the requested index and the
     // actual index. For example, if a number tree has values for 3
     // and 6 and idx is 5, this method would return true, initialize
-    // oh to the value with index 3, and set offset to 2 (5 - 3).
+    // oh to the value with index 3, and set offset to 2 (5 - 3). See
+    // also find().
     QPDF_DLL
     bool findObjectAtOrBelow(numtree_number idx, QPDFObjectHandle& oh,
                              numtree_number& offset);
 
+    class iterator: public std::iterator<
+        std::bidirectional_iterator_tag,
+        std::pair<numtree_number, QPDFObjectHandle>>
+    {
+        friend class QPDFNumberTreeObjectHelper;
+      public:
+        virtual ~iterator() = default;
+        QPDF_DLL
+        bool valid() const;
+        QPDF_DLL
+        iterator& operator++();
+        QPDF_DLL
+        iterator operator++(int)
+        {
+            iterator t = *this;
+            ++(*this);
+            return t;
+        }
+        QPDF_DLL
+        iterator& operator--();
+        QPDF_DLL
+        iterator operator--(int)
+        {
+            iterator t = *this;
+            --(*this);
+            return t;
+        }
+        QPDF_DLL
+        reference operator*();
+        QPDF_DLL
+        pointer operator->();
+        QPDF_DLL
+        bool operator==(iterator const& other) const;
+        QPDF_DLL
+        bool operator!=(iterator const& other) const
+        {
+            return ! operator==(other);
+        }
+
+        // DANGER: this method can create inconsistent trees if not
+        // used properly! Insert a new item immediately after the
+        // current iterator and increment so that it points to the new
+        // item. If the current iterator is end(), insert at the
+        // beginning. This method does not check for proper ordering,
+        // so if you use it, you must ensure that the item you are
+        // inserting belongs where you are putting it. The reason for
+        // this method is that it is more efficient than insert() and
+        // can be used safely when you are creating a new tree and
+        // inserting items in sorted order.
+        QPDF_DLL
+        void insertAfter(numtree_number key, QPDFObjectHandle value);
+
+        // Remove the current item and advance the iterator to the
+        // next item.
+        QPDF_DLL
+        void remove();
+
+      private:
+        void updateIValue();
+
+        iterator(std::shared_ptr<NNTreeIterator> const&);
+        std::shared_ptr<NNTreeIterator> impl;
+        value_type ivalue;
+    };
+
+    // The iterator looks like map iterator, so i.first is a string
+    // and i.second is a QPDFObjectHandle. Incrementing end() brings
+    // you to the first item. Decrementing end() brings you to the
+    // last item.
+    QPDF_DLL
+    iterator begin() const;
+    QPDF_DLL
+    iterator end() const;
+    // Return a bidirectional iterator that points to the last item.
+    QPDF_DLL
+    iterator last() const;
+
+    // Find the entry with the given key. If return_prev_if_not_found
+    // is true and the item is not found, return the next lower item.
+    QPDF_DLL
+    iterator find(numtree_number key, bool return_prev_if_not_found = false);
+
+    // Insert a new item. If the key already exists, it is replaced.
+    QPDF_DLL
+    iterator insert(numtree_number key, QPDFObjectHandle value);
+
+    // Remove an item. Return true if the item was found and removed;
+    // otherwise return false. If value is not null, initialize it to
+    // the value that was removed.
+    QPDF_DLL
+    bool remove(numtree_number key, QPDFObjectHandle* value = nullptr);
+
+    // Return the contents of the number tree as a map. Note that
+    // number trees may be very large, so this may use a lot of RAM.
+    // It is more efficient to use QPDFNumberTreeObjectHelper's
+    // iterator.
     typedef std::map<numtree_number, QPDFObjectHandle> idx_map;
     QPDF_DLL
     idx_map getAsMap() const;
+
+    // Split a node if the number of items exceeds this value. There's
+    // no real reason to ever set this except for testing.
+    QPDF_DLL
+    void setSplitThreshold(int);
 
   private:
     class Members
@@ -90,23 +212,11 @@ class QPDFNumberTreeObjectHelper: public QPDFObjectHelper
         ~Members();
 
       private:
-        Members();
-        Members(Members const&);
+        Members(QPDFObjectHandle& oh, QPDF*, bool auto_repair);
+        Members(Members const&) = delete;
 
-        // Use a reverse sorted map so we can use the lower_bound
-        // method for searching. lower_bound returns smallest entry
-        // not before the searched entry, meaning that the searched
-        // entry is the lower bound. There's also an upper_bound
-        // method, but it does not do what you'd think it should.
-        // lower_bound implements >=, and upper_bound implements >.
-        typedef std::map<numtree_number,
-                         QPDFObjectHandle,
-                         std::greater<numtree_number> > idx_map;
-        idx_map entries;
-        std::set<QPDFObjGen> seen;
+        std::shared_ptr<NNTreeImpl> impl;
     };
-
-    void updateMap(QPDFObjectHandle oh);
 
     PointerHolder<Members> m;
 };

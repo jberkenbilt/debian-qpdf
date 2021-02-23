@@ -7,6 +7,7 @@
 #include <qpdf/QPDFExc.hh>
 #include <qpdf/QPDFMatrix.hh>
 #include <qpdf/QIntC.hh>
+#include <qpdf/QPDFAcroFormDocumentHelper.hh>
 
 class ContentProvider: public QPDFObjectHandle::StreamDataProvider
 {
@@ -281,8 +282,8 @@ InlineImageTracker::handleToken(QPDFTokenizer::Token const& token)
         }
         else
         {
-            bi_str += token.getValue();
-            dict_str += token.getValue();
+            bi_str += token.getRawValue();
+            dict_str += token.getRawValue();
         }
     }
     else if (token == QPDFTokenizer::Token(QPDFTokenizer::tt_word, "BI"))
@@ -501,8 +502,20 @@ QPDFPageObjectHelper::externalizeInlineImages(size_t min_size, bool shallow)
             QPDFObjectHandle::parse("<< /XObject << >> >>"));
         InlineImageTracker iit(this->oh.getOwningQPDF(), min_size, resources);
         Pl_Buffer b("new page content");
-        filterContents(&iit, &b);
-        if (iit.any_images)
+        bool filtered = false;
+        try
+        {
+            filterContents(&iit, &b);
+            filtered = true;
+        }
+        catch (std::exception& e)
+        {
+            this->oh.warnIfPossible(
+                std::string("Unable to filter content stream: ") + e.what() +
+                "; not attempting to externalize inline images"
+                " from this stream");
+        }
+        if (filtered && iit.any_images)
         {
             if (this->oh.isFormXObject())
             {
@@ -689,15 +702,16 @@ NameWatcher::handleToken(QPDFTokenizer::Token const& token)
     writeToken(token);
 }
 
-void
+bool
 QPDFPageObjectHelper::removeUnreferencedResourcesHelper(
-    QPDFPageObjectHelper ph, std::set<QPDFObjGen>& seen)
+    QPDFPageObjectHelper ph, std::set<std::string>& unresolved)
 {
-    if (seen.count(ph.oh.getObjGen()))
+    bool is_page = (! ph.oh.isFormXObject());
+    if (! is_page)
     {
-        return;
+        QTC::TC("qpdf", "QPDFPageObjectHelper filter form xobject");
     }
-    seen.insert(ph.oh.getObjGen());
+
     NameWatcher nw;
     try
     {
@@ -707,60 +721,120 @@ QPDFPageObjectHelper::removeUnreferencedResourcesHelper(
     {
         ph.oh.warnIfPossible(
             std::string("Unable to parse content stream: ") + e.what() +
-            "; not attempting to remove unreferenced objects from this page");
-        return;
+            "; not attempting to remove unreferenced objects"
+            " from this object");
+        return false;
     }
     if (nw.saw_bad)
     {
         QTC::TC("qpdf", "QPDFPageObjectHelper bad token finding names");
         ph.oh.warnIfPossible(
             "Bad token found while scanning content stream; "
-            "not attempting to remove unreferenced objects from this page");
-        return;
+            "not attempting to remove unreferenced objects from this object");
+        return false;
     }
-    // Walk through /Font and /XObject dictionaries, removing any
-    // resources that are not referenced. We must make copies of
+
+    // We will walk through /Font and /XObject dictionaries, removing
+    // any resources that are not referenced. We must make copies of
     // resource dictionaries down into the dictionaries are mutating
     // to prevent mutating one dictionary from having the side effect
     // of mutating the one it was copied from.
-    std::vector<std::string> to_filter;
-    to_filter.push_back("/Font");
-    to_filter.push_back("/XObject");
     QPDFObjectHandle resources = ph.getAttribute("/Resources", true);
-    for (std::vector<std::string>::iterator d_iter = to_filter.begin();
-         d_iter != to_filter.end(); ++d_iter)
+    std::vector<QPDFObjectHandle> rdicts;
+    std::set<std::string> known_names;
+    if (resources.isDictionary())
     {
-        QPDFObjectHandle dict = resources.getKey(*d_iter);
-        if (! dict.isDictionary())
+        std::vector<std::string> to_filter = {"/Font", "/XObject"};
+        for (auto const& iter: to_filter)
         {
-            continue;
-        }
-        dict = dict.shallowCopy();
-        resources.replaceKey(*d_iter, dict);
-        std::set<std::string> keys = dict.getKeys();
-        for (std::set<std::string>::iterator k_iter = keys.begin();
-             k_iter != keys.end(); ++k_iter)
-        {
-            if (! nw.names.count(*k_iter))
+            QPDFObjectHandle dict = resources.getKey(iter);
+            if (dict.isDictionary())
             {
-                dict.removeKey(*k_iter);
-            }
-            QPDFObjectHandle resource = dict.getKey(*k_iter);
-            if (resource.isFormXObject())
-            {
-                QTC::TC("qpdf", "QPDFPageObjectHelper filter form xobject");
-                removeUnreferencedResourcesHelper(
-                    QPDFPageObjectHelper(resource), seen);
+                dict = dict.shallowCopy();
+                resources.replaceKey(iter, dict);
+                rdicts.push_back(dict);
+                auto keys = dict.getKeys();
+                known_names.insert(keys.begin(), keys.end());
             }
         }
     }
+
+    std::set<std::string> local_unresolved;
+    for (auto const& name: nw.names)
+    {
+        if (! known_names.count(name))
+        {
+            unresolved.insert(name);
+            local_unresolved.insert(name);
+        }
+    }
+    // Older versions of the PDF spec allowed form XObjects to omit
+    // their resources dictionaries, in which case names were resolved
+    // from the containing page. This behavior seems to be widely
+    // supported by viewers. If a form XObjects has a resources
+    // dictionary and has some unresolved names, some viewers fail to
+    // resolve them, and others allow them to be inherited from the
+    // page or from another form XObjects that contains them. Since
+    // this behavior is inconsistent across viewers, we consider an
+    // unresolved name when a resources dictionary is present to be
+    // reason not to remove unreferenced resources. An unresolved name
+    // in the absence of a resource dictionary is not considered a
+    // problem. For form XObjects, we just accumulate a list of
+    // unresolved names, and for page objects, we avoid removing any
+    // such names found in nested form XObjects.
+
+    if ((! local_unresolved.empty()) && resources.isDictionary())
+    {
+        // Don't issue a warning for this case. There are some cases
+        // of names that aren't XObject references, for example,
+        // /Artifact in tagged PDF. Until we are certain that we know
+        // the meaning of every name in a content stream, we don't
+        // want to give warnings because they will be false positives.
+        QTC::TC("qpdf", "QPDFPageObjectHelper unresolved names");
+        return false;
+    }
+
+    for (auto& dict: rdicts)
+    {
+        for (auto const& key: dict.getKeys())
+        {
+            if (is_page && unresolved.count(key))
+            {
+                // This name is referenced by some nested form
+                // xobject, so don't remove it.
+                QTC::TC("qpdf", "QPDFPageObjectHelper resolving unresolved");
+            }
+            else if (! nw.names.count(key))
+            {
+                dict.removeKey(key);
+            }
+        }
+    }
+    return true;
 }
 
 void
 QPDFPageObjectHelper::removeUnreferencedResources()
 {
-    std::set<QPDFObjGen> seen;
-    removeUnreferencedResourcesHelper(*this, seen);
+    // Accumulate a list of unresolved names across all nested form
+    // XObjects.
+    std::set<std::string> unresolved;
+    bool any_failures = false;
+    forEachFormXObject(
+        true,
+        [&any_failures, &unresolved](
+            QPDFObjectHandle& obj, QPDFObjectHandle&, std::string const&)
+        {
+            if (! removeUnreferencedResourcesHelper(
+                    QPDFPageObjectHelper(obj), unresolved))
+            {
+                any_failures = true;
+            }
+        });
+    if (this->oh.isFormXObject() || (! any_failures))
+    {
+        removeUnreferencedResourcesHelper(*this, unresolved);
+    }
 }
 
 QPDFPageObjectHelper
@@ -876,10 +950,9 @@ QPDFPageObjectHelper::getFormXObjectForPage(bool handle_transformations)
     return result;
 }
 
-std::string
-QPDFPageObjectHelper::placeFormXObject(
-    QPDFObjectHandle fo, std::string const& name,
-    QPDFObjectHandle::Rectangle rect,
+QPDFMatrix
+QPDFPageObjectHelper::getMatrixForFormXObjectPlacement(
+    QPDFObjectHandle fo, QPDFObjectHandle::Rectangle rect,
     bool invert_transformations,
     bool allow_shrink, bool allow_expand)
 {
@@ -900,7 +973,7 @@ QPDFPageObjectHelper::placeFormXObject(
     QPDFObjectHandle bbox_obj = fdict.getKey("/BBox");
     if (! bbox_obj.isRectangle())
     {
-        return "";
+        return QPDFMatrix();
     }
 
     QPDFMatrix wmatrix;         // work matrix
@@ -943,7 +1016,7 @@ QPDFPageObjectHelper::placeFormXObject(
     if ((T.urx == T.llx) || (T.ury == T.lly))
     {
         // avoid division by zero
-        return "";
+        return QPDFMatrix();
     }
     double rect_w = rect.urx - rect.llx;
     double rect_h = rect.ury - rect.lly;
@@ -989,6 +1062,33 @@ QPDFPageObjectHelper::placeFormXObject(
     cm.translate(tx, ty);
     cm.scale(scale, scale);
     cm.concat(tmatrix);
+    return cm;
+}
+
+std::string
+QPDFPageObjectHelper::placeFormXObject(
+    QPDFObjectHandle fo, std::string const& name,
+    QPDFObjectHandle::Rectangle rect,
+    bool invert_transformations,
+    bool allow_shrink, bool allow_expand)
+{
+    QPDFMatrix cm;
+    return placeFormXObject(
+        fo, name, rect, cm, invert_transformations,
+        allow_shrink, allow_expand);
+}
+
+std::string
+QPDFPageObjectHelper::placeFormXObject(
+    QPDFObjectHandle fo, std::string const& name,
+    QPDFObjectHandle::Rectangle rect,
+    QPDFMatrix& cm,
+    bool invert_transformations,
+    bool allow_shrink,
+    bool allow_expand)
+{
+    cm = getMatrixForFormXObjectPlacement(
+        fo, rect, invert_transformations, allow_shrink, allow_expand);
     return (
         "q\n" +
         cm.unparse() + " cm\n" +
@@ -998,6 +1098,12 @@ QPDFPageObjectHelper::placeFormXObject(
 
 void
 QPDFPageObjectHelper::flattenRotation()
+{
+    flattenRotation(nullptr);
+}
+
+void
+QPDFPageObjectHelper::flattenRotation(QPDFAcroFormDocumentHelper* afdh)
 {
     QPDF* qpdf = this->oh.getOwningQPDF();
     if (! qpdf)
@@ -1086,9 +1192,7 @@ QPDFPageObjectHelper::flattenRotation()
     // the same offset from the lower left corner of the media box.
     // These calculations have been verified empirically with various
     // PDF readers.
-    QPDFObjectHandle::Matrix cm;
-    cm.e = 0.0;
-    cm.f = 0.0;
+    QPDFMatrix cm(0, 0, 0, 0, 0, 0);
     switch (rotate)
     {
       case 90:
@@ -1114,16 +1218,113 @@ QPDFPageObjectHelper::flattenRotation()
         break;
     }
     std::string cm_str =
-        std::string("q\n") +
-        QUtil::double_to_string(cm.a, 2) + " " +
-        QUtil::double_to_string(cm.b, 2) + " " +
-        QUtil::double_to_string(cm.c, 2) + " " +
-        QUtil::double_to_string(cm.d, 2) + " " +
-        QUtil::double_to_string(cm.e, 2) + " " +
-        QUtil::double_to_string(cm.f, 2) + " cm\n";
+        std::string("q\n") + cm.unparse() + " cm\n";
     this->oh.addPageContents(
         QPDFObjectHandle::newStream(qpdf, cm_str), true);
     this->oh.addPageContents(
         QPDFObjectHandle::newStream(qpdf, "\nQ\n"), false);
     this->oh.removeKey("/Rotate");
+    QPDFObjectHandle rotate_obj = getAttribute("/Rotate", false);
+    if (! rotate_obj.isNull())
+    {
+        QTC::TC("qpdf", "QPDFPageObjectHelper flatten inherit rotate");
+        this->oh.replaceKey("/Rotate", QPDFObjectHandle::newInteger(0));
+    }
+
+    QPDFObjectHandle annots = this->oh.getKey("/Annots");
+    if (annots.isArray())
+    {
+        std::vector<QPDFObjectHandle> new_annots;
+        std::vector<QPDFObjectHandle> new_fields;
+        std::set<QPDFObjGen> old_fields;
+        PointerHolder<QPDFAcroFormDocumentHelper> afdhph;
+        if (! afdh)
+        {
+            afdhph = new QPDFAcroFormDocumentHelper(*qpdf);
+            afdh = afdhph.getPointer();
+        }
+        afdh->transformAnnotations(
+            annots, new_annots, new_fields, old_fields, cm);
+        afdh->removeFormFields(old_fields);
+        for (auto const& f: new_fields)
+        {
+            afdh->addFormField(QPDFFormFieldObjectHelper(f));
+        }
+        this->oh.replaceKey("/Annots", QPDFObjectHandle::newArray(new_annots));
+    }
+}
+
+void
+QPDFPageObjectHelper::copyAnnotations(
+    QPDFPageObjectHelper from_page, QPDFMatrix const& cm,
+    QPDFAcroFormDocumentHelper* afdh,
+    QPDFAcroFormDocumentHelper* from_afdh)
+{
+    auto old_annots = from_page.getObjectHandle().getKey("/Annots");
+    if (! old_annots.isArray())
+    {
+        return;
+    }
+
+    QPDF* from_qpdf = from_page.getObjectHandle().getOwningQPDF();
+    if (! from_qpdf)
+    {
+        throw std::runtime_error(
+            "QPDFPageObjectHelper::copyAnnotations:"
+            " from page is a direct object");
+    }
+    QPDF* this_qpdf = this->oh.getOwningQPDF();
+    if (! this_qpdf)
+    {
+        throw std::runtime_error(
+            "QPDFPageObjectHelper::copyAnnotations:"
+            " this page is a direct object");
+    }
+
+    std::vector<QPDFObjectHandle> new_annots;
+    std::vector<QPDFObjectHandle> new_fields;
+    std::set<QPDFObjGen> old_fields;
+    PointerHolder<QPDFAcroFormDocumentHelper> afdhph;
+    PointerHolder<QPDFAcroFormDocumentHelper> from_afdhph;
+    if (! afdh)
+    {
+        afdhph = new QPDFAcroFormDocumentHelper(*this_qpdf);
+        afdh = afdhph.getPointer();
+    }
+    if (this_qpdf == from_qpdf)
+    {
+        from_afdh = afdh;
+    }
+    else if (from_afdh)
+    {
+        if (from_afdh->getQPDF().getUniqueId() != from_qpdf->getUniqueId())
+        {
+            throw std::logic_error(
+                "QPDFAcroFormDocumentHelper::copyAnnotations: from_afdh"
+                " is not from the same QPDF as from_page");
+        }
+    }
+    else
+    {
+        from_afdhph = new QPDFAcroFormDocumentHelper(*from_qpdf);
+        from_afdh = from_afdhph.getPointer();
+    }
+
+    afdh->transformAnnotations(
+        old_annots, new_annots, new_fields, old_fields, cm,
+        from_qpdf, from_afdh);
+    for (auto const& f: new_fields)
+    {
+        afdh->addFormField(QPDFFormFieldObjectHelper(f));
+    }
+    auto annots = this->oh.getKey("/Annots");
+    if (! annots.isArray())
+    {
+        annots = QPDFObjectHandle::newArray();
+        this->oh.replaceKey("/Annots", annots);
+    }
+    for (auto const& annot: new_annots)
+    {
+        annots.appendItem(annot);
+    }
 }

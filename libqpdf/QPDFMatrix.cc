@@ -111,6 +111,12 @@ QPDFMatrix::rotatex90(int angle)
 void
 QPDFMatrix::transform(double x, double y, double& xp, double& yp)
 {
+    const_cast<QPDFMatrix const*>(this)->transform(x, y, xp, yp);
+}
+
+void
+QPDFMatrix::transform(double x, double y, double& xp, double& yp) const
+{
     xp = (this->a * x) + (this->c * y) + this->e;
     yp = (this->b * x) + (this->d * y) + this->f;
 }
@@ -118,9 +124,12 @@ QPDFMatrix::transform(double x, double y, double& xp, double& yp)
 QPDFObjectHandle::Rectangle
 QPDFMatrix::transformRectangle(QPDFObjectHandle::Rectangle r)
 {
-    // Transform a rectangle by creating a new rectangle the tightly
-    // bounds the polygon resulting from transforming the four
-    // corners.
+    return const_cast<QPDFMatrix const*>(this)->transformRectangle(r);
+}
+
+QPDFObjectHandle::Rectangle
+QPDFMatrix::transformRectangle(QPDFObjectHandle::Rectangle r) const
+{
     std::vector<double> tx(4);
     std::vector<double> ty(4);
     transform(r.llx, r.lly, tx.at(0), ty.at(0));

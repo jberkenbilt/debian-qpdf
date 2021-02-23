@@ -7,6 +7,7 @@
 #include <qpdf/QPDFSystemError.hh>
 #include <qpdf/QTC.hh>
 #include <qpdf/QIntC.hh>
+#include <qpdf/Pipeline.hh>
 
 #include <cmath>
 #include <iomanip>
@@ -22,10 +23,12 @@
 #include <fcntl.h>
 #include <memory>
 #include <locale>
+#include <regex>
 #ifndef QPDF_NO_WCHAR_T
 # include <cwchar>
 #endif
 #ifdef _WIN32
+# define WIN32_LEAN_AND_MEAN
 # include <windows.h>
 # include <direct.h>
 # include <io.h>
@@ -321,10 +324,17 @@ QUtil::uint_to_string_base(unsigned long long num, int base, int length)
 std::string
 QUtil::double_to_string(double num, int decimal_places)
 {
+    return double_to_string(num, decimal_places, true);
+}
+
+std::string
+QUtil::double_to_string(double num, int decimal_places,
+                        bool trim_trailing_zeroes)
+{
     // Backward compatibility -- this code used to use sprintf and
     // treated decimal_places <= 0 to mean to use the default, which
-    // was six decimal places.  Also sprintf with %*.f interprets the
-    // length as fixed point rather than significant figures.
+    // was six decimal places. Starting in 10.2, we trim trailing
+    // zeroes by default.
     if (decimal_places <= 0)
     {
         decimal_places = 6;
@@ -332,7 +342,19 @@ QUtil::double_to_string(double num, int decimal_places)
     std::ostringstream buf;
     buf.imbue(std::locale::classic());
     buf << std::setprecision(decimal_places) << std::fixed << num;
-    return buf.str();
+    std::string result = buf.str();
+    if (trim_trailing_zeroes)
+    {
+        while ((result.length() > 1) && (result.back() == '0'))
+        {
+            result.pop_back();
+        }
+        if ((result.length() > 1) && (result.back() == '.'))
+        {
+            result.pop_back();
+        }
+    }
+    return result;
 }
 
 long long
@@ -612,6 +634,66 @@ QUtil::rename_file(char const* oldname, char const* newname)
 #endif
 }
 
+void
+QUtil::pipe_file(char const* filename, Pipeline* p)
+{
+    // Exercised in test suite by testing file_provider.
+    FILE* f = safe_fopen(filename, "rb");
+    FileCloser fc(f);
+    size_t len = 0;
+    int constexpr size = 8192;
+    unsigned char buf[size];
+    while ((len = fread(buf, 1, size, f)) > 0)
+    {
+        p->write(buf, len);
+    }
+    p->finish();
+    if (ferror(f))
+    {
+        throw std::runtime_error(
+            std::string("failure reading file ") + filename);
+    }
+}
+
+std::function<void(Pipeline*)>
+QUtil::file_provider(std::string const& filename)
+{
+    return [filename](Pipeline* p) {
+        pipe_file(filename.c_str(), p);
+    };
+}
+
+std::string
+QUtil::path_basename(std::string const& filename)
+{
+#ifdef _WIN32
+    char const* pathsep = "/\\";
+#else
+    char const* pathsep = "/";
+#endif
+    std::string last = filename;
+    auto len = last.length();
+    while (len > 1)
+    {
+        auto pos = last.find_last_of(pathsep);
+        if (pos == len - 1)
+        {
+            last.pop_back();
+            --len;
+        }
+        else if (pos == std::string::npos)
+        {
+            break;
+        }
+        else
+        {
+            last = last.substr(pos + 1);
+            break;
+        }
+    }
+    return last;
+}
+
 char*
 QUtil::copy_string(std::string const& str)
 {
@@ -791,6 +873,112 @@ QUtil::get_current_time()
 #else
     return time(0);
 #endif
+}
+
+QUtil::QPDFTime
+QUtil::get_current_qpdf_time()
+{
+#ifdef _WIN32
+    SYSTEMTIME ltime;
+    GetLocalTime(&ltime);
+    TIME_ZONE_INFORMATION tzinfo;
+    GetTimeZoneInformation(&tzinfo);
+    return QPDFTime(static_cast<int>(ltime.wYear),
+                    static_cast<int>(ltime.wMonth),
+                    static_cast<int>(ltime.wDay),
+                    static_cast<int>(ltime.wHour),
+                    static_cast<int>(ltime.wMinute),
+                    static_cast<int>(ltime.wSecond),
+                    static_cast<int>(tzinfo.Bias));
+#else
+    struct tm ltime;
+    time_t now = time(0);
+    tzset();
+#ifdef HAVE_LOCALTIME_R
+    localtime_r(&now, &ltime);
+#else
+    ltime = *localtime(&now);
+#endif
+    return QPDFTime(static_cast<int>(ltime.tm_year + 1900),
+                    static_cast<int>(ltime.tm_mon + 1),
+                    static_cast<int>(ltime.tm_mday),
+                    static_cast<int>(ltime.tm_hour),
+                    static_cast<int>(ltime.tm_min),
+                    static_cast<int>(ltime.tm_sec),
+                    static_cast<int>(timezone / 60));
+#endif
+}
+
+std::string
+QUtil::qpdf_time_to_pdf_time(QPDFTime const& qtm)
+{
+    std::string tz_offset;
+    int t = qtm.tz_delta;
+    if (t == 0)
+    {
+        tz_offset = "Z";
+    }
+    else
+    {
+        if (t < 0)
+        {
+            t = -t;
+            tz_offset += "+";
+        }
+        else
+        {
+            tz_offset += "-";
+        }
+        tz_offset +=
+            QUtil::int_to_string(t / 60, 2) + "'" +
+            QUtil::int_to_string(t % 60, 2) + "'";
+    }
+    return ("D:" +
+            QUtil::int_to_string(qtm.year, 4) +
+            QUtil::int_to_string(qtm.month, 2) +
+            QUtil::int_to_string(qtm.day, 2) +
+            QUtil::int_to_string(qtm.hour, 2) +
+            QUtil::int_to_string(qtm.minute, 2) +
+            QUtil::int_to_string(qtm.second, 2) +
+            tz_offset);
+}
+
+bool
+QUtil::pdf_time_to_qpdf_time(std::string const& str, QPDFTime* qtm)
+{
+    static std::regex pdf_date("^D:([0-9]{4})([0-9]{2})([0-9]{2})"
+                               "([0-9]{2})([0-9]{2})([0-9]{2})"
+                               "(?:(Z?)|([\\+\\-])([0-9]{2})'([0-9]{2})')$");
+    std::smatch m;
+    if (! std::regex_match(str, m, pdf_date))
+    {
+        return false;
+    }
+    int tz_delta = 0;
+    auto to_i = [](std::string const& s) {
+        return QUtil::string_to_int(s.c_str());
+    };
+
+    if (m[8] != "")
+    {
+        tz_delta = ((to_i(m[9]) * 60) +
+                    to_i(m[10]));
+        if (m[8] == "+")
+        {
+            tz_delta = -tz_delta;
+        }
+    }
+    if (qtm)
+    {
+        *qtm = QPDFTime(to_i(m[1]),
+                        to_i(m[2]),
+                        to_i(m[3]),
+                        to_i(m[4]),
+                        to_i(m[5]),
+                        to_i(m[6]),
+                        tz_delta);
+    }
+    return true;
 }
 
 std::string
@@ -1018,6 +1206,7 @@ QUtil::read_file_into_memory(
     PointerHolder<char>& file_buf, size_t& size)
 {
     FILE* f = safe_fopen(filename, "rb");
+    FileCloser fc(f);
     fseek(f, 0, SEEK_END);
     size = QIntC::to_size(QUtil::tell(f));
     fseek(f, 0, SEEK_SET);
@@ -1048,7 +1237,6 @@ QUtil::read_file_into_memory(
                 uint_to_string(size));
         }
     }
-    fclose(f);
 }
 
 static bool read_char_from_FILE(char& ch, FILE* f)
