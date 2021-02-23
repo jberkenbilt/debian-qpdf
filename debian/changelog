@@ -5,7 +5,7 @@ qpdf (10.2.0-1) experimental; urgency=medium
     (Closes: #979947)
   * Uploading to experimental because of debian freeze.
 
- --
+ -- Jay Berkenbilt <qjb@debian.org>  Tue, 23 Feb 2021 13:39:49 -0500
 
 qpdf (10.1.0-1) unstable; urgency=medium
 
