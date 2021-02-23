@@ -4,16 +4,16 @@ ROUTINE DEVELOPMENT
 
 Default:
 
-./configure CXX="g++ --std=c++11" --enable-werror
+./configure CXX="g++ --std=c++14" --enable-werror
 
 Debugging:
 
-./configure CXX="g++ --std=c++11" CFLAGS="-g" CXXFLAGS="-g" \
+./configure CXX="g++ --std=c++14" CFLAGS="-g" CXXFLAGS="-g" \
    --enable-werror --disable-shared
 
 Profiling:
 
-./configure CXX="g++ --std=c++11" CFLAGS="-g -pg" CXXFLAGS="-g -pg" \
+./configure CXX="g++ --std=c++14" CFLAGS="-g -pg" CXXFLAGS="-g -pg" \
    LDFLAGS="-pg" --enable-werror --disable-shared
 
 Then run `gprof gmon.out`. Note that gmon.out is not cumulative.
@@ -23,7 +23,7 @@ Memory checks:
 ./configure CFLAGS="-fsanitize=address -fsanitize=undefined -g" \
    CXXFLAGS="-fsanitize=address -fsanitize=undefined -g" \
    LDFLAGS="-fsanitize=address -fsanitize=undefined" \
-   CC=clang CXX="clang++ --std=c++11" \
+   CC=clang CXX="clang++ --std=c++14" \
    --enable-werror --disable-shared
 
 
@@ -190,8 +190,19 @@ RELEASE PREPARATION
   casting policy in the manual, and ensure that integer types are
   properly handled with QIntC or the appropriate cast.
 
-* Increment shared library version information as needed (`LT_CURRENT`
-  in `configure.ac`). Remember to rerun ./autogen.sh.
+* Update versions and shared library details
+
+  * Increment shared library version information as needed
+    (`LT_CURRENT` in `configure.ac`)
+
+  * Make sure version numbers are consistent in the following locations:
+    * configure.ac
+    * libqpdf/QPDF.cc
+    * manual/qpdf-manual.xml
+    * qpdf/qpdf.cc
+    `make_dist` verifies this consistency.
+
+  * Run ./autogen.sh
 
 * Performance test is included with binary compatibility steps. Even
   if releasing a new major release and not doing binary compatibility
@@ -230,15 +241,6 @@ pytest -n auto
   the entities at the top of the document are consistent with the
   release notes for both version and release date.
 
-* Make sure version numbers are consistent in the following locations:
-  * configure.ac
-  * libqpdf/QPDF.cc
-  * manual/qpdf-manual.xml
-  * qpdf/qpdf.cc
-  `make_dist` verifies this consistency.
-
-* Run ./autogen.sh
-
 * Add a release entry to ChangeLog.
 
 
@@ -255,6 +257,9 @@ version=x.y.z
 gpg --detach-sign --armor qpdf-$version.tar.gz
 
 * Build and test the debian package
+
+* Add a calendar reminder to check the status of the debian package to
+  make sure it is transitioning properly and to resolve any issues.
 
 * Sign the releases. The release archive area should contain the
   Windows binaries, the AppImage, the source tarball, and the source
@@ -285,8 +290,8 @@ git push upstream release-qpdf-$version
   that includes the auth token.
 
 # Create release
-TOKEN=$(qdata-show cred github-token)
-function gcurl() { curl -H "Authorization: token $TOKEN" ${1+"$@"}; }
+GITHUB_TOKEN=$(qdata-show cred github-token)
+function gcurl() { curl -H "Authorization: token $GITHUB_TOKEN" ${1+"$@"}; }
 url=$(gcurl -s -XPOST https://api.github.com/repos/qpdf/qpdf/releases -d'{"tag_name": "release-qpdf-'$version'", "name": "qpdf '$version'", "draft": true}' | jq -r '.url')
 
 # Get upload url

@@ -34,6 +34,7 @@
 #include <time.h>
 
 class RandomDataProvider;
+class Pipeline;
 
 namespace QUtil
 {
@@ -46,9 +47,16 @@ namespace QUtil
     QPDF_DLL
     std::string int_to_string_base(long long, int base, int length = 0);
     QPDF_DLL
-    std::string uint_to_string_base(unsigned long long, int base, int length = 0);
+    std::string uint_to_string_base(unsigned long long, int base,
+                                    int length = 0);
     QPDF_DLL
     std::string double_to_string(double, int decimal_places = 0);
+    // ABI: combine with other double_to_string by adding
+    // trim_trailing_zeroes above as an optional parameter with a
+    // default of true.
+    QPDF_DLL
+    std::string double_to_string(double, int decimal_places,
+                                 bool trim_trailing_zeroes);
 
     // These string to number methods throw std::runtime_error on
     // underflow/overflow.
@@ -119,6 +127,26 @@ namespace QUtil
     QPDF_DLL
     void rename_file(char const* oldname, char const* newname);
 
+    // Write the contents of filename as a binary file to the
+    // pipeline.
+    QPDF_DLL
+    void pipe_file(char const* filename, Pipeline* p);
+
+    // Return a function that will send the contents of the given file
+    // through the given pipeline as binary data.
+    QPDF_DLL
+    std::function<void(Pipeline*)> file_provider(std::string const& filename);
+
+    // Return the last path element. On Windows, either / or \ are
+    // path separators. Otherwise, only / is a path separator. Strip
+    // any trailing path separators. Then, if any path separators
+    // remain, return everything after the last path separator.
+    // Otherwise, return the whole string. As a special case, if a
+    // string consists entirely of path separators, the first
+    // character is returned.
+    QPDF_DLL
+    std::string path_basename(std::string const& filename);
+
     QPDF_DLL
     char* copy_string(std::string const&);
 
@@ -145,7 +173,6 @@ namespace QUtil
     QPDF_DLL
     void setLineBuf(FILE*);
 
-
     // May modify argv0
     QPDF_DLL
     char* getWhoami(char* argv0);
@@ -158,6 +185,52 @@ namespace QUtil
 
     QPDF_DLL
     time_t get_current_time();
+
+    // Portable structure representing a point in time with second
+    // granularity and time zone offset
+    struct QPDFTime
+    {
+        QPDFTime() = default;
+        QPDFTime(QPDFTime const&) = default;
+        QPDFTime& operator=(QPDFTime const&) = default;
+        QPDFTime(int year, int month, int day, int hour,
+                 int minute, int second, int tz_delta) :
+            year(year),
+            month(month),
+            day(day),
+            hour(hour),
+            minute(minute),
+            second(second),
+            tz_delta(tz_delta)
+        {
+        }
+        int year;               // actual year, no 1900 stuff
+        int month;              // 1--12
+        int day;                // 1--31
+        int hour;
+        int minute;
+        int second;
+        int tz_delta;           // minutes before UTC
+    };
+
+    QPDF_DLL
+    QPDFTime get_current_qpdf_time();
+
+    // Convert a QPDFTime structure to a PDF timestamp string, which
+    // is "D:yyyymmddhhmmss<z>" where <z> is either "Z" for UTC or
+    // "-hh'mm'" or "+hh'mm'" for timezone offset. <z> may also be
+    // omitted. Examples: "D:20210207161528-05'00'",
+    // "D:20210207211528Z", "D:20210207211528". See
+    // get_current_qpdf_time and the QPDFTime structure above.
+    QPDF_DLL
+    std::string qpdf_time_to_pdf_time(QPDFTime const&);
+
+    // Convert a PDF timestamp string to a QPDFTime. If syntactically
+    // valid, return true and fill in qtm. If not valid, return false,
+    // and do not modify qtm. If qtm is null, just check the validity
+    // of the string.
+    QPDF_DLL
+    bool pdf_time_to_qpdf_time(std::string const&, QPDFTime* qtm = nullptr);
 
     // Return a string containing the byte representation of the UTF-8
     // encoding for the unicode value passed in.

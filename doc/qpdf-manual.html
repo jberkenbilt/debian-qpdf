@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>QPDF Manual</title><link rel="stylesheet" type="text/css" href="stylesheet.css" /><meta name="generator" content="DocBook XSL Stylesheets V1.79.1" /></head><body><div class="book"><div class="titlepage"><div><div><h1 class="title"><a id="idm1"></a>QPDF Manual</h1></div><div><h2 class="subtitle">For QPDF Version 10.1.0, January 5, 2021</h2></div><div><div class="author"><h3 class="author"><span class="firstname">Jay</span> <span class="surname">Berkenbilt</span></h3></div></div><div><p class="copyright">Copyright © 2005–2020 Jay Berkenbilt</p></div></div><hr /></div><div class="toc"><p><strong>Table of Contents</strong></p><dl class="toc"><dt><span class="preface"><a href="#acknowledgments">General Information</a></span></dt><dt><span class="chapter"><a href="#ref.overview">1. What is QPDF?</a></span></dt><dt><span class="chapter"><a href="#ref.installing">2. Building and Installing QPDF</a></span></dt><dd><dl><dt><span class="sect1"><a href="#ref.prerequisites">2.1. System Requirements</a></span></dt><dt><span class="sect1"><a href="#ref.building">2.2. Build Instructions</a></span></dt><dt><span class="sect1"><a href="#ref.crypto">2.3. Crypto Providers</a></span></dt><dd><dl><dt><span class="sect2"><a href="#ref.crypto.build">2.3.1. Build Support For Crypto Providers</a></span></dt><dt><span class="sect2"><a href="#ref.crypto.runtime">2.3.2. Runtime Crypto Provider Selection</a></span></dt><dt><span class="sect2"><a href="#ref.crypto.develop">2.3.3. Crypto Provider Information for Developers</a></span></dt><dt><span class="sect2"><a href="#ref.crypto.design">2.3.4. Crypto Provider Design Notes</a></span></dt></dl></dd><dt><span class="sect1"><a href="#ref.packaging">2.4. Notes for Packagers</a></span></dt></dl></dd><dt><span class="chapter"><a href="#ref.using">3. Running QPDF</a></span></dt><dd><dl><dt><span class="sect1"><a href="#ref.invocation">3.1. Basic Invocation</a></span></dt><dd><dl><dt><span class="sect2"><a href="#ref.exit-status">3.1.1. Exit Status</a></span></dt></dl></dd><dt><span class="sect1"><a href="#ref.shell-completion">3.2. Shell Completion</a></span></dt><dt><span class="sect1"><a href="#ref.basic-options">3.3. Basic Options</a></span></dt><dt><span class="sect1"><a href="#ref.encryption-options">3.4. Encryption Options</a></span></dt><dt><span class="sect1"><a href="#ref.page-selection">3.5. Page Selection Options</a></span></dt><dt><span class="sect1"><a href="#ref.overlay-underlay">3.6. Overlay and Underlay Options</a></span></dt><dt><span class="sect1"><a href="#ref.advanced-parsing">3.7. Advanced Parsing Options</a></span></dt><dt><span class="sect1"><a href="#ref.advanced-transformation">3.8. Advanced Transformation Options</a></span></dt><dt><span class="sect1"><a href="#ref.testing-options">3.9. Testing, Inspection, and Debugging Options</a></span></dt><dt><span class="sect1"><a href="#ref.unicode-passwords">3.10. Unicode Passwords</a></span></dt></dl></dd><dt><span class="chapter"><a href="#ref.qdf">4. QDF Mode</a></span></dt><dt><span class="chapter"><a href="#ref.using-library">5. Using the QPDF Library</a></span></dt><dd><dl><dt><span class="sect1"><a href="#ref.using.from-cxx">5.1. Using QPDF from C++</a></span></dt><dt><span class="sect1"><a href="#ref.using.other-languages">5.2. Using QPDF from other languages</a></span></dt><dt><span class="sect1"><a href="#ref.unicode-files">5.3. A Note About Unicode File Names</a></span></dt></dl></dd><dt><span class="chapter"><a href="#ref.json">6. QPDF JSON</a></span></dt><dd><dl><dt><span class="sect1"><a href="#ref.json-overview">6.1. Overview</a></span></dt><dt><span class="sect1"><a href="#ref.json-guarantees">6.2. JSON Guarantees</a></span></dt><dt><span class="sect1"><a href="#json.limitations">6.3. Limitations of JSON Representation</a></span></dt><dt><span class="sect1"><a href="#json.considerations">6.4. JSON: Special Considerations</a></span></dt></dl></dd><dt><span class="chapter"><a href="#ref.design">7. Design and Library Notes</a></span></dt><dd><dl><dt><span class="sect1"><a href="#ref.design.intro">7.1. Introduction</a></span></dt><dt><span class="sect1"><a href="#ref.design-goals">7.2. Design Goals</a></span></dt><dt><span class="sect1"><a href="#ref.helper-classes">7.3. Helper Classes</a></span></dt><dt><span class="sect1"><a href="#ref.implementation-notes">7.4. Implementation Notes</a></span></dt><dt><span class="sect1"><a href="#ref.casting">7.5. Casting Policy</a></span></dt><dt><span class="sect1"><a href="#ref.encryption">7.6. Encryption</a></span></dt><dt><span class="sect1"><a href="#ref.random-numbers">7.7. Random Number Generation</a></span></dt><dt><span class="sect1"><a href="#ref.adding-and-remove-pages">7.8. Adding and Removing Pages</a></span></dt><dt><span class="sect1"><a href="#ref.reserved-objects">7.9. Reserving Object Numbers</a></span></dt><dt><span class="sect1"><a href="#ref.foreign-objects">7.10. Copying Objects From Other PDF Files</a></span></dt><dt><span class="sect1"><a href="#ref.rewriting">7.11. Writing PDF Files</a></span></dt><dt><span class="sect1"><a href="#ref.filtered-streams">7.12. Filtered Streams</a></span></dt></dl></dd><dt><span class="chapter"><a href="#ref.linearization">8. Linearization</a></span></dt><dd><dl><dt><span class="sect1"><a href="#ref.linearization-strategy">8.1. Basic Strategy for Linearization</a></span></dt><dt><span class="sect1"><a href="#ref.linearized.preparation">8.2. Preparing For Linearization</a></span></dt><dt><span class="sect1"><a href="#ref.optimization">8.3. Optimization</a></span></dt><dt><span class="sect1"><a href="#ref.linearization.writing">8.4. Writing Linearized Files</a></span></dt><dt><span class="sect1"><a href="#ref.linearization-data">8.5. Calculating Linearization Data</a></span></dt><dt><span class="sect1"><a href="#ref.linearization-issues">8.6. Known Issues with Linearization</a></span></dt><dt><span class="sect1"><a href="#ref.linearization-debugging">8.7. Debugging Note</a></span></dt></dl></dd><dt><span class="chapter"><a href="#ref.object-and-xref-streams">9. Object and Cross-Reference Streams</a></span></dt><dd><dl><dt><span class="sect1"><a href="#ref.object-streams">9.1. Object Streams</a></span></dt><dt><span class="sect1"><a href="#ref.xref-streams">9.2. Cross-Reference Streams</a></span></dt><dd><dl><dt><span class="sect2"><a href="#ref.xref-stream-data">9.2.1. Cross-Reference Stream Data</a></span></dt></dl></dd><dt><span class="sect1"><a href="#ref.object-streams-linearization">9.3. Implications for Linearized Files</a></span></dt><dt><span class="sect1"><a href="#ref.object-stream-implementation">9.4. Implementation Notes</a></span></dt></dl></dd><dt><span class="appendix"><a href="#ref.release-notes">A. Release Notes</a></span></dt><dt><span class="appendix"><a href="#ref.upgrading-to-2.1">B. Upgrading from 2.0 to 2.1</a></span></dt><dt><span class="appendix"><a href="#ref.upgrading-to-3.0">C. Upgrading to 3.0</a></span></dt><dt><span class="appendix"><a href="#ref.upgrading-to-4.0">D. Upgrading to 4.0</a></span></dt></dl></div><div class="preface"><div class="titlepage"><div><div><h1 class="title"><a id="acknowledgments"></a>General Information</h1></div></div></div><p>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>QPDF Manual</title><link rel="stylesheet" type="text/css" href="stylesheet.css" /><meta name="generator" content="DocBook XSL Stylesheets V1.79.1" /></head><body><div class="book"><div class="titlepage"><div><div><h1 class="title"><a id="idm1"></a>QPDF Manual</h1></div><div><h2 class="subtitle">For QPDF Version 10.2.0, February 23, 2021</h2></div><div><div class="author"><h3 class="author"><span class="firstname">Jay</span> <span class="surname">Berkenbilt</span></h3></div></div><div><p class="copyright">Copyright © 2005–2020 Jay Berkenbilt</p></div></div><hr /></div><div class="toc"><p><strong>Table of Contents</strong></p><dl class="toc"><dt><span class="preface"><a href="#acknowledgments">General Information</a></span></dt><dt><span class="chapter"><a href="#ref.overview">1. What is QPDF?</a></span></dt><dt><span class="chapter"><a href="#ref.installing">2. Building and Installing QPDF</a></span></dt><dd><dl><dt><span class="sect1"><a href="#ref.prerequisites">2.1. System Requirements</a></span></dt><dt><span class="sect1"><a href="#ref.building">2.2. Build Instructions</a></span></dt><dt><span class="sect1"><a href="#ref.crypto">2.3. Crypto Providers</a></span></dt><dd><dl><dt><span class="sect2"><a href="#ref.crypto.build">2.3.1. Build Support For Crypto Providers</a></span></dt><dt><span class="sect2"><a href="#ref.crypto.runtime">2.3.2. Runtime Crypto Provider Selection</a></span></dt><dt><span class="sect2"><a href="#ref.crypto.develop">2.3.3. Crypto Provider Information for Developers</a></span></dt><dt><span class="sect2"><a href="#ref.crypto.design">2.3.4. Crypto Provider Design Notes</a></span></dt></dl></dd><dt><span class="sect1"><a href="#ref.packaging">2.4. Notes for Packagers</a></span></dt></dl></dd><dt><span class="chapter"><a href="#ref.using">3. Running QPDF</a></span></dt><dd><dl><dt><span class="sect1"><a href="#ref.invocation">3.1. Basic Invocation</a></span></dt><dd><dl><dt><span class="sect2"><a href="#ref.exit-status">3.1.1. Exit Status</a></span></dt></dl></dd><dt><span class="sect1"><a href="#ref.shell-completion">3.2. Shell Completion</a></span></dt><dt><span class="sect1"><a href="#ref.basic-options">3.3. Basic Options</a></span></dt><dt><span class="sect1"><a href="#ref.encryption-options">3.4. Encryption Options</a></span></dt><dt><span class="sect1"><a href="#ref.page-selection">3.5. Page Selection Options</a></span></dt><dt><span class="sect1"><a href="#ref.overlay-underlay">3.6. Overlay and Underlay Options</a></span></dt><dt><span class="sect1"><a href="#ref.attachments">3.7. Embedded Files/Attachments Options</a></span></dt><dt><span class="sect1"><a href="#ref.advanced-parsing">3.8. Advanced Parsing Options</a></span></dt><dt><span class="sect1"><a href="#ref.advanced-transformation">3.9. Advanced Transformation Options</a></span></dt><dt><span class="sect1"><a href="#ref.testing-options">3.10. Testing, Inspection, and Debugging Options</a></span></dt><dt><span class="sect1"><a href="#ref.unicode-passwords">3.11. Unicode Passwords</a></span></dt></dl></dd><dt><span class="chapter"><a href="#ref.qdf">4. QDF Mode</a></span></dt><dt><span class="chapter"><a href="#ref.using-library">5. Using the QPDF Library</a></span></dt><dd><dl><dt><span class="sect1"><a href="#ref.using.from-cxx">5.1. Using QPDF from C++</a></span></dt><dt><span class="sect1"><a href="#ref.using.other-languages">5.2. Using QPDF from other languages</a></span></dt><dt><span class="sect1"><a href="#ref.unicode-files">5.3. A Note About Unicode File Names</a></span></dt></dl></dd><dt><span class="chapter"><a href="#ref.json">6. QPDF JSON</a></span></dt><dd><dl><dt><span class="sect1"><a href="#ref.json-overview">6.1. Overview</a></span></dt><dt><span class="sect1"><a href="#ref.json-guarantees">6.2. JSON Guarantees</a></span></dt><dt><span class="sect1"><a href="#json.limitations">6.3. Limitations of JSON Representation</a></span></dt><dt><span class="sect1"><a href="#json.considerations">6.4. JSON: Special Considerations</a></span></dt></dl></dd><dt><span class="chapter"><a href="#ref.design">7. Design and Library Notes</a></span></dt><dd><dl><dt><span class="sect1"><a href="#ref.design.intro">7.1. Introduction</a></span></dt><dt><span class="sect1"><a href="#ref.design-goals">7.2. Design Goals</a></span></dt><dt><span class="sect1"><a href="#ref.helper-classes">7.3. Helper Classes</a></span></dt><dt><span class="sect1"><a href="#ref.implementation-notes">7.4. Implementation Notes</a></span></dt><dt><span class="sect1"><a href="#ref.casting">7.5. Casting Policy</a></span></dt><dt><span class="sect1"><a href="#ref.encryption">7.6. Encryption</a></span></dt><dt><span class="sect1"><a href="#ref.random-numbers">7.7. Random Number Generation</a></span></dt><dt><span class="sect1"><a href="#ref.adding-and-remove-pages">7.8. Adding and Removing Pages</a></span></dt><dt><span class="sect1"><a href="#ref.reserved-objects">7.9. Reserving Object Numbers</a></span></dt><dt><span class="sect1"><a href="#ref.foreign-objects">7.10. Copying Objects From Other PDF Files</a></span></dt><dt><span class="sect1"><a href="#ref.rewriting">7.11. Writing PDF Files</a></span></dt><dt><span class="sect1"><a href="#ref.filtered-streams">7.12. Filtered Streams</a></span></dt></dl></dd><dt><span class="chapter"><a href="#ref.linearization">8. Linearization</a></span></dt><dd><dl><dt><span class="sect1"><a href="#ref.linearization-strategy">8.1. Basic Strategy for Linearization</a></span></dt><dt><span class="sect1"><a href="#ref.linearized.preparation">8.2. Preparing For Linearization</a></span></dt><dt><span class="sect1"><a href="#ref.optimization">8.3. Optimization</a></span></dt><dt><span class="sect1"><a href="#ref.linearization.writing">8.4. Writing Linearized Files</a></span></dt><dt><span class="sect1"><a href="#ref.linearization-data">8.5. Calculating Linearization Data</a></span></dt><dt><span class="sect1"><a href="#ref.linearization-issues">8.6. Known Issues with Linearization</a></span></dt><dt><span class="sect1"><a href="#ref.linearization-debugging">8.7. Debugging Note</a></span></dt></dl></dd><dt><span class="chapter"><a href="#ref.object-and-xref-streams">9. Object and Cross-Reference Streams</a></span></dt><dd><dl><dt><span class="sect1"><a href="#ref.object-streams">9.1. Object Streams</a></span></dt><dt><span class="sect1"><a href="#ref.xref-streams">9.2. Cross-Reference Streams</a></span></dt><dd><dl><dt><span class="sect2"><a href="#ref.xref-stream-data">9.2.1. Cross-Reference Stream Data</a></span></dt></dl></dd><dt><span class="sect1"><a href="#ref.object-streams-linearization">9.3. Implications for Linearized Files</a></span></dt><dt><span class="sect1"><a href="#ref.object-stream-implementation">9.4. Implementation Notes</a></span></dt></dl></dd><dt><span class="appendix"><a href="#ref.release-notes">A. Release Notes</a></span></dt><dt><span class="appendix"><a href="#ref.upgrading-to-2.1">B. Upgrading from 2.0 to 2.1</a></span></dt><dt><span class="appendix"><a href="#ref.upgrading-to-3.0">C. Upgrading to 3.0</a></span></dt><dt><span class="appendix"><a href="#ref.upgrading-to-4.0">D. Upgrading to 4.0</a></span></dt></dl></div><div class="preface"><div class="titlepage"><div><div><h1 class="title"><a id="acknowledgments"></a>General Information</h1></div></div></div><p>
    QPDF is a program that does structural, content-preserving
    transformations on PDF files.  QPDF's website is located at <a class="ulink" href="http://qpdf.sourceforge.net/" target="_top">http://qpdf.sourceforge.net/</a>.
    QPDF's source code is hosted on github at <a class="ulink" href="https://github.com/qpdf/qpdf" target="_top">https://github.com/qpdf/qpdf</a>.
@@ -72,7 +72,7 @@
     The qpdf package has few external dependencies. In order to build
     qpdf, the following packages are required:
     </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
-       A C++ compiler that supports C++-11.
+       A C++ compiler that supports C++-14.
       </p></li><li class="listitem"><p>
        zlib: <a class="ulink" href="http://www.zlib.net/" target="_top">http://www.zlib.net/</a>
       </p></li><li class="listitem"><p>
@@ -390,7 +390,7 @@ make
        <code class="filename">examples</code> directory along with qpdf
        development packages.
       </p></li></ul></div><p>
-   </p></div></div><div class="chapter"><div class="titlepage"><div><div><h1 class="title"><a id="ref.using"></a>Chapter 3. Running QPDF</h1></div></div></div><div class="toc"><p><strong>Table of Contents</strong></p><dl class="toc"><dt><span class="sect1"><a href="#ref.invocation">3.1. Basic Invocation</a></span></dt><dd><dl><dt><span class="sect2"><a href="#ref.exit-status">3.1.1. Exit Status</a></span></dt></dl></dd><dt><span class="sect1"><a href="#ref.shell-completion">3.2. Shell Completion</a></span></dt><dt><span class="sect1"><a href="#ref.basic-options">3.3. Basic Options</a></span></dt><dt><span class="sect1"><a href="#ref.encryption-options">3.4. Encryption Options</a></span></dt><dt><span class="sect1"><a href="#ref.page-selection">3.5. Page Selection Options</a></span></dt><dt><span class="sect1"><a href="#ref.overlay-underlay">3.6. Overlay and Underlay Options</a></span></dt><dt><span class="sect1"><a href="#ref.advanced-parsing">3.7. Advanced Parsing Options</a></span></dt><dt><span class="sect1"><a href="#ref.advanced-transformation">3.8. Advanced Transformation Options</a></span></dt><dt><span class="sect1"><a href="#ref.testing-options">3.9. Testing, Inspection, and Debugging Options</a></span></dt><dt><span class="sect1"><a href="#ref.unicode-passwords">3.10. Unicode Passwords</a></span></dt></dl></div><p>
+   </p></div></div><div class="chapter"><div class="titlepage"><div><div><h1 class="title"><a id="ref.using"></a>Chapter 3. Running QPDF</h1></div></div></div><div class="toc"><p><strong>Table of Contents</strong></p><dl class="toc"><dt><span class="sect1"><a href="#ref.invocation">3.1. Basic Invocation</a></span></dt><dd><dl><dt><span class="sect2"><a href="#ref.exit-status">3.1.1. Exit Status</a></span></dt></dl></dd><dt><span class="sect1"><a href="#ref.shell-completion">3.2. Shell Completion</a></span></dt><dt><span class="sect1"><a href="#ref.basic-options">3.3. Basic Options</a></span></dt><dt><span class="sect1"><a href="#ref.encryption-options">3.4. Encryption Options</a></span></dt><dt><span class="sect1"><a href="#ref.page-selection">3.5. Page Selection Options</a></span></dt><dt><span class="sect1"><a href="#ref.overlay-underlay">3.6. Overlay and Underlay Options</a></span></dt><dt><span class="sect1"><a href="#ref.attachments">3.7. Embedded Files/Attachments Options</a></span></dt><dt><span class="sect1"><a href="#ref.advanced-parsing">3.8. Advanced Parsing Options</a></span></dt><dt><span class="sect1"><a href="#ref.advanced-transformation">3.9. Advanced Transformation Options</a></span></dt><dt><span class="sect1"><a href="#ref.testing-options">3.10. Testing, Inspection, and Debugging Options</a></span></dt><dt><span class="sect1"><a href="#ref.unicode-passwords">3.11. Unicode Passwords</a></span></dt></dl></div><p>
    This chapter describes how to run the qpdf program from the command
    line.
   </p><div class="sect1"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a id="ref.invocation"></a>3.1. Basic Invocation</h2></div></div></div><p>
@@ -409,13 +409,17 @@ make
     normal use case for using <code class="option">--empty</code> would be if you
     were going to add pages from another source, as discussed in <a class="xref" href="#ref.page-selection" title="3.5. Page Selection Options">Section 3.5, “Page Selection Options”</a>.
    </p><p>
-    If <code class="option">@filename</code> appears anywhere in the
+    If <code class="option">@filename</code> appears as a word anywhere in the
     command-line, it will be read line by line, and each line will be
     treated as a command-line argument. The <code class="option">@-</code> option
     allows arguments to be read from standard input. This allows qpdf
     to be invoked with an arbitrary number of arbitrarily long
     arguments. It is also very useful for avoiding having to pass
-    passwords on the command line.
+    passwords on the command line. Note that the
+    <code class="option">@filename</code> can't appear in the middle of an
+    argument, so constructs such as <code class="option">--arg=@option</code>
+    will not work. You would have to include the argument and its
+    options together in the arguments file.
    </p><p>
     <code class="option">outfilename</code> does not have to be seekable, even
     when generating linearized files.  Specifying
@@ -488,12 +492,26 @@ make
        </p></dd><dt><span class="term"><code class="option">--completion-zsh</code></span></dt><dd><p>
         Output a completion command you can eval to enable shell
         completion from zsh.
-       </p></dd><dt><span class="term"><code class="option">--password=password</code></span></dt><dd><p>
-        Specifies a password for accessing encrypted files. Note that
-        you can use <code class="option">@filename</code> or <code class="option">@-</code>
-        as described above to put the password in a file or pass it
-        via standard input so you can avoid specifying it on the
-        command line.
+       </p></dd><dt><span class="term"><code class="option">--password=<em class="replaceable"><code>password</code></em></code></span></dt><dd><p>
+        Specifies a password for accessing encrypted files. To read
+        the password from a file or standard input, you can use
+        <code class="option">--password-file</code>, added in qpdf 10.2. Note
+        that you can also use <code class="option">@filename</code> or
+        <code class="option">@-</code> as described above to put the password in
+        a file or pass it via standard input, but you would do so by
+        specifying the entire
+        <code class="option">--password=<em class="replaceable"><code>password</code></em></code>
+        option in the file. Syntax such as
+        <code class="option">--password=@filename</code> won't work since
+        <code class="option">@filename</code> is not recognized in the middle of
+        an argument.
+       </p></dd><dt><span class="term"><code class="option">--password-file=<em class="replaceable"><code>filename</code></em></code></span></dt><dd><p>
+        Reads the first line from the specified file and uses it as
+        the password for accessing encrypted files.
+        <code class="option"><em class="replaceable"><code>filename</code></em></code> may be
+        <code class="literal">-</code> to read the password from standard input.
+        Note that, in this case, the password is echoed and there is
+        no prompt, so use with caution.
        </p></dd><dt><span class="term"><code class="option">--is-encrypted</code></span></dt><dd><p>
         Silently exit with status 0 if the file is encrypted or status
         2 if the file is not encrypted. This is useful for shell
@@ -590,7 +608,7 @@ make
         Ordinarily, qpdf attempts to automatically compensate for
         passwords specified in the wrong character encoding. This
         option suppresses that behavior. Under normal conditions,
-        there are no reasons to use this option. See <a class="xref" href="#ref.unicode-passwords" title="3.10. Unicode Passwords">Section 3.10, “Unicode Passwords”</a> for a discussion
+        there are no reasons to use this option. See <a class="xref" href="#ref.unicode-passwords" title="3.11. Unicode Passwords">Section 3.11, “Unicode Passwords”</a> for a discussion
        </p></dd><dt><span class="term"><code class="option">--password-mode=<em class="replaceable"><code>mode</code></em></code></span></dt><dd><p>
         This option can be used to fine-tune how qpdf interprets
         Unicode (non-ASCII) password strings passed on the command
@@ -599,7 +617,7 @@ make
         files. The <code class="option">hex-bytes</code> mode also applies to
         passwords specified for reading files. For additional
         discussion of the supported password modes and when you might
-        want to use them, see <a class="xref" href="#ref.unicode-passwords" title="3.10. Unicode Passwords">Section 3.10, “Unicode Passwords”</a>.
+        want to use them, see <a class="xref" href="#ref.unicode-passwords" title="3.11. Unicode Passwords">Section 3.11, “Unicode Passwords”</a>.
         The following modes are supported:
         </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
            <code class="option">auto</code>: Automatically determine whether the
@@ -643,7 +661,7 @@ make
         the same format as page ranges in <a class="xref" href="#ref.page-selection" title="3.5. Page Selection Options">Section 3.5, “Page Selection Options”</a>. If the page range is omitted,
         the rotation is applied to all pages. The
         <code class="option">angle</code> portion of the parameter may be either
-        90, 180, or 270. If preceded by <code class="option">+</code> or
+        0, 90, 180, or 270. If preceded by <code class="option">+</code> or
         <code class="option">-</code>, the angle is added to or subtracted from
         the specified pages' original rotations. This is almost always
         what you want. Otherwise the pages' rotations are set to the
@@ -689,9 +707,12 @@ make
        </p></dd><dt><span class="term"><code class="option">--pages options --</code></span></dt><dd><p>
         Select specific pages from one or more input files.  See <a class="xref" href="#ref.page-selection" title="3.5. Page Selection Options">Section 3.5, “Page Selection Options”</a> for details on how to do page
         selection (splitting and merging).
-       </p></dd><dt><span class="term"><code class="option">--collate</code></span></dt><dd><p>
+       </p></dd><dt><span class="term"><code class="option">--collate=<em class="replaceable"><code>n</code></em></code></span></dt><dd><p>
         When specified, collate rather than concatenate pages from
-        files specified with <code class="option">--pages</code>.  See <a class="xref" href="#ref.page-selection" title="3.5. Page Selection Options">Section 3.5, “Page Selection Options”</a> for additional details.
+        files specified with <code class="option">--pages</code>. With a numeric
+        argument, collate in groups of <em class="replaceable"><code>n</code></em>.
+        The default is 1. See <a class="xref" href="#ref.page-selection" title="3.5. Page Selection Options">Section 3.5, “Page Selection Options”</a> for
+        additional details.
        </p></dd><dt><span class="term"><code class="option">--flatten-rotation</code></span></dt><dd><p>
         For each page that is rotated using the
         <code class="literal">/Rotate</code> key in the page's dictionary,
@@ -772,7 +793,7 @@ make
     that fall outside of 7-bit US-ASCII, qpdf left the burden of
     supplying properly encoded encryption and decryption passwords to
     the user. Starting in qpdf 8.4.0, qpdf does this automatically in
-    most cases. For an in-depth discussion, please see <a class="xref" href="#ref.unicode-passwords" title="3.10. Unicode Passwords">Section 3.10, “Unicode Passwords”</a>. Previous versions of this
+    most cases. For an in-depth discussion, please see <a class="xref" href="#ref.unicode-passwords" title="3.11. Unicode Passwords">Section 3.11, “Unicode Passwords”</a>. Previous versions of this
     manual described workarounds using the <span class="command"><strong>iconv</strong></span>
     command. Such workarounds are no longer required or recommended
     with qpdf 8.4.0. However, for backward compatibility, qpdf
@@ -789,7 +810,12 @@ make
     present.
    </p><p>
     Either or both of the user password and the owner password may be
-    empty strings.
+    empty strings. Starting in qpdf 10.2, qpdf defaults to not
+    allowing creation of PDF files with a non-empty user password, an
+    empty owner password, and a 256-bit key since such files can be
+    opened with no password. If you want to create such files, specify
+    the encryption option <code class="option">--allow-insecure</code>, as
+    described below.
    </p><p>
     The value for
     <code class="option"><em class="replaceable"><code>key-length</code></em></code> may be 40,
@@ -879,6 +905,15 @@ make
         If <code class="option">--use-aes=y</code> is specified, AES encryption
         will be used instead of RC4 encryption.  This forces the PDF
         version to be at least 1.6.
+       </p></dd><dt><span class="term"><code class="option">--allow-insecure</code></span></dt><dd><p>
+        From qpdf 10.2, qpdf defaults to not allowing creation of PDF
+        files where the user password is non-empty, the owner password
+        is empty, and a 256-bit key is in use. Files created in this
+        way are insecure since they can be opened without a password.
+        Users would ordinarily never want to create such files. If you
+        are using qpdf to intentionally created strange files for
+        testing (a definite valid use of qpdf!), this option allows
+        you to create such insecure files.
        </p></dd><dt><span class="term"><code class="option">--force-V4</code></span></dt><dd><p>
         Use of this option forces the <code class="literal">/V</code> and
         <code class="literal">/R</code> parameters in the document's encryption
@@ -998,6 +1033,16 @@ make
     out.pdf</strong></span>, you would get the following pages in this
     order:
     </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>a.pdf page 1</p></li><li class="listitem"><p>b.pdf page 6</p></li><li class="listitem"><p>c.pdf last page</p></li><li class="listitem"><p>a.pdf page 2</p></li><li class="listitem"><p>b.pdf page 5</p></li><li class="listitem"><p>a.pdf page 3</p></li><li class="listitem"><p>b.pdf page 4</p></li><li class="listitem"><p>a.pdf page 4</p></li><li class="listitem"><p>a.pdf page 5</p></li></ul></div><p>
+   </p><p>
+    Starting in qpdf version 10.2, you may specify a numeric argument
+    to <code class="option">--collate</code>. With
+    <code class="option">--collate=<em class="replaceable"><code>n</code></em></code>, pull
+    groups of <em class="replaceable"><code>n</code></em> pages from each file,
+    again, stopping when there are no more pages. For example, if you
+    ran <span class="command"><strong>qpdf --collate=2 --empty --pages a.pdf 1-5 b.pdf 6-4
+    c.pdf r1 -- out.pdf</strong></span>, you would get the following pages
+    in this order:
+    </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>a.pdf page 1</p></li><li class="listitem"><p>a.pdf page 2</p></li><li class="listitem"><p>b.pdf page 6</p></li><li class="listitem"><p>b.pdf page 5</p></li><li class="listitem"><p>c.pdf last page</p></li><li class="listitem"><p>a.pdf page 3</p></li><li class="listitem"><p>a.pdf page 4</p></li><li class="listitem"><p>b.pdf page 4</p></li><li class="listitem"><p>a.pdf page 5</p></li></ul></div><p>
    </p><p>
     Starting in qpdf version 8.3, when you split and merge files, any
     page labels (page numbers) are preserved in the final file. It is
@@ -1124,7 +1169,91 @@ outfile.pdf</code>
        output pages, and underlay page 2 of
        <code class="filename">footer.pdf</code> on all even output pages.
       </p></li></ul></div><p>
-   </p></div><div class="sect1"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a id="ref.advanced-parsing"></a>3.7. Advanced Parsing Options</h2></div></div></div><p>
+   </p></div><div class="sect1"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a id="ref.attachments"></a>3.7. Embedded Files/Attachments Options</h2></div></div></div><p>
+    Starting with qpdf 10.2, you can work with file attachments in PDF
+    files from the command line. The following options are available:
+    </p><div class="variablelist"><dl class="variablelist"><dt><span class="term"><code class="option">--list-attachments</code></span></dt><dd><p>
+        Show the “key” and stream number for embedded
+        files. With <code class="option">--verbose</code>, additional
+        information, including preferred file name, description,
+        dates, and more are also displayed. The key is usually but not
+        always equal to the file name, and is needed by some of the
+        other options.
+       </p></dd><dt><span class="term"><code class="option">--show-attachment=<em class="replaceable"><code>key</code></em></code></span></dt><dd><p>
+        Write the contents of the specified attachment to standard
+        output as binary data. The key should match one of the keys
+        shown by <code class="option">--list-attachments</code>. If specified
+        multiple times, only the last attachment will be shown.
+       </p></dd><dt><span class="term"><code class="option">--add-attachment <em class="replaceable"><code>file</code></em> <em class="replaceable"><code>options</code></em> --</code></span></dt><dd><p>
+        Add or replace an attachment with the contents of
+        <em class="replaceable"><code>file</code></em>. This may be specified more
+        than once. The following additional options may appear before
+        the <code class="literal">--</code> that ends this option:
+        </p><div class="variablelist"><dl class="variablelist"><dt><span class="term"><code class="option">--key=<em class="replaceable"><code>key</code></em></code></span></dt><dd><p>
+            The key to use to register the attachment in the embedded
+            files table. Defaults to the last path element of
+            <em class="replaceable"><code>file</code></em>.
+           </p></dd><dt><span class="term"><code class="option">--filename=<em class="replaceable"><code>name</code></em></code></span></dt><dd><p>
+            The file name to be used for the attachment. This is what is usually
+            displayed to the user and is the name most graphical PDF
+            viewers will use when saving a file. It defaults to the
+            last path element of <em class="replaceable"><code>file</code></em>.
+           </p></dd><dt><span class="term"><code class="option">--creationdate=<em class="replaceable"><code>date</code></em></code></span></dt><dd><p>
+            The attachment's creation date in PDF format; defaults to
+            the current time. The date format is explained below.
+           </p></dd><dt><span class="term"><code class="option">--moddate=<em class="replaceable"><code>date</code></em></code></span></dt><dd><p>
+            The attachment's modification date in PDF format; defaults
+            to the current time. The date format is explained below.
+           </p></dd><dt><span class="term"><code class="option">--mimetype=<em class="replaceable"><code>type/subtype</code></em></code></span></dt><dd><p>
+            The mime type for the attachment, e.g.
+            <code class="literal">text/plain</code> or
+            <code class="literal">application/pdf</code>. Note that the mimetype
+            appears in a field called <code class="literal">/Subtype</code> in
+            the PDF but actually includes the full type and subtype of
+            the mime type.
+           </p></dd><dt><span class="term"><code class="option">--description=<em class="replaceable"><code>"text"</code></em></code></span></dt><dd><p>
+            Descriptive text for the attachment, displayed by some PDF
+            viewers.
+           </p></dd><dt><span class="term"><code class="option">--replace</code></span></dt><dd><p>
+            Indicates that any existing attachment with the same key
+            should be replaced by the new attachment. Otherwise,
+            <span class="command"><strong>qpdf</strong></span> gives an error if an attachment
+            with that key is already present.
+           </p></dd></dl></div><p>
+       </p></dd><dt><span class="term"><code class="option">--remove-attachment=<em class="replaceable"><code>key</code></em></code></span></dt><dd><p>
+        Remove the specified attachment. This doesn't only remove the
+        attachment from the embedded files table but also clears out
+        the file specification. That means that any potential internal
+        links to the attachment will be broken. This option may be
+        specified multiple times. Run with <code class="option">--verbose</code>
+        to see status of the removal.
+       </p></dd><dt><span class="term"><code class="option">--copy-attachments-from <em class="replaceable"><code>file</code></em> <em class="replaceable"><code>options</code></em> --</code></span></dt><dd><p>
+        Copy attachments from another file. This may be specified more
+        than once. The following additional options may appear before
+        the <code class="literal">--</code> that ends this option:
+        </p><div class="variablelist"><dl class="variablelist"><dt><span class="term"><code class="option">--password=<em class="replaceable"><code>password</code></em></code></span></dt><dd><p>
+            If required, the password needed to open
+            <em class="replaceable"><code>file</code></em>
+           </p></dd><dt><span class="term"><code class="option">--prefix=<em class="replaceable"><code>prefix</code></em></code></span></dt><dd><p>
+            Only required if the file from which attachments are being
+            copied has attachments with keys that conflict with
+            attachments already in the file. In this case, the
+            specified prefix will be prepended to each key. This
+            affects only the key in the embedded files table, not the
+            file name. The PDF specification doesn't preclude multiple
+            attachments having the same file name.
+           </p></dd></dl></div><p>
+       </p></dd></dl></div><p>
+    When a date is required, the date should conform to the PDF date
+    format specification, which is
+    <code class="literal">D:</code><em class="replaceable"><code>yyyymmddhhmmss&lt;z&gt;</code></em>,
+    where <em class="replaceable"><code>&lt;z&gt;</code></em> is either
+    <code class="literal">Z</code> for UTC or a timezone offset in the form
+    <em class="replaceable"><code>-hh'mm'</code></em> or
+    <em class="replaceable"><code>+hh'mm'</code></em>. Examples:
+    <code class="literal">D:20210207161528-05'00'</code>,
+    <code class="literal">D:20210207211528Z</code>.
+   </p></div><div class="sect1"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a id="ref.advanced-parsing"></a>3.8. Advanced Parsing Options</h2></div></div></div><p>
     These options control aspects of how qpdf reads PDF files. Mostly
     these are of use to people who are working with damaged files.
     There is little reason to use these options unless you are trying
@@ -1155,7 +1284,7 @@ outfile.pdf</code>
     creation of hybrid PDF files and wish to see how a PDF consumer
     that doesn't understand object and cross-reference streams would
     interpret such a file.
-   </p></div><div class="sect1"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a id="ref.advanced-transformation"></a>3.8. Advanced Transformation Options</h2></div></div></div><p>
+   </p></div><div class="sect1"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a id="ref.advanced-transformation"></a>3.9. Advanced Transformation Options</h2></div></div></div><p>
     These transformation options control fine points of how qpdf
     creates the output file.  Mostly these are of use only to people
     who are very familiar with the PDF file format or who are PDF
@@ -1574,7 +1703,7 @@ outfile.pdf</code>
     QDF mode is intended for people, mostly developers, who wish to
     inspect or modify PDF files in a text editor.  For details, please
     see <a class="xref" href="#ref.qdf" title="Chapter 4. QDF Mode">Chapter 4, <em>QDF Mode</em></a>.
-   </p></div><div class="sect1"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a id="ref.testing-options"></a>3.9. Testing, Inspection, and Debugging Options</h2></div></div></div><p>
+   </p></div><div class="sect1"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a id="ref.testing-options"></a>3.10. Testing, Inspection, and Debugging Options</h2></div></div></div><p>
     These options can be useful for digging into PDF files or for use
     in automated test suites for software that uses the qpdf library.
     When any of the options in this section are specified, no output
@@ -1706,7 +1835,7 @@ outfile.pdf</code>
     attempt to normalize the stream data as if it is a page content
     stream.  This attempt will be made even if it is not a page
     content stream, in which case it will produce unusable results.
-   </p></div><div class="sect1"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a id="ref.unicode-passwords"></a>3.10. Unicode Passwords</h2></div></div></div><p>
+   </p></div><div class="sect1"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a id="ref.unicode-passwords"></a>3.11. Unicode Passwords</h2></div></div></div><p>
     At the library API level, all methods that perform encryption and
     decryption interpret passwords as strings of bytes. It is up to
     the caller to ensure that they are appropriately encoded. Starting
@@ -2258,7 +2387,7 @@ outfile.pdf</code>
     password-protected files.  QPDF does not enforce encryption
     parameters and will treat user and owner passwords equivalently.
     Either password may be used to access an encrypted file.
-    <a href="#ftn.idm1513" class="footnote" id="idm1513"><sup class="footnote">[1]</sup></a>
+    <a href="#ftn.idm1674" class="footnote" id="idm1674"><sup class="footnote">[1]</sup></a>
     <code class="classname">QPDF</code> will allow recovery of a user password
     given an owner password.  The input PDF file must be seekable.
     (Output files written by <code class="classname">QPDFWriter</code> need
@@ -2873,7 +3002,7 @@ outfile.pdf</code>
     filter should write to whatever type of output is required.  The
     <code class="classname">QPDF</code> class has an interface to write raw or
     filtered stream contents to a given pipeline.
-   </p></div><div class="footnotes"><br /><hr style="width:100; text-align:left;margin-left: 0" /><div id="ftn.idm1513" class="footnote"><p><a href="#idm1513" class="para"><sup class="para">[1] </sup></a>
+   </p></div><div class="footnotes"><br /><hr style="width:100; text-align:left;margin-left: 0" /><div id="ftn.idm1674" class="footnote"><p><a href="#idm1674" class="para"><sup class="para">[1] </sup></a>
       As pointed out earlier, the intention is not for qpdf to be used
       to bypass security on files. but as any open source PDF consumer
       may be easily modified to bypass basic PDF document security,
@@ -3236,7 +3365,213 @@ print "\n";
    </p></div></div><div class="appendix"><div class="titlepage"><div><div><h1 class="title"><a id="ref.release-notes"></a>Appendix A. Release Notes</h1></div></div></div><p>
    For a detailed list of changes, please see the file
    <code class="filename">ChangeLog</code> in the source distribution.
-  </p><div class="variablelist"><dl class="variablelist"><dt><span class="term">10.1.0: January 5, 2021</span></dt><dd><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+  </p><div class="variablelist"><dl class="variablelist"><dt><span class="term">10.2.0: February 23, 2021</span></dt><dd><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+        CLI Behavior Changes
+       </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: circle; "><li class="listitem"><p>
+          Operations that work on combining pages are much better
+          about protecting form fields. In particular,
+          <code class="option">--split-pages</code> and <code class="option">--pages</code>
+          now preserve interaction form functionality by copying the
+          relevant form field information from the original files.
+          Additionally, if you use <code class="option">--pages</code> to select
+          only some pages from the original input file, unused form
+          fields are removed, which prevents lots of unused
+          annotations from being retained.
+         </p></li><li class="listitem"><p>
+          By default, <span class="command"><strong>qpdf</strong></span> no longer allows
+          creation of encrypted PDF files whose user password is
+          non-empty and owner password is empty when a 256-bit key is
+          in use. The <code class="option">--allow-insecure</code> option,
+          specified inside the <code class="option">--encrypt</code> options,
+          allows creation of such files. Behavior changes in the CLI
+          are avoided when possible, but an exception was made here
+          because this is security-related. qpdf must always allow
+          creation of weird files for testing purposes, but it should
+          not default to letting users unknowingly create insecure
+          files.
+         </p></li></ul></div></li><li class="listitem"><p>
+        Library Behavior Changes
+       </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: circle; "><li class="listitem"><p>
+          Note: the changes in this section cause differences in
+          output in some cases. These differences change the syntax of
+          the PDF but do not change the semantics (meaning). I make a
+          strong effort to avoid gratuitous changes in qpdf's output
+          so that qpdf changes don't break people's tests. In this
+          case, the changes significantly improve the readability of
+          the generated PDF and don't affect any output that's
+          generated by simple transformation. If you are annoyed by
+          having to update test files, please rest assured that
+          changes like this have been and will continue to be rare
+          events.
+         </p></li><li class="listitem"><p>
+          <code class="function">QPDFObjectHandle::newUnicodeString</code> now
+          uses whichever of ASCII, PDFDocEncoding, of UTF-16 is
+          sufficient to encode all the characters in the string. This
+          reduces needless encoding in UTF-16 of strings that can be
+          encoded in ASCII. This change may cause qpdf to generate
+          different output than before when form field values are set
+          using <code class="classname">QPDFFormFieldObjectHelper</code> but
+          does not change the meaning of the output.
+         </p></li><li class="listitem"><p>
+          The code that places form XObjects and also the code that
+          flattens rotations trim trailing zeroes from real numbers
+          that they calculate. This causes slight (but semantically
+          equivalent) differences in generated appearance streams and
+          form XObject invocations in overlay/underlay code or in user
+          code that calls the methods that place form XObjects on a
+          page.
+         </p></li></ul></div></li><li class="listitem"><p>
+        CLI Enhancements
+       </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: circle; "><li class="listitem"><p>
+          Add new command line options for listing, saving, adding,
+          removing, and and copying file attachments. See <a class="xref" href="#ref.attachments" title="3.7. Embedded Files/Attachments Options">Section 3.7, “Embedded Files/Attachments Options”</a> for details.
+         </p></li><li class="listitem"><p>
+          Page splitting and merging operations, as well as
+          <code class="option">--flatten-rotation</code>, are better behaved
+          with respect to annotations and interactive form fields. In
+          most cases, interactive form field functionality and proper
+          formatting and functionality of annotations is preserved by
+          these operations. There are still some cases that aren't
+          perfect, such as when functionality of annotations depends
+          on document-level data that qpdf doesn't yet understand or
+          when there are problems with referential integrity among
+          form fields and annotations (e.g., when a single form field
+          object or its associated annotations are shared across
+          multiple pages, a case that is out of spec but that works in
+          most viewers anyway).
+         </p></li><li class="listitem"><p>
+          The option
+          <code class="option">--password-file=<em class="replaceable"><code>filename</code></em></code>
+          can now be used to read the decryption password from a file.
+          You can use <code class="literal">-</code> as the file name to read
+          the password from standard input. This is an easier/more
+          obvious way to read passwords from files or standard input
+          than using <code class="option">@file</code> for this purpose.
+         </p></li><li class="listitem"><p>
+          Add some information about attachments to the json output,
+          and added <code class="literal">attachments</code> as an additional
+          json key. The information included here is limited to the
+          preferred name and content stream and a reference to the
+          file spec object. This is enough detail for clients to avoid
+          the hassle of navigating a name tree and provides what is
+          needed for basic enumeration and extraction of attachments.
+          More detailed information can be obtained by following the
+          reference to the file spec object.
+         </p></li><li class="listitem"><p>
+          Add numeric option to <code class="option">--collate</code>. If
+          <code class="option">--collate=<em class="replaceable"><code>n</code></em></code> is
+          given, take pages in groups of <em class="replaceable"><code>n</code></em>
+          from the given files.
+         </p></li><li class="listitem"><p>
+          It is now valid to provide <code class="option">--rotate=0</code> to
+          clear rotation from a page.
+         </p></li></ul></div></li><li class="listitem"><p>
+        Library Enhancements
+       </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: circle; "><li class="listitem"><p>
+          This release includes numerous additions to the API. Not all
+          changes are listed here. Please see the
+          <code class="filename">ChangeLog</code> file in the source
+          distribution for a comprehensive list. Highlights appear
+          below.
+         </p></li><li class="listitem"><p>
+          Add <code class="function">QPDFObjectHandle::ditems()</code> and
+          <code class="function">QPDFObjectHandle::aitems()</code> that enable
+          C++-style iteration, including range-for iteration, over
+          dictionary and array QPDFObjectHandles. See comments in
+          <code class="filename">include/qpdf/QPDFObjectHandle.hh</code> and
+          <code class="filename">examples/pdf-name-number-tree.cc</code> for
+          details.
+         </p></li><li class="listitem"><p>
+          Add <code class="function">QPDFObjectHandle::copyStream</code> for
+          making a copy of a stream within the same
+          <code class="classname">QPDF</code> instance.
+         </p></li><li class="listitem"><p>
+          Add new helper classes for supporting file attachments, also
+          known as embedded files. New classes are
+          <code class="classname">QPDFEmbeddedFileDocumentHelper</code>,
+          <code class="classname">QPDFFileSpecObjectHelper</code>, and
+          <code class="classname">QPDFEFStreamObjectHelper</code>. See their
+          respective headers for details and
+          <code class="filename">examples/pdf-attach-file.cc</code> for an
+          example.
+         </p></li><li class="listitem"><p>
+          Add a version of
+          <code class="function">QPDFObjectHandle::parse</code> that takes a
+          <code class="classname">QPDF</code> pointer as context so that it
+          can parse strings containing indirect object references.
+          This is illustrated in
+          <code class="filename">examples/pdf-attach-file.cc</code>.
+         </p></li><li class="listitem"><p>
+          Re-implement <code class="classname">QPDFNameTreeObjectHelper</code>
+          and <code class="classname">QPDFNumberTreeObjectHelper</code> to be
+          more efficient, add an iterator-based API, give them the
+          capability to repair broken trees, and create methods for
+          modifying the trees. With this change, qpdf has a robust
+          read/write implementation of name and number trees.
+         </p></li><li class="listitem"><p>
+	  Add new versions of
+	  <code class="function">QPDFObjectHandle::replaceStreamData</code>
+	  that take <code class="classname">std::function</code> objects for
+	  cases when you need something between a static string and a
+	  full-fledged StreamDataProvider. Using this with
+	  <code class="function">QUtil::file_provider</code> is a very easy way
+	  to create a stream from the contents of a file.
+         </p></li><li class="listitem"><p>
+          The <code class="classname">QPDFMatrix</code> class, formerly a
+          private, internal class, has been added to the public API.
+          See <code class="filename">include/qpdf/QPDFMatrix.hh</code> for
+          details. This class is for working with transformation
+          matrices. Some methods in
+          <code class="classname">QPDFPageObjectHelper</code> make use of this
+          to make information about transformation matrices available.
+          For an example, see
+          <code class="filename">examples/pdf-overlay-page.cc</code>.
+         </p></li><li class="listitem"><p>
+          Several new methods were added to
+          <code class="classname">QPDFAcroFormDocumentHelper</code> for
+          adding, removing, getting information about, and enumerating
+          form fields.
+         </p></li><li class="listitem"><p>
+          Add method
+          <code class="function">QPDFAcroFormDocumentHelper::transformAnnotations</code>,
+          which applies a transformation to each annotation on a page.
+         </p></li><li class="listitem"><p>
+	  Add
+	  <code class="function">QPDFPageObjectHelper::copyAnnotations</code>,
+	  which copies annotations and, if applicable, associated form
+	  fields, from one page to another, possibly transforming the
+	  rectangles.
+         </p></li></ul></div></li><li class="listitem"><p>
+        Build Changes
+       </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: circle; "><li class="listitem"><p>
+          A C++-14 compiler is now required to build qpdf. There is no
+          intention to require anything newer than that for a while.
+          C++-14 includes modest enhancements to C++-11 and appears to
+          be supported about as widely as C++-11.
+         </p></li></ul></div></li><li class="listitem"><p>
+        Bug Fixes
+       </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: circle; "><li class="listitem"><p>
+	  The <code class="option">--flatten-rotation</code> option applies
+          transformations to any annotations that may be on the page.
+         </p></li><li class="listitem"><p>
+	  If a form XObject lacks a resources dictionary, consider any
+	  names in that form XObject to be referenced from the
+	  containing page. This is compliant with older PDF versions.
+	  Also detect if any form XObjects have any unresolved names
+	  and, if so, don't remove unreferenced resources from them or
+	  from the page that contains them. Unfortunately this has the
+	  side effect of preventing removal of unreferenced resources
+	  in some cases where names appear that don't refer to
+	  resources, such as with tagged PDF. This is a bit of a
+	  corner case that is not likely to cause a significant
+	  problem in practice, but the only side effect would be lack
+	  of removal of shared resources. A future version of qpdf may
+	  be more sophisticated in its detection of names that refer
+	  to resources.
+         </p></li><li class="listitem"><p>
+	  Properly handle strings if they appear in inline image
+	  dictionaries while externalizing inline images.
+         </p></li></ul></div></li></ul></div></dd><dt><span class="term">10.1.0: January 5, 2021</span></dt><dd><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
         CLI Enhancements
        </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: circle; "><li class="listitem"><p>
           Add <code class="option">--flatten-rotation</code> command-line option,
@@ -3538,7 +3873,7 @@ print "\n";
           removing unreferenced resources is likely to be of benefit.
           For most files, this new default will result in a
           significant performance improvement for splitting pages. See
-          <a class="xref" href="#ref.advanced-transformation" title="3.8. Advanced Transformation Options">Section 3.8, “Advanced Transformation Options”</a> for a more
+          <a class="xref" href="#ref.advanced-transformation" title="3.9. Advanced Transformation Options">Section 3.9, “Advanced Transformation Options”</a> for a more
           detailed discussion.
          </p></li><li class="listitem"><p>
           The <code class="option">--preserve-unreferenced-resources</code> is
@@ -4017,7 +4352,7 @@ print "\n";
           command-line differently from previous releases when the
           passwords contain non-ASCII characters. In some cases, the
           behavior differs from previous releases. For a discussion of
-          the current behavior, please see <a class="xref" href="#ref.unicode-passwords" title="3.10. Unicode Passwords">Section 3.10, “Unicode Passwords”</a>. The incompatibilities are
+          the current behavior, please see <a class="xref" href="#ref.unicode-passwords" title="3.11. Unicode Passwords">Section 3.11, “Unicode Passwords”</a>. The incompatibilities are
           as follows:
           </p><div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: square; "><li class="listitem"><p>
              On Windows, qpdf now receives all command-line options as
@@ -4049,7 +4384,7 @@ print "\n";
              transcodes it to what the PDF spec requires. While this
              is almost always the correct behavior, it is possible to
              override the behavior if there is some reason to do so.
-             This is discussed in more depth in <a class="xref" href="#ref.unicode-passwords" title="3.10. Unicode Passwords">Section 3.10, “Unicode Passwords”</a>.
+             This is discussed in more depth in <a class="xref" href="#ref.unicode-passwords" title="3.11. Unicode Passwords">Section 3.11, “Unicode Passwords”</a>.
             </p></li></ul></div><p>
          </p></li><li class="listitem"><p>
           New options <code class="option">--externalize-inline-images</code>,
@@ -4058,7 +4393,7 @@ print "\n";
           handling of inline images and possible conversion of them to
           regular images. By default,
           <code class="option">--optimize-images</code> now also applies to
-          inline images. These options are discussed in <a class="xref" href="#ref.advanced-transformation" title="3.8. Advanced Transformation Options">Section 3.8, “Advanced Transformation Options”</a>.
+          inline images. These options are discussed in <a class="xref" href="#ref.advanced-transformation" title="3.9. Advanced Transformation Options">Section 3.9, “Advanced Transformation Options”</a>.
          </p></li><li class="listitem"><p>
           Add options <code class="option">--overlay</code> and
           <code class="option">--underlay</code> for overlaying or underlaying
@@ -4070,12 +4405,12 @@ print "\n";
           alternative passwords to try to compensate for possible
           character encoding errors. This behavior can be suppressed
           with the <code class="option">--suppress-password-recovery</code>
-          option. See <a class="xref" href="#ref.unicode-passwords" title="3.10. Unicode Passwords">Section 3.10, “Unicode Passwords”</a> for a
+          option. See <a class="xref" href="#ref.unicode-passwords" title="3.11. Unicode Passwords">Section 3.11, “Unicode Passwords”</a> for a
           full discussion.
          </p></li><li class="listitem"><p>
           Add the <code class="option">--password-mode</code> option to fine-tune
           how qpdf interprets password arguments, especially when they
-          contain non-ASCII characters. See <a class="xref" href="#ref.unicode-passwords" title="3.10. Unicode Passwords">Section 3.10, “Unicode Passwords”</a> for more information.
+          contain non-ASCII characters. See <a class="xref" href="#ref.unicode-passwords" title="3.11. Unicode Passwords">Section 3.11, “Unicode Passwords”</a> for more information.
          </p></li><li class="listitem"><p>
           In the <code class="option">--pages</code> option, it is now possible
           to copy the same page more than once from the same file
@@ -4535,7 +4870,7 @@ print "\n";
           if you have a case where page splitting is very slow, the
           old behavior (and speed) can be enabled by specifying
           <code class="option">--preserve-unreferenced-resources</code>. For
-          additional details, please see <a class="xref" href="#ref.advanced-transformation" title="3.8. Advanced Transformation Options">Section 3.8, “Advanced Transformation Options”</a>.
+          additional details, please see <a class="xref" href="#ref.advanced-transformation" title="3.9. Advanced Transformation Options">Section 3.9, “Advanced Transformation Options”</a>.
          </p></li><li class="listitem"><p>
           When merging multiple PDF files, qpdf no longer leaves all
           the files open. This makes it possible to merge numbers of
@@ -5121,7 +5456,7 @@ print "\n";
         <code class="function">QPDFWriter::setMinimumPDFVersion</code> and
         <code class="function">QPDFWriter::forcePDFVersion</code> that accept
         an extension level, and extended syntax for specifying forced
-        and minimum versions on the command line as described in <a class="xref" href="#ref.advanced-transformation" title="3.8. Advanced Transformation Options">Section 3.8, “Advanced Transformation Options”</a>.  Corresponding
+        and minimum versions on the command line as described in <a class="xref" href="#ref.advanced-transformation" title="3.9. Advanced Transformation Options">Section 3.9, “Advanced Transformation Options”</a>.  Corresponding
         functions have been added to the C API as well.
        </p></li><li class="listitem"><p>
         Minor fixes to prevent qpdf from referencing objects in the

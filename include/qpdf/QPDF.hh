@@ -246,6 +246,12 @@ class QPDF
     QPDF_DLL
     unsigned long long getUniqueId() const;
 
+    // Issue a warning on behalf of this QPDF object. It will be
+    // emitted with other warnings, following warning suppression
+    // rules, and it will be available with getWarnings().
+    QPDF_DLL
+    void warn(QPDFExc const& e);
+
     QPDF_DLL
     std::string getFilename() const;
     QPDF_DLL
@@ -694,18 +700,20 @@ class QPDF
     };
     friend class Resolver;
 
-    // Warner class allows QPDFObjectHandle to create warnings
-    class Warner
+    // StreamCopier class is restricted to QPDFObjectHandle so it can
+    // copy stream data.
+    class StreamCopier
     {
 	friend class QPDFObjectHandle;
-        friend class QPDF_Stream;
       private:
-        static void warn(QPDF* qpdf, QPDFExc const& e)
-        {
-            qpdf->warn(e);
-        }
+	static void copyStreamData(QPDF* qpdf,
+                                   QPDFObjectHandle const& dest,
+                                   QPDFObjectHandle const& src)
+	{
+	    qpdf->copyStreamData(dest, src);
+	}
     };
-    friend class Warner;
+    friend class Resolver;
 
     // ParseGuard class allows QPDFObjectHandle to detect re-entrant
     // resolution
@@ -821,7 +829,6 @@ class QPDF
             int foreign_generation,
             qpdf_offset_t offset,
             size_t length,
-            bool is_attachment_stream,
             QPDFObjectHandle local_dict);
 
       private:
@@ -831,7 +838,6 @@ class QPDF
         int foreign_generation;
         qpdf_offset_t offset;
         size_t length;
-        bool is_attachment_stream;
         QPDFObjectHandle local_dict;
     };
 
@@ -895,7 +901,6 @@ class QPDF
 
     void parse(char const* password);
     void inParse(bool);
-    void warn(QPDFExc const& e);
     void setTrailer(QPDFObjectHandle obj);
     void read_xref(qpdf_offset_t offset);
     void reconstruct_xref(QPDFExc& e);
@@ -927,7 +932,6 @@ class QPDF
 	int& act_objid, int& act_generation);
     PointerHolder<QPDFObject> resolve(int objid, int generation);
     void resolveObjectsInStream(int obj_stream_number);
-    void findAttachmentStreams();
     void stopOnError(std::string const& message);
 
     // Calls finish() on the pipeline when done but does not delete it
@@ -946,7 +950,6 @@ class QPDF
                                int objid, int generation,
                                qpdf_offset_t offset, size_t length,
                                QPDFObjectHandle dict,
-                               bool is_attachment_stream,
                                Pipeline* pipeline,
                                bool suppress_warnings,
                                bool will_retry);
@@ -1009,7 +1012,7 @@ class QPDF
         PointerHolder<InputSource> file,
         QPDF& qpdf_for_warning, Pipeline*& pipeline,
         int objid, int generation,
-	QPDFObjectHandle& stream_dict, bool is_attachment_stream,
+	QPDFObjectHandle& stream_dict,
 	std::vector<PointerHolder<Pipeline> >& heap);
 
     // Methods to support object copying
@@ -1017,6 +1020,8 @@ class QPDF
                         bool top);
     QPDFObjectHandle replaceForeignIndirectObjects(
         QPDFObjectHandle foreign, ObjCopier& obj_copier, bool top);
+    void copyStreamData(
+        QPDFObjectHandle dest_stream, QPDFObjectHandle src_stream);
 
     // Linearization Hint table structures.
     // Naming conventions:
@@ -1430,7 +1435,6 @@ class QPDF
         PointerHolder<QPDFObjectHandle::StreamDataProvider> copied_streams;
         // copied_stream_data_provider is owned by copied_streams
         CopiedStreamDataProvider* copied_stream_data_provider;
-        std::set<QPDFObjGen> attachment_streams;
         bool reconstructed_xref;
         bool fixed_dangling_refs;
         bool immediate_copy_from;

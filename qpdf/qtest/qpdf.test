@@ -270,7 +270,7 @@ my @check_encryption_password = (
     ["20-pages.pdf", "", 0, 0],
     ["20-pages.pdf", "user", 0, 3],
     );
-$n_tests += 2 * scalar(@check_encryption_password);
+$n_tests += 3 * scalar(@check_encryption_password);
 foreach my $d (@check_encryption_password)
 {
     my ($file, $pass, $is_encrypted, $requires_password) = @$d;
@@ -282,6 +282,29 @@ foreach my $d (@check_encryption_password)
                       " --password=$pass $file"},
                  {$td->STRING => "", $td->EXIT_STATUS => $requires_password});
 }
+
+# Exercise reading password from file
+open(F, ">args") or die;
+print F "user\n";
+close(F);
+$td->runtest("password from file)",
+             {$td->COMMAND => "qpdf --check --password-file=args 20-pages.pdf"},
+             {$td->FILE => "20-pages-check.out", $td->EXIT_STATUS => 0},
+             $td->NORMALIZE_NEWLINES);
+open(F, ">>args") or die;
+print F "ignored\n";
+close(F);
+$td->runtest("ignore extra args from file)",
+             {$td->COMMAND => "qpdf --check --password-file=args 20-pages.pdf"},
+             {$td->FILE => "20-pages-check-password-warning.out",
+                  $td->EXIT_STATUS => 0},
+             $td->NORMALIZE_NEWLINES);
+unlink "args";
+$td->runtest("password from stdin)",
+             {$td->COMMAND => "echo user |" .
+                  " qpdf --check --password-file=- 20-pages.pdf"},
+             {$td->FILE => "20-pages-check.out", $td->EXIT_STATUS => 0},
+             $td->NORMALIZE_NEWLINES);
 
 show_ntests();
 # ----------
@@ -499,8 +522,196 @@ $td->runtest("page operations on form xobject",
 
 show_ntests();
 # ----------
+$td->notify("--- File Attachments ---");
+$n_tests += 33;
+
+open(F, ">auto-txt") or die;
+print F "from file";
+close(F);
+$td->runtest("attachments",
+	     {$td->COMMAND => "test_driver 76 minimal.pdf auto-txt"},
+	     {$td->FILE => "test76.out", $td->EXIT_STATUS => 0},
+	     $td->NORMALIZE_NEWLINES);
+$td->runtest("show attachment",
+	     {$td->COMMAND => "qpdf --show-attachment=att1 a.pdf"},
+	     {$td->STRING => "from file", $td->EXIT_STATUS => 0},
+	     $td->NORMALIZE_NEWLINES);
+$td->runtest("check output",
+             {$td->FILE => "a.pdf"},
+             {$td->FILE => "test76.pdf"});
+$td->runtest("list attachments",
+	     {$td->COMMAND => "qpdf --list-attachments a.pdf"},
+	     {$td->FILE => "test76-list.out", $td->EXIT_STATUS => 0},
+	     $td->NORMALIZE_NEWLINES);
+$td->runtest("list attachments verbose",
+	     {$td->COMMAND => "qpdf --list-attachments --verbose a.pdf"},
+	     {$td->FILE => "test76-list-verbose.out", $td->EXIT_STATUS => 0},
+	     $td->NORMALIZE_NEWLINES);
+$td->runtest("attachments json",
+	     {$td->COMMAND => "qpdf --json --json-key=attachments a.pdf"},
+	     {$td->FILE => "test76-json.out", $td->EXIT_STATUS => 0},
+	     $td->NORMALIZE_NEWLINES);
+$td->runtest("remove attachment (test_driver)",
+	     {$td->COMMAND => "test_driver 77 test76.pdf"},
+	     {$td->STRING => "test 77 done\n", $td->EXIT_STATUS => 0},
+	     $td->NORMALIZE_NEWLINES);
+$td->runtest("check output",
+             {$td->FILE => "a.pdf"},
+             {$td->FILE => "test77.pdf"});
+$td->runtest("remove attachment (cli)",
+	     {$td->COMMAND => "qpdf --remove-attachment=att2 test76.pdf" .
+                  " --static-id --qdf --verbose b.pdf"},
+	     {$td->FILE => "remove-attachment.out", $td->EXIT_STATUS => 0},
+	     $td->NORMALIZE_NEWLINES);
+$td->runtest("check output",
+             {$td->FILE => "b.pdf"},
+             {$td->FILE => "test77.pdf"});
+$td->runtest("show missing attachment",
+	     {$td->COMMAND => "qpdf --show-attachment=att2 b.pdf"},
+	     {$td->STRING => "qpdf: attachment att2 not found\n",
+                  $td->EXIT_STATUS => 2},
+	     $td->NORMALIZE_NEWLINES);
+$td->runtest("remove missing attachment",
+	     {$td->COMMAND => "qpdf --remove-attachment=att2 b.pdf c.pdf"},
+	     {$td->STRING => "qpdf: attachment att2 not found\n",
+                  $td->EXIT_STATUS => 2},
+	     $td->NORMALIZE_NEWLINES);
+
+$td->runtest("add attachment: bad creation date",
+	     {$td->COMMAND => "qpdf minimal.pdf a.pdf" .
+                  " --add-attachment auto-txt --creationdate=potato --"},
+	     {$td->REGEXP => ".*potato is not a valid PDF timestamp.*",
+                  $td->EXIT_STATUS => 2},
+	     $td->NORMALIZE_NEWLINES);
+$td->runtest("add attachment: bad mod date",
+	     {$td->COMMAND => "qpdf minimal.pdf a.pdf" .
+                  " --add-attachment auto-txt --moddate=potato --"},
+	     {$td->REGEXP => ".*potato is not a valid PDF timestamp.*",
+                  $td->EXIT_STATUS => 2},
+	     $td->NORMALIZE_NEWLINES);
+$td->runtest("add attachment: bad mod date",
+	     {$td->COMMAND => "qpdf minimal.pdf a.pdf" .
+                  " --add-attachment auto-txt --mimetype=potato --"},
+	     {$td->REGEXP =>
+                  ".*mime type should be specified as type/subtype.*",
+                  $td->EXIT_STATUS => 2},
+	     $td->NORMALIZE_NEWLINES);
+$td->runtest("add attachment: trailing slash",
+	     {$td->COMMAND => "qpdf minimal.pdf a.pdf" .
+                  " --add-attachment --"},
+	     {$td->REGEXP => ".*add attachment: no path specified.*",
+                  $td->EXIT_STATUS => 2},
+	     $td->NORMALIZE_NEWLINES);
+
+foreach my $i (qw(1 2 3))
+{
+    open(F, ">auto-$i") or die;
+    print F "attachment $i";
+    close(F);
+}
+my @dates = ("--creationdate=D:20210210091359-05'00'",
+             "--moddate=D:20210210141359Z");
+$td->runtest("add attachments",
+	     {$td->COMMAND =>
+                  [qw(qpdf minimal.pdf a.pdf --no-original-object-ids),
+                   qw(--verbose --static-id --qdf),
+                   qw(--add-attachment ./auto-1), @dates,
+                   qw(--mimetype=text/plain --),
+                   qw(--add-attachment ./auto-2 --key=auto-Two), @dates, '--',
+                   qw(--add-attachment ./auto-3 --filename=auto-Three.txt),
+                   @dates, '--description=two words', '--']},
+             {$td->FILE => "add-attachments-1.out", $td->EXIT_STATUS => 0},
+	     $td->NORMALIZE_NEWLINES);
+$td->runtest("list attachments",
+	     {$td->COMMAND => "qpdf --list-attachments a.pdf --verbose"},
+	     {$td->FILE => "list-attachments-1.out", $td->EXIT_STATUS => 0},
+	     $td->NORMALIZE_NEWLINES);
+$td->runtest("check output",
+	     {$td->FILE => "a.pdf"},
+	     {$td->FILE => "add-attachments-1.pdf"},
+	     $td->NORMALIZE_NEWLINES);
+$td->runtest("add attachments: duplicate",
+	     {$td->COMMAND =>
+                  "qpdf a.pdf b.pdf --verbose --add-attachment ./auto-1 --"},
+             {$td->FILE => "add-attachments-duplicate.out",
+                  $td->EXIT_STATUS => 2},
+	     $td->NORMALIZE_NEWLINES);
+$td->runtest("add attachments: replace",
+	     {$td->COMMAND =>
+                  [qw(qpdf a.pdf b.pdf --no-original-object-ids),
+                   qw(--verbose --static-id --qdf),
+                   qw(--add-attachment ./auto-2 --key=auto-1 --replace),
+                   @dates, '--']},
+             {$td->FILE => "add-attachments-2.out", $td->EXIT_STATUS => 0},
+	     $td->NORMALIZE_NEWLINES);
+$td->runtest("list attachments",
+	     {$td->COMMAND => "qpdf --list-attachments b.pdf --verbose"},
+	     {$td->FILE => "list-attachments-3.out", $td->EXIT_STATUS => 0},
+	     $td->NORMALIZE_NEWLINES);
+$td->runtest("check output",
+	     {$td->FILE => "b.pdf"},
+	     {$td->FILE => "add-attachments-2.pdf"},
+	     $td->NORMALIZE_NEWLINES);
+$td->runtest("copy attachments",
+	     {$td->COMMAND =>
+                  "qpdf --verbose --no-original-object-ids" .
+                  " --static-id --qdf minimal.pdf b.pdf" .
+                  " --copy-attachments-from a.pdf --"},
+             {$td->FILE => "copy-attachments-1.out", $td->EXIT_STATUS => 0},
+	     $td->NORMALIZE_NEWLINES);
+$td->runtest("list attachments",
+	     {$td->COMMAND => "qpdf --list-attachments b.pdf --verbose"},
+	     {$td->FILE => "list-attachments-1.out", $td->EXIT_STATUS => 0},
+	     $td->NORMALIZE_NEWLINES);
+$td->runtest("check output",
+	     {$td->FILE => "b.pdf"},
+	     {$td->FILE => "add-attachments-1.pdf"},
+	     $td->NORMALIZE_NEWLINES);
+$td->runtest("copy attachments: duplicate",
+	     {$td->COMMAND =>
+                  "qpdf --verbose --no-original-object-ids" .
+                  " --static-id --qdf a.pdf c.pdf" .
+                  " --copy-attachments-from b.pdf --"},
+             {$td->FILE => "copy-attachments-duplicate.out",
+                  $td->EXIT_STATUS => 2},
+	     $td->NORMALIZE_NEWLINES);
+$td->runtest("copy attachments: prefix",
+	     {$td->COMMAND =>
+                  "qpdf --verbose --no-original-object-ids" .
+                  " --static-id --qdf a.pdf c.pdf" .
+                  " --copy-attachments-from b.pdf --prefix=1- --"},
+             {$td->FILE => "copy-attachments-2.out", $td->EXIT_STATUS => 0},
+	     $td->NORMALIZE_NEWLINES);
+$td->runtest("list attachments",
+	     {$td->COMMAND => "qpdf --list-attachments c.pdf --verbose"},
+	     {$td->FILE => "list-attachments-2.out", $td->EXIT_STATUS => 0},
+	     $td->NORMALIZE_NEWLINES);
+$td->runtest("check output",
+	     {$td->FILE => "c.pdf"},
+	     {$td->FILE => "copy-attachments-2.pdf"},
+	     $td->NORMALIZE_NEWLINES);
+$td->runtest("add attachments: current date",
+	     {$td->COMMAND =>
+                  [qw(qpdf minimal.pdf a.pdf --encrypt u o 256 --),
+                   qw(--verbose --add-attachment ./auto-1 --)]},
+             {$td->FILE => "add-attachments-3.out", $td->EXIT_STATUS => 0},
+	     $td->NORMALIZE_NEWLINES);
+$td->runtest("list attachments",
+	     {$td->COMMAND =>
+                  "qpdf --password=u --list-attachments a.pdf --verbose"},
+	     {$td->FILE => "list-attachments-4.out", $td->EXIT_STATUS => 0},
+	     $td->NORMALIZE_NEWLINES);
+# The object to show here is the one in list-attachments-4.out
+$td->runtest("check dates",
+	     {$td->COMMAND => "qpdf --show-object=6 a.pdf --password=u"},
+             {$td->REGEXP => ".*CreationDate \\(D:\\d+.*ModDate \\(D:\\d+.*",
+                  $td->EXIT_STATUS => 0},
+	     $td->NORMALIZE_NEWLINES);
+
+show_ntests();
+# ----------
 $td->notify("--- Stream Replacement Tests ---");
-$n_tests += 8;
+$n_tests += 10;
 
 $td->runtest("replace stream data",
 	     {$td->COMMAND => "test_driver 7 qstream.pdf"},
@@ -530,6 +741,13 @@ $td->runtest("add page contents",
 $td->runtest("new stream",
 	     {$td->FILE => "a.pdf"},
 	     {$td->FILE => "add-contents.pdf"});
+$td->runtest("functional replace stream data",
+	     {$td->COMMAND => "test_driver 78 minimal.pdf"},
+	     {$td->FILE => "test78.out", $td->EXIT_STATUS => 0},
+	     $td->NORMALIZE_NEWLINES);
+$td->runtest("check output",
+	     {$td->FILE => "a.pdf"},
+	     {$td->FILE => "test78.pdf"});
 
 show_ntests();
 # ----------
@@ -583,7 +801,7 @@ foreach my $input (@ext_inputs)
 show_ntests();
 # ----------
 $td->notify("--- Number and Name Trees ---");
-$n_tests += 2;
+$n_tests += 6;
 
 $td->runtest("number trees",
 	     {$td->COMMAND => "test_driver 46 number-tree.pdf"},
@@ -593,6 +811,20 @@ $td->runtest("name trees",
 	     {$td->COMMAND => "test_driver 48 name-tree.pdf"},
 	     {$td->FILE => "name-tree.out", $td->EXIT_STATUS => 0},
 	     $td->NORMALIZE_NEWLINES);
+$td->runtest("nntree split",
+	     {$td->COMMAND => "test_driver 74 split-nntree.pdf"},
+	     {$td->FILE => "split-nntree.out", $td->EXIT_STATUS => 0},
+	     $td->NORMALIZE_NEWLINES);
+$td->runtest("check file",
+             {$td->FILE => "a.pdf"},
+             {$td->FILE => "split-nntree-out.pdf"});
+$td->runtest("nntree erase",
+	     {$td->COMMAND => "test_driver 75 erase-nntree.pdf"},
+	     {$td->FILE => "erase-nntree.out", $td->EXIT_STATUS => 0},
+	     $td->NORMALIZE_NEWLINES);
+$td->runtest("check file",
+             {$td->FILE => "a.pdf"},
+             {$td->FILE => "erase-nntree-out.pdf"});
 
 show_ntests();
 # ----------
@@ -1215,7 +1447,13 @@ $td->runtest("check output",
 show_ntests();
 # ----------
 $td->notify("--- Invalid objects ---");
-$n_tests += 2;
+$n_tests += 3;
+
+$td->runtest("closed input source",
+	     {$td->COMMAND => "test_driver 73 minimal.pdf"},
+	     {$td->FILE => "test73.out",
+	      $td->EXIT_STATUS => 2},
+	     $td->NORMALIZE_NEWLINES);
 
 $td->runtest("empty object",
 	     {$td->COMMAND => "qpdf -show-object=7,0 empty-object.pdf"},
@@ -1311,7 +1549,7 @@ unlink "a.pdf" or die;
 show_ntests();
 # ----------
 $td->notify("--- Object copying ---");
-$n_tests += 7;
+$n_tests += 9;
 
 $td->runtest("shallow copy an array",
 	     {$td->COMMAND => "test_driver 20 shallow_array.pdf"},
@@ -1340,6 +1578,13 @@ $td->runtest("detect foreign object in write",
                   " copy-foreign-objects-in.pdf minimal.pdf"},
              {$td->FILE => "foreign-in-write.out", $td->EXIT_STATUS => 0},
              $td->NORMALIZE_NEWLINES);
+$td->runtest("copy a stream",
+             {$td->COMMAND => "test_driver 79 minimal.pdf"},
+             {$td->STRING => "test 79 done\n", $td->EXIT_STATUS => 0},
+             $td->NORMALIZE_NEWLINES);
+$td->runtest("check output",
+             {$td->FILE => "a.pdf"},
+             {$td->FILE => "test79.pdf"});
 
 show_ntests();
 # ----------
@@ -1580,14 +1825,24 @@ $td->runtest("out of range in deleted object",
 show_ntests();
 # ----------
 $td->notify("--- Overwrite self ---");
-$n_tests += 1;
+$n_tests += 3;
 
 copy("minimal.pdf", "a.pdf");
+copy("minimal.pdf", "split-out.pdf");
 # Also tests @- for reading args from stdin
 $td->runtest("don't overwrite self",
              {$td->COMMAND => "(echo a.pdf; echo a.pdf) | qpdf \@-"},
              {$td->REGEXP => "input file and output file are the same.*",
               $td->EXIT_STATUS => 2});
+$td->runtest("output is not really output for split",
+             {$td->COMMAND => "qpdf --split-pages split-out.pdf split-out.pdf"},
+             {$td->STRING => "", $td->EXIT_STATUS => 0});
+$td->runtest("don't overwrite self (split)",
+             {$td->COMMAND =>
+                  "qpdf --split-pages split-out-1.pdf split-out.pdf"},
+             {$td->REGEXP =>
+                  ".*split pages would overwrite.* split-out-1.pdf",
+                  $td->EXIT_STATUS => 2});
 
 show_ntests();
 # ----------
@@ -1763,8 +2018,8 @@ my @sp_cases = (
     [1, 'broken data', '--pages broken-lzw.pdf --', 'split-out.pdf',
      {$td->FILE => "broken-lzw.out", $td->EXIT_STATUS => 3}],
     );
-$n_tests += 36;
-$n_compare_pdfs += 1;
+$n_tests += 42;
+$n_compare_pdfs += 2;
 for (@sp_cases)
 {
     $n_tests += 1 + $_->[0];
@@ -1923,6 +2178,27 @@ foreach my $i (qw(1 2))
                  {$td->FILE => "shared-form-xobject-split-$i.pdf"});
 }
 
+my @fo_resources = (['form-xobjects-no-resources', 1],
+                    ['form-xobjects-some-resources1', 0],
+                    ['form-xobjects-some-resources2', 0]);
+foreach my $d (@fo_resources)
+{
+    my ($f, $compare) = @$d;
+    $td->runtest("split $f",
+                 {$td->COMMAND =>
+                      "qpdf --empty --static-id --pages $f.pdf 1 --" .
+                      " --remove-unreferenced-resources=yes a.pdf"},
+                 {$td->STRING => "", $td->EXIT_STATUS => 0},
+                 $td->NORMALIZE_NEWLINES);
+    $td->runtest("check output ($f)",
+                 {$td->FILE => "a.pdf"},
+                 {$td->FILE => "$f-out.pdf"});
+    if ($compare)
+    {
+        compare_pdfs("$f.pdf", "a.pdf");
+    }
+}
+
 show_ntests();
 # ----------
 $td->notify("--- Keep Files Open ---");
@@ -1971,7 +2247,7 @@ $td->runtest("explicit keep files open = n",
 show_ntests();
 # ----------
 $td->notify("--- Rotate Pages ---");
-$n_tests += 4;
+$n_tests += 18;
 # Do absolute, positive, and negative on ranges that include
 # inherited and non-inherited.
 # Pages 11-15 inherit /Rotate 90
@@ -1988,6 +2264,14 @@ $td->runtest("check output",
              {$td->FILE => "a.pdf"},
              {$td->FILE => "rotated.pdf"});
 
+$td->runtest("remove rotation",
+             {$td->COMMAND => "qpdf --static-id rotated.pdf a.pdf" .
+                  " --qdf --no-original-object-ids --rotate=0"},
+             {$td->STRING => "", $td->EXIT_STATUS => 0});
+$td->runtest("check output",
+             {$td->FILE => "a.pdf"},
+             {$td->FILE => "unrotated.pdf"});
+
 $td->runtest("rotate all pages",
              {$td->COMMAND =>
                   "qpdf --static-id --rotate=180 minimal.pdf a.pdf"},
@@ -1995,6 +2279,58 @@ $td->runtest("rotate all pages",
 $td->runtest("check output",
              {$td->FILE => "a.pdf"},
              {$td->FILE => "minimal-rotated.pdf"});
+
+$td->runtest("flatten with inherited rotate",
+             {$td->COMMAND =>
+                  "qpdf --static-id --flatten-rotation" .
+                  " inherited-rotate.pdf a.pdf"},
+             {$td->STRING => "", $td->EXIT_STATUS => 0});
+$td->runtest("check output",
+             {$td->FILE => "a.pdf"},
+             {$td->FILE => "inherited-flattened.pdf"});
+
+foreach my $angle (qw(90 180 270))
+{
+    $td->runtest("rotate annotations",
+                 {$td->COMMAND =>
+                      "qpdf --static-id --qdf --rotate=$angle" .
+                      " --flatten-rotation --no-original-object-ids" .
+                      " form-fields-and-annotations.pdf a.pdf"},
+                 {$td->STRING => "", $td->EXIT_STATUS => 0});
+    $td->runtest("check output (flatten $angle)",
+                 {$td->FILE => "a.pdf"},
+                 {$td->FILE => "annotations-rotated-$angle.pdf"});
+}
+
+# The file form-fields-and-annotations-shared.pdf contains some
+# annotations that appear in multiple pages /Annots, some non-shared
+# things that share appearance streams, some form fields appear on
+# multiple pages, and an indirect /Annotations array. It is out of
+# spec in several ways but still works in most viewers. These test
+# make sure we don't make anything worse and also end up exercising
+# some cases of things being copied more than once, though we also
+# exercise that with legitimate test cases using overlay.
+
+$td->runtest("shared annotations 1 page",
+             {$td->COMMAND =>
+                  "qpdf --qdf --no-original-object-ids --static-id" .
+                  " --rotate=90:1 form-fields-and-annotations-shared.pdf" .
+                  " a.pdf --flatten-rotation"},
+             {$td->STRING => "", $td->EXIT_STATUS => 0},
+             $td->NORMALIZE_NEWLINES);
+$td->runtest("check output",
+             {$td->FILE => "a.pdf"},
+             {$td->FILE => "rotated-shared-annotations-1.pdf"});
+$td->runtest("shared annotations 2 pages",
+             {$td->COMMAND =>
+                  "qpdf --qdf --no-original-object-ids --static-id" .
+                  " --rotate=90:1,2 form-fields-and-annotations-shared.pdf" .
+                  " a.pdf --flatten-rotation"},
+             {$td->STRING => "", $td->EXIT_STATUS => 0},
+             $td->NORMALIZE_NEWLINES);
+$td->runtest("check output",
+             {$td->FILE => "a.pdf"},
+             {$td->FILE => "rotated-shared-annotations-2.pdf"});
 
 show_ntests();
 # ----------
@@ -2073,6 +2409,93 @@ foreach my $f (qw(screen print))
                  {$td->FILE => "a.pdf"},
                  {$td->FILE => "manual-appearances-$f-out.pdf"});
 }
+
+show_ntests();
+# ----------
+$td->notify("--- Copy Annotations ---");
+$n_tests += 25;
+
+$td->runtest("complex copy annotations",
+             {$td->COMMAND =>
+                  "qpdf --qdf --static-id --no-original-object-ids" .
+                  " fxo-red.pdf --overlay form-fields-and-annotations.pdf" .
+                  " --repeat=1 -- a.pdf"},
+             {$td->STRING => "", $td->EXIT_STATUS => 0},
+             $td->NORMALIZE_NEWLINES);
+$td->runtest("check output",
+             {$td->FILE => "a.pdf"},
+             {$td->FILE => "overlay-copy-annotations.pdf"});
+
+foreach my $page (1, 2, 5, 6)
+{
+    $td->runtest("copy annotations single page ($page)",
+                 {$td->COMMAND =>
+                      "qpdf --qdf --static-id --no-original-object-ids" .
+                      " --pages . $page --" .
+                      " fxo-red.pdf --overlay form-fields-and-annotations.pdf" .
+                      " --repeat=1 -- a.pdf"},
+                 {$td->STRING => "", $td->EXIT_STATUS => 0},
+                 $td->NORMALIZE_NEWLINES);
+    $td->runtest("check output",
+                 {$td->FILE => "a.pdf"},
+                 {$td->FILE => "overlay-copy-annotations-p$page.pdf"});
+}
+
+foreach my $d ([1, "appearances-1.pdf"],
+               [2, "appearances-1-rotated.pdf"])
+{
+    my ($n, $file1) = @$d;
+    $td->runtest("copy/transfer with defaults",
+                 {$td->COMMAND => "test_driver 80 $file1 minimal.pdf"},
+                 {$td->STRING => "test 80 done\n", $td->EXIT_STATUS => 0},
+                 $td->NORMALIZE_NEWLINES);
+    $td->runtest("check output A",
+                 {$td->FILE => "a.pdf"},
+                 {$td->FILE => "test80a$n.pdf"});
+    $td->runtest("check output B",
+                 {$td->FILE => "b.pdf"},
+                 {$td->FILE => "test80b$n.pdf"});
+}
+
+$td->runtest("page extraction with fields",
+             {$td->COMMAND =>
+                  "qpdf --static-id --empty" .
+                  " --pages fields-two-pages.pdf -- a.pdf"},
+             {$td->STRING => "", $td->EXIT_STATUS => 0},
+             $td->NORMALIZE_NEWLINES);
+$td->runtest("check output",
+             {$td->FILE => "a.pdf"},
+             {$td->FILE => "fields-pages-out.pdf"});
+$td->runtest("page splitting with fields",
+             {$td->COMMAND =>
+                  "qpdf --static-id" .
+                  " --split-pages fields-two-pages.pdf split-out.pdf"},
+             {$td->STRING => "", $td->EXIT_STATUS => 0},
+             $td->NORMALIZE_NEWLINES);
+for (my $i = 1; $i <= 2; ++$i)
+{
+    $td->runtest("check output",
+                 {$td->FILE => "split-out-$i.pdf"},
+                 {$td->FILE => "fields-split-$i.pdf"});
+}
+$td->runtest("keeping some fields",
+             {$td->COMMAND =>
+                  "qpdf --static-id fields-two-pages.pdf" .
+                  " --pages . 1 minimal.pdf -- a.pdf"},
+             {$td->STRING => "", $td->EXIT_STATUS => 0},
+             $td->NORMALIZE_NEWLINES);
+$td->runtest("check output",
+             {$td->FILE => "a.pdf"},
+             {$td->FILE => "kept-some-fields.pdf"});
+$td->runtest("not keeping any fields",
+             {$td->COMMAND =>
+                  "qpdf --static-id kept-some-fields.pdf" .
+                  " --pages . 2 -- a.pdf"},
+             {$td->STRING => "", $td->EXIT_STATUS => 0},
+             $td->NORMALIZE_NEWLINES);
+$td->runtest("check output",
+             {$td->FILE => "a.pdf"},
+             {$td->FILE => "kept-no-fields.pdf"});
 
 show_ntests();
 # ----------
@@ -2297,17 +2720,26 @@ show_ntests();
 # ----------
 $td->notify("--- Collating ---");
 my @collate = (
-    ["three-files", "collate-odd",
+    ["", "three-files", "collate-odd",
+     "collate-odd.pdf 1-5 minimal.pdf collate-even.pdf 7-1"],
+    [1, "three-files", "collate-odd",
+     "collate-odd.pdf 1-5 minimal.pdf collate-even.pdf 7-1"],
+    [2, "three-files-2", "collate-odd",
      "collate-odd.pdf 1-5 minimal.pdf collate-even.pdf 7-1"],
     );
 $n_tests += 2 * scalar(@collate);
 
 foreach my $d (@collate)
 {
-    my ($description, $first, $args) = @$d;
+    my ($n, $description, $first, $args) = @$d;
+    my $collate = '--collate';
+    if ($n)
+    {
+        $collate .= "=$n";
+    }
     $td->runtest("collate pages: $description",
                  {$td->COMMAND =>
-                      "qpdf --qdf --static-id --collate $first.pdf" .
+                      "qpdf --qdf --static-id $collate $first.pdf" .
                       " --pages $args -- a.pdf"},
                  {$td->STRING => "", $td->EXIT_STATUS => 0});
     $td->runtest("check output",
@@ -2580,7 +3012,7 @@ $n_tests += @badfiles + 7;
 # have error conditions that used to be fatal but are now considered
 # non-fatal.
 my %badtest_overrides = ();
-for(6, 12..15, 17, 18..32, 34, 36..37)
+for(6, 12..15, 17, 18..32, 34..37)
 {
     $badtest_overrides{$_} = 0;
 }
@@ -2640,7 +3072,7 @@ $n_tests += @badfiles + 9;
 # though in some cases it may.  Acrobat Reader would not be able to
 # recover any of these files any better.
 my %recover_failures = ();
-for (1, 7, 16, 35)
+for (1, 7, 16)
 {
     $recover_failures{$_} = 1;
 }
@@ -3137,19 +3569,19 @@ foreach my $f (qw(compressed-metadata.pdf enc-base.pdf))
 	check_metadata("a.pdf", 0, 1);
 	$td->runtest("encrypt normally",
 		     {$td->COMMAND =>
-			  "qpdf --encrypt '' '' 128 -- a.pdf b.pdf"},
+			  "qpdf --encrypt '' o 128 -- a.pdf b.pdf"},
 		     {$td->STRING => "", $td->EXIT_STATUS => 0});
 	check_metadata("b.pdf", 1, 0);
 	unlink "b.pdf";
 	$td->runtest("encrypt V4",
 		     {$td->COMMAND =>
-			  "qpdf --encrypt '' '' 128 --force-V4 -- a.pdf b.pdf"},
+			  "qpdf --encrypt '' o 128 --force-V4 -- a.pdf b.pdf"},
 		     {$td->STRING => "", $td->EXIT_STATUS => 0});
 	check_metadata("b.pdf", 1, 0);
 	unlink "b.pdf";
 	$td->runtest("encrypt with cleartext metadata",
 		     {$td->COMMAND =>
-			  "qpdf --encrypt '' '' 128 --cleartext-metadata --" .
+			  "qpdf --encrypt '' o 128 --cleartext-metadata --" .
 			  " a.pdf b.pdf"},
 		     {$td->STRING => "", $td->EXIT_STATUS => 0});
 	check_metadata("b.pdf", 1, 1);
@@ -3160,7 +3592,7 @@ foreach my $f (qw(compressed-metadata.pdf enc-base.pdf))
 	unlink "b.pdf", "c.pdf";
 	$td->runtest("encrypt with aes and cleartext metadata",
 		     {$td->COMMAND =>
-			  "qpdf --encrypt '' '' 128" .
+			  "qpdf --encrypt '' o 128" .
 			  " --cleartext-metadata --use-aes=y -- a.pdf b.pdf"},
 		     {$td->STRING => "", $td->EXIT_STATUS => 0});
 	check_metadata("b.pdf", 1, 1);
@@ -3389,7 +3821,7 @@ my @encrypted_files =
       1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
     );
 
-$n_tests += 5 + (2 * (@encrypted_files)) + (7 * (@encrypted_files - 6)) + 9;
+$n_tests += 8 + (2 * (@encrypted_files)) + (7 * (@encrypted_files - 6)) + 9;
 
 $td->runtest("encrypted file",
 	     {$td->COMMAND => "test_driver 2 encrypted-with-images.pdf"},
@@ -3405,6 +3837,21 @@ $td->runtest("recheck encrypted file",
 	     {$td->FILE => "encrypted1.out",
 	      $td->EXIT_STATUS => 0},
 	     $td->NORMALIZE_NEWLINES);
+
+$td->runtest("empty owner password",
+             {$td->COMMAND => "qpdf --encrypt u '' 256 -- minimal.pdf a.pdf"},
+             {$td->REGEXP => ".*is insecure.*--allow-insecure.*",
+                  $td->EXIT_STATUS => 2},
+             $td->NORMALIZE_NEWLINES);
+$td->runtest("allow insecure",
+             {$td->COMMAND => "qpdf --encrypt u '' 256 --allow-insecure --" .
+                  " minimal.pdf a.pdf"},
+             {$td->STRING => "", $td->EXIT_STATUS => 0},
+             $td->NORMALIZE_NEWLINES);
+$td->runtest("check insecure",
+             {$td->COMMAND => "qpdf --check a.pdf"},
+             {$td->FILE => "insecure-passwords.out", $td->EXIT_STATUS => 0},
+             $td->NORMALIZE_NEWLINES);
 
 # Test that long passwords that are one character too short fail.  We
 # test the truncation cases in the loop below by using passwords
@@ -3535,6 +3982,10 @@ foreach my $d (@encrypted_files)
         $enc_json =~ s/---upm---/$upm/;
 
 	my $eflags = "-encrypt \"$upass\" \"$opass\" $bits $xeflags --";
+        if (($opass eq "") && ($bits == 256))
+        {
+            $eflags =~ s/--$/--allow-insecure --/;
+        }
         if (($pass ne $upass) && ($V >= 5))
         {
             # V >= 5 can no longer recover user password with owner
@@ -3706,7 +4157,7 @@ $td->runtest("check linearization",
 # Test AES encryption in various ways.
 $n_tests += 18;
 $td->runtest("encrypt with AES",
-	     {$td->COMMAND => "qpdf --encrypt '' '' 128 --use-aes=y --" .
+	     {$td->COMMAND => "qpdf --encrypt '' o 128 --use-aes=y --" .
 		  " enc-base.pdf a.pdf"},
 	     {$td->STRING => "", $td->EXIT_STATUS => 0});
 $td->runtest("check encryption",
@@ -3727,7 +4178,7 @@ $td->runtest("compare files",
 	     {$td->FILE => 'a.qdf'},
 	     {$td->FILE => 'b.qdf'});
 $td->runtest("linearize with AES and object streams",
-	     {$td->COMMAND => "qpdf --encrypt '' '' 128 --use-aes=y --" .
+	     {$td->COMMAND => "qpdf --encrypt '' o 128 --use-aes=y --" .
 		  " --linearize --object-streams=generate enc-base.pdf a.pdf"},
 	     {$td->STRING => "", $td->EXIT_STATUS => 0});
 $td->runtest("check encryption",
@@ -3784,7 +4235,7 @@ $td->runtest("check encryption",
 	     $td->NORMALIZE_NEWLINES);
 
 # Look at some actual V4 files
-$n_tests += 14;
+$n_tests += 17;
 foreach my $d (['--force-V4', 'V4'],
 	       ['--cleartext-metadata', 'V4-clearmeta'],
 	       ['--use-aes=y', 'V4-aes'],
@@ -3793,7 +4244,8 @@ foreach my $d (['--force-V4', 'V4'],
     my ($args, $out) = @$d;
     $td->runtest("encrypt $args",
 		 {$td->COMMAND => "qpdf --static-aes-iv --static-id" .
-		      " --encrypt '' '' 128 $args -- enc-base.pdf a.pdf"},
+		      " --encrypt '' '' 128 $args --" .
+                      " enc-base.pdf a.pdf"},
 		 {$td->STRING => "", $td->EXIT_STATUS => 0});
     $td->runtest("check output",
 		 {$td->FILE => "a.pdf"},
@@ -3811,6 +4263,19 @@ $td->runtest("decrypt with crypt filter",
 $td->runtest("check output",
 	     {$td->FILE => 'a.pdf'},
 	     {$td->FILE => 'decrypted-crypt-filter.pdf'});
+$td->runtest("nontrivial crypt filter",
+	     {$td->COMMAND => "qpdf --qdf --decrypt --static-id" .
+		  " nontrivial-crypt-filter.pdf --password=asdfqwer a.pdf"},
+	     {$td->STRING => "", $td->EXIT_STATUS => 0});
+$td->runtest("check output",
+	     {$td->FILE => 'a.pdf'},
+	     {$td->FILE => 'nontrivial-crypt-filter-decrypted.pdf'});
+$td->runtest("show nontrivial EFF",
+	     {$td->COMMAND => "qpdf --show-encryption" .
+		  " nontrivial-crypt-filter.pdf --password=asdfqwer"},
+	     {$td->FILE => "nontrivial-crypt-filter.out",
+                  $td->EXIT_STATUS => 0},
+             $td->NORMALIZE_NEWLINES);
 
 # Copy encryption parameters
 $n_tests += 10;

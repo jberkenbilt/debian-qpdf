@@ -24,8 +24,15 @@ QPDFOutlineDocumentHelper::QPDFOutlineDocumentHelper(QPDF& qpdf) :
         return;
     }
     QPDFObjectHandle cur = outlines.getKey("/First");
+    std::set<QPDFObjGen> seen;
     while (! cur.isNull())
     {
+        auto og = cur.getObjGen();
+        if (seen.count(og))
+        {
+            break;
+        }
+        seen.insert(og);
         this->m->outlines.push_back(
             QPDFOutlineObjectHelper::Accessor::create(cur, *this, 1));
         cur = cur.getKey("/Next");
@@ -106,7 +113,7 @@ QPDFOutlineDocumentHelper::resolveNamedDest(QPDFObjectHandle name)
                 if (dests.isDictionary())
                 {
                     this->m->names_dest =
-                        new QPDFNameTreeObjectHelper(dests);
+                        new QPDFNameTreeObjectHelper(dests, this->qpdf);
                 }
             }
         }

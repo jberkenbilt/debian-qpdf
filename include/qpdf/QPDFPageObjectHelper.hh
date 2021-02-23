@@ -24,11 +24,14 @@
 
 #include <qpdf/QPDFObjectHelper.hh>
 #include <qpdf/QPDFAnnotationObjectHelper.hh>
+#include <qpdf/QPDFMatrix.hh>
 
 #include <qpdf/DLL.h>
 
 #include <qpdf/QPDFObjectHandle.hh>
 #include <functional>
+
+class QPDFAcroFormDocumentHelper;
 
 class QPDFPageObjectHelper: public QPDFObjectHelper
 {
@@ -306,20 +309,74 @@ class QPDFPageObjectHelper: public QPDFObjectHelper
         bool allow_shrink = true,
         bool allow_expand = false);
 
+    // Alternative version that also fills in the transformation
+    // matrix that was used.
+    QPDF_DLL
+    std::string placeFormXObject(
+        QPDFObjectHandle fo, std::string const& name,
+        QPDFObjectHandle::Rectangle rect,
+        QPDFMatrix& cm,
+        bool invert_transformations = true,
+        bool allow_shrink = true,
+        bool allow_expand = false);
+
+    // Return the transformation matrix that translates from the given
+    // form XObject's coordinate system into the given rectangular
+    // region on the page. The parameters have the same meaning as for
+    // placeFormXObject.
+    QPDF_DLL
+    QPDFMatrix getMatrixForFormXObjectPlacement(
+        QPDFObjectHandle fo, QPDFObjectHandle::Rectangle rect,
+        bool invert_transformations = true,
+        bool allow_shrink = true, bool allow_expand = false);
+
     // If a page is rotated using /Rotate in the page's dictionary,
     // instead rotate the page by the same amount by altering the
     // contents and removing the /Rotate key. This method adjusts the
     // various page bounding boxes (/MediaBox, etc.) so that the page
     // will have the same semantics. This can be useful to work around
     // problems with PDF applications that can't properly handle
-    // rotated pages.
+    // rotated pages. If a QPDFAcroFormDocumentHelper is provided, it
+    // will be used for resolving any form fields that have to be
+    // rotated. If not, one will be created inside the function, which
+    // is less efficient.
     QPDF_DLL
     void flattenRotation();
+    // ABI: merge versions and make afdh default to nullptr
+    QPDF_DLL
+    void flattenRotation(QPDFAcroFormDocumentHelper* afdh);
+
+    // Copy annotations from another page into this page. The other
+    // page may be from the same QPDF or from a different QPDF. Each
+    // annotation's rectangle is transformed by the given matrix. If
+    // the annotation is a widget annotation that is associated with a
+    // form field, the form field is copied into this document's
+    // AcroForm dictionary as well. You can use this to copy
+    // annotations from a page that was converted to a form XObject
+    // and added to another page. For example of this, see
+    // examples/pdf-overlay-page.cc. Note that if you use this to copy
+    // annotations from one page to another in the same document and
+    // you use a transformation matrix other than the identity matrix,
+    // it will alter the original annotation, which is probably not
+    // what you want. Also, if you copy the same page multiple times
+    // with different transformation matrices, the effect will be
+    // cumulative, which is probably also not what you want.
+    //
+    // If you pass in a QPDFAcroFormDocumentHelper*, the method will
+    // use that instead of creating one in the function. Creating
+    // QPDFAcroFormDocumentHelper objects is expensive, so if you're
+    // doing a lot of copying, it can be more efficient to create
+    // these outside and pass them in.
+    QPDF_DLL
+    void copyAnnotations(
+        QPDFPageObjectHelper from_page, QPDFMatrix const& cm = QPDFMatrix(),
+        QPDFAcroFormDocumentHelper* afdh = nullptr,
+        QPDFAcroFormDocumentHelper* from_afdh = nullptr);
 
   private:
-    static void
+    static bool
     removeUnreferencedResourcesHelper(
-        QPDFPageObjectHelper ph, std::set<QPDFObjGen>& seen);
+        QPDFPageObjectHelper ph, std::set<std::string>& unresolved);
 
     class Members
     {

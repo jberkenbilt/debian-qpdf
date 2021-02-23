@@ -5,8 +5,8 @@
 <!ENTITY mdash "&#x2014;">
 <!ENTITY ndash "&#x2013;">
 <!ENTITY nbsp "&#xA0;">
-<!ENTITY swversion "10.1.0">
-<!ENTITY lastreleased "January 5, 2021">
+<!ENTITY swversion "10.2.0">
+<!ENTITY lastreleased "February 23, 2021">
 ]>
 <book>
  <bookinfo>
@@ -118,7 +118,7 @@
     <itemizedlist>
      <listitem>
       <para>
-       A C++ compiler that supports C++-11.
+       A C++ compiler that supports C++-14.
       </para>
      </listitem>
      <listitem>
@@ -571,13 +571,17 @@ make
     linkend="ref.page-selection"/>.
    </para>
    <para>
-    If <option>@filename</option> appears anywhere in the
+    If <option>@filename</option> appears as a word anywhere in the
     command-line, it will be read line by line, and each line will be
     treated as a command-line argument. The <option>@-</option> option
     allows arguments to be read from standard input. This allows qpdf
     to be invoked with an arbitrary number of arbitrarily long
     arguments. It is also very useful for avoiding having to pass
-    passwords on the command line.
+    passwords on the command line. Note that the
+    <option>@filename</option> can't appear in the middle of an
+    argument, so constructs such as <option>--arg=@option</option>
+    will not work. You would have to include the argument and its
+    options together in the arguments file.
    </para>
    <para>
     <option>outfilename</option> does not have to be seekable, even
@@ -714,14 +718,34 @@ make
       </listitem>
      </varlistentry>
      <varlistentry>
-      <term><option>--password=password</option></term>
+      <term><option>--password=<replaceable>password</replaceable></option></term>
       <listitem>
        <para>
-        Specifies a password for accessing encrypted files. Note that
-        you can use <option>@filename</option> or <option>@-</option>
-        as described above to put the password in a file or pass it
-        via standard input so you can avoid specifying it on the
-        command line.
+        Specifies a password for accessing encrypted files. To read
+        the password from a file or standard input, you can use
+        <option>--password-file</option>, added in qpdf 10.2. Note
+        that you can also use <option>@filename</option> or
+        <option>@-</option> as described above to put the password in
+        a file or pass it via standard input, but you would do so by
+        specifying the entire
+        <option>--password=<replaceable>password</replaceable></option>
+        option in the file. Syntax such as
+        <option>--password=@filename</option> won't work since
+        <option>@filename</option> is not recognized in the middle of
+        an argument.
+       </para>
+      </listitem>
+     </varlistentry>
+     <varlistentry>
+      <term><option>--password-file=<replaceable>filename</replaceable></option></term>
+      <listitem>
+       <para>
+        Reads the first line from the specified file and uses it as
+        the password for accessing encrypted files.
+        <option><replaceable>filename</replaceable></option> may be
+        <literal>-</literal> to read the password from standard input.
+        Note that, in this case, the password is echoed and there is
+        no prompt, so use with caution.
        </para>
       </listitem>
      </varlistentry>
@@ -984,7 +1008,7 @@ make
         linkend="ref.page-selection"/>. If the page range is omitted,
         the rotation is applied to all pages. The
         <option>angle</option> portion of the parameter may be either
-        90, 180, or 270. If preceded by <option>+</option> or
+        0, 90, 180, or 270. If preceded by <option>+</option> or
         <option>-</option>, the angle is added to or subtracted from
         the specified pages' original rotations. This is almost always
         what you want. Otherwise the pages' rotations are set to the
@@ -1053,12 +1077,14 @@ make
       </listitem>
      </varlistentry>
      <varlistentry>
-      <term><option>--collate</option></term>
+      <term><option>--collate=<replaceable>n</replaceable></option></term>
       <listitem>
        <para>
         When specified, collate rather than concatenate pages from
-        files specified with <option>--pages</option>.  See <xref
-        linkend="ref.page-selection"/> for additional details.
+        files specified with <option>--pages</option>. With a numeric
+        argument, collate in groups of <replaceable>n</replaceable>.
+        The default is 1. See <xref linkend="ref.page-selection"/> for
+        additional details.
        </para>
       </listitem>
      </varlistentry>
@@ -1214,7 +1240,12 @@ make
    </para>
    <para>
     Either or both of the user password and the owner password may be
-    empty strings.
+    empty strings. Starting in qpdf 10.2, qpdf defaults to not
+    allowing creation of PDF files with a non-empty user password, an
+    empty owner password, and a 256-bit key since such files can be
+    opened with no password. If you want to create such files, specify
+    the encryption option <option>--allow-insecure</option>, as
+    described below.
    </para>
    <para>
     The value for
@@ -1419,6 +1450,21 @@ make
       </listitem>
      </varlistentry>
      <varlistentry>
+      <term><option>--allow-insecure</option></term>
+      <listitem>
+       <para>
+        From qpdf 10.2, qpdf defaults to not allowing creation of PDF
+        files where the user password is non-empty, the owner password
+        is empty, and a 256-bit key is in use. Files created in this
+        way are insecure since they can be opened without a password.
+        Users would ordinarily never want to create such files. If you
+        are using qpdf to intentionally created strange files for
+        testing (a definite valid use of qpdf!), this option allows
+        you to create such insecure files.
+       </para>
+      </listitem>
+     </varlistentry>
+     <varlistentry>
       <term><option>--force-V4</option></term>
       <listitem>
        <para>
@@ -1603,6 +1649,27 @@ make
     </itemizedlist>
    </para>
    <para>
+    Starting in qpdf version 10.2, you may specify a numeric argument
+    to <option>--collate</option>. With
+    <option>--collate=<replaceable>n</replaceable></option>, pull
+    groups of <replaceable>n</replaceable> pages from each file,
+    again, stopping when there are no more pages. For example, if you
+    ran <command>qpdf --collate=2 --empty --pages a.pdf 1-5 b.pdf 6-4
+    c.pdf r1 -- out.pdf</command>, you would get the following pages
+    in this order:
+    <itemizedlist>
+     <listitem><para>a.pdf page 1</para></listitem>
+     <listitem><para>a.pdf page 2</para></listitem>
+     <listitem><para>b.pdf page 6</para></listitem>
+     <listitem><para>b.pdf page 5</para></listitem>
+     <listitem><para>c.pdf last page</para></listitem>
+     <listitem><para>a.pdf page 3</para></listitem>
+     <listitem><para>a.pdf page 4</para></listitem>
+     <listitem><para>b.pdf page 4</para></listitem>
+     <listitem><para>a.pdf page 5</para></listitem>
+    </itemizedlist>
+   </para>
+   <para>
     Starting in qpdf version 8.3, when you split and merge files, any
     page labels (page numbers) are preserved in the final file. It is
     expected that more document features will be preserved by
@@ -1755,6 +1822,181 @@ outfile.pdf</option>
       </para>
      </listitem>
     </itemizedlist>
+   </para>
+  </sect1>
+  <sect1 id="ref.attachments">
+   <title>Embedded Files/Attachments Options</title>
+   <para>
+    Starting with qpdf 10.2, you can work with file attachments in PDF
+    files from the command line. The following options are available:
+    <variablelist>
+     <varlistentry>
+      <term><option>--list-attachments</option></term>
+      <listitem>
+       <para>
+        Show the &ldquo;key&rdquo; and stream number for embedded
+        files. With <option>--verbose</option>, additional
+        information, including preferred file name, description,
+        dates, and more are also displayed. The key is usually but not
+        always equal to the file name, and is needed by some of the
+        other options.
+       </para>
+      </listitem>
+     </varlistentry>
+     <varlistentry>
+      <term><option>--show-attachment=<replaceable>key</replaceable></option></term>
+      <listitem>
+       <para>
+        Write the contents of the specified attachment to standard
+        output as binary data. The key should match one of the keys
+        shown by <option>--list-attachments</option>. If specified
+        multiple times, only the last attachment will be shown.
+       </para>
+      </listitem>
+     </varlistentry>
+     <varlistentry>
+      <term><option>--add-attachment <replaceable>file</replaceable> <replaceable>options</replaceable> --</option></term>
+      <listitem>
+       <para>
+        Add or replace an attachment with the contents of
+        <replaceable>file</replaceable>. This may be specified more
+        than once. The following additional options may appear before
+        the <literal>--</literal> that ends this option:
+        <variablelist>
+         <varlistentry>
+          <term><option>--key=<replaceable>key</replaceable></option></term>
+          <listitem>
+           <para>
+            The key to use to register the attachment in the embedded
+            files table. Defaults to the last path element of
+            <replaceable>file</replaceable>.
+           </para>
+          </listitem>
+         </varlistentry>
+         <varlistentry>
+          <term><option>--filename=<replaceable>name</replaceable></option></term>
+          <listitem>
+           <para>
+            The file name to be used for the attachment. This is what is usually
+            displayed to the user and is the name most graphical PDF
+            viewers will use when saving a file. It defaults to the
+            last path element of <replaceable>file</replaceable>.
+           </para>
+          </listitem>
+         </varlistentry>
+         <varlistentry>
+          <term><option>--creationdate=<replaceable>date</replaceable></option></term>
+          <listitem>
+           <para>
+            The attachment's creation date in PDF format; defaults to
+            the current time. The date format is explained below.
+           </para>
+          </listitem>
+         </varlistentry>
+         <varlistentry>
+          <term><option>--moddate=<replaceable>date</replaceable></option></term>
+          <listitem>
+           <para>
+            The attachment's modification date in PDF format; defaults
+            to the current time. The date format is explained below.
+           </para>
+          </listitem>
+         </varlistentry>
+         <varlistentry>
+          <term><option>--mimetype=<replaceable>type/subtype</replaceable></option></term>
+          <listitem>
+           <para>
+            The mime type for the attachment, e.g.
+            <literal>text/plain</literal> or
+            <literal>application/pdf</literal>. Note that the mimetype
+            appears in a field called <literal>/Subtype</literal> in
+            the PDF but actually includes the full type and subtype of
+            the mime type.
+           </para>
+          </listitem>
+         </varlistentry>
+         <varlistentry>
+          <term><option>--description=<replaceable>&quot;text&quot;</replaceable></option></term>
+          <listitem>
+           <para>
+            Descriptive text for the attachment, displayed by some PDF
+            viewers.
+           </para>
+          </listitem>
+         </varlistentry>
+         <varlistentry>
+          <term><option>--replace</option></term>
+          <listitem>
+           <para>
+            Indicates that any existing attachment with the same key
+            should be replaced by the new attachment. Otherwise,
+            <command>qpdf</command> gives an error if an attachment
+            with that key is already present.
+           </para>
+          </listitem>
+         </varlistentry>
+        </variablelist>
+       </para>
+      </listitem>
+     </varlistentry>
+     <varlistentry>
+      <term><option>--remove-attachment=<replaceable>key</replaceable></option></term>
+      <listitem>
+       <para>
+        Remove the specified attachment. This doesn't only remove the
+        attachment from the embedded files table but also clears out
+        the file specification. That means that any potential internal
+        links to the attachment will be broken. This option may be
+        specified multiple times. Run with <option>--verbose</option>
+        to see status of the removal.
+       </para>
+      </listitem>
+     </varlistentry>
+     <varlistentry>
+      <term><option>--copy-attachments-from <replaceable>file</replaceable> <replaceable>options</replaceable> --</option></term>
+      <listitem>
+       <para>
+        Copy attachments from another file. This may be specified more
+        than once. The following additional options may appear before
+        the <literal>--</literal> that ends this option:
+        <variablelist>
+         <varlistentry>
+          <term><option>--password=<replaceable>password</replaceable></option></term>
+          <listitem>
+           <para>
+            If required, the password needed to open
+            <replaceable>file</replaceable>
+           </para>
+          </listitem>
+         </varlistentry>
+         <varlistentry>
+          <term><option>--prefix=<replaceable>prefix</replaceable></option></term>
+          <listitem>
+           <para>
+            Only required if the file from which attachments are being
+            copied has attachments with keys that conflict with
+            attachments already in the file. In this case, the
+            specified prefix will be prepended to each key. This
+            affects only the key in the embedded files table, not the
+            file name. The PDF specification doesn't preclude multiple
+            attachments having the same file name.
+           </para>
+          </listitem>
+         </varlistentry>
+        </variablelist>
+       </para>
+      </listitem>
+     </varlistentry>
+    </variablelist>
+    When a date is required, the date should conform to the PDF date
+    format specification, which is
+    <literal>D:</literal><replaceable>yyyymmddhhmmss&lt;z&gt;</replaceable>,
+    where <replaceable>&lt;z&gt;</replaceable> is either
+    <literal>Z</literal> for UTC or a timezone offset in the form
+    <replaceable>-hh'mm'</replaceable> or
+    <replaceable>+hh'mm'</replaceable>. Examples:
+    <literal>D:20210207161528-05'00'</literal>,
+    <literal>D:20210207211528Z</literal>.
    </para>
   </sect1>
   <sect1 id="ref.advanced-parsing">
@@ -4818,6 +5060,328 @@ print "\n";
     </listitem>
    </varlistentry>
 -->
+   <varlistentry>
+    <term>10.2.0: February 23, 2021</term>
+    <listitem>
+     <itemizedlist>
+      <listitem>
+       <para>
+        CLI Behavior Changes
+       </para>
+       <itemizedlist>
+        <listitem>
+         <para>
+          Operations that work on combining pages are much better
+          about protecting form fields. In particular,
+          <option>--split-pages</option> and <option>--pages</option>
+          now preserve interaction form functionality by copying the
+          relevant form field information from the original files.
+          Additionally, if you use <option>--pages</option> to select
+          only some pages from the original input file, unused form
+          fields are removed, which prevents lots of unused
+          annotations from being retained.
+         </para>
+        </listitem>
+        <listitem>
+         <para>
+          By default, <command>qpdf</command> no longer allows
+          creation of encrypted PDF files whose user password is
+          non-empty and owner password is empty when a 256-bit key is
+          in use. The <option>--allow-insecure</option> option,
+          specified inside the <option>--encrypt</option> options,
+          allows creation of such files. Behavior changes in the CLI
+          are avoided when possible, but an exception was made here
+          because this is security-related. qpdf must always allow
+          creation of weird files for testing purposes, but it should
+          not default to letting users unknowingly create insecure
+          files.
+         </para>
+        </listitem>
+       </itemizedlist>
+      </listitem>
+      <listitem>
+       <para>
+        Library Behavior Changes
+       </para>
+       <itemizedlist>
+        <listitem>
+         <para>
+          Note: the changes in this section cause differences in
+          output in some cases. These differences change the syntax of
+          the PDF but do not change the semantics (meaning). I make a
+          strong effort to avoid gratuitous changes in qpdf's output
+          so that qpdf changes don't break people's tests. In this
+          case, the changes significantly improve the readability of
+          the generated PDF and don't affect any output that's
+          generated by simple transformation. If you are annoyed by
+          having to update test files, please rest assured that
+          changes like this have been and will continue to be rare
+          events.
+         </para>
+        </listitem>
+        <listitem>
+         <para>
+          <function>QPDFObjectHandle::newUnicodeString</function> now
+          uses whichever of ASCII, PDFDocEncoding, of UTF-16 is
+          sufficient to encode all the characters in the string. This
+          reduces needless encoding in UTF-16 of strings that can be
+          encoded in ASCII. This change may cause qpdf to generate
+          different output than before when form field values are set
+          using <classname>QPDFFormFieldObjectHelper</classname> but
+          does not change the meaning of the output.
+         </para>
+        </listitem>
+        <listitem>
+         <para>
+          The code that places form XObjects and also the code that
+          flattens rotations trim trailing zeroes from real numbers
+          that they calculate. This causes slight (but semantically
+          equivalent) differences in generated appearance streams and
+          form XObject invocations in overlay/underlay code or in user
+          code that calls the methods that place form XObjects on a
+          page.
+         </para>
+        </listitem>
+       </itemizedlist>
+      </listitem>
+      <listitem>
+       <para>
+        CLI Enhancements
+       </para>
+       <itemizedlist>
+        <listitem>
+         <para>
+          Add new command line options for listing, saving, adding,
+          removing, and and copying file attachments. See <xref
+          linkend="ref.attachments"/> for details.
+         </para>
+        </listitem>
+        <listitem>
+         <para>
+          Page splitting and merging operations, as well as
+          <option>--flatten-rotation</option>, are better behaved
+          with respect to annotations and interactive form fields. In
+          most cases, interactive form field functionality and proper
+          formatting and functionality of annotations is preserved by
+          these operations. There are still some cases that aren't
+          perfect, such as when functionality of annotations depends
+          on document-level data that qpdf doesn't yet understand or
+          when there are problems with referential integrity among
+          form fields and annotations (e.g., when a single form field
+          object or its associated annotations are shared across
+          multiple pages, a case that is out of spec but that works in
+          most viewers anyway).
+         </para>
+        </listitem>
+        <listitem>
+         <para>
+          The option
+          <option>--password-file=<replaceable>filename</replaceable></option>
+          can now be used to read the decryption password from a file.
+          You can use <literal>-</literal> as the file name to read
+          the password from standard input. This is an easier/more
+          obvious way to read passwords from files or standard input
+          than using <option>@file</option> for this purpose.
+         </para>
+        </listitem>
+        <listitem>
+         <para>
+          Add some information about attachments to the json output,
+          and added <literal>attachments</literal> as an additional
+          json key. The information included here is limited to the
+          preferred name and content stream and a reference to the
+          file spec object. This is enough detail for clients to avoid
+          the hassle of navigating a name tree and provides what is
+          needed for basic enumeration and extraction of attachments.
+          More detailed information can be obtained by following the
+          reference to the file spec object.
+         </para>
+        </listitem>
+        <listitem>
+         <para>
+          Add numeric option to <option>--collate</option>. If
+          <option>--collate=<replaceable>n</replaceable></option> is
+          given, take pages in groups of <replaceable>n</replaceable>
+          from the given files.
+         </para>
+        </listitem>
+        <listitem>
+         <para>
+          It is now valid to provide <option>--rotate=0</option> to
+          clear rotation from a page.
+         </para>
+        </listitem>
+       </itemizedlist>
+      </listitem>
+      <listitem>
+       <para>
+        Library Enhancements
+       </para>
+       <itemizedlist>
+        <listitem>
+         <para>
+          This release includes numerous additions to the API. Not all
+          changes are listed here. Please see the
+          <filename>ChangeLog</filename> file in the source
+          distribution for a comprehensive list. Highlights appear
+          below.
+         </para>
+        </listitem>
+        <listitem>
+         <para>
+          Add <function>QPDFObjectHandle::ditems()</function> and
+          <function>QPDFObjectHandle::aitems()</function> that enable
+          C++-style iteration, including range-for iteration, over
+          dictionary and array QPDFObjectHandles. See comments in
+          <filename>include/qpdf/QPDFObjectHandle.hh</filename> and
+          <filename>examples/pdf-name-number-tree.cc</filename> for
+          details.
+         </para>
+        </listitem>
+        <listitem>
+         <para>
+          Add <function>QPDFObjectHandle::copyStream</function> for
+          making a copy of a stream within the same
+          <classname>QPDF</classname> instance.
+         </para>
+        </listitem>
+        <listitem>
+         <para>
+          Add new helper classes for supporting file attachments, also
+          known as embedded files. New classes are
+          <classname>QPDFEmbeddedFileDocumentHelper</classname>,
+          <classname>QPDFFileSpecObjectHelper</classname>, and
+          <classname>QPDFEFStreamObjectHelper</classname>. See their
+          respective headers for details and
+          <filename>examples/pdf-attach-file.cc</filename> for an
+          example.
+         </para>
+        </listitem>
+        <listitem>
+         <para>
+          Add a version of
+          <function>QPDFObjectHandle::parse</function> that takes a
+          <classname>QPDF</classname> pointer as context so that it
+          can parse strings containing indirect object references.
+          This is illustrated in
+          <filename>examples/pdf-attach-file.cc</filename>.
+         </para>
+        </listitem>
+        <listitem>
+         <para>
+          Re-implement <classname>QPDFNameTreeObjectHelper</classname>
+          and <classname>QPDFNumberTreeObjectHelper</classname> to be
+          more efficient, add an iterator-based API, give them the
+          capability to repair broken trees, and create methods for
+          modifying the trees. With this change, qpdf has a robust
+          read/write implementation of name and number trees.
+         </para>
+        </listitem>
+        <listitem>
+         <para>
+	  Add new versions of
+	  <function>QPDFObjectHandle::replaceStreamData</function>
+	  that take <classname>std::function</classname> objects for
+	  cases when you need something between a static string and a
+	  full-fledged StreamDataProvider. Using this with
+	  <function>QUtil::file_provider</function> is a very easy way
+	  to create a stream from the contents of a file.
+         </para>
+        </listitem>
+        <listitem>
+         <para>
+          The <classname>QPDFMatrix</classname> class, formerly a
+          private, internal class, has been added to the public API.
+          See <filename>include/qpdf/QPDFMatrix.hh</filename> for
+          details. This class is for working with transformation
+          matrices. Some methods in
+          <classname>QPDFPageObjectHelper</classname> make use of this
+          to make information about transformation matrices available.
+          For an example, see
+          <filename>examples/pdf-overlay-page.cc</filename>.
+         </para>
+        </listitem>
+        <listitem>
+         <para>
+          Several new methods were added to
+          <classname>QPDFAcroFormDocumentHelper</classname> for
+          adding, removing, getting information about, and enumerating
+          form fields.
+         </para>
+        </listitem>
+        <listitem>
+         <para>
+          Add method
+          <function>QPDFAcroFormDocumentHelper::transformAnnotations</function>,
+          which applies a transformation to each annotation on a page.
+         </para>
+        </listitem>
+        <listitem>
+         <para>
+	  Add
+	  <function>QPDFPageObjectHelper::copyAnnotations</function>,
+	  which copies annotations and, if applicable, associated form
+	  fields, from one page to another, possibly transforming the
+	  rectangles.
+         </para>
+        </listitem>
+       </itemizedlist>
+      </listitem>
+      <listitem>
+       <para>
+        Build Changes
+       </para>
+       <itemizedlist>
+        <listitem>
+         <para>
+          A C++-14 compiler is now required to build qpdf. There is no
+          intention to require anything newer than that for a while.
+          C++-14 includes modest enhancements to C++-11 and appears to
+          be supported about as widely as C++-11.
+         </para>
+        </listitem>
+       </itemizedlist>
+      </listitem>
+      <listitem>
+       <para>
+        Bug Fixes
+       </para>
+       <itemizedlist>
+        <listitem>
+         <para>
+	  The <option>--flatten-rotation</option> option applies
+          transformations to any annotations that may be on the page.
+         </para>
+        </listitem>
+        <listitem>
+         <para>
+	  If a form XObject lacks a resources dictionary, consider any
+	  names in that form XObject to be referenced from the
+	  containing page. This is compliant with older PDF versions.
+	  Also detect if any form XObjects have any unresolved names
+	  and, if so, don't remove unreferenced resources from them or
+	  from the page that contains them. Unfortunately this has the
+	  side effect of preventing removal of unreferenced resources
+	  in some cases where names appear that don't refer to
+	  resources, such as with tagged PDF. This is a bit of a
+	  corner case that is not likely to cause a significant
+	  problem in practice, but the only side effect would be lack
+	  of removal of shared resources. A future version of qpdf may
+	  be more sophisticated in its detection of names that refer
+	  to resources.
+         </para>
+        </listitem>
+        <listitem>
+         <para>
+	  Properly handle strings if they appear in inline image
+	  dictionaries while externalizing inline images.
+         </para>
+        </listitem>
+       </itemizedlist>
+      </listitem>
+     </itemizedlist>
+    </listitem>
+   </varlistentry>
    <varlistentry>
     <term>10.1.0: January 5, 2021</term>
     <listitem>

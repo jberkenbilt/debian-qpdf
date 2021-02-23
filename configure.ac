@@ -2,7 +2,7 @@ dnl Process this file with autoconf to produce a configure script.
 dnl This config.in requires autoconf 2.5 or greater.
 
 AC_PREREQ([2.68])
-AC_INIT([qpdf],[10.1.0])
+AC_INIT([qpdf],[10.2.0])
 
 AC_CONFIG_MACRO_DIR([m4])
 AC_CONFIG_FILES([autoconf.mk])
@@ -36,7 +36,7 @@ fi
 AC_PROG_CC
 AC_PROG_CC_C99
 AC_PROG_CXX
-AX_CXX_COMPILE_STDCXX([11], [noext], [mandatory])
+AX_CXX_COMPILE_STDCXX([14], [noext], [mandatory])
 AC_HEADER_STDC
 LT_INIT([win32-dll])
 
@@ -52,8 +52,8 @@ LT_INIT([win32-dll])
 # * Otherwise, increment LT_REVISION
 
 # LT = libtool
-LT_CURRENT=29
-LT_AGE=1
+LT_CURRENT=30
+LT_AGE=2
 LT_REVISION=0
 AC_SUBST(LT_CURRENT)
 AC_SUBST(LT_REVISION)
@@ -310,9 +310,7 @@ AC_ARG_WITH(large-file-test-path,
 
 AC_SYS_LARGEFILE
 AC_FUNC_FSEEKO
-AC_CHECK_FUNCS([fseeko64])
-
-AC_CHECK_FUNCS(random)
+AC_CHECK_FUNCS([fseeko64 random localtime_r])
 
 # Check if LD supports linker scripts, and define conditional
 # HAVE_LD_VERSION_SCRIPT if so.  This functionality is currently

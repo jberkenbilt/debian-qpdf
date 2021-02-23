@@ -4,6 +4,7 @@
 #include <fcntl.h>
 #include <stdio.h>
 #include <ctype.h>
+#include <memory>
 
 #include <qpdf/QUtil.hh>
 #include <qpdf/QTC.hh>
@@ -25,6 +26,7 @@
 #include <qpdf/QPDFExc.hh>
 #include <qpdf/QPDFSystemError.hh>
 #include <qpdf/QPDFCryptoProvider.hh>
+#include <qpdf/QPDFEmbeddedFileDocumentHelper.hh>
 
 #include <qpdf/QPDFWriter.hh>
 #include <qpdf/QIntC.hh>
@@ -38,7 +40,7 @@ static int constexpr EXIT_CORRECT_PASSWORD = 3;
 
 static char const* whoami = 0;
 
-static std::string expected_version = "10.1.0";
+static std::string expected_version = "10.2.0";
 
 struct PageSpec
 {
@@ -94,6 +96,31 @@ struct UnderOverlay
     std::vector<int> repeat_pagenos;
 };
 
+struct AddAttachment
+{
+    AddAttachment() :
+        replace(false)
+    {
+    }
+
+    std::string path;
+    std::string key;
+    std::string filename;
+    std::string creationdate;
+    std::string moddate;
+    std::string mimetype;
+    std::string description;
+    bool replace;
+};
+
+struct CopyAttachmentFrom
+{
+    std::string path;
+    std::string password;
+    std::string prefix;
+};
+
+
 enum remove_unref_e { re_auto, re_yes, re_no };
 
 struct Options
@@ -113,6 +140,7 @@ struct Options
         password_is_hex_key(false),
         suppress_password_recovery(false),
         password_mode(pm_auto),
+        allow_insecure(false),
         keylen(0),
         r2_print(true),
         r2_modify(true),
@@ -173,8 +201,9 @@ struct Options
         show_filtered_stream_data(false),
         show_pages(false),
         show_page_images(false),
-        collate(false),
+        collate(0),
         flatten_rotation(false),
+        list_attachments(false),
         json(false),
         check(false),
         optimize_images(false),
@@ -198,6 +227,7 @@ struct Options
     }
 
     char const* password;
+    std::shared_ptr<char> password_alloc;
     bool linearize;
     bool decrypt;
     int split_pages;
@@ -211,6 +241,7 @@ struct Options
     bool password_is_hex_key;
     bool suppress_password_recovery;
     password_mode_e password_mode;
+    bool allow_insecure;
     std::string user_password;
     std::string owner_password;
     int keylen;
@@ -276,8 +307,13 @@ struct Options
     bool show_filtered_stream_data;
     bool show_pages;
     bool show_page_images;
-    bool collate;
+    size_t collate;
     bool flatten_rotation;
+    bool list_attachments;
+    std::string attachment_to_show;
+    std::list<std::string> attachments_to_remove;
+    std::list<AddAttachment> attachments_to_add;
+    std::list<CopyAttachmentFrom> attachments_to_copy;
     bool json;
     std::set<std::string> json_keys;
     std::set<std::string> json_objects;
@@ -663,6 +699,22 @@ static JSON json_schema(std::set<std::string>* keys = 0)
             "filemethod",
             JSON::makeString("encryption method for attachments"));
     }
+    if (all_keys || keys->count("attachments"))
+    {
+        JSON attachments = schema.addDictionaryMember(
+            "attachments", JSON::makeDictionary());
+        JSON details = attachments.addDictionaryMember(
+            "<attachment-key>", JSON::makeDictionary());
+        details.addDictionaryMember(
+            "filespec",
+            JSON::makeString("object containing the file spec"));
+        details.addDictionaryMember(
+            "preferredname",
+            JSON::makeString("most preferred file name"));
+        details.addDictionaryMember(
+            "preferredcontents",
+            JSON::makeString("most preferred embedded file stream"));
+    }
     return schema;
 }
 
@@ -737,11 +789,13 @@ class ArgParser
     void argShowCrypto();
     void argPositional(char* arg);
     void argPassword(char* parameter);
+    void argPasswordFile(char* parameter);
     void argEmpty();
     void argLinearize();
     void argEncrypt();
     void argDecrypt();
     void argPasswordIsHexKey();
+    void argAllowInsecure();
     void argPasswordMode(char* parameter);
     void argSuppressPasswordRecovery();
     void argCopyEncryption(char* parameter);
@@ -750,8 +804,13 @@ class ArgParser
     void argUnderlay();
     void argOverlay();
     void argRotate(char* parameter);
-    void argCollate();
+    void argCollate(char* parameter);
     void argFlattenRotation();
+    void argListAttachments();
+    void argShowAttachment(char* parameter);
+    void argRemoveAttachment(char* parameter);
+    void argAddAttachment();
+    void argCopyAttachments();
     void argStreamData(char* parameter);
     void argCompressStreams(char* parameter);
     void argRecompressFlate();
@@ -832,6 +891,19 @@ class ArgParser
     void argReplaceInput();
     void argIsEncrypted();
     void argRequiresPassword();
+    void argAApositional(char* arg);
+    void argAAKey(char* parameter);
+    void argAAFilename(char* parameter);
+    void argAACreationDate(char* parameter);
+    void argAAModDate(char* parameter);
+    void argAAMimeType(char* parameter);
+    void argAADescription(char* parameter);
+    void argAAReplace();
+    void argEndAddAttachment();
+    void argCApositional(char* arg);
+    void argCAprefix(char* parameter);
+    void argCApassword(char* parameter);
+    void argEndCopyAttachments();
 
     void usage(std::string const& message);
     void checkCompletion();
@@ -868,6 +940,8 @@ class ArgParser
     std::map<std::string, OptionEntry> encrypt128_option_table;
     std::map<std::string, OptionEntry> encrypt256_option_table;
     std::map<std::string, OptionEntry> under_overlay_option_table;
+    std::map<std::string, OptionEntry> add_attachment_option_table;
+    std::map<std::string, OptionEntry> copy_attachments_option_table;
     std::vector<PointerHolder<char> > new_argv;
     std::vector<PointerHolder<char> > bash_argv;
     PointerHolder<char*> argv_ph;
@@ -952,6 +1026,8 @@ ArgParser::initOptionTable()
     (*t)[""] = oe_positional(&ArgParser::argPositional);
     (*t)["password"] = oe_requiredParameter(
         &ArgParser::argPassword, "password");
+    (*t)["password-file"] = oe_requiredParameter(
+        &ArgParser::argPasswordFile, "password-file");
     (*t)["empty"] = oe_bare(&ArgParser::argEmpty);
     (*t)["linearize"] = oe_bare(&ArgParser::argLinearize);
     (*t)["encrypt"] = oe_bare(&ArgParser::argEncrypt);
@@ -972,8 +1048,15 @@ ArgParser::initOptionTable()
         &ArgParser::argRotate, "[+|-]angle:page-range");
     char const* stream_data_choices[] =
         {"compress", "preserve", "uncompress", 0};
-    (*t)["collate"] = oe_bare(&ArgParser::argCollate);
+    (*t)["collate"] = oe_optionalParameter(&ArgParser::argCollate);
     (*t)["flatten-rotation"] = oe_bare(&ArgParser::argFlattenRotation);
+    (*t)["list-attachments"] = oe_bare(&ArgParser::argListAttachments);
+    (*t)["show-attachment"] = oe_requiredParameter(
+        &ArgParser::argShowAttachment, "attachment-key");
+    (*t)["remove-attachment"] = oe_requiredParameter(
+        &ArgParser::argRemoveAttachment, "attachment-key");
+    (*t)["add-attachment"] = oe_bare(&ArgParser::argAddAttachment);
+    (*t)["copy-attachments-from"] = oe_bare(&ArgParser::argCopyAttachments);
     (*t)["stream-data"] = oe_requiredChoices(
         &ArgParser::argStreamData, stream_data_choices);
     (*t)["compress-streams"] = oe_requiredChoices(
@@ -1047,7 +1130,7 @@ ArgParser::initOptionTable()
     // places: json_schema, do_json, and initOptionTable.
     char const* json_key_choices[] = {
         "objects", "objectinfo", "pages", "pagelabels", "outlines",
-        "acroform", "encrypt", 0};
+        "acroform", "encrypt", "attachments", 0};
     (*t)["json-key"] = oe_requiredChoices(
         &ArgParser::argJsonKey, json_key_choices);
     (*t)["json-object"] = oe_requiredParameter(
@@ -1074,13 +1157,16 @@ ArgParser::initOptionTable()
 
     t = &this->encrypt40_option_table;
     (*t)["--"] = oe_bare(&ArgParser::argEndEncrypt);
+    // The above 40-bit options are also 128-bit and 256-bit options,
+    // so copy what we have so far to 128. Then continue separately
+    // with 128. We later copy 128 to 256.
+    this->encrypt128_option_table = this->encrypt40_option_table;
     (*t)["print"] = oe_requiredChoices(&ArgParser::arg40Print, yn);
     (*t)["modify"] = oe_requiredChoices(&ArgParser::arg40Modify, yn);
     (*t)["extract"] = oe_requiredChoices(&ArgParser::arg40Extract, yn);
     (*t)["annotate"] = oe_requiredChoices(&ArgParser::arg40Annotate, yn);
 
     t = &this->encrypt128_option_table;
-    (*t)["--"] = oe_bare(&ArgParser::argEndEncrypt);
     (*t)["accessibility"] = oe_requiredChoices(
         &ArgParser::arg128Accessibility, yn);
     (*t)["extract"] = oe_requiredChoices(&ArgParser::arg128Extract, yn);
@@ -1105,6 +1191,7 @@ ArgParser::initOptionTable()
 
     t = &this->encrypt256_option_table;
     (*t)["force-R5"] = oe_bare(&ArgParser::arg256ForceR5);
+    (*t)["allow-insecure"] = oe_bare(&ArgParser::argAllowInsecure);
 
     t = &this->under_overlay_option_table;
     (*t)[""] = oe_positional(&ArgParser::argUOpositional);
@@ -1117,6 +1204,31 @@ ArgParser::initOptionTable()
     (*t)["password"] = oe_requiredParameter(
         &ArgParser::argUOpassword, "password");
     (*t)["--"] = oe_bare(&ArgParser::argEndUnderOverlay);
+
+    t = &this->add_attachment_option_table;
+    (*t)[""] = oe_positional(&ArgParser::argAApositional);
+    (*t)["key"] = oe_requiredParameter(
+        &ArgParser::argAAKey, "attachment-key");
+    (*t)["filename"] = oe_requiredParameter(
+        &ArgParser::argAAFilename, "filename");
+    (*t)["creationdate"] = oe_requiredParameter(
+        &ArgParser::argAACreationDate, "creation-date");
+    (*t)["moddate"] = oe_requiredParameter(
+        &ArgParser::argAAModDate, "modification-date");
+    (*t)["mimetype"] = oe_requiredParameter(
+        &ArgParser::argAAMimeType, "mime/type");
+    (*t)["description"] = oe_requiredParameter(
+        &ArgParser::argAADescription, "description");
+    (*t)["replace"] = oe_bare(&ArgParser::argAAReplace);
+    (*t)["--"] = oe_bare(&ArgParser::argEndAddAttachment);
+
+    t = &this->copy_attachments_option_table;
+    (*t)[""] = oe_positional(&ArgParser::argCApositional);
+    (*t)["prefix"] = oe_requiredParameter(
+        &ArgParser::argCAprefix, "prefix");
+    (*t)["password"] = oe_requiredParameter(
+        &ArgParser::argCApassword, "password");
+    (*t)["--"] = oe_bare(&ArgParser::argEndCopyAttachments);
 }
 
 void
@@ -1228,6 +1340,9 @@ ArgParser::argHelp()
         << "--completion-bash       output a bash complete command you can eval\n"
         << "--completion-zsh        output a zsh complete command you can eval\n"
         << "--password=password     specify a password for accessing encrypted files\n"
+        << "--password-file=file    get the password the first line \"file\"; use \"-\"\n"
+        << "                        to read the password from stdin (without prompt or\n"
+        << "                        disabling echo, so use with caution)\n"
         << "--is-encrypted          silently exit 0 if the file is encrypted or 2\n"
         << "                        if not; useful for shell scripts\n"
         << "--requires-password     silently exit 0 if a password (other than as\n"
@@ -1254,19 +1369,21 @@ ArgParser::argHelp()
         << "                        encoding errors\n"
         << "--password-mode=mode    control qpdf's encoding of passwords\n"
         << "--pages options --      select specific pages from one or more files\n"
-        << "--collate               causes files specified in --pages to be collated\n"
-        << "                        rather than concatenated\n"
+        << "--collate=n             causes files specified in --pages to be collated\n"
+        << "                        in groups of n pages (default 1) rather than\n"
+        << "                        concatenated\n"
         << "--flatten-rotation      move page rotation from /Rotate key to content\n"
         << "--rotate=[+|-]angle[:page-range]\n"
-        << "                        rotate each specified page 90, 180, or 270 degrees;\n"
-        << "                        rotate all pages if no page range is given\n"
+        << "                        rotate each specified page 0, 90, 180, or 270\n"
+        << "                        degrees; rotate all pages if no page range is given\n"
         << "--split-pages=[n]       write each output page to a separate file\n"
         << "--overlay options --    overlay pages from another file\n"
         << "--underlay options --   underlay pages from another file\n"
         << "\n"
         << "Note that you can use the @filename or @- syntax for any argument at any\n"
         << "point in the command. This provides a good way to specify a password without\n"
-        << "having to explicitly put it on the command line.\n"
+        << "having to explicitly put it on the command line. @filename or @- must be a\n"
+        << "word by itself. Syntax such as --arg=@filename doesn't work.\n"
         << "\n"
         << "If none of --copy-encryption, --encrypt or --decrypt are given, qpdf will\n"
         << "preserve any encryption data associated with a file.\n"
@@ -1282,7 +1399,7 @@ ArgParser::argHelp()
         << "or investigatory purposes. See manual for further discussion.\n"
         << "\n"
         << "The --rotate flag can be used to specify pages to rotate pages either\n"
-        << "90, 180, or 270 degrees. The page range is specified in the same\n"
+        << "0, 90, 180, or 270 degrees. The page range is specified in the same\n"
         << "format as with the --pages option, described below. Repeat the option\n"
         << "to rotate multiple groups of pages. If the angle is preceded by + or -,\n"
         << "it is added to or subtracted from the original rotation. Otherwise, the\n"
@@ -1342,6 +1459,8 @@ ArgParser::argHelp()
         << "    --force-V4               this option is not available with 256-bit keys\n"
         << "    --use-aes                this option is always on with 256-bit keys\n"
         << "    --force-R5               forces use of deprecated R=5 encryption\n"
+        << "    --allow-insecure         allow the owner password to be empty when the\n"
+        << "                             user password is not empty\n"
         << "\n"
         << "    print-opt may be:\n"
         << "\n"
@@ -1370,7 +1489,7 @@ ArgParser::argHelp()
         << "\n"
         << "\n"
         << "Password Modes\n"
-        << "----------------------\n"
+        << "--------------\n"
         << "\n"
         << "The --password-mode controls how qpdf interprets passwords supplied\n"
         << "on the command-line. qpdf's default behavior is correct in almost all\n"
@@ -1440,7 +1559,7 @@ ArgParser::argHelp()
         << "\n"
         << "\n"
         << "Overlay and Underlay Options\n"
-        << "-------------------------------\n"
+        << "----------------------------\n"
         << "\n"
         << "These options allow pages from another file to be overlaid or underlaid\n"
         << "on the primary output. Overlaid pages are drawn on top of the destination\n"
@@ -1468,8 +1587,57 @@ ArgParser::argHelp()
         << "            any \"from\" pages have been exhausted\n"
         << "\n"
         << "\n"
+        << "Embedded Files/Attachments Options\n"
+        << "----------------------------------\n"
+        << "\n"
+        << "These options can be used to work with embedded files, also known as\n"
+        << "attachments.\n"
+        << "\n"
+        << "--list-attachments        show key and stream number for embedded files;\n"
+        << "                          combine with --verbose for more detailed information\n"
+        << "--show-attachment=key     write the contents of the specified attachment to\n"
+        << "                          standard output as binary data\n"
+        << "--add-attachment file options --\n"
+        << "                          add or replace an attachment\n"
+        << "--remove-attachment=key   remove the specified attachment; repeatable\n"
+        << "--copy-attachments-from file options --\n"
+        << "                          copy attachments from another file\n"
+        << "\n"
+        << "The \"key\" option is the unique name under which the attachment is registered\n"
+        << "within the PDF file. You can get this using the --list-attachments option. This\n"
+        << "is usually the same as the filename, but it doesn't have to be.\n"
+        << "\n"
+        << "Options for adding attachments:\n"
+        << "\n"
+        << "  file                    path to the file to attach\n"
+        << "  --key=key               the name of this in the embedded files table;\n"
+        << "                          defaults to the last path element of file\n"
+        << "  --filename=name         the file name of the attachment; this is what is\n"
+        << "                          usually displayed to the user; defaults to the\n"
+        << "                          last path element of file\n"
+        << "  --creationdate=date     creation date in PDF format; defaults to the\n"
+        << "                          current time\n"
+        << "  --moddate=date          modification date in PDF format; defaults to the\n"
+        << "                          current time\n"
+        << "  --mimetype=type/subtype   mime type of attachment (e.g. application/pdf)\n"
+        << "  --description=\"text\"    attachment description\n"
+        << "  --replace               replace any existing attachment with the same key\n"
+        << "\n"
+        << "Options for copying attachments:\n"
+        << "\n"
+        << "  file                    file whose attachments should be copied\n"
+        << "  --password=password     password to open the other file, if needed\n"
+        << "  --prefix=prefix         a prefix to insert in front of each key;\n"
+        << "                          required if needed to ensure each attachment\n"
+        << "                          has a unique key\n"
+        << "\n"
+        << "Date format: D:yyyymmddhhmmss<z> where <z> is either Z for UTC or a timezone\n"
+        << "offset in the form -hh'mm' or +hh'mm'.\n"
+        << "Examples: D:20210207161528-05'00', D:20210207211528Z\n"
+        << "\n"
+        << "\n"
         << "Advanced Parsing Options\n"
-        << "-------------------------------\n"
+        << "------------------------\n"
         << "\n"
         << "These options control aspects of how qpdf reads PDF files. Mostly these are\n"
         << "of use to people who are working with damaged files. There is little reason\n"
@@ -1739,6 +1907,36 @@ ArgParser::argPassword(char* parameter)
 }
 
 void
+ArgParser::argPasswordFile(char* parameter)
+{
+    std::list<std::string> lines;
+    if (strcmp(parameter, "-") == 0)
+    {
+        QTC::TC("qpdf", "qpdf password stdin");
+        lines = QUtil::read_lines_from_file(std::cin);
+    }
+    else
+    {
+        QTC::TC("qpdf", "qpdf password file");
+        lines = QUtil::read_lines_from_file(parameter);
+    }
+    if (lines.size() >= 1)
+    {
+        // Make sure the memory for this stays in scope.
+        o.password_alloc = std::shared_ptr<char>(
+            QUtil::copy_string(lines.front().c_str()),
+            std::default_delete<char[]>());
+        o.password = o.password_alloc.get();
+
+        if (lines.size() > 1)
+        {
+            std::cerr << whoami << ": WARNING: all but the first line of"
+                      << " the password file are ignored" << std::endl;
+        }
+    }
+}
+
+void
 ArgParser::argEmpty()
 {
     o.infilename = "";
@@ -1850,6 +2048,12 @@ ArgParser::argPasswordMode(char* parameter)
 }
 
 void
+ArgParser::argAllowInsecure()
+{
+    o.allow_insecure = true;
+}
+
+void
 ArgParser::argCopyEncryption(char* parameter)
 {
     o.encryption_file = parameter;
@@ -1865,9 +2069,11 @@ ArgParser::argEncryptionFilePassword(char* parameter)
 }
 
 void
-ArgParser::argCollate()
+ArgParser::argCollate(char* parameter)
 {
-    o.collate = true;
+    auto n = ((parameter == 0) ? 1 :
+              QUtil::string_to_uint(parameter));
+    o.collate = QIntC::to_size(n);
 }
 
 void
@@ -1903,6 +2109,40 @@ void
 ArgParser::argFlattenRotation()
 {
     o.flatten_rotation = true;
+}
+
+void
+ArgParser::argListAttachments()
+{
+    o.list_attachments = true;
+    o.require_outfile = false;
+}
+
+void
+ArgParser::argShowAttachment(char* parameter)
+{
+    o.attachment_to_show = parameter;
+    o.require_outfile = false;
+}
+
+void
+ArgParser::argRemoveAttachment(char* parameter)
+{
+    o.attachments_to_remove.push_back(parameter);
+}
+
+void
+ArgParser::argAddAttachment()
+{
+    this->option_table = &(this->add_attachment_option_table);
+    o.attachments_to_add.push_back(AddAttachment());
+}
+
+void
+ArgParser::argCopyAttachments()
+{
+    this->option_table = &(this->copy_attachments_option_table);
+    o.attachments_to_copy.push_back(CopyAttachmentFrom());
 }
 
 void
@@ -2563,6 +2803,128 @@ ArgParser::argRequiresPassword()
 }
 
 void
+ArgParser::argAApositional(char* arg)
+{
+    o.attachments_to_add.back().path = arg;
+}
+
+void
+ArgParser::argAAKey(char* parameter)
+{
+    o.attachments_to_add.back().key = parameter;
+}
+
+void
+ArgParser::argAAFilename(char* parameter)
+{
+    o.attachments_to_add.back().filename = parameter;
+}
+
+void
+ArgParser::argAACreationDate(char* parameter)
+{
+    if (! QUtil::pdf_time_to_qpdf_time(parameter))
+    {
+        usage(std::string(parameter) + " is not a valid PDF timestamp");
+    }
+    o.attachments_to_add.back().creationdate = parameter;
+}
+
+void
+ArgParser::argAAModDate(char* parameter)
+{
+    if (! QUtil::pdf_time_to_qpdf_time(parameter))
+    {
+        usage(std::string(parameter) + " is not a valid PDF timestamp");
+    }
+    o.attachments_to_add.back().moddate = parameter;
+}
+
+void
+ArgParser::argAAMimeType(char* parameter)
+{
+    if (strchr(parameter, '/') == nullptr)
+    {
+        usage("mime type should be specified as type/subtype");
+    }
+    o.attachments_to_add.back().mimetype = parameter;
+}
+
+void
+ArgParser::argAADescription(char* parameter)
+{
+    o.attachments_to_add.back().description = parameter;
+}
+
+void
+ArgParser::argAAReplace()
+{
+    o.attachments_to_add.back().replace = true;
+}
+
+void
+ArgParser::argEndAddAttachment()
+{
+    static std::string now = QUtil::qpdf_time_to_pdf_time(
+        QUtil::get_current_qpdf_time());
+    this->option_table = &(this->main_option_table);
+    auto& cur = o.attachments_to_add.back();
+    if (cur.path.empty())
+    {
+        usage("add attachment: no path specified");
+    }
+    std::string last_element = QUtil::path_basename(cur.path);
+    if (last_element.empty())
+    {
+        usage("path for --add-attachment may not be empty");
+    }
+    if (cur.filename.empty())
+    {
+        cur.filename = last_element;
+    }
+    if (cur.key.empty())
+    {
+        cur.key = last_element;
+    }
+    if (cur.creationdate.empty())
+    {
+        cur.creationdate = now;
+    }
+    if (cur.moddate.empty())
+    {
+        cur.moddate = now;
+    }
+}
+
+void
+ArgParser::argCApositional(char* arg)
+{
+    o.attachments_to_copy.back().path = arg;
+}
+
+void
+ArgParser::argCAprefix(char* parameter)
+{
+    o.attachments_to_copy.back().prefix = parameter;
+}
+
+void
+ArgParser::argCApassword(char* parameter)
+{
+    o.attachments_to_copy.back().password = parameter;
+}
+
+void
+ArgParser::argEndCopyAttachments()
+{
+    this->option_table = &(this->main_option_table);
+    if (o.attachments_to_copy.back().path.empty())
+    {
+        usage("copy attachments: no path specified");
+    }
+}
+
+void
 ArgParser::handleArgFileArguments()
 {
     // Support reading arguments from files. Create a new argv. Ensure
@@ -3086,7 +3448,8 @@ ArgParser::parseRotationParameter(std::string const& parameter)
         // ignore
     }
     if (range_valid &&
-        ((angle_str == "90") || (angle_str == "180") || (angle_str == "270")))
+        ((angle_str == "0") ||(angle_str == "90") ||
+         (angle_str == "180") || (angle_str == "270")))
     {
         int angle = QUtil::string_to_int(angle_str.c_str());
         if (relative == -1)
@@ -3337,6 +3700,24 @@ ArgParser::doFinalChecks()
               " together");
     }
 
+    if (o.encrypt && (! o.allow_insecure) &&
+        (o.owner_password.empty() &&
+         (! o.user_password.empty()) &&
+         (o.keylen == 256)))
+    {
+        // Note that empty owner passwords for R < 5 are copied from
+        // the user password, so this lack of security is not an issue
+        // for those files. Also we are consider only the ability to
+        // open the file without a password to be insecure. We are not
+        // concerned about whether the viewer enforces security
+        // settings when the user and owner password match.
+        usage("A PDF with a non-empty user password and an empty owner"
+              " password encrypted with a 256-bit key is insecure as it"
+              " can be opened without a password. If you really want to"
+              " do this, you must also give the --allow-insecure option"
+              " before the -- that follows --encrypt.");
+    }
+
     if (o.require_outfile && o.outfilename &&
         (strcmp(o.outfilename, "-") == 0))
     {
@@ -3357,7 +3738,7 @@ ArgParser::doFinalChecks()
         }
     }
 
-    if (QUtil::same_file(o.infilename, o.outfilename))
+    if ((! o.split_pages) && QUtil::same_file(o.infilename, o.outfilename))
     {
         QTC::TC("qpdf", "qpdf same file error");
         usage("input file and output file are the same;"
@@ -3693,6 +4074,66 @@ static void do_show_pages(QPDF& pdf, Options& o)
             std::cout << "    " << iter2.unparse() << std::endl;
         }
     }
+}
+
+static void do_list_attachments(QPDF& pdf, Options& o)
+{
+    QPDFEmbeddedFileDocumentHelper efdh(pdf);
+    if (efdh.hasEmbeddedFiles())
+    {
+        for (auto const& i: efdh.getEmbeddedFiles())
+        {
+            std::string const& key = i.first;
+            auto efoh = i.second;
+            std::cout << key << " -> "
+                      << efoh->getEmbeddedFileStream().getObjGen()
+                      << std::endl;
+            if (o.verbose)
+            {
+                auto desc = efoh->getDescription();
+                if (! desc.empty())
+                {
+                    std::cout << "  description: " << desc << std::endl;
+                }
+                std::cout << "  preferred name: " << efoh->getFilename()
+                          << std::endl;
+                std::cout << "  all names:" << std::endl;
+                for (auto const& i2: efoh->getFilenames())
+                {
+                    std::cout << "    " << i2.first << " -> " << i2.second
+                              << std::endl;
+                }
+                std::cout << "  all data streams:" << std::endl;
+                for (auto i2: efoh->getEmbeddedFileStreams().ditems())
+                {
+                    std::cout << "    " << i2.first << " -> "
+                              << i2.second.getObjGen()
+                              << std::endl;
+                }
+            }
+        }
+    }
+    else
+    {
+        std::cout << o.infilename << " has no embedded files" << std::endl;
+    }
+}
+
+static void do_show_attachment(QPDF& pdf, Options& o, int& exit_code)
+{
+    QPDFEmbeddedFileDocumentHelper efdh(pdf);
+    auto fs = efdh.getEmbeddedFile(o.attachment_to_show);
+    if (! fs)
+    {
+        std::cerr << whoami << ": attachment " << o.attachment_to_show
+                  << " not found" << std::endl;
+        exit_code = EXIT_ERROR;
+        return;
+    }
+    auto efs = fs->getEmbeddedFileStream();
+    QUtil::binary_stdout();
+    Pl_StdioFile out("stdout", stdout);
+    efs.pipeStreamData(&out, 0, qpdf_dl_all);
 }
 
 static std::set<QPDFObjGen>
@@ -4141,6 +4582,28 @@ static void do_json_encrypt(QPDF& pdf, Options& o, JSON& j)
         "filemethod", JSON::makeString(s_file_method));
 }
 
+static void do_json_attachments(QPDF& pdf, Options& o, JSON& j)
+{
+    JSON j_attachments = j.addDictionaryMember(
+        "attachments", JSON::makeDictionary());
+    QPDFEmbeddedFileDocumentHelper efdh(pdf);
+    for (auto const& iter: efdh.getEmbeddedFiles())
+    {
+        std::string const& key = iter.first;
+        auto fsoh = iter.second;
+        auto j_details = j_attachments.addDictionaryMember(
+            key, JSON::makeDictionary());
+        j_details.addDictionaryMember(
+            "filespec",
+            JSON::makeString(fsoh->getObjectHandle().unparse()));
+        j_details.addDictionaryMember(
+            "preferredname", JSON::makeString(fsoh->getFilename()));
+        j_details.addDictionaryMember(
+            "preferredcontents",
+            JSON::makeString(fsoh->getEmbeddedFileStream().unparse()));
+    }
+}
+
 static void do_json(QPDF& pdf, Options& o)
 {
     JSON j = JSON::makeDictionary();
@@ -4200,6 +4663,10 @@ static void do_json(QPDF& pdf, Options& o)
     if (all_keys || o.json_keys.count("encrypt"))
     {
         do_json_encrypt(pdf, o, j);
+    }
+    if (all_keys || o.json_keys.count("attachments"))
+    {
+        do_json_attachments(pdf, o, j);
     }
 
     // Check against schema
@@ -4280,6 +4747,14 @@ static void do_inspection(QPDF& pdf, Options& o)
     if (o.show_pages)
     {
         do_show_pages(pdf, o);
+    }
+    if (o.list_attachments)
+    {
+        do_list_attachments(pdf, o);
+    }
+    if (! o.attachment_to_show.empty())
+    {
+        do_show_attachment(pdf, o, exit_code);
     }
     if ((! pdf.getWarnings().empty()) && (exit_code != EXIT_ERROR))
     {
@@ -4668,6 +5143,19 @@ static void get_uo_pagenos(UnderOverlay& uo,
     }
 }
 
+static QPDFAcroFormDocumentHelper* get_afdh_for_qpdf(
+    std::map<unsigned long long,
+             PointerHolder<QPDFAcroFormDocumentHelper>>& afdh_map,
+    QPDF* q)
+{
+    auto uid = q->getUniqueId();
+    if (! afdh_map.count(uid))
+    {
+        afdh_map[uid] = new QPDFAcroFormDocumentHelper(*q);
+    }
+    return afdh_map[uid].getPointer();
+}
+
 static void do_under_overlay_for_page(
     QPDF& pdf,
     Options& o,
@@ -4685,6 +5173,14 @@ static void do_under_overlay_for_page(
         return;
     }
 
+    std::map<unsigned long long,
+             PointerHolder<QPDFAcroFormDocumentHelper>> afdh;
+    auto make_afdh = [&](QPDFPageObjectHelper& ph) {
+        QPDF* q = ph.getObjectHandle().getOwningQPDF();
+        return get_afdh_for_qpdf(afdh, q);
+    };
+    auto dest_afdh = make_afdh(dest_page);
+
     std::string content;
     int min_suffix = 1;
     QPDFObjectHandle resources = dest_page.getAttribute("/Resources", true);
@@ -4696,21 +5192,25 @@ static void do_under_overlay_for_page(
         {
             std::cout << "    " << uo.which << " " << from_pageno << std::endl;
         }
+        auto from_page = pages.at(QIntC::to_size(from_pageno - 1));
         if (0 == fo.count(from_pageno))
         {
             fo[from_pageno] =
                 pdf.copyForeignObject(
-                    pages.at(QIntC::to_size(from_pageno - 1)).
-                    getFormXObjectForPage());
+                    from_page.getFormXObjectForPage());
         }
+
         // If the same page is overlaid or underlaid multiple times,
         // we'll generate multiple names for it, but that's harmless
         // and also a pretty goofy case that's not worth coding
         // around.
         std::string name = resources.getUniqueResourceName("/Fx", min_suffix);
+        QPDFMatrix cm;
         std::string new_content = dest_page.placeFormXObject(
             fo[from_pageno], name,
-            dest_page.getTrimBox().getArrayAsRectangle());
+            dest_page.getTrimBox().getArrayAsRectangle(), cm);
+        dest_page.copyAnnotations(
+            from_page, cm, dest_afdh, make_afdh(from_page));
         if (! new_content.empty())
         {
             resources.mergeResources(
@@ -4785,9 +5285,115 @@ static void handle_under_overlay(QPDF& pdf, Options& o)
     }
 }
 
-static void handle_transformations(QPDF& pdf, Options& o)
+static void maybe_set_pagemode(QPDF& pdf, std::string const& pagemode)
+{
+    auto root = pdf.getRoot();
+    if (root.getKey("/PageMode").isNull())
+    {
+        root.replaceKey("/PageMode", QPDFObjectHandle::newName(pagemode));
+    }
+}
+
+static void add_attachments(QPDF& pdf, Options& o, int& exit_code)
+{
+    maybe_set_pagemode(pdf, "/UseAttachments");
+    QPDFEmbeddedFileDocumentHelper efdh(pdf);
+    for (auto const& to_add: o.attachments_to_add)
+    {
+        if ((! to_add.replace) && efdh.getEmbeddedFile(to_add.key))
+        {
+            std::cerr << whoami << ": " << pdf.getFilename()
+                      << " already has an attachment with key = "
+                      << to_add.key << "; use --replace to replace"
+                      << " or --key to specify a different key"
+                      << std::endl;
+            exit_code = EXIT_ERROR;
+            continue;
+        }
+
+        auto fs = QPDFFileSpecObjectHelper::createFileSpec(
+            pdf, to_add.filename, to_add.path);
+        if (! to_add.description.empty())
+        {
+            fs.setDescription(to_add.description);
+        }
+        auto efs = QPDFEFStreamObjectHelper(fs.getEmbeddedFileStream());
+        efs.setCreationDate(to_add.creationdate)
+            .setModDate(to_add.moddate);
+        if (! to_add.mimetype.empty())
+        {
+            efs.setSubtype(to_add.mimetype);
+        }
+
+        efdh.replaceEmbeddedFile(to_add.key, fs);
+        if (o.verbose)
+        {
+            std::cout << whoami << ": attached " << to_add.path
+                      << " as " << to_add.filename
+                      << " with key " << to_add.key << std::endl;
+        }
+    }
+}
+
+static void copy_attachments(QPDF& pdf, Options& o, int& exit_code)
+{
+    maybe_set_pagemode(pdf, "/UseAttachments");
+    QPDFEmbeddedFileDocumentHelper efdh(pdf);
+    for (auto const& to_copy: o.attachments_to_copy)
+    {
+        auto other = process_file(
+            to_copy.path.c_str(), to_copy.password.c_str(), o);
+        QPDFEmbeddedFileDocumentHelper other_efdh(*other);
+        auto other_attachments = other_efdh.getEmbeddedFiles();
+        for (auto const& iter: other_attachments)
+        {
+            if (o.verbose)
+            {
+                std::cout << whoami << ": copying attachments from "
+                          << to_copy.path << std::endl;
+            }
+            std::string new_key = to_copy.prefix + iter.first;
+            if (efdh.getEmbeddedFile(new_key))
+            {
+                exit_code = EXIT_ERROR;
+                std::cerr << whoami << to_copy.path << " and "
+                          << pdf.getFilename()
+                          << " both have attachments with key " << new_key
+                          << "; use --prefix with --copy-attachments-from"
+                          << " or manually copy individual attachments"
+                          << std::endl;
+            }
+            else
+            {
+                auto new_fs_oh = pdf.copyForeignObject(
+                    iter.second->getObjectHandle());
+                efdh.replaceEmbeddedFile(
+                    new_key, QPDFFileSpecObjectHelper(new_fs_oh));
+                if (o.verbose)
+                {
+                    std::cout << "  " << iter.first << " -> " << new_key
+                              << std::endl;
+                }
+            }
+        }
+
+        if ((other->anyWarnings()) && (exit_code == 0))
+        {
+            exit_code = EXIT_WARNING;
+        }
+    }
+}
+
+static void handle_transformations(QPDF& pdf, Options& o, int& exit_code)
 {
     QPDFPageDocumentHelper dh(pdf);
+    PointerHolder<QPDFAcroFormDocumentHelper> afdh;
+    auto make_afdh = [&]() {
+        if (! afdh.getPointer())
+        {
+            afdh = new QPDFAcroFormDocumentHelper(pdf);
+        }
+    };
     if (o.externalize_inline_images)
     {
         std::vector<QPDFPageObjectHelper> pages = dh.getAllPages();
@@ -4834,8 +5440,8 @@ static void handle_transformations(QPDF& pdf, Options& o)
     }
     if (o.generate_appearances)
     {
-        QPDFAcroFormDocumentHelper afdh(pdf);
-        afdh.generateAppearancesIfNeeded();
+        make_afdh();
+        afdh->generateAppearancesIfNeeded();
     }
     if (o.flatten_annotations)
     {
@@ -4853,14 +5459,44 @@ static void handle_transformations(QPDF& pdf, Options& o)
     }
     if (o.flatten_rotation)
     {
+        make_afdh();
         for (auto& page: dh.getAllPages())
         {
-            page.flattenRotation();
+            page.flattenRotation(afdh.getPointer());
         }
     }
     if (o.remove_page_labels)
     {
         pdf.getRoot().removeKey("/PageLabels");
+    }
+    if (! o.attachments_to_remove.empty())
+    {
+        QPDFEmbeddedFileDocumentHelper efdh(pdf);
+        for (auto const& key: o.attachments_to_remove)
+        {
+            if (efdh.removeEmbeddedFile(key))
+            {
+                if (o.verbose)
+                {
+                    std::cout << whoami <<
+                        ": removed attachment " << key << std::endl;
+                }
+            }
+            else
+            {
+                std::cerr << whoami <<
+                    ": attachment " << key << " not found" << std::endl;
+                exit_code = EXIT_ERROR;
+            }
+        }
+    }
+    if (! o.attachments_to_add.empty())
+    {
+        add_attachments(pdf, o, exit_code);
+    }
+    if (! o.attachments_to_copy.empty())
+    {
+        copy_attachments(pdf, o, exit_code);
     }
 }
 
@@ -5000,7 +5636,7 @@ static bool should_remove_unreferenced_resources(QPDF& pdf, Options& o)
     return false;
 }
 
-static void handle_page_specs(QPDF& pdf, Options& o)
+static void handle_page_specs(QPDF& pdf, Options& o, bool& warnings)
 {
     // Parse all page specifications and translate them into lists of
     // actual pages.
@@ -5183,16 +5819,19 @@ static void handle_page_specs(QPDF& pdf, Options& o)
             for (size_t i = 0; i < nspecs; ++i)
             {
                 QPDFPageData& page_data = parsed_specs.at(i);
-                if (cur_page < page_data.selected_pages.size())
+                for (size_t j = 0; j < o.collate; ++j)
                 {
-                    got_pages = true;
-                    new_parsed_specs.push_back(
-                        QPDFPageData(
-                            page_data,
-                            page_data.selected_pages.at(cur_page)));
+                    if (cur_page + j < page_data.selected_pages.size())
+                    {
+                        got_pages = true;
+                        new_parsed_specs.push_back(
+                            QPDFPageData(
+                                page_data,
+                                page_data.selected_pages.at(cur_page + j)));
+                    }
                 }
             }
-            ++cur_page;
+            cur_page += o.collate;
         }
         parsed_specs = new_parsed_specs;
     }
@@ -5204,6 +5843,10 @@ static void handle_page_specs(QPDF& pdf, Options& o)
     std::vector<QPDFObjectHandle> new_labels;
     bool any_page_labels = false;
     int out_pageno = 0;
+    std::map<unsigned long long,
+             PointerHolder<QPDFAcroFormDocumentHelper>> afdh_map;
+    auto this_afdh = get_afdh_for_qpdf(afdh_map, &pdf);
+    std::set<QPDFObjGen> referenced_fields;
     for (std::vector<QPDFPageData>::iterator iter =
              parsed_specs.begin();
          iter != parsed_specs.end(); ++iter)
@@ -5216,6 +5859,7 @@ static void handle_page_specs(QPDF& pdf, Options& o)
             cis->stayOpen(true);
         }
         QPDFPageLabelDocumentHelper pldh(*page_data.qpdf);
+        auto other_afdh = get_afdh_for_qpdf(afdh_map, page_data.qpdf);
         if (pldh.hasPageLabels())
         {
             any_page_labels = true;
@@ -5260,6 +5904,21 @@ static void handle_page_specs(QPDF& pdf, Options& o)
                 // of the fact that we are using it.
                 selected_from_orig.insert(pageno);
             }
+            else if (other_afdh->hasAcroForm())
+            {
+                QTC::TC("qpdf", "qpdf copy form fields in pages");
+                std::vector<QPDFObjectHandle> copied_fields;
+                this_afdh->copyFieldsFromForeignPage(
+                    to_copy, *other_afdh, &copied_fields);
+                for (auto const& cf: copied_fields)
+                {
+                    referenced_fields.insert(cf.getObjGen());
+                }
+            }
+        }
+        if (page_data.qpdf->anyWarnings())
+        {
+            warnings = true;
         }
         if (cis)
         {
@@ -5277,14 +5936,55 @@ static void handle_page_specs(QPDF& pdf, Options& o)
 
     // Delete page objects for unused page in primary. This prevents
     // those objects from being preserved by being referred to from
-    // other places, such as the outlines dictionary.
+    // other places, such as the outlines dictionary. Also make sure
+    // we keep form fields from pages we preserved.
     for (size_t pageno = 0; pageno < orig_pages.size(); ++pageno)
     {
-        if (selected_from_orig.count(QIntC::to_int(pageno)) == 0)
+        auto page = orig_pages.at(pageno);
+        if (selected_from_orig.count(QIntC::to_int(pageno)))
+        {
+            for (auto field: this_afdh->getFormFieldsForPage(page))
+            {
+                QTC::TC("qpdf", "qpdf pages keeping field from original");
+                referenced_fields.insert(field.getObjectHandle().getObjGen());
+            }
+        }
+        else
         {
             pdf.replaceObject(
-                orig_pages.at(pageno).getObjectHandle().getObjGen(),
+                page.getObjectHandle().getObjGen(),
                 QPDFObjectHandle::newNull());
+        }
+    }
+    // Remove unreferenced form fields
+    if (this_afdh->hasAcroForm())
+    {
+        auto acroform = pdf.getRoot().getKey("/AcroForm");
+        auto fields = acroform.getKey("/Fields");
+        if (fields.isArray())
+        {
+            auto new_fields = QPDFObjectHandle::newArray();
+            if (fields.isIndirect())
+            {
+                new_fields = pdf.makeIndirectObject(new_fields);
+            }
+            for (auto const& field: fields.aitems())
+            {
+                if (referenced_fields.count(field.getObjGen()))
+                {
+                    new_fields.appendItem(field);
+                }
+            }
+            if (new_fields.getArrayNItems() > 0)
+            {
+                QTC::TC("qpdf", "qpdf keep some fields in pages");
+                acroform.replaceKey("/Fields", new_fields);
+            }
+            else
+            {
+                QTC::TC("qpdf", "qpdf no more fields in pages");
+                pdf.getRoot().removeKey("/AcroForm");
+            }
         }
     }
 }
@@ -5634,6 +6334,7 @@ static void do_split_pages(QPDF& pdf, Options& o, bool& warnings)
         dh.removeUnreferencedResources();
     }
     QPDFPageLabelDocumentHelper pldh(pdf);
+    QPDFAcroFormDocumentHelper afdh(pdf);
     std::vector<QPDFObjectHandle> const& pages = pdf.getAllPages();
     size_t pageno_len = QUtil::uint_to_string(pages.size()).length();
     size_t num_pages = pages.size();
@@ -5647,6 +6348,11 @@ static void do_split_pages(QPDF& pdf, Options& o, bool& warnings)
         }
         QPDF outpdf;
         outpdf.emptyPDF();
+        PointerHolder<QPDFAcroFormDocumentHelper> out_afdh;
+        if (afdh.hasAcroForm())
+        {
+            out_afdh = new QPDFAcroFormDocumentHelper(outpdf);
+        }
         if (o.suppress_warnings)
         {
             outpdf.setSuppressWarnings(true);
@@ -5655,6 +6361,12 @@ static void do_split_pages(QPDF& pdf, Options& o, bool& warnings)
         {
             QPDFObjectHandle page = pages.at(pageno - 1);
             outpdf.addPage(page, false);
+            if (out_afdh.getPointer())
+            {
+                QTC::TC("qpdf", "qpdf copy form fields in split_pages");
+                out_afdh->copyFieldsFromForeignPage(
+                    QPDFPageObjectHelper(page), afdh);
+            }
         }
         if (pldh.hasPageLabels())
         {
@@ -5677,6 +6389,13 @@ static void do_split_pages(QPDF& pdf, Options& o, bool& warnings)
                 QUtil::uint_to_string(last, QIntC::to_int(pageno_len));
         }
         std::string outfile = before + page_range + after;
+        if (QUtil::same_file(o.infilename, outfile.c_str()))
+        {
+            std::cerr << whoami
+                      << ": split pages would overwrite input file with "
+                      << outfile << std::endl;
+            exit(EXIT_ERROR);
+        }
         QPDFWriter w(outpdf, outfile.c_str());
         set_writer_options(outpdf, o, w);
         w.write();
@@ -5777,6 +6496,7 @@ int realmain(int argc, char* argv[])
     Options o;
     ArgParser ap(argc, argv, o);
 
+    int exit_code = 0;
     try
     {
         ap.parseOptions();
@@ -5819,17 +6539,17 @@ int realmain(int argc, char* argv[])
                 return EXIT_IS_NOT_ENCRYPTED;
             }
         }
+        bool other_warnings = false;
         if (! o.page_specs.empty())
         {
-            handle_page_specs(pdf, o);
+            handle_page_specs(pdf, o, other_warnings);
         }
         if (! o.rotations.empty())
         {
             handle_rotations(pdf, o);
         }
         handle_under_overlay(pdf, o);
-        handle_transformations(pdf, o);
-        bool split_warnings = false;
+        handle_transformations(pdf, o, exit_code);
 
 	if ((o.outfilename == 0) && (! o.replace_input))
 	{
@@ -5837,13 +6557,13 @@ int realmain(int argc, char* argv[])
 	}
         else if (o.split_pages)
         {
-            do_split_pages(pdf, o, split_warnings);
+            do_split_pages(pdf, o, other_warnings);
         }
 	else
 	{
             write_outfile(pdf, o);
 	}
-	if ((! pdf.getWarnings().empty()) || split_warnings)
+	if ((! pdf.getWarnings().empty()) || other_warnings)
 	{
             if (! o.suppress_warnings)
             {
@@ -5852,7 +6572,10 @@ int realmain(int argc, char* argv[])
                           << std::endl;
             }
             // Still return with warning code even if warnings were suppressed.
-            return EXIT_WARNING;
+            if (exit_code == 0)
+            {
+                exit_code = EXIT_WARNING;
+            }
 	}
     }
     catch (std::exception& e)
@@ -5861,7 +6584,7 @@ int realmain(int argc, char* argv[])
 	return EXIT_ERROR;
     }
 
-    return 0;
+    return exit_code;
 }
 
 #ifdef WINDOWS_WMAIN

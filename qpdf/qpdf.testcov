@@ -401,7 +401,6 @@ qpdf image optimize no pipeline 0
 qpdf image optimize no shrink 0
 qpdf image optimize too small 0
 QPDFFormFieldObjectHelper WinAnsi 0
-QPDF_encryption attachment stream 0
 QPDF pipe foreign encrypted stream 0
 QPDF copy foreign stream with provider 0
 QPDF copy foreign stream with buffer 0
@@ -522,3 +521,62 @@ qpdf-c called qpdf_oh_unparse_resolved 0
 qpdf-c called qpdf_oh_unparse_binary 0
 QPDFWriter getFilterOnWrite false 0
 QPDFPageObjectHelper::forEachXObject 3
+NNTree deepen: invalid node 0
+NNTree deepen: loop 0
+NNTree skip invalid kid 0
+NNTree skip item at end of short items 0
+NNTree skip invalid key 0
+NNTree no valid items node in insertFirst 0
+NNTree deepen found empty 0
+NNTree insert inserts first 0
+NNTree insert replaces 0
+NNTree insert inserts after 0
+NNTree unable to determine limits 0
+NNTree warn indirect kid 0
+NNTree fix indirect kid 0
+NNTree repair 0
+NNTree split root + leaf 0
+NNTree split root + !leaf 0
+NNTree split kids 0
+NNTree split items 0
+NNTree split second half item 0
+NNTree split parent 0
+NNTree split second half kid 0
+NNTree missing limits 0
+NNTree item is wrong type 0
+NNTree kid is invalid 0
+NNTree loop in find 0
+NNTree -1 in binary search 0
+NNTree bad node during find 0
+NNTree node is not a dictionary 0
+NNTree limits didn't change 0
+NNTree increment end() 0
+NNTree insertAfter inserts first 0
+NNTree remove not found 0
+NNTree remove reset limits 0
+NNTree erased last item 0
+NNTree erased non-last item 0
+NNTree items is empty after remove 0
+NNTree erased all items on leaf/root 0
+NNTree erased first or last kid 0
+NNTree erased last kid 0
+NNTree erased non-last kid 0
+NNTree non-flat tree is empty after remove 0
+NNTree remove walking up tree 0
+NNTree erased last item in tree 0
+NNTree remove limits from root 0
+QPDFPageObjectHelper unresolved names 0
+QPDFPageObjectHelper resolving unresolved 0
+qpdf password stdin 0
+qpdf password file 0
+QPDFFileSpecObjectHelper empty compat_name 0
+QPDFFileSpecObjectHelper non-empty compat_name 0
+QPDFPageObjectHelper flatten inherit rotate 0
+QPDFAcroFormDocumentHelper copy annotation 3
+QPDFAcroFormDocumentHelper field with parent 3
+QPDFAcroFormDocumentHelper modify ap matrix 0
+qpdf copy form fields in split_pages 0
+qpdf copy form fields in pages 0
+qpdf keep some fields in pages 0
+qpdf pages keeping field from original 0
+qpdf no more fields in pages 0
