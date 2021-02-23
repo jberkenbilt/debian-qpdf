@@ -1,3 +1,12 @@
+qpdf (10.2.0-1) experimental; urgency=medium
+
+  * New upstream release.
+  * Includes fix to debian bug about reading passwords from stdin.
+    (Closes: #979947)
+  * Uploading to experimental because of debian freeze.
+
+ --
+
 qpdf (10.1.0-1) unstable; urgency=medium
 
   * New upstream release.
