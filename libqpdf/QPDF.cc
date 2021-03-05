@@ -25,7 +25,7 @@
 #include <qpdf/QPDF_Stream.hh>
 #include <qpdf/QPDF_Array.hh>
 
-std::string QPDF::qpdf_version = "10.2.0";
+std::string QPDF::qpdf_version = "10.3.0";
 
 static char const* EMPTY_PDF =
     "%PDF-1.3\n"
@@ -210,6 +210,7 @@ QPDF::Members::Members() :
     immediate_copy_from(false),
     in_parse(false),
     parsed(false),
+    ever_replaced_objects(false),
     first_xref_item_offset(0),
     uncompressed_after_compressed(false)
 {
@@ -363,6 +364,12 @@ bool
 QPDF::anyWarnings() const
 {
     return ! this->m->warnings.empty();
+}
+
+size_t
+QPDF::numWarnings() const
+{
+    return this->m->warnings.size();
 }
 
 bool
@@ -2063,6 +2070,30 @@ QPDF::readObjectAtOffset(bool try_recovery,
     return oh;
 }
 
+bool
+QPDF::objectChanged(QPDFObjGen const& og, PointerHolder<QPDFObject>& oph)
+{
+    // See if the object cached at og, if any, is the one passed in.
+    // QPDFObjectHandle uses this to detect outdated handles to
+    // replaced or swapped objects. This is a somewhat expensive check
+    // because it happens with every dereference of a
+    // QPDFObjectHandle. To reduce the hit somewhat, short-circuit the
+    // check if we never called a function that replaces an object
+    // already in cache. It is important for functions that do this to
+    // set ever_replaced_objects = true.
+
+    if (! this->m->ever_replaced_objects)
+    {
+        return false;
+    }
+    auto c = this->m->obj_cache.find(og);
+    if (c == this->m->obj_cache.end())
+    {
+        return true;
+    }
+    return (c->second.object.getPointer() != oph.getPointer());
+}
+
 PointerHolder<QPDFObject>
 QPDF::resolve(int objid, int generation)
 {
@@ -2308,6 +2339,7 @@ QPDF::replaceObject(int objid, int generation, QPDFObjectHandle oh)
 
     // Replace the object in the object cache
     QPDFObjGen og(objid, generation);
+    this->m->ever_replaced_objects = true;
     this->m->obj_cache[og] =
 	ObjCache(QPDFObjectHandle::ObjAccessor::getObject(oh), -1, -1);
 }
@@ -2695,6 +2727,7 @@ QPDF::swapObjects(int objid1, int generation1, int objid2, int generation2)
     QPDFObjGen og1(objid1, generation1);
     QPDFObjGen og2(objid2, generation2);
     ObjCache t = this->m->obj_cache[og1];
+    this->m->ever_replaced_objects = true;
     this->m->obj_cache[og1] = this->m->obj_cache[og2];
     this->m->obj_cache[og2] = t;
 }

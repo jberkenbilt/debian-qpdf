@@ -40,7 +40,7 @@ static int constexpr EXIT_CORRECT_PASSWORD = 3;
 
 static char const* whoami = 0;
 
-static std::string expected_version = "10.2.0";
+static std::string expected_version = "10.3.0";
 
 struct PageSpec
 {
@@ -5636,6 +5636,23 @@ static bool should_remove_unreferenced_resources(QPDF& pdf, Options& o)
     return false;
 }
 
+static QPDFObjectHandle added_page(QPDF& pdf, QPDFObjectHandle page)
+{
+    QPDFObjectHandle result = page;
+    if (page.getOwningQPDF() != &pdf)
+    {
+        // Calling copyForeignObject on an object we already copied
+        // will give us the already existing copy.
+        result = pdf.copyForeignObject(page);
+    }
+    return result;
+}
+
+static QPDFObjectHandle added_page(QPDF& pdf, QPDFPageObjectHelper page)
+{
+    return added_page(pdf, page.getObjectHandle());
+}
+
 static void handle_page_specs(QPDF& pdf, Options& o, bool& warnings)
 {
     // Parse all page specifications and translate them into lists of
@@ -5898,22 +5915,40 @@ static void handle_page_specs(QPDF& pdf, Options& o, bool& warnings)
                 }
             }
             dh.addPage(to_copy, false);
-            if (page_data.qpdf == &pdf)
+            bool first_copy_from_orig = false;
+            bool this_file = (page_data.qpdf == &pdf);
+            if (this_file)
             {
                 // This is a page from the original file. Keep track
                 // of the fact that we are using it.
+                first_copy_from_orig = (selected_from_orig.count(pageno) == 0);
                 selected_from_orig.insert(pageno);
             }
-            else if (other_afdh->hasAcroForm())
+            auto new_page = added_page(pdf, to_copy);
+            // Try to avoid gratuitously renaming fields. In the case
+            // of where we're just extracting a bunch of pages from
+            // the original file and not copying any page more than
+            // once, there's no reason to do anything with the fields.
+            // Since we don't remove fields from the original file
+            // until all copy operations are completed, any foreign
+            // pages that conflict with original pages will be
+            // adjusted. If we copy any page from the original file
+            // more than once, that page would be in conflict with the
+            // previous copy of itself.
+            if (other_afdh->hasAcroForm() &&
+                ((! this_file) || (! first_copy_from_orig)))
             {
-                QTC::TC("qpdf", "qpdf copy form fields in pages");
-                std::vector<QPDFObjectHandle> copied_fields;
-                this_afdh->copyFieldsFromForeignPage(
-                    to_copy, *other_afdh, &copied_fields);
-                for (auto const& cf: copied_fields)
+                if (! this_file)
                 {
-                    referenced_fields.insert(cf.getObjGen());
+                    QTC::TC("qpdf", "qpdf copy fields not this file");
                 }
+                else if (! first_copy_from_orig)
+                {
+                    QTC::TC("qpdf", "qpdf copy fields non-first from orig");
+                }
+                this_afdh->fixCopiedAnnotations(
+                    new_page, to_copy.getObjectHandle(), *other_afdh,
+                    &referenced_fields);
             }
         }
         if (page_data.qpdf->anyWarnings())
@@ -6361,11 +6396,11 @@ static void do_split_pages(QPDF& pdf, Options& o, bool& warnings)
         {
             QPDFObjectHandle page = pages.at(pageno - 1);
             outpdf.addPage(page, false);
+            auto new_page = added_page(outpdf, page);
             if (out_afdh.getPointer())
             {
                 QTC::TC("qpdf", "qpdf copy form fields in split_pages");
-                out_afdh->copyFieldsFromForeignPage(
-                    QPDFPageObjectHelper(page), afdh);
+                out_afdh->fixCopiedAnnotations(new_page, page, afdh);
             }
         }
         if (pldh.hasPageLabels())

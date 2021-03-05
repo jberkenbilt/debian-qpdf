@@ -335,6 +335,7 @@ my @form_tests = (
     'form-filled-with-atril',
     'form-bad-fields-array',
     'form-errors',
+    'form-document-defaults',
     );
 
 $n_tests += scalar(@form_tests) + 6;
@@ -384,7 +385,7 @@ $td->runtest("compare files",
 show_ntests();
 # ----------
 $td->notify("--- Appearance Streams ---");
-$n_tests += 8;
+$n_tests += 10;
 
 foreach my $f ('need-appearances',
                'need-appearances-more',
@@ -442,6 +443,17 @@ foreach my $i (@choice_values)
                  {$td->FILE => "b.pdf"},
                  {$td->FILE => "appearances-$i.pdf"});
 }
+
+$td->runtest("Update resources from /DR",
+             {$td->COMMAND =>
+                      "qpdf --qdf --no-original-object-ids --static-id" .
+                      " --generate-appearances" .
+                      " resource-from-dr.pdf a.pdf"},
+             {$td->STRING => "", $td->EXIT_STATUS => 0},
+             $td->NORMALIZE_NEWLINES);
+$td->runtest("compare files",
+             {$td->FILE => "a.pdf"},
+             {$td->FILE => "resource-from-dr-out.pdf"});
 
 show_ntests();
 # ----------
@@ -1597,7 +1609,7 @@ $td->runtest("merge dictionary",
              $td->NORMALIZE_NEWLINES);
 $td->runtest("unique resource name",
              {$td->COMMAND => "test_driver 60 minimal.pdf"},
-             {$td->STRING => "test 60 done\n", $td->EXIT_STATUS => 0},
+             {$td->FILE => "test60.out", $td->EXIT_STATUS => 0},
              $td->NORMALIZE_NEWLINES);
 $td->runtest("check output",
              {$td->FILE => "a.pdf"},
@@ -2413,7 +2425,7 @@ foreach my $f (qw(screen print))
 show_ntests();
 # ----------
 $td->notify("--- Copy Annotations ---");
-$n_tests += 25;
+$n_tests += 37;
 
 $td->runtest("complex copy annotations",
              {$td->COMMAND =>
@@ -2496,6 +2508,79 @@ $td->runtest("not keeping any fields",
 $td->runtest("check output",
              {$td->FILE => "a.pdf"},
              {$td->FILE => "kept-no-fields.pdf"});
+$td->runtest("other file first",
+             {$td->COMMAND =>
+                  "qpdf --qdf --no-original-object-ids" .
+                  " --static-id fields-two-pages.pdf" .
+                  " --pages ./fields-two-pages.pdf . 1 -- a.pdf"},
+             {$td->STRING => "", $td->EXIT_STATUS => 0},
+             $td->NORMALIZE_NEWLINES);
+$td->runtest("check output",
+             {$td->FILE => "a.pdf"},
+             {$td->FILE => "other-file-first.pdf"});
+
+$td->runtest("field conflict resolution",
+             {$td->COMMAND =>
+                  "qpdf form-fields-and-annotations.pdf" .
+                  " --pages . 1,1 ./form-fields-and-annotations.pdf 1,1 --" .
+                  " --qdf --static-id --no-original-object-ids a.pdf"},
+             {$td->STRING => "", $td->EXIT_STATUS => 0},
+             $td->NORMALIZE_NEWLINES);
+$td->runtest("check output",
+             {$td->FILE => "a.pdf"},
+             {$td->FILE => "resolved-field-conflicts.pdf"});
+
+# field-resource-conflict.pdf was crafted so that an appearance stream
+# had an existing resource that it actually referenced in the
+# appearance stream whose name, /F1_1, clashed with the result of
+# resolving conflicts in /DR. It's a crazy corner case, but it if it
+# ever happened, it would be really hard to track down, and it could
+# arise through multiple passes through qpdf with intervening edits.
+$td->runtest("appearance stream resource conflict",
+             {$td->COMMAND =>
+                  "qpdf field-resource-conflict.pdf" .
+                  " --pages . 1,1 ./field-resource-conflict.pdf --" .
+                  " --qdf --static-id --no-original-object-ids a.pdf"},
+             {$td->STRING => "", $td->EXIT_STATUS => 0},
+             $td->NORMALIZE_NEWLINES);
+$td->runtest("check output",
+             {$td->FILE => "a.pdf"},
+             {$td->FILE => "resolved-appearance-conflicts.pdf"});
+
+$td->runtest("resource conflicts + flatten",
+             {$td->COMMAND =>
+                  "qpdf field-resource-conflict.pdf" .
+                  " --pages . 1,1 ./field-resource-conflict.pdf --" .
+                  " --generate-appearances --flatten-annotations=all" .
+                  " --qdf --static-id --no-original-object-ids a.pdf"},
+             {$td->STRING => "", $td->EXIT_STATUS => 0},
+             $td->NORMALIZE_NEWLINES);
+$td->runtest("check output",
+             {$td->FILE => "a.pdf"},
+             {$td->FILE => "resolved-appearance-conflicts-generate.pdf"});
+
+$td->runtest("default DA/Q",
+             {$td->COMMAND =>
+                  "qpdf form-fields-and-annotations.pdf" .
+                  " --pages . default-da-q.pdf --" .
+                  " --qdf --static-id --no-original-object-ids" .
+                  " --generate-appearances a.pdf"},
+             {$td->STRING => "", $td->EXIT_STATUS => 0},
+             $td->NORMALIZE_NEWLINES);
+$td->runtest("check output",
+             {$td->FILE => "a.pdf"},
+             {$td->FILE => "default-da-q-out.pdf"});
+
+$td->runtest("DA/appearance stream errors",
+             {$td->COMMAND =>
+                  "qpdf field-parse-errors.pdf" .
+                  " --pages ./field-parse-errors.pdf --" .
+                  " --qdf --static-id --no-original-object-ids a.pdf"},
+             {$td->FILE => "field-parse-errors.out", $td->EXIT_STATUS => 3},
+             $td->NORMALIZE_NEWLINES);
+$td->runtest("check output",
+             {$td->FILE => "a.pdf"},
+             {$td->FILE => "field-parse-errors-out.pdf"});
 
 show_ntests();
 # ----------
