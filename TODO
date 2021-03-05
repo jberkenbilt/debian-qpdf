@@ -1,17 +1,30 @@
 Document-level work
 ===================
 
-* See also issues tagged with "pages"
+* QPDFPageCopier -- object for moving pages around within files or
+  between files and performing various transformations
 
-* There is going to be a lot of duplicated code for doc-level stuff
-  between pages and split pages. That should be refactored. Perhaps
-  some kind of general method should be added to
-  QPDFPageDocumentHelper for copying a page from one file to another
-  and preserving document-level features. I will need to think about
-  how to make it efficient for bulk operations. Probably making it
-  work from qpdf.cc will be sufficient. I also need to think about how
-  to selectively turn on or off specific document-level features,
-  perhaps using flags or something.
+  * Handle all the stuff of pages and split-pages
+  * Do n-up, booklet, collation
+  * Look through cli and see what else...flatten-*?
+  * See comments in QPDFPageDocumentHelper.hh for addPage -- search
+    for "a future version".
+  * Make it efficient for bulk operations
+  * Make certain doc-level features selectable
+  * qpdf.cc should do all its page operations, including
+    overlay/underlay, splitting, and merging, using this
+  * There should also be example code
+
+* After doc-level checks are in, call --check on the output files in
+  the "Copy Annotations" tests.
+
+* Document-level checks. For example, for forms, make sure all form
+  fields point to an annotation on exactly one page as well as that
+  all widget annotations are associated with a form field. Hook this
+  into QPDFPageCopier as well as the doc helpers. Make sure it is
+  called from --check.
+
+* See also issues tagged with "pages"
 
 * Add flags to CLI to select which document-level options to
   preserve or not preserve. We will probably need a pair of mutually
@@ -25,14 +38,36 @@ Document-level work
   --copy-attachments-from to preserve these. What will the strategy be
   for deduplicating in the automatic case?
 
-* When I get to tagged PDF, note that the presence of /Artifact and
-  /Standard (and maybe others?) causes a false positive on detection
-  of unresolved names. Example: form-fields-and-annotations.pdf. This
-  used to give a warning (never in a released version), but the
-  warning was removed. See comments about tagged pdf in
-  QPDFPageObjectHelper::removeUnreferencedResourcesHelper. Another
-  potential solution is to recognize names that refer to fonts and
-  xobjects but only looking at names used with Tf and Do operators.
+Text Appearance Streams
+=======================
+
+This is a list of known issues with text appearance streams and things
+we might do about it.
+
+* For variable text, the spec says to pull any resources from /DR that
+  are referenced in /DA but if the resource dictionary already has
+  that resource, just use the one that's there. The current code looks
+  only for /Tf and adds it if needed. We might want to instead merge
+  /DR with resources and then remove anything that's unreferenced. We
+  have all the code required for that in ResourceFinder except
+  TfFinder also gets the font size, which ResourceFinder doesn't do.
+
+* There are things we are missing because we don't look at font
+  metrics. The code from TextBuilder (work) has almost everything in
+  it that is required. Once we have knowledge of character widths, we
+  can support quadding and multiline text fields (/Ff 4096), and we
+  can potentially squeeze text to fit into a field. For multiline,
+  first squeeze vertically down to the font height, then squeeze
+  horizontally with Tz. For single line, squeeze horizontally with Tz.
+  If we use Tz, issue a warning.
+
+* When mapping characters to widths, we will need to care about
+  character encoding. For built-in fonts, we can create a map from
+  Unicode code point to width and then go from the font's encoding to
+  unicode to the width. Get rid of "ugly switch statements" in
+  QUtil.cc and replace with static map initializers. See
+  misc/character-encoding/ (not on github) and font metric information
+  for the 14 standard fonts in my local pdf-spec directory.
 
 Fuzz Errors
 ===========
@@ -133,6 +168,11 @@ Comments appear in the code prefixed by "ABI"
 * Consider having addArrayItem, replaceKey, etc. return the new value
   so you can say
   auto oh = dict.replaceKey("/Key", QPDFObjectHandle::newSomething());
+* Added QPDFObjectHandle::ParserCallbacks::handleWarning but had to
+  revert because it was not binary compatible. Consider re-adding. The
+  commit that added this comment includes the reverting of the change.
+  The previous commit removes the code that was calling and using
+  handleWarning.
 
 Page splitting/merging
 ======================

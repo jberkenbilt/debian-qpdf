@@ -740,7 +740,13 @@ void runtest(int n, char const* filename1, char const* arg2)
 				   " not called 4-page file");
 	}
 	// Swap pages 2 and 3
-	pdf.swapObjects(pages.at(1).getObjGen(), pages.at(2).getObjGen());
+        auto orig_page2 = pages.at(1);
+        auto orig_page3 = pages.at(2);
+        assert(orig_page2.getKey("/OrigPage").getIntValue() == 2);
+        assert(orig_page3.getKey("/OrigPage").getIntValue() == 3);
+	pdf.swapObjects(orig_page2.getObjGen(), orig_page3.getObjGen());
+        assert(orig_page2.getKey("/OrigPage").getIntValue() == 3);
+        assert(orig_page3.getKey("/OrigPage").getIntValue() == 2);
 	// Replace object and swap objects
 	QPDFObjectHandle trailer = pdf.getTrailer();
 	QPDFObjectHandle qdict = trailer.getKey("/QDict");
@@ -759,18 +765,18 @@ void runtest(int n, char const* filename1, char const* arg2)
 	    std::cout << "caught logic error as expected" << std::endl;
 	}
 	pdf.replaceObject(qdict.getObjGen(), new_dict);
-	// Now qdict still points to the old dictionary
-	std::cout << "old dict: " << qdict.getKey("/Dict").getIntValue()
+	// Now qdict points to the new dictionary
+	std::cout << "old dict: " << qdict.getKey("/NewDict").getIntValue()
 		  << std::endl;
 	// Swap dict and array
 	pdf.swapObjects(qdict.getObjGen(), qarray.getObjGen());
-	// Now qarray will resolve to new object but qdict is still
-	// the old object
-	std::cout << "old dict: " << qdict.getKey("/Dict").getIntValue()
+	// Now qarray will resolve to new object and qdict resolves to
+        // the array
+	std::cout << "swapped array: " << qdict.getArrayItem(0).getName()
 		  << std::endl;
 	std::cout << "new dict: " << qarray.getKey("/NewDict").getIntValue()
 		  << std::endl;
-	// Reread qdict, now pointing to an array
+	// Reread qdict, still pointing to an array
 	qdict = pdf.getObjectByObjGen(qdict.getObjGen());
 	std::cout << "swapped array: " << qdict.getArrayItem(0).getName()
 		  << std::endl;
@@ -2356,7 +2362,9 @@ void runtest(int n, char const* filename1, char const* arg2)
     }
     else if (n == 60)
     {
-        // Boundary condition testing for getUniqueResourceName
+        // Boundary condition testing for getUniqueResourceName;
+        // additional testing of mergeResources with conflict
+        // detection
         QPDFObjectHandle r1 = QPDFObjectHandle::newDictionary();
         int min_suffix = 1;
         for (int i = 1; i < 3; ++i)
@@ -2366,8 +2374,69 @@ void runtest(int n, char const* filename1, char const* arg2)
             r1.getKey("/Z").replaceKey(
                 name, QPDFObjectHandle::newString("moo"));
         }
-        pdf.getTrailer().replaceKey("/QTest", r1);
+        auto make_resource = [&](QPDFObjectHandle& dict,
+                                 std::string const& key,
+                                 std::string const& str) {
+            auto o1 = QPDFObjectHandle::newArray();
+            o1.appendItem(QPDFObjectHandle::newString(str));
+            dict.replaceKey(key, pdf.makeIndirectObject(o1));
+        };
+
+        auto z = r1.getKey("/Z");
+        r1.replaceKey("/Y", QPDFObjectHandle::newDictionary());
+        auto y = r1.getKey("/Y");
+        make_resource(z, "/F1", "r1.Z.F1");
+        make_resource(z, "/F2", "r1.Z.F2");
+        make_resource(y, "/F2", "r1.Y.F2");
+        make_resource(y, "/F3", "r1.Y.F3");
+        QPDFObjectHandle r2 =
+            QPDFObjectHandle::parse("<< /Z << >> /Y << >> >>");
+        z = r2.getKey("/Z");
+        y = r2.getKey("/Y");
+        make_resource(z, "/F2", "r2.Z.F2");
+        make_resource(y, "/F3", "r2.Y.F3");
+        make_resource(y, "/F4", "r2.Y.F4");
+        // Add a direct object
+        y.replaceKey("/F5", QPDFObjectHandle::newString("direct r2.Y.F5"));
+
+        std::map<std::string, std::map<std::string, std::string>> conflicts;
+        auto show_conflicts = [&](std::string const& msg) {
+            std::cout << msg << std::endl;
+            for (auto const& i1: conflicts)
+            {
+                std::cout << i1.first << ":" << std::endl;
+                for (auto const& i2: i1.second)
+                {
+                    std::cout << "  " << i2.first << " -> " << i2.second
+                              << std::endl;
+                }
+            }
+        };
+
+        r1.mergeResources(r2, &conflicts);
+        show_conflicts("first merge");
+        auto r3 = r1.shallowCopy();
+        // Merge again. The direct object gets recopied. Everything
+        // else is the same.
+        r1.mergeResources(r2, &conflicts);
+        show_conflicts("second merge");
+
+        // Make all resources in r2 direct. Then merge two more times.
+        // We should get the one previously direct object copied one
+        // time as an indirect object.
+        r2.makeResourcesIndirect(pdf);
+        r1.mergeResources(r2, &conflicts);
+        show_conflicts("third merge");
+        r1.mergeResources(r2, &conflicts);
+        show_conflicts("fourth merge");
+
+        // The only differences between /QTest and /QTest3 should be
+        // the direct objects merged from r2.
+        pdf.getTrailer().replaceKey("/QTest1", r1);
+        pdf.getTrailer().replaceKey("/QTest2", r2);
+        pdf.getTrailer().replaceKey("/QTest3", r3);
         QPDFWriter w(pdf, "a.pdf");
+        w.setQDFMode(true);
         w.setStaticID(true);
         w.write();
     }
@@ -2932,10 +3001,7 @@ void runtest(int n, char const* filename1, char const* arg2)
         {
             old_annots.appendItem(annot);
         }
-        for (auto const& field: new_fields)
-        {
-            afdh.addFormField(QPDFFormFieldObjectHelper(field));
-        }
+        afdh.addAndRenameFormFields(new_fields);
 
         m = QPDFMatrix();
         m.translate(612, 0);

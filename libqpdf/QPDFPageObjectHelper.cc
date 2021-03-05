@@ -8,6 +8,7 @@
 #include <qpdf/QPDFMatrix.hh>
 #include <qpdf/QIntC.hh>
 #include <qpdf/QPDFAcroFormDocumentHelper.hh>
+#include <qpdf/ResourceFinder.hh>
 
 class ContentProvider: public QPDFObjectHandle::StreamDataProvider
 {
@@ -670,38 +671,6 @@ QPDFPageObjectHelper::addContentTokenFilter(
     }
 }
 
-class NameWatcher: public QPDFObjectHandle::TokenFilter
-{
-  public:
-    NameWatcher() :
-        saw_bad(false)
-    {
-    }
-    virtual ~NameWatcher()
-    {
-    }
-    virtual void handleToken(QPDFTokenizer::Token const&);
-    std::set<std::string> names;
-    bool saw_bad;
-};
-
-void
-NameWatcher::handleToken(QPDFTokenizer::Token const& token)
-{
-    if (token.getType() == QPDFTokenizer::tt_name)
-    {
-        // Create a name object and get its name. This canonicalizes
-        // the representation of the name
-        this->names.insert(
-            QPDFObjectHandle::newName(token.getValue()).getName());
-    }
-    else if (token.getType() == QPDFTokenizer::tt_bad)
-    {
-        saw_bad = true;
-    }
-    writeToken(token);
-}
-
 bool
 QPDFPageObjectHelper::removeUnreferencedResourcesHelper(
     QPDFPageObjectHelper ph, std::set<std::string>& unresolved)
@@ -712,25 +681,29 @@ QPDFPageObjectHelper::removeUnreferencedResourcesHelper(
         QTC::TC("qpdf", "QPDFPageObjectHelper filter form xobject");
     }
 
-    NameWatcher nw;
+    ResourceFinder rf;
     try
     {
-        ph.filterContents(&nw);
+        auto q = ph.oh.getOwningQPDF();
+        size_t before_nw = (q ? q->numWarnings() : 0);
+        ph.parseContents(&rf);
+        size_t after_nw = (q ? q->numWarnings() : 0);
+        if (after_nw > before_nw)
+        {
+            ph.oh.warnIfPossible(
+                "Bad token found while scanning content stream; "
+                "not attempting to remove unreferenced objects from"
+                " this object");
+            return false;
+        }
     }
     catch (std::exception& e)
     {
+        QTC::TC("qpdf", "QPDFPageObjectHelper bad token finding names");
         ph.oh.warnIfPossible(
             std::string("Unable to parse content stream: ") + e.what() +
             "; not attempting to remove unreferenced objects"
             " from this object");
-        return false;
-    }
-    if (nw.saw_bad)
-    {
-        QTC::TC("qpdf", "QPDFPageObjectHelper bad token finding names");
-        ph.oh.warnIfPossible(
-            "Bad token found while scanning content stream; "
-            "not attempting to remove unreferenced objects from this object");
         return false;
     }
 
@@ -742,9 +715,9 @@ QPDFPageObjectHelper::removeUnreferencedResourcesHelper(
     QPDFObjectHandle resources = ph.getAttribute("/Resources", true);
     std::vector<QPDFObjectHandle> rdicts;
     std::set<std::string> known_names;
+    std::vector<std::string> to_filter = {"/Font", "/XObject"};
     if (resources.isDictionary())
     {
-        std::vector<std::string> to_filter = {"/Font", "/XObject"};
         for (auto const& iter: to_filter)
         {
             QPDFObjectHandle dict = resources.getKey(iter);
@@ -760,12 +733,17 @@ QPDFPageObjectHelper::removeUnreferencedResourcesHelper(
     }
 
     std::set<std::string> local_unresolved;
-    for (auto const& name: nw.names)
+    auto names_by_rtype = rf.getNamesByResourceType();
+    for (auto const& i1: to_filter)
     {
-        if (! known_names.count(name))
+        for (auto const& n_iter: names_by_rtype[i1])
         {
-            unresolved.insert(name);
-            local_unresolved.insert(name);
+            std::string const& name = n_iter.first;
+            if (! known_names.count(name))
+            {
+                unresolved.insert(name);
+                local_unresolved.insert(name);
+            }
         }
     }
     // Older versions of the PDF spec allowed form XObjects to omit
@@ -785,11 +763,17 @@ QPDFPageObjectHelper::removeUnreferencedResourcesHelper(
 
     if ((! local_unresolved.empty()) && resources.isDictionary())
     {
-        // Don't issue a warning for this case. There are some cases
-        // of names that aren't XObject references, for example,
-        // /Artifact in tagged PDF. Until we are certain that we know
-        // the meaning of every name in a content stream, we don't
-        // want to give warnings because they will be false positives.
+        // It's not worth issuing a warning for this case. From qpdf
+        // 10.3, we are hopefully only looking at names that are
+        // referencing fonts and XObjects, but until we're certain
+        // that we know the meaning of every name in a content stream,
+        // we don't want to give warnings that might be false
+        // positives. Also, this can happen in legitimate cases with
+        // older PDFs, and there's nothing to be done about it, so
+        // there's no good reason to issue a warning. The only sad
+        // thing is that it was a false positive that alerted me to a
+        // logic error in the code, and any future such errors would
+        // now be hidden.
         QTC::TC("qpdf", "QPDFPageObjectHelper unresolved names");
         return false;
     }
@@ -804,7 +788,7 @@ QPDFPageObjectHelper::removeUnreferencedResourcesHelper(
                 // xobject, so don't remove it.
                 QTC::TC("qpdf", "QPDFPageObjectHelper resolving unresolved");
             }
-            else if (! nw.names.count(key))
+            else if (! rf.getNames().count(key))
             {
                 dict.removeKey(key);
             }
@@ -1313,10 +1297,7 @@ QPDFPageObjectHelper::copyAnnotations(
     afdh->transformAnnotations(
         old_annots, new_annots, new_fields, old_fields, cm,
         from_qpdf, from_afdh);
-    for (auto const& f: new_fields)
-    {
-        afdh->addFormField(QPDFFormFieldObjectHelper(f));
-    }
+    afdh->addAndRenameFormFields(new_fields);
     auto annots = this->oh.getKey("/Annots");
     if (! annots.isArray())
     {

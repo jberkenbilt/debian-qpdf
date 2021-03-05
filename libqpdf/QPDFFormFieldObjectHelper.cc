@@ -63,6 +63,24 @@ QPDFFormFieldObjectHelper::getTopLevelField(bool* is_different)
 }
 
 QPDFObjectHandle
+QPDFFormFieldObjectHelper::getFieldFromAcroForm(std::string const& name)
+{
+    QPDFObjectHandle result = QPDFObjectHandle::newNull();
+    // Fields are supposed to be indirect, so this should work.
+    QPDF* q = this->oh.getOwningQPDF();
+    if (! q)
+    {
+        return result;
+    }
+    auto acroform = q->getRoot().getKey("/AcroForm");
+    if (! acroform.isDictionary())
+    {
+        return result;
+    }
+    return acroform.getKey(name);
+}
+
+QPDFObjectHandle
 QPDFFormFieldObjectHelper::getInheritableFieldValue(std::string const& name)
 {
     QPDFObjectHandle node = this->oh;
@@ -203,20 +221,47 @@ QPDFFormFieldObjectHelper::getDefaultValueAsString()
     return getInheritableFieldValueAsString("/DV");
 }
 
+QPDFObjectHandle
+QPDFFormFieldObjectHelper::getDefaultResources()
+{
+    return getFieldFromAcroForm("/DR");
+}
+
 std::string
 QPDFFormFieldObjectHelper::getDefaultAppearance()
 {
-    return getInheritableFieldValueAsString("/DA");
+    auto value = getInheritableFieldValue("/DA");
+    bool looked_in_acroform = false;
+    if (! value.isString())
+    {
+        value = getFieldFromAcroForm("/DA");
+        looked_in_acroform = true;
+    }
+    std::string result;
+    if (value.isString())
+    {
+        QTC::TC("qpdf", "QPDFFormFieldObjectHelper DA present",
+                looked_in_acroform ? 0 : 1);
+        result = value.getUTF8Value();
+    }
+    return result;
 }
 
 int
 QPDFFormFieldObjectHelper::getQuadding()
 {
-    int result = 0;
     QPDFObjectHandle fv = getInheritableFieldValue("/Q");
+    bool looked_in_acroform = false;
+    if (! fv.isInteger())
+    {
+        fv = getFieldFromAcroForm("/Q");
+        looked_in_acroform = true;
+    }
+    int result = 0;
     if (fv.isInteger())
     {
-        QTC::TC("qpdf", "QPDFFormFieldObjectHelper Q present");
+        QTC::TC("qpdf", "QPDFFormFieldObjectHelper Q present",
+                looked_in_acroform ? 0 : 1);
         result = QIntC::to_int(fv.getIntValue());
     }
     return result;
@@ -918,11 +963,28 @@ QPDFFormFieldObjectHelper::generateTextAppearance(
         // See if the font is encoded with something we know about.
         QPDFObjectHandle resources = AS.getDict().getKey("/Resources");
         QPDFObjectHandle font = getFontFromResource(resources, font_name);
+        bool found_font_in_dr = false;
         if (! font.isInitialized())
         {
-            QPDFObjectHandle dr = getInheritableFieldValue("/DR");
+            QPDFObjectHandle dr = getDefaultResources();
             font = getFontFromResource(dr, font_name);
+            found_font_in_dr = (font.isInitialized() && font.isDictionary());
         }
+        if (found_font_in_dr && resources.isDictionary())
+        {
+            QTC::TC("qpdf", "QPDFFormFieldObjectHelper get font from /DR");
+            if (resources.isIndirect())
+            {
+                resources = resources.getOwningQPDF()->makeIndirectObject(
+                    resources.shallowCopy());
+                AS.getDict().replaceKey("/Resources", resources);
+            }
+            // Use mergeResources to force /Font to be local
+            resources.mergeResources(
+                QPDFObjectHandle::parse("<< /Font << >> >>"));
+            resources.getKey("/Font").replaceKey(font_name, font);
+        }
+
         if (font.isInitialized() &&
             font.isDictionary() &&
             font.getKey("/Encoding").isName())

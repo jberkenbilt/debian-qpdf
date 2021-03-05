@@ -337,13 +337,14 @@ QPDFFormFieldObjectHelper TU present 0
 QPDFFormFieldObjectHelper TM present 0
 QPDFFormFieldObjectHelper TU absent 0
 QPDFFormFieldObjectHelper TM absent 0
-QPDFFormFieldObjectHelper Q present 0
+QPDFFormFieldObjectHelper Q present 1
+QPDFFormFieldObjectHelper DA present 1
 QPDFAnnotationObjectHelper AS present 0
 QPDFAnnotationObjectHelper AS absent 0
 QPDFAnnotationObjectHelper AP stream 0
 QPDFAnnotationObjectHelper AP dictionary 0
-QPDFAnnotationObjectHelper AN sub stream 0
-QPDFAnnotationObjectHelper AN null 0
+QPDFAnnotationObjectHelper AP sub stream 0
+QPDFAnnotationObjectHelper AP null 0
 QPDFAcroFormDocumentHelper fields not array 0
 QPDFAcroFormDocumentHelper orphaned widget 0
 QPDFAcroFormDocumentHelper direct field 0
@@ -576,7 +577,18 @@ QPDFAcroFormDocumentHelper copy annotation 3
 QPDFAcroFormDocumentHelper field with parent 3
 QPDFAcroFormDocumentHelper modify ap matrix 0
 qpdf copy form fields in split_pages 0
-qpdf copy form fields in pages 0
 qpdf keep some fields in pages 0
 qpdf pages keeping field from original 0
 qpdf no more fields in pages 0
+QPDFObjectHandle merge reuse 0
+QPDFObjectHandle merge generate 0
+QPDFFormFieldObjectHelper get font from /DR 0
+QPDFAcroFormDocumentHelper override da 0
+QPDFAcroFormDocumentHelper override q 0
+QPDFAcroFormDocumentHelper replaced DA token 0
+QPDFAcroFormDocumentHelper ap conflict 0
+QPDFAcroFormDocumentHelper ap rename 0
+QPDFAcroFormDocumentHelper /DA parse error 0
+QPDFAcroFormDocumentHelper AP parse error 0
+qpdf copy fields not this file 0
+qpdf copy fields non-first from orig 0
