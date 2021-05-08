@@ -2,7 +2,7 @@ dnl Process this file with autoconf to produce a configure script.
 dnl This config.in requires autoconf 2.5 or greater.
 
 AC_PREREQ([2.68])
-AC_INIT([qpdf],[10.3.1])
+AC_INIT([qpdf],[10.3.2])
 
 AC_CONFIG_MACRO_DIR([m4])
 AC_CONFIG_FILES([autoconf.mk])
@@ -54,7 +54,7 @@ LT_INIT([win32-dll])
 # LT = libtool
 LT_CURRENT=31
 LT_AGE=3
-LT_REVISION=1
+LT_REVISION=2
 AC_SUBST(LT_CURRENT)
 AC_SUBST(LT_REVISION)
 AC_SUBST(LT_AGE)
@@ -518,6 +518,35 @@ if test "$BUILDRULES" != "msvc"; then
       AC_MSG_RESULT(no)
       CFLAGS=$oCFLAGS
    fi
+fi
+
+AC_MSG_CHECKING(for tm_gmtoff in struct tm)
+AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[
+      #include <time.h>
+   ]],[[
+      struct tm tm;
+      tm.tm_gmtoff = 1;
+   ]])], [qpdf_TM_GMTOFF=1], [qpdf_TM_GMTOFF=0])
+if test "$qpdf_TM_GMTOFF" = "1"; then
+   AC_MSG_RESULT(yes)
+   AC_DEFINE([HAVE_TM_GMTOFF], [1], [Whether struct tm has tm_gmtoff])
+else
+   AC_MSG_RESULT(no)
+fi
+
+AC_MSG_CHECKING(for extern long timezone)
+AC_LINK_IFELSE([AC_LANG_PROGRAM([[
+      #include <time.h>
+      #include <stdio.h>
+   ]],[[
+      tzset();
+      printf("%ld\n", timezone);
+   ]])], [qpdf_EXTERN_LONG_TIMEZONE=1], [qpdf_EXTERN_LONG_TIMEZONE=0])
+if test "$qpdf_EXTERN_LONG_TIMEZONE" = "1"; then
+   AC_MSG_RESULT(yes)
+   AC_DEFINE([HAVE_EXTERN_LONG_TIMEZONE], [1], [Whether extern long timezone is available])
+else
+   AC_MSG_RESULT(no)
 fi
 
 LL_FMT=""

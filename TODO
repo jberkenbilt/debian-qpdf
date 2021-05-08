@@ -76,7 +76,7 @@ Fuzz Errors
 
 * Ignoring these:
   * Timeout: 15471, 17630
-  * Out of memory: 15470
+  * Out of memory: 15470, 32516 (contains 65322×64506 JPEG)
 
 GitHub Actions
 ==============
@@ -334,6 +334,8 @@ directory or that are otherwise not publicly accessible. This includes
 things sent to me by email that are specifically not public. Even so,
 I find it useful to make reference to them in this list.
 
+ * Get rid of remaining assert() calls from non-test code.
+
  * Consider updating the fuzzer with code that exercises
    copyAnnotations, file attachments, and name and number trees. Check
    fuzzer coverage.
@@ -508,9 +510,6 @@ I find it useful to make reference to them in this list.
    ../misc/digital-sign-from-trueroad/. If digital signatures are
    implemented, update the docs on crypto providers, which mention
    that this may happen in the future.
-
- * See if we can avoid preserving unreferenced objects in object
-   streams even when preserving the object streams.
 
  * Provide APIs for embedded files.  See *attachments*.pdf in test
    suite.  The private method findAttachmentStreams finds at least
