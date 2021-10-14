@@ -1,3 +1,10 @@
+qpdf (10.3.2-2) unstable; urgency=medium
+
+  * No changes; rebuilding for unstable.
+  * Standards version updated to 4.6; no changes needed.
+
+ -- Jay Berkenbilt <qjb@debian.org>  Thu, 14 Oct 2021 16:11:57 -0400
+
 qpdf (10.3.2-1) experimental; urgency=medium
 
   * New upstream release.
