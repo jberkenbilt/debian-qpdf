@@ -1,3 +1,9 @@
+Documentation
+=============
+
+* See #530 -- add an appendix explaining PDF encryption in general
+  plus how it's handled by qpdf.
+
 Document-level work
 ===================
 
@@ -75,8 +81,7 @@ Fuzz Errors
 * https://bugs.chromium.org/p/oss-fuzz/issues/detail?id=<N>
 
 * Ignoring these:
-  * Timeout: 15471, 17630
-  * Out of memory: 15470, 32516 (contains 65322×64506 JPEG)
+  * Out of memory in dct: 35001, 32516
 
 GitHub Actions
 ==============
@@ -182,6 +187,23 @@ Comments appear in the code prefixed by "ABI"
   before copying, though maybe we don't because it could cause
   multiple copies to be made...usually it's better to handle that
   explicitly.
+* Deal with weak cryptographic algorithms:
+  * Github issue #576
+  * Add something to QPDFWriter that you must call in order to allow
+    creation of files with insecure crypto. Maybe
+    QPDFWriter::allowWeakCrypto. Call this when --allow-weak-crypto is
+    passed and probably also when copying encryption by default from
+    an input file.
+  * Change deterministic id to use something other than MD5 but allow
+    the old way for compatibility -- maybe rename the method to force
+    the developer to make a choice
+  * Find other uses of MD5 and find the ones that are discretionary,
+    if any
+  * Have QPDFWriter raise an exception if it's about to write using
+    weak crypto and hasn't been given permission
+  * Search for --allow-weak-crypto in the manual and in qpdf.cc's help
+    information
+  * Update the ref.weak-crypto section of the manual
 
 Page splitting/merging
 ======================

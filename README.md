@@ -1,12 +1,14 @@
 # QPDF
 
-[![QPDF](logo/qpdf.svg)](http://qpdf.sourceforge.net)
+[![QPDF](logo/qpdf.svg)](https://qpdf.sourceforge.io)
 
 [![QPDF Build](https://github.com/qpdf/qpdf/workflows/QPDF%20Build/badge.svg)](https://github.com/qpdf/qpdf/actions)
 [![Total lgtm alerts](https://img.shields.io/lgtm/alerts/g/qpdf/qpdf.svg?logo=lgtm&logoWidth=18)](https://lgtm.com/projects/g/qpdf/qpdf/alerts/)
 [![Language grade on lgtm: C/C++](https://img.shields.io/lgtm/grade/cpp/g/qpdf/qpdf.svg?logo=lgtm&logoWidth=18)](https://lgtm.com/projects/g/qpdf/qpdf/context:cpp)
 
-This is the QPDF package.  Information about it can be found at http://qpdf.sourceforge.net.  The source code repository is hosted at GitHub: https://github.com/qpdf/qpdf.
+This is the QPDF package. QPDF is a command-line tool and C++ library that performs content-preserving transformations on PDF files. It supports linearization, encryption, and numerous other features. It can also be used for splitting and merging files, creating PDF files (but you have to supply all the content yourself), and inspecting files for study or analysis. QPDF does not render PDFs or perform text extraction, and it does not contain higher-level interfaces for working with page contents. It is a low-level tool for working with the structure of PDF files and can be a valuable tool for anyone who wants to do programmatic or command-line-based manipulation of PDF files.
+
+Additional information about it can be found at https://qpdf.sourceforge.io.  The source code repository is hosted at GitHub: https://github.com/qpdf/qpdf.
 
 # Verifying Distributions
 
@@ -59,6 +61,10 @@ The default behavior is for ./configure to discover which other crypto providers
 For example, if you want to guarantee that the GnuTLS crypto provider is used, you could run ./configure with `--enable-crypto-gnutls --disable-implicit-crypto`.
 
 Please see the section on crypto providers in the manual for more details.
+
+## Note about weak cryptographic algorithms
+
+The PDF file format used to rely on RC4 for encryption. Using 256-bit keys always uses AES instead, and with 128-bit keys, you can elect to use AES. qpdf does its best to warn when someone is writing a file with weak cryptographic algorithms, but qpdf must always retain support for being able to read and even write files with weak encryption to be able to fully support older PDF files and older PDF readers.
 
 # Building from a pristine checkout
 

@@ -40,7 +40,7 @@ static int constexpr EXIT_CORRECT_PASSWORD = 3;
 
 static char const* whoami = 0;
 
-static std::string expected_version = "10.3.2";
+static std::string expected_version = "10.4.0";
 
 struct PageSpec
 {
@@ -141,6 +141,7 @@ struct Options
         suppress_password_recovery(false),
         password_mode(pm_auto),
         allow_insecure(false),
+        allow_weak_crypto(false),
         keylen(0),
         r2_print(true),
         r2_modify(true),
@@ -242,6 +243,7 @@ struct Options
     bool suppress_password_recovery;
     password_mode_e password_mode;
     bool allow_insecure;
+    bool allow_weak_crypto;
     std::string user_password;
     std::string owner_password;
     int keylen;
@@ -738,6 +740,21 @@ static void parse_object_id(std::string const& objspec,
     }
 }
 
+static bool file_exists(char const* filename)
+{
+    try
+    {
+        fclose(QUtil::safe_fopen(filename, "rb"));
+        return true;
+    }
+    catch (std::runtime_error&)
+    {
+        // can't open the file
+    }
+    return false;
+}
+
+
 // This is not a general-purpose argument parser. It is tightly
 // crafted to work with qpdf. qpdf's command-line syntax is very
 // complex because of its long history, and it doesn't really follow
@@ -796,6 +813,7 @@ class ArgParser
     void argDecrypt();
     void argPasswordIsHexKey();
     void argAllowInsecure();
+    void argAllowWeakCrypto();
     void argPasswordMode(char* parameter);
     void argSuppressPasswordRecovery();
     void argCopyEncryption(char* parameter);
@@ -1154,6 +1172,7 @@ ArgParser::initOptionTable()
     (*t)["replace-input"] = oe_bare(&ArgParser::argReplaceInput);
     (*t)["is-encrypted"] = oe_bare(&ArgParser::argIsEncrypted);
     (*t)["requires-password"] = oe_bare(&ArgParser::argRequiresPassword);
+    (*t)["allow-weak-crypto"] = oe_bare(&ArgParser::argAllowWeakCrypto);
 
     t = &this->encrypt40_option_table;
     (*t)["--"] = oe_bare(&ArgParser::argEndEncrypt);
@@ -1361,6 +1380,8 @@ ArgParser::argHelp()
         << "--encryption-file-password=password\n"
         << "                        password used to open the file from which encryption\n"
         << "                        parameters are being copied\n"
+        << "--allow-weak-crypto     allow creation of files using weak cryptographic\n"
+        << "                        algorithms\n"
         << "--encrypt options --    generate an encrypted file\n"
         << "--decrypt               remove any encryption on the file\n"
         << "--password-is-hex-key   treat primary password option as a hex-encoded key\n"
@@ -1486,6 +1507,11 @@ ArgParser::argHelp()
         << "The --force-V4 flag forces the V=4 encryption handler introduced in PDF 1.5\n"
         << "to be used even if not otherwise needed.  This option is primarily useful\n"
         << "for testing qpdf and has no other practical use.\n"
+        << "\n"
+        << "A warning will be issued if you attempt to encrypt a file with a format that\n"
+        << "uses a weak cryptographic algorithm such as RC4. To suppress the warning,\n"
+        << "specify the option --allow-weak-crypto. This option is outside of encryption\n"
+        << "options (e.g. --allow-week-crypto --encrypt u o 128 --)\n"
         << "\n"
         << "\n"
         << "Password Modes\n"
@@ -2054,6 +2080,12 @@ ArgParser::argAllowInsecure()
 }
 
 void
+ArgParser::argAllowWeakCrypto()
+{
+    o.allow_weak_crypto = true;
+}
+
+void
 ArgParser::argCopyEncryption(char* parameter)
 {
     o.encryption_file = parameter;
@@ -2080,6 +2112,10 @@ void
 ArgParser::argPages()
 {
     ++cur_arg;
+    if (! o.page_specs.empty())
+    {
+        usage("the --pages may only be specified one time");
+    }
     o.page_specs = parsePagesOptions();
     if (o.page_specs.empty())
     {
@@ -2937,18 +2973,14 @@ ArgParser::handleArgFileArguments()
         char* argfile = 0;
         if ((strlen(argv[i]) > 1) && (argv[i][0] == '@'))
         {
-            try
+            argfile = 1 + argv[i];
+            if (strcmp(argfile, "-") != 0)
             {
-                argfile = 1 + argv[i];
-                if (strcmp(argfile, "-") != 0)
+                if (! file_exists(argfile))
                 {
-                    fclose(QUtil::safe_fopen(argfile, "rb"));
+                    // The file's not there; treating as regular option
+                    argfile = nullptr;
                 }
-            }
-            catch (std::runtime_error&)
-            {
-                // The file's not there; treating as regular option
-                argfile = 0;
             }
         }
         if (argfile)
@@ -3220,6 +3252,16 @@ ArgParser::parseNumrange(char const* range, int max, bool throw_error)
 std::vector<PageSpec>
 ArgParser::parsePagesOptions()
 {
+    auto check_unclosed = [this](char const* arg, int n) {
+        if ((strlen(arg) > 0) && (arg[0] == '-'))
+        {
+            // A common error is to forget to close --pages with --,
+            // so catch this as special case
+            QTC::TC("qpdf", "check unclosed --pages", n);
+            usage("the --pages option must be terminated with -- by itself");
+        }
+    };
+
     std::vector<PageSpec> result;
     while (1)
     {
@@ -3234,6 +3276,10 @@ ArgParser::parsePagesOptions()
         char const* file = argv[cur_arg++];
         char const* password = 0;
         char const* range = argv[cur_arg++];
+        if (! file_exists(file))
+        {
+            check_unclosed(file, 0);
+        }
         if (strncmp(range, "--password=", 11) == 0)
         {
             // Oh, that's the password, not the range
@@ -3263,23 +3309,20 @@ ArgParser::parsePagesOptions()
             catch (std::runtime_error& e1)
             {
                 // The range is invalid.  Let's see if it's a file.
-                try
+                range_omitted = true;
+                if (strcmp(range, ".") == 0)
                 {
-                    if (strcmp(range, ".") == 0)
-                    {
-                        // "." means the input file.
-                        QTC::TC("qpdf", "qpdf pages range omitted with .");
-                    }
-                    else
-                    {
-                        fclose(QUtil::safe_fopen(range, "rb"));
-                        QTC::TC("qpdf", "qpdf pages range omitted in middle");
-                        // Yup, it's a file.
-                    }
-                    range_omitted = true;
+                    // "." means the input file.
+                    QTC::TC("qpdf", "qpdf pages range omitted with .");
                 }
-                catch (std::runtime_error&)
+                else if (file_exists(range))
                 {
+                    QTC::TC("qpdf", "qpdf pages range omitted in middle");
+                    // Yup, it's a file.
+                }
+                else
+                {
+                    check_unclosed(range, 1);
                     // Give the range error
                     usage(e1.what());
                 }
@@ -3469,15 +3512,26 @@ ArgParser::checkCompletion()
 {
     // See if we're being invoked from bash completion.
     std::string bash_point_env;
-    if (QUtil::get_env("COMP_LINE", &bash_line) &&
-        QUtil::get_env("COMP_POINT", &bash_point_env))
+    // On Windows with mingw, there have been times when there appears
+    // to be no way to distinguish between an empty environment
+    // variable and an unset variable. There are also conditions under
+    // which bash doesn't set COMP_LINE. Therefore, enter this logic
+    // if either COMP_LINE or COMP_POINT are set. They will both be
+    // set together under ordinary circumstances.
+    bool got_line = QUtil::get_env("COMP_LINE", &bash_line);
+    bool got_point = QUtil::get_env("COMP_POINT", &bash_point_env);
+    if (got_line || got_point)
     {
         size_t p = QUtil::string_to_uint(bash_point_env.c_str());
-        if ((p > 0) && (p <= bash_line.length()))
+        if (p < bash_line.length())
         {
             // Truncate the line. We ignore everything at or after the
             // cursor for completion purposes.
             bash_line = bash_line.substr(0, p);
+        }
+        if (p > bash_line.length())
+        {
+            p = bash_line.length();
         }
         // Set bash_cur and bash_prev based on bash_line rather than
         // relying on argv. This enables us to use bashcompinit to get
@@ -3489,8 +3543,9 @@ ArgParser::checkCompletion()
         // for the first separator. bash_cur is everything after the
         // last separator, possibly empty.
         char sep(0);
-        while (--p > 0)
+        while (p > 0)
         {
+            --p;
             char ch = bash_line.at(p);
             if ((ch == ' ') || (ch == '=') || (ch == ':'))
             {
@@ -3498,7 +3553,10 @@ ArgParser::checkCompletion()
                 break;
             }
         }
-        bash_cur = bash_line.substr(1+p, std::string::npos);
+        if (1+p <= bash_line.length())
+        {
+            bash_cur = bash_line.substr(1+p, std::string::npos);
+        }
         if ((sep == ':') || (sep == '='))
         {
             // Bash sets prev to the non-space separator if any.
@@ -3512,8 +3570,9 @@ ArgParser::checkCompletion()
             // Go back to the last separator and set prev based on
             // that.
             size_t p1 = p;
-            while (--p1 > 0)
+            while (p1 > 0)
             {
+                --p1;
                 char ch = bash_line.at(p1);
                 if ((ch == ' ') || (ch == ':') || (ch == '='))
                 {
@@ -5184,6 +5243,12 @@ static void do_under_overlay_for_page(
     std::string content;
     int min_suffix = 1;
     QPDFObjectHandle resources = dest_page.getAttribute("/Resources", true);
+    if (! resources.isDictionary())
+    {
+        QTC::TC("qpdf", "qpdf overlay page with no resources");
+        resources = QPDFObjectHandle::newDictionary();
+        dest_page.getObjectHandle().replaceKey("/Resources", resources);
+    }
     for (std::vector<int>::iterator iter = pagenos[pageno].begin();
          iter != pagenos[pageno].end(); ++iter)
     {
@@ -5215,7 +5280,11 @@ static void do_under_overlay_for_page(
         {
             resources.mergeResources(
                 QPDFObjectHandle::parse("<< /XObject << >> >>"));
-            resources.getKey("/XObject").replaceKey(name, fo[from_pageno]);
+            auto xobject = resources.getKey("/XObject");
+            if (xobject.isDictionary())
+            {
+                xobject.replaceKey(name, fo[from_pageno]);
+            }
             ++min_suffix;
             content += new_content;
         }
@@ -5653,7 +5722,9 @@ static QPDFObjectHandle added_page(QPDF& pdf, QPDFPageObjectHelper page)
     return added_page(pdf, page.getObjectHandle());
 }
 
-static void handle_page_specs(QPDF& pdf, Options& o, bool& warnings)
+static void handle_page_specs(
+    QPDF& pdf, Options& o, bool& warnings,
+    std::vector<PointerHolder<QPDF>>& page_heap)
 {
     // Parse all page specifications and translate them into lists of
     // actual pages.
@@ -5705,7 +5776,6 @@ static void handle_page_specs(QPDF& pdf, Options& o, bool& warnings)
     }
 
     // Create a QPDF object for each file that we may take pages from.
-    std::vector<PointerHolder<QPDF> > page_heap;
     std::map<std::string, QPDF*> page_spec_qpdfs;
     std::map<std::string, ClosedFileInputSource*> page_spec_cfis;
     page_spec_qpdfs[o.infilename] = &pdf;
@@ -5957,7 +6027,7 @@ static void handle_page_specs(QPDF& pdf, Options& o, bool& warnings)
                     pdf.warn(
                         QPDFExc(qpdf_e_damaged_pdf, pdf.getFilename(),
                                 "", 0, "Exception caught while fixing copied"
-                                " annotations. This may be a qpdf bug." +
+                                " annotations. This may be a qpdf bug. " +
                                 std::string("Exception: ") + e.what()));
                 }
             }
@@ -6200,6 +6270,26 @@ static void set_encryption_options(QPDF& pdf, Options& o, QPDFWriter& w)
     }
     maybe_fix_write_password(R, o, o.user_password);
     maybe_fix_write_password(R, o, o.owner_password);
+    if ((R < 4) || ((R == 4) && (! o.use_aes)))
+    {
+        if (! o.allow_weak_crypto)
+        {
+            // Do not set exit code to EXIT_WARNING for this case as
+            // this does not reflect a potential problem with the
+            // input file.
+            QTC::TC("qpdf", "qpdf weak crypto warning");
+            std::cerr
+                << whoami
+                << ": writing a file with RC4, a weak cryptographic algorithm"
+                << std::endl
+                << "Please use 256-bit keys for better security."
+                << std::endl
+                << "Pass --allow-weak-crypto to suppress this warning."
+                << std::endl
+                << "This will become an error in a future version of qpdf."
+                << std::endl;
+        }
+    }
     switch (R)
     {
       case 2:
@@ -6597,9 +6687,10 @@ int realmain(int argc, char* argv[])
             }
         }
         bool other_warnings = false;
+        std::vector<PointerHolder<QPDF>> page_heap;
         if (! o.page_specs.empty())
         {
-            handle_page_specs(pdf, o, other_warnings);
+            handle_page_specs(pdf, o, other_warnings, page_heap);
         }
         if (! o.rotations.empty())
         {
