@@ -5,8 +5,8 @@
 <!ENTITY mdash "&#x2014;">
 <!ENTITY ndash "&#x2013;">
 <!ENTITY nbsp "&#xA0;">
-<!ENTITY swversion "10.3.2">
-<!ENTITY lastreleased "May 8, 2021">
+<!ENTITY swversion "10.4.0">
+<!ENTITY lastreleased "November 16, 2021">
 ]>
 <book>
  <bookinfo>
@@ -25,7 +25,7 @@
   <para>
    QPDF is a program that does structural, content-preserving
    transformations on PDF files.  QPDF's website is located at <ulink
-   url="http://qpdf.sourceforge.net/">http://qpdf.sourceforge.net/</ulink>.
+   url="https://qpdf.sourceforge.io/">https://qpdf.sourceforge.io/</ulink>.
    QPDF's source code is hosted on github at <ulink
    url="https://github.com/qpdf/qpdf">https://github.com/qpdf/qpdf</ulink>.
   </para>
@@ -874,6 +874,19 @@ make
       </listitem>
      </varlistentry>
      <varlistentry>
+      <term><option>--allow-weak-crypto</option></term>
+      <listitem>
+       <para>
+        Starting with version 10.4, qpdf issues warnings when
+        requested to create files using RC4 encryption. This option
+        suppresses those warnings. In future versions of qpdf, qpdf
+        will refuse to create files with weak cryptography when this
+        flag is not given. See <xref linkend="ref.weak-crypto"/> for
+        additional details.
+       </para>
+      </listitem>
+     </varlistentry>
+     <varlistentry>
       <term><option>--encrypt options --</option></term>
       <listitem>
        <para>
@@ -1017,7 +1030,7 @@ make
         command <command>qpdf in.pdf out.pdf --rotate=+90:2,4,6
         --rotate=180:7-8</command> would rotate pages 2, 4, and 6 90
         degrees clockwise from their original rotation and force the
-        rotation of pages 7 through 9 to 180 degrees regardless of
+        rotation of pages 7 through 8 to 180 degrees regardless of
         their original rotation, and the command <command>qpdf in.pdf
         out.pdf --rotate=+180</command> would rotate all pages by 180
         degrees.
@@ -1698,9 +1711,10 @@ make
 </programlisting>
     If you wanted to take pages 1&ndash;5 from
     <filename>file1.pdf</filename> and pages 11&ndash;15 from
-    <filename>file2.pdf</filename> in reverse, you would run
+    <filename>file2.pdf</filename> in reverse, taking document-level
+    metadata from <filename>file2.pdf</filename>, you would run
 
-    <programlisting><command>qpdf</command> <option>file1.pdf --pages file1.pdf 1-5 . 15-11 -- outfile.pdf</option>
+    <programlisting><command>qpdf</command> <option>file2.pdf --pages file1.pdf 1-5 . 15-11 -- outfile.pdf</option>
 </programlisting>
     If, for some reason, you wanted to take the first page of an
     encrypted file called <filename>encrypted.pdf</filename> with
@@ -2943,7 +2957,12 @@ outfile.pdf</option>
         recover, after which other options are effectively operating
         on the recovered file. Combining <option>--check</option> with
         other options in this way can be useful for manually
-        recovering severely damaged files.
+        recovering severely damaged files. Note that
+        <option>--check</option> produces no output to standard output
+        when everything is valid, so if you are using this to
+        programmatically validate files in bulk, it is safe to run
+        without output redirected to <filename>/dev/null</filename>
+        and just check for a 0 exit code.
        </para>
       </listitem>
      </varlistentry>
@@ -3348,6 +3367,43 @@ outfile.pdf</option>
     Windows.
    </para>
   </sect1>
+ </chapter>
+ <chapter id="ref.weak-crypto">
+  <title>Weak Cryptography</title>
+  <para>
+   Start with version 10.4, qpdf is taking steps to reduce the
+   likelihood of a user <emphasis>accidentally</emphasis> creating PDF
+   files with insecure cryptography but will continue to allow
+   creation of such files indefinitely with explicit acknowledgment.
+  </para>
+  <para>
+   The PDF file format makes use of RC4, which is known to be a weak
+   cryptography algorithm, and MD5, which is a weak hashing algorithm.
+   In version 10.4, qpdf generates warnings for some (but not all)
+   cases of writing files with weak cryptography when invoked from the
+   command-line. These warnings can be suppressed using the
+   <option>--allow-weak-crypto</option> option.
+  </para>
+  <para>
+   It is planned for qpdf version 11 to be stricter, making it an
+   error to write files with insecure cryptography from the
+   command-line tool in most cases without specifying the
+   <option>--allow-weak-crypto</option> flag and also to require
+   explicit steps when using the C++ library to enable use of insecure
+   cryptography.
+  </para>
+  <para>
+   Note that qpdf must always retain support for weak cryptographic
+   algorithms since this is required for reading older PDF files that
+   use it. Additionally, qpdf will always retain the ability to create
+   files using weak cryptographic algorithms since, as a development
+   tool, qpdf explicitly supports creating older or deprecated types
+   of PDF files since these are sometimes needed to test or work with
+   older versions of software. Even if other cryptography libraries
+   drop support for RC4 or MD5, qpdf can always fall back to its
+   internal implementations of those algorithms, so they are not going
+   to disappear from qpdf.
+  </para>
  </chapter>
  <chapter id="ref.json">
   <title>QPDF JSON</title>
@@ -5061,6 +5117,114 @@ print "\n";
    </varlistentry>
 -->
    <varlistentry>
+    <term>10.4.0: November 16, 2021</term>
+    <listitem>
+     <itemizedlist>
+      <listitem>
+       <para>
+        Handling of Weak Cryptography Algorithms
+       </para>
+       <itemizedlist>
+        <listitem>
+         <para>
+          From the qpdf CLI, the <option>--allow-weak-crypto</option>
+          is now required to suppress a warning when explicitly
+          creating PDF files using RC4 encryption. While qpdf will
+          always retain the ability to read and write such files,
+          doing so will require explicit acknowledgment moving
+          forward. For qpdf 10.4, this change only affects the
+          command-line tool. Starting in qpdf 11, there will be small
+          API changes to require explicit acknowledgment in those
+          cases as well. For additional information, see <xref
+          linkend="ref.weak-crypto"/>.
+         </para>
+        </listitem>
+       </itemizedlist>
+      </listitem>
+      <listitem>
+       <para>
+        Bug Fixes
+       </para>
+       <itemizedlist>
+        <listitem>
+         <para>
+          Fix potential bounds error when handling shell completion
+          that could occur when given bogus input.
+         </para>
+        </listitem>
+        <listitem>
+         <para>
+          Properly handle overlay/underlay on completely empty pages
+          (with no resource dictionary).
+         </para>
+        </listitem>
+        <listitem>
+         <para>
+          Fix crash that could occur under certain conditions when
+          using <option>--pages</option> with files that had form
+          fields.
+         </para>
+        </listitem>
+       </itemizedlist>
+      </listitem>
+      <listitem>
+       <para>
+        Library Enhancements
+       </para>
+       <itemizedlist>
+        <listitem>
+         <para>
+          Make <function>QPDF::findPage</function> functions public.
+         </para>
+        </listitem>
+        <listitem>
+         <para>
+          Add methods to <classname>Pl_Flate</classname> to be able to
+          receive warnings on certain recoverable conditions.
+         </para>
+        </listitem>
+        <listitem>
+         <para>
+          Add an extra check to the library to detect when foreign
+          objects are inserted directly (instead of using
+          <function>QPDF::copyForeignObject</function>) at the time of
+          insertion rather than when the file is written. Catching the
+          error sooner makes it much easier to locate the incorrect
+          code.
+         </para>
+        </listitem>
+       </itemizedlist>
+      </listitem>
+      <listitem>
+       <para>
+        CLI Enhancements
+       </para>
+       <itemizedlist>
+        <listitem>
+         <para>
+          Improve diagnostics around parsing <option>--pages</option>
+          command-line options
+         </para>
+        </listitem>
+       </itemizedlist>
+      </listitem>
+      <listitem>
+       <para>
+        Packaging Changes
+       </para>
+       <itemizedlist>
+        <listitem>
+         <para>
+          The Windows binary distribution is now built with crypto
+          provided by OpenSSL 3.0.
+         </para>
+        </listitem>
+       </itemizedlist>
+      </listitem>
+     </itemizedlist>
+    </listitem>
+   </varlistentry>
+   <varlistentry>
     <term>10.3.2: May 8, 2021</term>
     <listitem>
      <itemizedlist>
@@ -6623,7 +6787,7 @@ print "\n";
           added to return an unsigned value. This makes it easier to
           write code that is safe from unintentional data loss.
           Functions: <function>getUIntValue</function>,
-          <function>getIntVauleAsInt</function>,
+          <function>getIntValueAsInt</function>,
           <function>getUIntValueAsUInt</function>.
          </para>
         </listitem>
