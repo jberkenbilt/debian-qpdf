@@ -5,8 +5,11 @@
 [![QPDF Build](https://github.com/qpdf/qpdf/workflows/QPDF%20Build/badge.svg)](https://github.com/qpdf/qpdf/actions)
 [![Total lgtm alerts](https://img.shields.io/lgtm/alerts/g/qpdf/qpdf.svg?logo=lgtm&logoWidth=18)](https://lgtm.com/projects/g/qpdf/qpdf/alerts/)
 [![Language grade on lgtm: C/C++](https://img.shields.io/lgtm/grade/cpp/g/qpdf/qpdf.svg?logo=lgtm&logoWidth=18)](https://lgtm.com/projects/g/qpdf/qpdf/context:cpp)
+[![Documentation Status](https://readthedocs.org/projects/qpdf/badge/?version=latest)](https://qpdf.readthedocs.io/en/latest/?badge=latest)
 
-This is the QPDF package. QPDF is a command-line tool and C++ library that performs content-preserving transformations on PDF files. It supports linearization, encryption, and numerous other features. It can also be used for splitting and merging files, creating PDF files (but you have to supply all the content yourself), and inspecting files for study or analysis. QPDF does not render PDFs or perform text extraction, and it does not contain higher-level interfaces for working with page contents. It is a low-level tool for working with the structure of PDF files and can be a valuable tool for anyone who wants to do programmatic or command-line-based manipulation of PDF files.
+QPDF is a command-line tool and C++ library that performs content-preserving transformations on PDF files. It supports linearization, encryption, and numerous other features. It can also be used for splitting and merging files, creating PDF files (but you have to supply all the content yourself), and inspecting files for study or analysis. QPDF does not render PDFs or perform text extraction, and it does not contain higher-level interfaces for working with page contents. It is a low-level tool for working with the structure of PDF files and can be a valuable tool for anyone who wants to do programmatic or command-line-based manipulation of PDF files.
+
+The [QPDF Manual](https://qpdf.readthedocs.io) is hosted online at https://qpdf.readthedocs.io.
 
 Additional information about it can be found at https://qpdf.sourceforge.io.  The source code repository is hosted at GitHub: https://github.com/qpdf/qpdf.
 
@@ -66,10 +69,6 @@ Please see the section on crypto providers in the manual for more details.
 
 The PDF file format used to rely on RC4 for encryption. Using 256-bit keys always uses AES instead, and with 128-bit keys, you can elect to use AES. qpdf does its best to warn when someone is writing a file with weak cryptographic algorithms, but qpdf must always retain support for being able to read and even write files with weak encryption to be able to fully support older PDF files and older PDF readers.
 
-# Building from a pristine checkout
-
-When building qpdf from a pristine checkout from version control, generated documentation files are not present. You may either generate them (by passing `--enable-doc-maintenance` to `./configure` and satisfying the extra build-time dependencies) or obtain them from a released source package, which includes them. If you want to grab just the files that are in the source distribution but not in the repository, extract a source distribution in a temporary directory, and run `make CLEAN=1 distfiles.zip`. This will create a file called `distfiles.zip`, which can you can extract in a checkout of the source repository. This step is optional unless you are running make install and want the html and PDF versions of the documentation to be installed.
-
 # Building from source distribution on UNIX/Linux
 
 For UNIX and UNIX-like systems, you can usually get by with just
@@ -80,7 +79,9 @@ make
 make install
 ```
 
-Packagers may set DESTDIR, in which case make install will install inside of DESTDIR, as is customary with many packages.  For more detailed general information, see the "INSTALL" file in this directory.  If you are already accustomed to building and installing software that uses autoconf, there's nothing new for you in the INSTALL file. Note that qpdf uses `autoconf` but not `automake`. We have our own system of Makefiles that allows cross-directory dependencies, doesn't use recursive make, and works better on non-UNIX platforms.
+Packagers may set DESTDIR, in which case make install will install inside of DESTDIR, as is customary with many packages.  Please also see the "Notes for Packagers" section of the manual.
+
+For more detailed general information, see the "INSTALL" file in this directory. If you are already accustomed to building and installing software that uses autoconf, there's nothing new for you in the INSTALL file. Note that qpdf uses `autoconf` but not `automake`. We have our own system of Makefiles that allows cross-directory dependencies, doesn't use recursive make, and works better on non-UNIX platforms.
 
 # Building without wchar_t
 
@@ -100,11 +101,13 @@ Note qpdf will never define QPDF_NO_WCHAR_T using autoconf or any other automate
 
 QPDF is known to build and pass its test suite with mingw (latest version tested: gcc 7.2.0), mingw64 (latest version tested: 7.2.0) and Microsoft Visual C++ 2015, both 32-bit and 64-bit versions.  MSYS2 is required to build as well in order to get make and other related tools.  See [README-windows.md](README-windows.md) for details on how to build under Windows.
 
+# Building Documentation
+
+The QPDF manual is written in reStructured Text format and is build with [sphinx](https://www.sphinx-doc.org). The sources to the user manual can be found in the `manual` directory. For more detailed information, consult the [Building and Installing QPDF section of the manual](manual/installation.rst) or consult the [build-doc script used in CI](build-scripts/build-doc).
+
 # Additional Notes on Build
 
-QPDF's build system, inspired by [abuild](https://www.qbilt.org/abuild), can optionally use its own built-in rules rather than using libtool and obeying the compiler specified with configure.  This can be enabled by passing `--with-buildrules=buildrules` where buildrules corresponds to one of the `.mk` files (other than `rules.mk`) in the make directory. This should never be necessary on a UNIX system, but may be necessary on a Windows system.  See [README-windows.md](README-windows.md) for details.
-
-The QPDF package provides some executables and a software library.  A user manual can be found in the "doc" directory.  The docbook sources to the user manual can be found in the `manual` directory.
+QPDF's build system can optionally use its own built-in rules rather than using libtool and obeying the compiler specified with configure.  This can be enabled by passing `--with-buildrules=buildrules` where buildrules corresponds to one of the `.mk` files (other than `rules.mk`) in the make directory. This should never be necessary on a UNIX system, but may be necessary on a Windows system.  See [README-windows.md](README-windows.md) for details.
 
 The software library is just `libqpdf`, and all the header files are in the `qpdf` subdirectories of `include` and `libqpdf`. If you link statically with `-lqpdf`, then you will also need to link with `-lz` and `-ljpeg`. The shared qpdf library is linked with `-lz` and `-ljpeg`, none of qpdf's public header files directly include files from `libz`, and only `Pl_DCT.hh` includes files from `libjpeg`, so for most cases, qpdf's development files are self contained. If you need to use `Pl_DCT` in your application code, you will need to have the header files for some libjpeg distribution in your include path.
 

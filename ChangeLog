@@ -1,3 +1,90 @@
+2021-12-21  Jay Berkenbilt  <ejb@ql.org>
+
+	* 10.5.0: release
+
+	* Add documentation link to top-level README
+
+	* Discontinue inclusion of the pre-built documentation in the
+	source distribution. Consult the packaging documentation in the
+	manual for details. The file README-doc.txt is installed in the
+	doc directory by default and contains information that users will
+	need to know to find the documentation.
+
+2021-12-19  Jay Berkenbilt  <ejb@ql.org>
+
+	* C API: clarify documentation around string lengths. Add two new
+	methods: qpdf_oh_get_binary_string_value and
+	qpdf_oh_new_binary_string to make the need to handle the length
+	and data separate in more explicit in cases in which the string
+	data may contain embedded null characters.
+
+2021-12-17  Jay Berkenbilt  <ejb@ql.org>
+
+	* C API: simplify error handling for uncaught errors (never in a
+	released version) and clarify documentation in qpdf-c.h around
+	error handling. See qpdf-c.h for details, including how to check
+	for errors and the new function qpdf_silence_errors.
+
+	* C API: expose getTypeCode and getTypeName from QPDFObjectHandle.
+	Fixes #597.
+
+	* C API: add functions for working with stream data. Search for
+	"STREAM FUNCTIONS" in qpdf-c.h. Fixes #596.
+
+	* QPDFObjectHandle object types have been moved from
+	QPDFObject::object_type_e to qpdf_object_type_e (defined in
+	Constants.h). Old values are available for backward compatibility.
+
+	* Add Pl_Buffer::getMallocBuffer() to initialize a buffer with
+	malloc in support of the C API
+
+2021-12-16  Jay Berkenbilt  <ejb@ql.org>
+
+	* Add several functions to the C API for working with pages. C
+	wrappers around several of the "Legacy" page operations from
+	QPDFObjectHandle.hh have been added. See "PAGE FUNCTIONS" in
+	qpdf-c.h for details. Fixes #594.
+
+2021-12-12  Jay Berkenbilt  <ejb@ql.org>
+
+	* Convert documentation from docbook to reStructuredText/Sphinx.
+
+2021-12-10  Jay Berkenbilt  <ejb@ql.org>
+
+	* Handle bitstream overflow errors more gracefully. Fixes #581.
+
+	* C API: add qpdf_get_object_by_id, qpdf_make_indirect_object, and
+	qpdf_replace_object, exposing the corresponding methods in QPDF
+	and QPDFObjectHandle. Fixes #588.
+
+	* Add missing QPDF_DLL to QPDFObjectHandle::addTokenFilter so that
+	it is actually accessible as part of the public interface as
+	intended. Fixes #580.
+
+	* C API: Overhaul how errors are handle the C API's object handle
+	interfaces. Clarify documentation regarding object accessors and
+	how type errors and warnings are handled. Many cases that used to
+	crash code that used the C API can now be trapped and will be
+	written stderr if not trapped. See qpdf-c.h for details.
+
+	* C API: Add qpdf_oh_new_uninitialized to explicitly create
+	uninitialized object handles.
+
+	* Add new error code qpdf_e_object that is used for exceptions
+	(including warnings) that are caused by using QPDFObjectHandle
+	methods on object handles of the wrong type.
+
+2021-12-02  Jay Berkenbilt  <ejb@ql.org>
+
+	* C API: Add qpdf_oh_is_initialized.
+
+	* C API: Add qpdf_get_last_string_length to return the length of
+	the last string returned. This is necessary in order to fully
+	retrieve values of strings that may contain embedded null characters.
+
+	* C API: Add qpdf_oh_new_object to clone an object handle. Change
+	implemented by m-holger in #587.
+
 2021-11-16  Jay Berkenbilt  <ejb@ql.org>
 
 	* 10.4.0: release

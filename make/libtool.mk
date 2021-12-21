@@ -120,6 +120,10 @@ install-libs: build_libqpdf
 
 # NOTE: If installing any new executables, remember to update the
 # lambda layer code in build-scripts/build-appimage.
+
+# Ensure that installwin in make/installwin.mk is consistent with
+# this.
+
 install: all install-libs
 	./mkinstalldirs -m 0755 $(DESTDIR)$(bindir)
 	./mkinstalldirs -m 0755 $(DESTDIR)$(docdir)
@@ -133,11 +137,5 @@ install: all install-libs
 	$(LIBTOOL) --mode=install ./install-sh \
 		qpdf/$(OUTPUT_DIR)/fix-qdf \
 		$(DESTDIR)$(bindir)/fix-qdf
-	./install-sh -m 0644 doc/stylesheet.css $(DESTDIR)$(docdir)
-	if [ -f doc/qpdf-manual.html ]; then \
-		./install-sh -m 0644 doc/qpdf-manual.html $(DESTDIR)$(docdir); \
-	fi
-	if [ -f doc/qpdf-manual.pdf ]; then \
-		./install-sh -m 0644 doc/qpdf-manual.pdf $(DESTDIR)$(docdir); \
-	fi
-	./install-sh -m 0644 doc/*.1 $(DESTDIR)$(mandir)/man1
+	./install-sh -m 0644 README-doc.txt $(DESTDIR)$(docdir); \
+	./install-sh -m 0644 manual/$(OUTPUT_DIR)/*.1 $(DESTDIR)$(mandir)/man1

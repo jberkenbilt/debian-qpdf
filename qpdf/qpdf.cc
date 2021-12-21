@@ -40,7 +40,7 @@ static int constexpr EXIT_CORRECT_PASSWORD = 3;
 
 static char const* whoami = 0;
 
-static std::string expected_version = "10.4.0";
+static std::string expected_version = "10.5.0";
 
 struct PageSpec
 {
@@ -1300,7 +1300,7 @@ ArgParser::argCopyright()
         << std::endl
         << "QPDF is licensed under the Apache License, Version 2.0 (the \"License\");"
         << std::endl
-        << "not use this file except in compliance with the License."
+        << "you may not use this file except in compliance with the License."
         << std::endl
         << "You may obtain a copy of the License at"
         << std::endl
@@ -1334,13 +1334,14 @@ ArgParser::argHelp()
 {
     std::cout
         // 12345678901234567890123456789012345678901234567890123456789012345678901234567890
-        << "Usage: qpdf [ options ] { infilename | --empty } [ outfilename ]\n"
+        << "Usage: qpdf [options] {infile | --empty} [page_selection_options] outfile\n"
         << "\n"
         << "An option summary appears below.  Please see the documentation for details.\n"
         << "\n"
         << "If @filename appears anywhere in the command-line, each line of filename\n"
         << "will be interpreted as an argument. No interpolation is done. Line\n"
-        << "terminators are stripped. @- can be specified to read from standard input.\n"
+        << "terminators are stripped, but leading and trailing whitespace is\n"
+        << "intentionally preserved. @- can be specified to read from standard input.\n"
         << "\n"
         << "The output file can be - to indicate writing to standard output, or it can\n"
         << "be --replace-input to cause qpdf to replace the input file with the output.\n"
@@ -3114,7 +3115,7 @@ void usageExit(std::string const& msg)
 	<< std::endl
 	<< whoami << ": " << msg << std::endl
 	<< std::endl
-	<< "Usage: " << whoami << " [options] infile outfile" << std::endl
+	<< "Usage: " << whoami << " [options] {infile | --empty} [page_selection_options] outfile" << std::endl
 	<< "For detailed help, run " << whoami << " --help" << std::endl
 	<< std::endl;
     exit(EXIT_ERROR);

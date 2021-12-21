@@ -25,7 +25,7 @@
 #include <qpdf/QPDF_Stream.hh>
 #include <qpdf/QPDF_Array.hh>
 
-std::string QPDF::qpdf_version = "10.4.0";
+std::string QPDF::qpdf_version = "10.5.0";
 
 static char const* EMPTY_PDF =
     "%PDF-1.3\n"
@@ -85,8 +85,10 @@ class InvalidInputSource: public InputSource
   private:
     void throwException()
     {
-        throw std::runtime_error(
-            "QPDF operation attempted after closing input source");
+        throw std::logic_error(
+            "QPDF operation attempted on a QPDF object with no input source."
+            " QPDF operations are invalid before processFile (or another"
+            " process method) or after closeInputSource");
     }
 };
 
@@ -196,6 +198,7 @@ QPDF::EncryptionParameters::EncryptionParameters() :
 
 QPDF::Members::Members() :
     unique_id(0),
+    file(new InvalidInputSource()),
     provided_password_is_hex_key(false),
     ignore_xref_streams(false),
     suppress_warnings(false),

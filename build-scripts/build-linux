@@ -3,9 +3,8 @@ set -ex
 sudo apt-get update
 sudo apt-get -y install \
    autoconf build-essential zlib1g-dev libjpeg-dev libgnutls28-dev \
-   libssl-dev docbook-xsl fop xsltproc libxml2-utils inkscape imagemagick \
-   libtiff-tools ghostscript
-./configure --enable-werror --enable-doc-maintenance \
+   libssl-dev libtiff-tools ghostscript
+./configure --enable-werror \
     --enable-crypto-native --enable-crypto-openssl --enable-crypto-gnutls \
     --enable-show-failed-test-output --enable-test-compare-images
 make -j$(nproc) -k
@@ -13,7 +12,9 @@ for i in $(./qpdf/build/qpdf --show-crypto); do
     echo "*** Running tests with crypto provider $i"
     env QPDF_CRYPTO_PROVIDER=$i make -k check
 done
-./make_dist --ci --no-tests
+export TMPDIR=$PWD/dist-tmp
+rm -rf $TMPDIR
+./make_dist --ci
 mkdir distribution
-cp /tmp/qpdf*-ci.tar.gz distribution
+cp $TMPDIR/qpdf*-ci.tar.gz distribution
 sha256sum distribution/*

@@ -1,0 +1,4 @@
+#!/bin/bash
+cd $(dirname $0)/..
+build-scripts/build-doc
+build-scripts/download-external-libs

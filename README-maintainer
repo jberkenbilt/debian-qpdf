@@ -4,7 +4,7 @@ ROUTINE DEVELOPMENT
 
 Default:
 
-./configure CXX="g++ --std=c++14" --enable-werror
+./configure CXX="g++ --std=c++14" --enable-werror --enable-doc-maintenance
 
 Debugging:
 
@@ -25,6 +25,13 @@ Memory checks:
    LDFLAGS="-fsanitize=address -fsanitize=undefined" \
    CC=clang CXX="clang++ --std=c++14" \
    --enable-werror --disable-shared
+
+
+CHECKING DOCS ON readthedocs
+
+To check docs on readthedocs.io without running all of CI, push to the
+doc-check branch. Then visit https://qpdf.readthedocs.io/en/doc-check/
+Building docs from pull requests is also enabled.
 
 
 GOOGLE OSS-FUZZ
@@ -115,7 +122,7 @@ RELEASE PREPARATION
   git --no-pager grep -i -n -P "copyright.*$(expr $(date +%Y) - 1).*berkenbilt"
 
   Also update the copyright in these places:
-  * manual
+  * manual/conf.py
   * debian package -- search for copyright.*berkenbilt in debian/copyright
   * qtest-driver, TestDriver.pm in qtest source
 
@@ -132,7 +139,9 @@ RELEASE PREPARATION
 
 * Check all open issues and pull requests in github and the
   sourceforge trackers. See ~/scripts/github-issues. Don't forget pull
-  requests.
+  requests. Note: If the location for reporting issues changes, do a
+  careful check of documentation and code to make sure any comments
+  that include the issue creation URL are updated.
 
 * Check `TODO` file to make sure all planned items for the release are
   done or retargeted.
@@ -192,7 +201,9 @@ RELEASE PREPARATION
 * If any interfaces were added or changed, check C API to see whether
   changes are appropriate there as well. If necessary, review the
   casting policy in the manual, and ensure that integer types are
-  properly handled with QIntC or the appropriate cast.
+  properly handled with QIntC or the appropriate cast. Remember to
+  ensure that any exceptions thrown by the library are caught and
+  converted. See `trap_errors` in qpdf-c.cc.
 
 * Update versions and shared library details
 
@@ -202,14 +213,12 @@ RELEASE PREPARATION
   * Make sure version numbers are consistent in the following locations:
     * configure.ac
     * libqpdf/QPDF.cc
-    * manual/qpdf-manual.xml
+    * manual/conf.py
     * qpdf/qpdf.cc
     `make_dist` verifies this consistency.
 
   * Update release notes in manual. Look at diffs and ChangeLog.
-    Update release date in `manual/qpdf-manual.xml`. Remember to
-    ensure that the entities at the top of the document are consistent
-    with the release notes for both version and release date.
+    Update release date in `manual/release-notes.rst`.
 
   * Add a release entry to ChangeLog: "x.y.z: release"
 
@@ -288,9 +297,18 @@ chmod 555 *.AppImage
   arguments. Create and push a signed tag. This should be run with
   HEAD pointing to the tip of main.
 
-git rev-parse upstream/main @
+git rev-parse qpdf/main @
 git tag -s release-qpdf-$version @ -m"qpdf $version"
-git push upstream release-qpdf-$version
+git push qpdf release-qpdf-$version
+
+* Update documentation branches
+
+git push qpdf @:$(echo $version | sed -E 's/\.[^\.]+$//')
+git push qpdf @:stable
+
+* If this is an x.y.0 release, visit
+  https://readthedocs.org/projects/qpdf/versions/ (log in with
+  github), and activate the latest major/minor version
 
 * Create a github release after pushing the tag. `gcurl` is an alias
   that includes the auth token.
@@ -319,10 +337,8 @@ Template for release notes:
 ```
 This is qpdf version x.y.z. (Brief description)
 
-For a full list of changes from previous releases, please see the [release notes](http://qpdf.sourceforge.net/files/qpdf-manual.html#ref.release-notes). See also [README-what-to-download](./README-what-to-download.md) for details on the available source and binary distributions.
+For a full list of changes from previous releases, please see the [release notes](https://qpdf.readthedocs.io/en/stable/release-notes.html). See also [README-what-to-download](./README-what-to-download.md) for details about the available source and binary distributions.
 ```
-
-
 
 # Publish release
 gcurl -XPOST $url -d'{"draft": false}'
@@ -336,27 +352,12 @@ rsync -vrlcO ./ jay_berkenbilt,qpdf@frs.sourceforge.net:/home/frs/project/q/qp/q
 
 * Publish a news item manually on sourceforge.
 
-* Update the web page to indicate the new version and to put the new
-  documentation in the `files` subdirectory of the website on
-  sourceforge.net.
-
-(cd /tmp; mkdir -p z; cd z; \
- tar xf ~/Q/storage/releases/qpdf/qpdf/$version/qpdf-$version.tar.gz qpdf-$version/doc; \
- scp -p qpdf-$version/doc/qpdf-* jay_berkenbilt,qpdf@frs.sourceforge.net:htdocs/files/)
-
 * Upload the debian package and Ubuntu ppa backports.
 
 * Email the qpdf-announce list.
 
 
 OTHER NOTES
-
-To construct a source distribution from a pristine checkout,
-`make_dist` does the following:
-
-./configure --enable-doc-maintenance --enable-werror
-make build_manual
-make distclean
 
 For local iteration on the AppImage generation, it works to just
 ./build-scripts/build-appimage and get the resulting AppImage from
@@ -399,3 +400,31 @@ whichever `./config-*` is appropriate for whichever compiler I need to
 test with. Start one of the Visual Studio native compiler shells, and
 from there, run one of the msys shells. The Visual Studio step is not
 necessary if just building with mingw.
+
+
+DOCS ON readthedocs.org
+
+* Registered for an account at readthedocs.org with my github account
+* Project page: https://readthedocs.org/projects/qpdf/
+* Docs: https://qpdf.readthedocs.io/
+* Admin -> Settings
+  * Set project home page
+  * Advanced
+    * Show version warning
+    * Default version: stable
+  * Email Notifications: set email address for build failures
+
+At this time, there is nothing in .github/workflows to support this.
+It's all set up as an integration directly between github and
+readthedocs.
+
+The way readthedocs.org does stable and versions doesn't exactly work
+for qpdf. My tagging convention is different from what they expect,
+and I don't need versions for every point release. I have the
+following branching strategy to support docs:
+
+* x.y -- points to the latest x.y.z release
+* stable -- points to the latest release
+
+The release process includes updating the approach branches and
+activating versions.

@@ -8,7 +8,6 @@ installwin: all
 	mkdir $(DEST)/lib
 	mkdir $(DEST)/include
 	mkdir $(DEST)/include/qpdf
-	mkdir $(DEST)/doc
 	cp libqpdf/$(OUTPUT_DIR)/$(IMPORT_LIB_NAME) $(DEST)/lib
 	cp libqpdf/$(OUTPUT_DIR)/qpdf*.dll $(DEST)/bin
 	perl copy_dlls libqpdf/$(OUTPUT_DIR)/qpdf*.dll $(DEST)/bin $(OBJDUMP) $(WINDOWS_WORDSIZE)
@@ -17,10 +16,6 @@ installwin: all
 	cp qpdf/$(OUTPUT_DIR)/fix-qdf.exe $(DEST)/bin
 	cp include/qpdf/*.h $(DEST)/include/qpdf
 	cp include/qpdf/*.hh $(DEST)/include/qpdf
-	cp doc/stylesheet.css $(DEST)/doc
-	if [ -f doc/qpdf-manual.html ]; then \
-	    cp doc/qpdf-manual.html $(DEST)/doc; \
-	fi
-	if [ -f doc/qpdf-manual.pdf ]; then \
-	    cp doc/qpdf-manual.pdf $(DEST)/doc; \
+	if [ -d doc ]; then \
+	    cp -r doc $(DEST); \
 	fi
