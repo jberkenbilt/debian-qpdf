@@ -19,26 +19,29 @@ on:
     # have reliable testing.
     - cron: '12 4 * * 5'
 jobs:
-  Distfiles:
-    # Generate distfiles.zip, which is a prerequisite for the mac and
-    # Windows builds. Only the mac and Windows builds actually "need"
-    # it, but declaring all the jobs to need it forces it to run
-    # first.
+  Prebuild:
+    # Run steps that are needed by the Windows build but are easier to
+    # build on Linux. Also create the documentation distribution.
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
-      - name: 'Create distfiles.zip'
-        run: build-scripts/make-distfiles
-      - name: 'Upload extra distribution files'
+      - name: 'Run pre-build steps'
+        run: build-scripts/prebuild
+      - name: 'Upload documentation for later build steps'
         uses: actions/upload-artifact@v1
         with:
-          name: distfiles
-          path: distfiles.zip
+          name: doc
+          path: doc.zip
       - name: 'Upload external libs'
         uses: actions/upload-artifact@v1
         with:
           name: external-libs
           path: external-libs-dist
+      - name: 'Upload doc distribution'
+        uses: actions/upload-artifact@v1
+        with:
+          name: distribution
+          path: distribution
   Linux:
     runs-on: ubuntu-latest
     steps:
@@ -52,7 +55,7 @@ jobs:
           path: distribution
   Windows:
     runs-on: windows-latest
-    needs: Distfiles
+    needs: Prebuild
     strategy:
       fail-fast: false
       max-parallel: 4
@@ -64,10 +67,10 @@ jobs:
         shell: bash
         run: git config --global core.autocrlf input
       - uses: actions/checkout@v2
-      - name: 'Download distribution files'
+      - name: 'Download documentation'
         uses: actions/download-artifact@v2
         with:
-          name: distfiles
+          name: doc
           path: .
       - name: 'Download external libs'
         uses: actions/download-artifact@v2
@@ -84,13 +87,9 @@ jobs:
           path: distribution
   macOS:
     runs-on: macos-latest
-    needs: Distfiles
+    needs: Prebuild
     steps:
       - uses: actions/checkout@v2
-      - name: 'Download distribution files'
-        uses: actions/download-artifact@v2
-        with:
-          name: distfiles
       - name: 'Download external libs'
         uses: actions/download-artifact@v2
         with:
@@ -100,7 +99,7 @@ jobs:
         run: build-scripts/build-mac
   AppImage:
     runs-on: ubuntu-latest
-    needs: Distfiles
+    needs: Prebuild
     steps:
       - uses: actions/checkout@v2
       - name: 'Build AppImage'
@@ -112,21 +111,21 @@ jobs:
           path: distribution
   Linux32:
     runs-on: ubuntu-latest
-    needs: Distfiles
+    needs: Prebuild
     steps:
       - uses: actions/checkout@v2
       - name: 'Linux 32-bit'
         run: build-scripts/build-linux32
   Fuzzers:
     runs-on: ubuntu-latest
-    needs: Distfiles
+    needs: Prebuild
     steps:
       - uses: actions/checkout@v2
       - name: 'Build Fuzzer'
         run: build-scripts/build-fuzzer
   Sanitizers:
     runs-on: ubuntu-latest
-    needs: Distfiles
+    needs: Prebuild
     steps:
       - uses: actions/checkout@v2
       - name: 'Sanitizer Tests'

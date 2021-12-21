@@ -320,8 +320,9 @@ class QPDFObjectHandle
     QPDF_DLL
     char const* getTypeName();
 
-    // Exactly one of these will return true for any object.  Operator
-    // and InlineImage are only allowed in content streams.
+    // Exactly one of these will return true for any initialized
+    // object. Operator and InlineImage are only allowed in content
+    // streams.
     QPDF_DLL
     bool isBool();
     QPDF_DLL
@@ -455,6 +456,7 @@ class QPDFObjectHandle
     // be applied to a page object, and which will automatically
     // handle the case of pages whose contents are split across
     // multiple streams.
+    QPDF_DLL
     void addTokenFilter(PointerHolder<TokenFilter> token_filter);
 
     // Legacy helpers for parsing content streams. These methods are
@@ -594,7 +596,7 @@ class QPDFObjectHandle
     static QPDFObjectHandle newReserved(QPDF* qpdf);
 
     // Provide an owning qpdf and object description. The library does
-    // this automatically with objects that are read from from the
+    // this automatically with objects that are read from the
     // input PDF and with objects that are created programmatically
     // and inserted into the QPDF by adding them to an array or a
     // dictionary or creating a new indirect object. Most end user
@@ -608,15 +610,65 @@ class QPDFObjectHandle
     QPDF_DLL
     bool hasObjectDescription();
 
-    // Accessor methods.  If an accessor method that is valid for only
-    // a particular object type is called on an object of the wrong
-    // type, an exception is thrown.
+    // Accessor methods
+    //
+    // (Note: this comment is referenced in qpdf-c.h and the manual.)
+    //
+    // In PDF files, objects have specific types, but there is nothing
+    // that prevents PDF files from containing objects of types that
+    // aren't expected by the specification. Many of the accessors
+    // here expect objects of a particular type. Prior to qpdf 8,
+    // calling an accessor on a method of the wrong type, such as
+    // trying to get a dictionary key from an array, trying to get the
+    // string value of a number, etc., would throw an exception, but
+    // since qpdf 8, qpdf issues a warning and recovers using the
+    // following behavior:
+    //
+    // * Requesting a value of the wrong type (int value from string,
+    //   array item from a scalar or dictionary, etc.) will return a
+    //   zero-like value for that type: false for boolean, 0 for
+    //   number, the empty string for string, or the null object for
+    //   an object handle.
+    //
+    // * Accessing an array item that is out of bounds will return a
+    //   null object.
+    //
+    // * Attempts to mutate an object of the wrong type (e.g.,
+    //   attempting to add a dictionary key to a scalar or array) will
+    //   be ignored.
+    //
+    // When any of these fallback behaviors are used, qpdf issues a
+    // warning. Starting in qpdf 10.5, these warnings have the error
+    // code qpdf_e_object. Prior to 10.5, they had the error code
+    // qpdf_e_damaged_pdf. If the QPDFObjectHandle is associated with
+    // a QPDF object (as is the case for all objects whose origin was
+    // a PDF file), the warning is issued using the normal warning
+    // mechanism (as described in QPDF.hh), making it possible to
+    // suppress or otherwise detect them. If the QPDFObjectHandle is
+    // not associated with a QPDF object (meaning it was created
+    // programmatically), an exception will be thrown.
+    //
+    // The way to avoid getting any type warnings or exceptions, even
+    // when working with malformed PDF files, is to always check the
+    // type of a QPDFObjectHandle before accessing it (for example,
+    // make sure that isString() returns true before calling
+    // getStringValue()) and to always be sure that any array indices
+    // are in bounds.
+    //
+    // For additional discussion and rationale for this behavior, see
+    // the section in the QPDF manual entitled "Object Accessor
+    // Methods".
 
     // Methods for bool objects
     QPDF_DLL
     bool getBoolValue();
 
-    // Methods for integer objects
+    // Methods for integer objects. Note: if an integer value is too
+    // big (too far away from zero in either direction) to fit in the
+    // requested return type, the maximum or minimum value for that
+    // return type may be returned. For example, on a system with
+    // 32-bit int, a numeric object with a value of 2^40 (or anything
+    // too big for 32 bits) will be returned as INT_MAX.
     QPDF_DLL
     long long getIntValue();
     QPDF_DLL
@@ -648,7 +700,7 @@ class QPDFObjectHandle
     // with PDF Doc Encoding. PDF Doc Encoding is identical to
     // ISO-8859-1 except in the range from 0200 through 0240, where
     // there is a mapping of characters to Unicode. QPDF versions
-    // prior to version erroneously left characters in that range
+    // prior to version 8.0.0 erroneously left characters in that range
     // unmapped.
     QPDF_DLL
     std::string getUTF8Value();
@@ -684,13 +736,13 @@ class QPDFObjectHandle
     std::vector<QPDFObjectHandle> getArrayAsVector();
     QPDF_DLL
     bool isRectangle();
-    // If the array an array of four numeric values, return as a
+    // If the array is an array of four numeric values, return as a
     // rectangle. Otherwise, return the rectangle [0, 0, 0, 0]
     QPDF_DLL
     Rectangle getArrayAsRectangle();
     QPDF_DLL
     bool isMatrix();
-    // If the array an array of six numeric values, return as a
+    // If the array is an array of six numeric values, return as a
     // matrix. Otherwise, return the matrix [1, 0, 0, 1, 0, 0]
     QPDF_DLL
     Matrix getArrayAsMatrix();

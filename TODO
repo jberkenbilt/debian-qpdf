@@ -1,8 +1,22 @@
+Next
+====
+
+* High-level API/doc overhaul: #593
+
 Documentation
 =============
 
+* Do a full pass through the documentation.
+
+  * Make sure `qpdf` is consistent. Use QPDF when just referring to
+    the package.
+  * Make sure markup is consistent
+  * Autogenerate where possible
+  * Consider which parts might be good candidates for moving to the
+    wiki.
+
 * See #530 -- add an appendix explaining PDF encryption in general
-  plus how it's handled by qpdf.
+  plus how it's handled by qpdf. Or maybe this should go on the wiki.
 
 Document-level work
 ===================
@@ -173,6 +187,8 @@ Comments appear in the code prefixed by "ABI"
 * Consider having addArrayItem, replaceKey, etc. return the new value
   so you can say
   auto oh = dict.replaceKey("/Key", QPDFObjectHandle::newSomething());
+  But this has to be clean with respect to fluent interfaces, so we
+  might need something slightly different.
 * Added QPDFObjectHandle::ParserCallbacks::handleWarning but had to
   revert because it was not binary compatible. Consider re-adding. The
   commit that added this comment includes the reverting of the change.
@@ -193,7 +209,12 @@ Comments appear in the code prefixed by "ABI"
     creation of files with insecure crypto. Maybe
     QPDFWriter::allowWeakCrypto. Call this when --allow-weak-crypto is
     passed and probably also when copying encryption by default from
-    an input file.
+    an input file. There should be some API change so that, when
+    people recompile with qpdf 11, their code won't suddenly stop
+    working. Getting this right will take careful consideration of the
+    developer and user experience. We don't want to create a situation
+    where exactly the same code fails to work in 11 but worked on 10.
+    See #576 for latest notes.
   * Change deterministic id to use something other than MD5 but allow
     the old way for compatibility -- maybe rename the method to force
     the developer to make a choice
@@ -384,9 +405,6 @@ I find it useful to make reference to them in this list.
    code and is partially obscured by later code. Keys in the resource
    dictionary may need to be changed -- create test cases with lots of
    duplicated/overlapping keys.
-
- * Figure out how to render Gajić correctly in the PDF version of the
-   qpdf manual.
 
  * Investigate whether there is a way to automate the memory checker
    tests for Windows.

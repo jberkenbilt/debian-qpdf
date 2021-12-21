@@ -33,6 +33,10 @@
  *
  * There are several things to keep in mind when using the C API.
  *
+ *     Error handling is tricky because the underlying C++ API uses
+ *     exception handling. See "ERROR HANDLING" below for a detailed
+ *     explanation.
+ *
  *     The C API is not as rich as the C++ API.  For any operations
  *     that involve actually manipulating PDF objects, you must use
  *     the C++ API.  The C API is primarily useful for doing basic
@@ -46,41 +50,91 @@
  *     multiple threads.
  *
  *     All dynamic memory, except for that of the qpdf_data object
- *     itself, is managed by the library.  You must create a qpdf_data
- *     object using qpdf_init and free it using qpdf_cleanup.
+ *     itself, is managed by the library unless otherwise noted. You
+ *     must create a qpdf_data object using qpdf_init and free it
+ *     using qpdf_cleanup.
  *
- *     Many functions return char*.  In all cases, the char* values
- *     returned are pointers to data inside the qpdf_data object.  As
- *     such, they are always freed by qpdf_cleanup.  In most cases,
+ *     Many functions return char*. In all cases, the char* values
+ *     returned are pointers to data inside the qpdf_data object. As
+ *     such, they are always freed by qpdf_cleanup. In most cases,
  *     strings returned by functions here may be invalidated by
  *     subsequent function calls, sometimes even to different
- *     functions.  If you want a string to last past the next qpdf
- *     call or after a call to qpdf_cleanup, you should make a copy of
- *     it.
+ *     functions. If you want a string to last past the next qpdf call
+ *     or after a call to qpdf_cleanup, you should make a copy of it.
  *
- *     Many functions defined here merely set parameters and therefore
- *     never return error conditions.  Functions that may cause PDF
- *     files to be read or written may return error conditions.  Such
- *     functions return an error code.  If there were no errors or
- *     warnings, they return QPDF_SUCCESS.  If there were warnings,
- *     the return value has the QPDF_WARNINGS bit set.  If there
- *     errors, the QPDF_ERRORS bit is set.  In other words, if there
- *     are both warnings and errors, then the return status will be
- *     QPDF_WARNINGS | QPDF_ERRORS.  You may also call the
- *     qpdf_more_warnings and qpdf_more_errors functions to test
- *     whether there are unseen warning or error conditions.  By
- *     default, warnings are written to stderr when detected, but this
- *     behavior can be suppressed.  In all cases, errors and warnings
- *     may be retrieved by calling qpdf_next_warning and
- *     qpdf_next_error.  All exceptions thrown by the C++ interface
- *     are caught and converted into error messages by the C
- *     interface.
+ *     Since it is possible for a PDF string to contain null
+ *     characters, a function that returns data originating from a PDF
+ *     string may also contain null characters. To handle that case,
+ *     you call qpdf_get_last_string_length() to get the length of
+ *     whatever string was just returned. See STRING FUNCTIONS below.
  *
  *     Most functions defined here have obvious counterparts that are
  *     methods to either QPDF or QPDFWriter.  Please see comments in
  *     QPDF.hh and QPDFWriter.hh for details on their use.  In order
  *     to avoid duplication of information, comments here focus
  *     primarily on differences between the C and C++ API.
+ */
+
+/* ERROR HANDLING -- changed in qpdf 10.5 */
+
+/* SUMMARY: The only way to know whether a function that does not
+ * return an error code has encountered an error is to call
+ * qpdf_has_error after each function. You can do this even for
+ * functions that do return error codes. You can also call
+ * qpdf_silence_errors to prevent qpdf from writing these errors to
+ * stderr.
+ *
+ * DETAILS:
+ *
+ * The data type underlying qpdf_data maintains a list of warnings and
+ * a single error. To retrieve warnings, call qpdf_next_warning while
+ * qpdf_more_warnings is true. To retrieve the error, call
+ * qpdf_get_error when qpdf_has_error is true.
+ *
+ * There are several things that are important to understand.
+ *
+ * Some functions return an error code. The value of the error code is
+ * made up of a bitwise-OR of QPDF_WARNINGS and QPDF_ERRORS. The
+ * QPDF_ERRORS bit is set if there was an error during the *most
+ * recent call* to the API. The QPDF_WARNINGS bit is set if there are
+ * any warnings that have not yet been retrieved by calling
+ * qpdf_more_warnings. It is possible for both its or neither bit to
+ * be set.
+ *
+ * The expected mode of operation is to go through a series of
+ * operations, checking for errors after each call, but only checking
+ * for warnings at the end. This is similar to how it works in the C++
+ * API where warnings are handled in exactly this way but errors
+ * result in exceptions being thrown. However, in both the C and C++
+ * API, it is possible to check for and handle warnings as they arise.
+ *
+ * Some functions return values (or void) rather than an error code.
+ * This is especially true with the object handling functions. Those
+ * functions can still generate errors. To handle errors in those
+ * cases, you should explicitly call qpdf_has_error(). Note that, if
+ * you want to avoid the inconsistencies in the interface, you can
+ * always check for error conditions in this way rather than looking
+ * at status return codes.
+ *
+ * Prior to qpdf 10.5, if one of the functions that does not return an
+ * error code encountered an exception, it would cause the entire
+ * program to crash. Starting in qpdf 10.5, the default response to an
+ * error condition in these situations is to print the error to
+ * standard error, issue exactly one warning indicating that such an
+ * error occurred, and return a sensible fallback value (0 for
+ * numbers, QPDF_FALSE for booleans, "" for strings, or a null or
+ * uninitialized object handle). This is better than the old behavior
+ * but still undesirable as the best option is to explicitly check for
+ * error conditions.
+ *
+ * To prevent qpdf from writing error messages to stderr in this way,
+ * you can call qpdf_silence_errors(). This signals to the qpdf
+ * library that you intend to check the error codes yourself.
+ *
+ * If you encounter a situation where an exception from the C++ code
+ * is not properly converted to an error as described above, it is a
+ * bug in qpdf, which should be reported at
+ * https://github.com/qpdf/qpdf/issues/new.
  */
 
 #include <qpdf/DLL.h>
@@ -108,18 +162,31 @@ extern "C" {
 #   define QPDF_TRUE 1
 #   define QPDF_FALSE 0
 
+    /* From qpdf 10.5: call this method to signal to the library that
+     * you are explicitly handling errors from functions that don't
+     * return error codes. Otherwise, the library will print these
+     * error conditions to stderr and issue a warning. Prior to 10.5,
+     * the program would have crashed from an unhandled exception.
+     */
+    QPDF_DLL
+    void qpdf_silence_errors(qpdf_data qpdf);
+
     /* Returns the version of the qpdf software */
     QPDF_DLL
     char const* qpdf_get_qpdf_version();
 
     /* Returns dynamically allocated qpdf_data pointer; must be freed
-     * by calling qpdf_cleanup.
+     * by calling qpdf_cleanup. You must call qpdf_read or one of the
+     * other qpdf_read_* functions before calling any function that
+     * would need to operate on the PDF file.
      */
     QPDF_DLL
     qpdf_data qpdf_init();
 
     /* Pass a pointer to the qpdf_data pointer created by qpdf_init to
-     * clean up resources.
+     * clean up resources. This does not include buffers initialized
+     * by functions that return stream data but it otherwise includes
+     * all data associated with the QPDF object or any object handles.
      */
     QPDF_DLL
     void qpdf_cleanup(qpdf_data* qpdf);
@@ -134,7 +201,7 @@ extern "C" {
 
     /* Returns the error condition, if any.  The return value is a
      * pointer to data that will become invalid after the next call to
-     * this function, qpdf_next_warning, or qpdf_destroy.  After this
+     * this function, qpdf_next_warning, or qpdf_cleanup.  After this
      * function is called, qpdf_has_error will return QPDF_FALSE until
      * the next error condition occurs.  If there is no error
      * condition, this function returns a null pointer.
@@ -201,7 +268,7 @@ extern "C" {
     /* Calling qpdf_read causes processFile to be called in the C++
      * API.  Basic parsing is performed, but data from the file is
      * only read as needed.  For files without passwords, pass a null
-     * pointer as the password.
+     * pointer or an empty string as the password.
      */
     QPDF_DLL
     QPDF_ERROR_CODE qpdf_read(qpdf_data qpdf, char const* filename,
@@ -489,16 +556,19 @@ extern "C" {
 
     /* Object handling.
      *
-     * These methods take and return a qpdf_oh, which is just an
-     * unsigned integer. The value 0 is never returned, which makes it
-     * usable as an uninitialized value.
+     * These functions take and return a qpdf_oh object handle, which
+     * is just an unsigned integer. The value 0 is never returned, which
+     * makes it usable as an uninitialized value. The handles returned by
+     * these functions are guaranteed to be unique, i.e. two calls to
+     * (the same of different) functions will return distinct handles
+     * even when they refer to the same object.
      *
      * Each function below, starting with qpdf_oh, corresponds to a
      * specific method of QPDFObjectHandler. For example,
      * qpdf_oh_is_bool corresponds to QPDFObjectHandle::isBool. If the
      * C++ method is overloaded, the C function's name will be
-     * disambiguated. If the C++ method takes optional argumens, the C
-     * method will have required arguments in those positions. For
+     * disambiguated. If the C++ method takes optional arguments, the C
+     * function will have required arguments in those positions. For
      * details about the method, please see comments in
      * QPDFObjectHandle.hh. Comments here only explain things that are
      * specific to the "C" API.
@@ -514,45 +584,63 @@ extern "C" {
      * To refer to a specific QPDFObjectHandle, you need a pair
      * consisting of a qpdf_data and a qpdf_oh, which is just an index
      * into an internal table of objects. All memory allocated by any
-     * of these methods is returned when qpdf_cleanup is called.
+     * of these functions is returned when qpdf_cleanup is called.
      *
      * Regarding memory, the same rules apply as the above functions.
-     * Specifically, if a method returns a char*, the memory is
+     * Specifically, if a function returns a char*, the memory is
      * managed by the library and, unless otherwise specified, is not
      * expected to be valid after the next qpdf call.
      *
-     * The qpdf_data object keeps a cache of objects returned by these
-     * methods. Once you are finished referencing an object, you can
-     * optionally release it. Releasing objects is optional since they
+     * The qpdf_data object keeps a cache of handles returned by these
+     * functions. Once you are finished referencing a handle, you can
+     * optionally release it. Releasing handles is optional since they
      * will all get released by qpdf_cleanup, but it can help to
      * reduce the memory footprint of the qpdf_data object to release
-     * them when you're done. Releasing an object does not destroy the
+     * them when you're done. Releasing a handle does not destroy the
      * object. All QPDFObjectHandle objects are deleted when they are
-     * no longer referenced. Releasing an object simply invalidates
-     * the qpdf_oh handle to it. For example, if you create an object,
-     * add it to an existing dictionary or array, and then release it,
-     * the object is safely part of the dictionary or array.
-     * Explicitly releasing an object is essentially the same as
-     * letting a QPDFObjectHandle go out of scope in the C++ API.
+     * no longer referenced. Releasing an object handle simply
+     * invalidates it. For example, if you create an object,
+     * add it to an existing dictionary or array, and then release its
+     * handle, the object is safely part of the dictionary or array.
+     * Similarly, any other object handle refering to the object remains
+     * valid. Explicitly releasing an object handle is essentially the
+     * same as letting a QPDFObjectHandle go out of scope in the C++
+     * API.
+     *
+     * Please see "ERROR HANDLING" above for details on how error
+     * conditions are handled.
      */
 
     /* For examples of using this API, see examples/pdf-c-objects.c */
 
     typedef unsigned int qpdf_oh;
 
-    /* Releasing objects -- see comments above. These methods have no
+    /* Releasing objects -- see comments above. These functions have no
      * equivalent in the C++ API.
      */
     QPDF_DLL
-    void qpdf_oh_release(qpdf_data data, qpdf_oh oh);
+    void qpdf_oh_release(qpdf_data qpdf, qpdf_oh oh);
     QPDF_DLL
-    void qpdf_oh_release_all(qpdf_data data);
+    void qpdf_oh_release_all(qpdf_data qpdf);
+
+    /* Clone an object handle */
+    QPDF_DLL
+    qpdf_oh qpdf_oh_new_object(qpdf_data qpdf, qpdf_oh oh);
 
     /* Get trailer and root objects */
     QPDF_DLL
-    qpdf_oh qpdf_get_trailer(qpdf_data data);
+    qpdf_oh qpdf_get_trailer(qpdf_data qpdf);
     QPDF_DLL
-    qpdf_oh qpdf_get_root(qpdf_data data);
+    qpdf_oh qpdf_get_root(qpdf_data qpdf);
+
+    /* Retrieve and replace indirect objects */
+    QPDF_DLL
+    qpdf_oh qpdf_get_object_by_id(qpdf_data qpdf, int objid, int generation);
+    QPDF_DLL
+    qpdf_oh qpdf_make_indirect_object(qpdf_data qpdf, qpdf_oh oh);
+    QPDF_DLL
+    void qpdf_replace_object(
+        qpdf_data qpdf, int objid, int generation, qpdf_oh oh);
 
     /* Wrappers around QPDFObjectHandle methods. Be sure to read
      * corresponding comments in QPDFObjectHandle.hh to understand
@@ -561,156 +649,320 @@ extern "C" {
      */
 
     QPDF_DLL
-    QPDF_BOOL qpdf_oh_is_bool(qpdf_data data, qpdf_oh oh);
+    QPDF_BOOL qpdf_oh_is_initialized(qpdf_data qpdf, qpdf_oh oh);
     QPDF_DLL
-    QPDF_BOOL qpdf_oh_is_null(qpdf_data data, qpdf_oh oh);
+    QPDF_BOOL qpdf_oh_is_bool(qpdf_data qpdf, qpdf_oh oh);
     QPDF_DLL
-    QPDF_BOOL qpdf_oh_is_integer(qpdf_data data, qpdf_oh oh);
+    QPDF_BOOL qpdf_oh_is_null(qpdf_data qpdf, qpdf_oh oh);
     QPDF_DLL
-    QPDF_BOOL qpdf_oh_is_real(qpdf_data data, qpdf_oh oh);
+    QPDF_BOOL qpdf_oh_is_integer(qpdf_data qpdf, qpdf_oh oh);
     QPDF_DLL
-    QPDF_BOOL qpdf_oh_is_name(qpdf_data data, qpdf_oh oh);
+    QPDF_BOOL qpdf_oh_is_real(qpdf_data qpdf, qpdf_oh oh);
     QPDF_DLL
-    QPDF_BOOL qpdf_oh_is_string(qpdf_data data, qpdf_oh oh);
+    QPDF_BOOL qpdf_oh_is_name(qpdf_data qpdf, qpdf_oh oh);
     QPDF_DLL
-    QPDF_BOOL qpdf_oh_is_operator(qpdf_data data, qpdf_oh oh);
+    QPDF_BOOL qpdf_oh_is_string(qpdf_data qpdf, qpdf_oh oh);
     QPDF_DLL
-    QPDF_BOOL qpdf_oh_is_inline_image(qpdf_data data, qpdf_oh oh);
+    QPDF_BOOL qpdf_oh_is_operator(qpdf_data qpdf, qpdf_oh oh);
     QPDF_DLL
-    QPDF_BOOL qpdf_oh_is_array(qpdf_data data, qpdf_oh oh);
+    QPDF_BOOL qpdf_oh_is_inline_image(qpdf_data qpdf, qpdf_oh oh);
     QPDF_DLL
-    QPDF_BOOL qpdf_oh_is_dictionary(qpdf_data data, qpdf_oh oh);
+    QPDF_BOOL qpdf_oh_is_array(qpdf_data qpdf, qpdf_oh oh);
     QPDF_DLL
-    QPDF_BOOL qpdf_oh_is_stream(qpdf_data data, qpdf_oh oh);
+    QPDF_BOOL qpdf_oh_is_dictionary(qpdf_data qpdf, qpdf_oh oh);
     QPDF_DLL
-    QPDF_BOOL qpdf_oh_is_indirect(qpdf_data data, qpdf_oh oh);
+    QPDF_BOOL qpdf_oh_is_stream(qpdf_data qpdf, qpdf_oh oh);
     QPDF_DLL
-    QPDF_BOOL qpdf_oh_is_scalar(qpdf_data data, qpdf_oh oh);
+    QPDF_BOOL qpdf_oh_is_indirect(qpdf_data qpdf, qpdf_oh oh);
+    QPDF_DLL
+    QPDF_BOOL qpdf_oh_is_scalar(qpdf_data qpdf, qpdf_oh oh);
+    QPDF_DLL
+    enum qpdf_object_type_e qpdf_oh_get_type_code(qpdf_data qpdf, qpdf_oh oh);
+    QPDF_DLL
+    char const* qpdf_oh_get_type_name(qpdf_data qpdf, qpdf_oh oh);
 
     QPDF_DLL
-    qpdf_oh qpdf_oh_wrap_in_array(qpdf_data data, qpdf_oh oh);
+    qpdf_oh qpdf_oh_wrap_in_array(qpdf_data qpdf, qpdf_oh oh);
 
     QPDF_DLL
-    qpdf_oh qpdf_oh_parse(qpdf_data data, char const* object_str);
+    qpdf_oh qpdf_oh_parse(qpdf_data qpdf, char const* object_str);
 
     QPDF_DLL
-    QPDF_BOOL qpdf_oh_get_bool_value(qpdf_data data, qpdf_oh oh);
+    QPDF_BOOL qpdf_oh_get_bool_value(qpdf_data qpdf, qpdf_oh oh);
 
     QPDF_DLL
-    long long qpdf_oh_get_int_value(qpdf_data data, qpdf_oh oh);
+    long long qpdf_oh_get_int_value(qpdf_data qpdf, qpdf_oh oh);
     QPDF_DLL
-    int qpdf_oh_get_int_value_as_int(qpdf_data data, qpdf_oh oh);
+    int qpdf_oh_get_int_value_as_int(qpdf_data qpdf, qpdf_oh oh);
     QPDF_DLL
-    unsigned long long qpdf_oh_get_uint_value(qpdf_data data, qpdf_oh oh);
+    unsigned long long qpdf_oh_get_uint_value(qpdf_data qpdf, qpdf_oh oh);
     QPDF_DLL
-    unsigned int qpdf_oh_get_uint_value_as_uint(qpdf_data data, qpdf_oh oh);
+    unsigned int qpdf_oh_get_uint_value_as_uint(qpdf_data qpdf, qpdf_oh oh);
 
     QPDF_DLL
-    char const* qpdf_oh_get_real_value(qpdf_data data, qpdf_oh oh);
+    char const* qpdf_oh_get_real_value(qpdf_data qpdf, qpdf_oh oh);
 
     QPDF_DLL
-    QPDF_BOOL qpdf_oh_is_number(qpdf_data data, qpdf_oh oh);
+    QPDF_BOOL qpdf_oh_is_number(qpdf_data qpdf, qpdf_oh oh);
     QPDF_DLL
-    double qpdf_oh_get_numeric_value(qpdf_data data, qpdf_oh oh);
+    double qpdf_oh_get_numeric_value(qpdf_data qpdf, qpdf_oh oh);
 
     QPDF_DLL
-    char const* qpdf_oh_get_name(qpdf_data data, qpdf_oh oh);
+    char const* qpdf_oh_get_name(qpdf_data qpdf, qpdf_oh oh);
+
+    /* Return the length of the last string returned. This enables you
+     * to retrieve the entire string for cases in which a char*
+     * returned by one of the functions below points to a string with
+     * embedded null characters. The function
+     * qpdf_oh_get_binary_string_value takes a length pointer, which
+     * can be useful if you are retrieving the value of a string that
+     * is expected to contain binary data, such as a checksum or
+     * document ID. It is always valid to call
+     * qpdf_get_last_string_length, but it is usually not necessary as
+     * C strings returned by the library are only expected to be able
+     * to contain null characters if their values originate from PDF
+     * strings in the input.
+     */
+    QPDF_DLL
+    size_t qpdf_get_last_string_length(qpdf_data qpdf);
 
     QPDF_DLL
-    char const* qpdf_oh_get_string_value(qpdf_data data, qpdf_oh oh);
+    char const* qpdf_oh_get_string_value(qpdf_data qpdf, qpdf_oh oh);
     QPDF_DLL
-    char const* qpdf_oh_get_utf8_value(qpdf_data data, qpdf_oh oh);
+    char const* qpdf_oh_get_utf8_value(qpdf_data qpdf, qpdf_oh oh);
+    QPDF_DLL
+    char const* qpdf_oh_get_binary_string_value(
+        qpdf_data qpdf, qpdf_oh oh, size_t* length);
 
     QPDF_DLL
-    int qpdf_oh_get_array_n_items(qpdf_data data, qpdf_oh oh);
+    int qpdf_oh_get_array_n_items(qpdf_data qpdf, qpdf_oh oh);
     QPDF_DLL
-    qpdf_oh qpdf_oh_get_array_item(qpdf_data data, qpdf_oh oh, int n);
+    qpdf_oh qpdf_oh_get_array_item(qpdf_data qpdf, qpdf_oh oh, int n);
 
     /* "C"-specific dictionary key iteration */
 
     /* Iteration is allowed on only one dictionary at a time. */
     QPDF_DLL
-    void qpdf_oh_begin_dict_key_iter(qpdf_data data, qpdf_oh dict);
+    void qpdf_oh_begin_dict_key_iter(qpdf_data qpdf, qpdf_oh dict);
     QPDF_DLL
-    QPDF_BOOL qpdf_oh_dict_more_keys(qpdf_data data);
+    QPDF_BOOL qpdf_oh_dict_more_keys(qpdf_data qpdf);
     /* The memory returned by qpdf_oh_dict_next_key is owned by
      * qpdf_data. It is good until the next call to
      * qpdf_oh_dict_next_key with the same qpdf_data object. Calling
-     * the method again, even with a different dict, invalidates
+     * the function again, even with a different dict, invalidates
      * previous return values.
      */
     QPDF_DLL
-    char const* qpdf_oh_dict_next_key(qpdf_data data);
+    char const* qpdf_oh_dict_next_key(qpdf_data qpdf);
 
     /* end "C"-specific dictionary key iteration */
 
     QPDF_DLL
-    QPDF_BOOL qpdf_oh_has_key(qpdf_data data, qpdf_oh oh, char const* key);
+    QPDF_BOOL qpdf_oh_has_key(qpdf_data qpdf, qpdf_oh oh, char const* key);
     QPDF_DLL
-    qpdf_oh qpdf_oh_get_key(qpdf_data data, qpdf_oh oh, char const* key);
+    qpdf_oh qpdf_oh_get_key(qpdf_data qpdf, qpdf_oh oh, char const* key);
 
     QPDF_DLL
     QPDF_BOOL qpdf_oh_is_or_has_name(
-        qpdf_data data, qpdf_oh oh, char const* key);
+        qpdf_data qpdf, qpdf_oh oh, char const* key);
 
     QPDF_DLL
-    qpdf_oh qpdf_oh_new_null(qpdf_data data);
+    qpdf_oh qpdf_oh_new_uninitialized(qpdf_data qpdf);
     QPDF_DLL
-    qpdf_oh qpdf_oh_new_bool(qpdf_data data, QPDF_BOOL value);
+    qpdf_oh qpdf_oh_new_null(qpdf_data qpdf);
     QPDF_DLL
-    qpdf_oh qpdf_oh_new_integer(qpdf_data data, long long value);
+    qpdf_oh qpdf_oh_new_bool(qpdf_data qpdf, QPDF_BOOL value);
     QPDF_DLL
-    qpdf_oh qpdf_oh_new_real_from_string(qpdf_data data, char const* value);
+    qpdf_oh qpdf_oh_new_integer(qpdf_data qpdf, long long value);
     QPDF_DLL
-    qpdf_oh qpdf_oh_new_real_from_double(qpdf_data data,
+    qpdf_oh qpdf_oh_new_real_from_string(qpdf_data qpdf, char const* value);
+    QPDF_DLL
+    qpdf_oh qpdf_oh_new_real_from_double(qpdf_data qpdf,
                                          double value, int decimal_places);
     QPDF_DLL
-    qpdf_oh qpdf_oh_new_name(qpdf_data data, char const* name);
+    qpdf_oh qpdf_oh_new_name(qpdf_data qpdf, char const* name);
     QPDF_DLL
-    qpdf_oh qpdf_oh_new_string(qpdf_data data, char const* str);
+    qpdf_oh qpdf_oh_new_string(qpdf_data qpdf, char const* str);
     QPDF_DLL
-    qpdf_oh qpdf_oh_new_unicode_string(qpdf_data data, char const* utf8_str);
+    qpdf_oh qpdf_oh_new_unicode_string(qpdf_data qpdf, char const* utf8_str);
+    /* Use qpdf_oh_new_binary_string for creating a string that may
+     * contain atrbitary binary data including embedded null characters.
+     */
     QPDF_DLL
-    qpdf_oh qpdf_oh_new_array(qpdf_data data);
+    qpdf_oh qpdf_oh_new_binary_string(
+        qpdf_data qpdf, char const* str, size_t length);
     QPDF_DLL
-    qpdf_oh qpdf_oh_new_dictionary(qpdf_data data);
+    qpdf_oh qpdf_oh_new_array(qpdf_data qpdf);
+    QPDF_DLL
+    qpdf_oh qpdf_oh_new_dictionary(qpdf_data qpdf);
+
+    /* Create a new stream. Use qpdf_oh_get_dict to get (and
+     * subsequently modify) the stream dictionary if needed. See
+     * comments in QPDFObjectHandle.hh for newStream() for additional
+     * notes. You must call qpdf_oh_replace_stream_data to provide
+     * data for the stream. See STREAM FUNCTIONS below.
+    */
+    QPDF_DLL
+    qpdf_oh qpdf_oh_new_stream(qpdf_data qpdf);
 
     QPDF_DLL
-    void qpdf_oh_make_direct(qpdf_data data, qpdf_oh oh);
+    void qpdf_oh_make_direct(qpdf_data qpdf, qpdf_oh oh);
 
     QPDF_DLL
-    void qpdf_oh_set_array_item(qpdf_data data, qpdf_oh oh,
+    void qpdf_oh_set_array_item(qpdf_data qpdf, qpdf_oh oh,
                                 int at, qpdf_oh item);
     QPDF_DLL
-    void qpdf_oh_insert_item(qpdf_data data, qpdf_oh oh, int at, qpdf_oh item);
+    void qpdf_oh_insert_item(qpdf_data qpdf, qpdf_oh oh, int at, qpdf_oh item);
     QPDF_DLL
-    void qpdf_oh_append_item(qpdf_data data, qpdf_oh oh, qpdf_oh item);
+    void qpdf_oh_append_item(qpdf_data qpdf, qpdf_oh oh, qpdf_oh item);
     QPDF_DLL
-    void qpdf_oh_erase_item(qpdf_data data, qpdf_oh oh, int at);
+    void qpdf_oh_erase_item(qpdf_data qpdf, qpdf_oh oh, int at);
 
     QPDF_DLL
-    void qpdf_oh_replace_key(qpdf_data data, qpdf_oh oh,
+    void qpdf_oh_replace_key(qpdf_data qpdf, qpdf_oh oh,
                              char const* key, qpdf_oh item);
     QPDF_DLL
-    void qpdf_oh_remove_key(qpdf_data data, qpdf_oh oh, char const* key);
+    void qpdf_oh_remove_key(qpdf_data qpdf, qpdf_oh oh, char const* key);
     QPDF_DLL
-    void qpdf_oh_replace_or_remove_key(qpdf_data data, qpdf_oh oh,
+    void qpdf_oh_replace_or_remove_key(qpdf_data qpdf, qpdf_oh oh,
                                        char const* key, qpdf_oh item);
 
     QPDF_DLL
-    qpdf_oh qpdf_oh_get_dict(qpdf_data data, qpdf_oh oh);
+    qpdf_oh qpdf_oh_get_dict(qpdf_data qpdf, qpdf_oh oh);
 
     QPDF_DLL
-    int qpdf_oh_get_object_id(qpdf_data data, qpdf_oh oh);
+    int qpdf_oh_get_object_id(qpdf_data qpdf, qpdf_oh oh);
     QPDF_DLL
-    int qpdf_oh_get_generation(qpdf_data data, qpdf_oh oh);
+    int qpdf_oh_get_generation(qpdf_data qpdf, qpdf_oh oh);
 
     QPDF_DLL
-    char const* qpdf_oh_unparse(qpdf_data data, qpdf_oh oh);
+    char const* qpdf_oh_unparse(qpdf_data qpdf, qpdf_oh oh);
     QPDF_DLL
-    char const* qpdf_oh_unparse_resolved(qpdf_data data, qpdf_oh oh);
+    char const* qpdf_oh_unparse_resolved(qpdf_data qpdf, qpdf_oh oh);
     QPDF_DLL
-    char const* qpdf_oh_unparse_binary(qpdf_data data, qpdf_oh oh);
+    char const* qpdf_oh_unparse_binary(qpdf_data qpdf, qpdf_oh oh);
+
+    /* Note about foreign objects: the C API does not have enough
+     * information in the value of a qpdf_oh to know what QPDF object
+     * it belongs to. To uniquely specify a qpdf object handle from a
+     * specific qpdf_data instance, you always pair the qpdf_oh with
+     * the correct qpdf_data. Otherwise, you are likely to get
+     * completely the wrong object if you are not lucky enough to get
+     * an error about the object being invalid.
+     */
+
+    /* Copy foreign object: the qpdf_oh returned belongs to `qpdf`,
+     * while `foreign_oh` belongs to `other_qpdf`.
+     */
+    QPDF_DLL
+    qpdf_oh qpdf_oh_copy_foreign_object(
+        qpdf_data qpdf, qpdf_data other_qpdf, qpdf_oh foreign_oh);
+
+    /* STREAM FUNCTIONS */
+
+    /* These functions provide basic access to streams and stream
+     * data. They are not as comprehensive as what is in
+     * QPDFObjectHandle, but they do allow for working with streams
+     * and stream data as caller-managed memory.
+     */
+
+    /* Get stream data as a buffer. The buffer is allocated with
+     * malloc and must be freed by the caller. The size of the buffer
+     * is stored in *len. The arguments are similar to those in
+     * QPDFObjectHandle::pipeStreamData. To get raw stream data, pass
+     * qpdf_dl_none as decode_level. Otherwise, filtering is attempted
+     * and *filtered is set to indicate whether it was successful. If
+     * *filtered is QPDF_FALSE, then raw, unfiltered stream data was
+     * returned. You may pass a null pointer as filtered if you don't
+     * care about the result. If you pass a null pointer as bufp (and
+     * len), the value of filtered will be set to whether the stream
+     * can be filterable.
+     */
+    QPDF_DLL
+    QPDF_ERROR_CODE qpdf_oh_get_stream_data(
+        qpdf_data qpdf, qpdf_oh stream_oh,
+        enum qpdf_stream_decode_level_e decode_level, QPDF_BOOL* filtered,
+        unsigned char** bufp, size_t* len);
+
+    /* This function returns the concatenation of all of a page's
+     * content streams as a single, dynamically allocated buffer. As
+     * with qpdf_oh_get_stream_data, the buffer is allocated with
+     * malloc and must be freed by the caller.
+     */
+    QPDF_DLL
+    QPDF_ERROR_CODE qpdf_oh_get_page_content_data(
+        qpdf_data qpdf, qpdf_oh page_oh,
+        unsigned char** bufp, size_t* len);
+
+    /* The data pointed to by bufp will be copied by the library. It
+     * does not need to remain valid after the call returns.
+     */
+    QPDF_DLL
+    void qpdf_oh_replace_stream_data(
+        qpdf_data qpdf, qpdf_oh stream_oh,
+        unsigned char const* buf, size_t len,
+        qpdf_oh filter, qpdf_oh decode_parms);
+
+    /* PAGE FUNCTIONS */
+
+    /* The first time a page function is called, qpdf will traverse
+     * the /Pages tree. Subsequent calls to retrieve the number of
+     * pages or a specific page run in constant time as they are
+     * accessing the pages cache. If you manipulate the page tree
+     * outside of these functions, you should call
+     * qpdf_update_all_pages_cache. See comments for getAllPages() and
+     * updateAllPagesCache() in QPDF.hh.
+     */
+
+    /* For each function, the corresponding method in QPDF.hh is
+     * referenced. Please see comments in QPDF.hh for details.
+     */
+
+    /* calls getAllPages(). On error, returns -1 and sets error for
+     * qpdf_get_error. */
+    QPDF_DLL
+    int qpdf_get_num_pages(qpdf_data qpdf);
+    /* returns uninitialized object if out of range */
+    QPDF_DLL
+    qpdf_oh qpdf_get_page_n(qpdf_data qpdf, size_t zero_based_index);
+
+    /* updateAllPagesCache() */
+    QPDF_DLL
+    QPDF_ERROR_CODE qpdf_update_all_pages_cache(qpdf_data qpdf);
+
+    /* findPage() -- return zero-based index. If page is not found,
+     * return -1 and save the error to be retrieved with
+     * qpdf_get_error.
+     */
+    QPDF_DLL
+    int qpdf_find_page_by_id(qpdf_data qpdf, int objid, int generation);
+    QPDF_DLL
+    int qpdf_find_page_by_oh(qpdf_data qpdf, qpdf_oh oh);
+
+    /* pushInheritedAttributesToPage() */
+    QPDF_DLL
+    QPDF_ERROR_CODE qpdf_push_inherited_attributes_to_page(qpdf_data qpdf);
+
+    /* Functions that add pages may add pages from other files. If
+     * adding a page from the same file, newpage_qpdf and qpdf are the
+     * same.
+     /*/
+
+    /* addPage() */
+    QPDF_DLL
+    QPDF_ERROR_CODE qpdf_add_page(
+        qpdf_data qpdf,
+        qpdf_data newpage_qpdf, qpdf_oh newpage,
+        QPDF_BOOL first);
+    /* addPageAt() */
+    QPDF_DLL
+    QPDF_ERROR_CODE qpdf_add_page_at(
+        qpdf_data qpdf,
+        qpdf_data newpage_qpdf, qpdf_oh newpage,
+        QPDF_BOOL before, qpdf_oh refpage);
+    /* removePage() */
+    QPDF_DLL
+    QPDF_ERROR_CODE qpdf_remove_page(qpdf_data qpdf, qpdf_oh page);
 #ifdef __cplusplus
 }
 #endif
