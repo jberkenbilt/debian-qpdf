@@ -1,3 +1,10 @@
+qpdf (10.5.0-1) unstable; urgency=medium
+
+  * New upstream release.
+  * Pre-built documentation is no longer included. See README-doc.txt.
+
+ -- Jay Berkenbilt <qjb@debian.org>  Tue, 21 Dec 2021 09:57:04 -0500
+
 qpdf (10.4.0-1) unstable; urgency=medium
 
   * New upstream release.
