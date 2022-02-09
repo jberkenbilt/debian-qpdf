@@ -1,6 +1,7 @@
 BINS_libtests = \
 	cxx11 \
 	aes \
+	arg_parser \
 	ascii85 \
 	bits \
 	buffer \
@@ -12,12 +13,15 @@ BINS_libtests = \
 	hex \
 	input_source \
 	json \
+	json_handler \
+	json_parse \
 	lzw \
 	main_from_wmain \
 	matrix \
 	md5 \
 	nntree \
 	numrange \
+	pdf_version \
 	pointer_holder \
 	predictors \
 	qintc \

@@ -16,6 +16,7 @@
 #include <qpdf/Pl_DCT.hh>
 #include <qpdf/QIntC.hh>
 #include <iostream>
+#include <memory>
 #include <string.h>
 #include <stdlib.h>
 
@@ -30,7 +31,7 @@ class ImageProvider: public QPDFObjectHandle::StreamDataProvider
                   std::string const& filter);
     virtual ~ImageProvider();
     virtual void provideStreamData(int objid, int generation,
-				   Pipeline* pipeline);
+                                   Pipeline* pipeline);
     size_t getWidth() const;
     size_t getHeight() const;
 
@@ -105,22 +106,25 @@ void
 ImageProvider::provideStreamData(int objid, int generation,
                                  Pipeline* pipeline)
 {
-    std::vector<PointerHolder<Pipeline> > to_delete;
+    std::vector<std::shared_ptr<Pipeline>> to_delete;
     Pipeline* p = pipeline;
+    std::shared_ptr<Pipeline> p_new;
 
     if (filter == "/DCTDecode")
     {
-        p = new Pl_DCT(
+        p_new = std::make_shared<Pl_DCT>(
             "image encoder", pipeline,
             QIntC::to_uint(width), QIntC::to_uint(getHeight()),
             QIntC::to_int(stripes[0].length()), j_color_space);
-        to_delete.push_back(p);
+        to_delete.push_back(p_new);
+        p = p_new.get();
     }
     else if (filter == "/RunLengthDecode")
     {
-        p = new Pl_RunLength(
+        p_new = std::make_shared<Pl_RunLength>(
             "image encoder", pipeline, Pl_RunLength::a_encode);
-        to_delete.push_back(p);
+        to_delete.push_back(p_new);
+        p = p_new.get();
     }
 
     for (size_t i = 0; i < n_stripes; ++i)
@@ -138,7 +142,7 @@ ImageProvider::provideStreamData(int objid, int generation,
 void usage()
 {
     std::cerr << "Usage: " << whoami << " filename" << std::endl
-	      << "Creates a simple PDF and writes it to filename" << std::endl;
+              << "Creates a simple PDF and writes it to filename" << std::endl;
     exit(2);
 }
 
@@ -178,12 +182,11 @@ void add_page(QPDFPageDocumentHelper& dh, QPDFObjectHandle font,
     size_t width = p->getWidth();
     size_t height = p->getHeight();
     QPDFObjectHandle image = QPDFObjectHandle::newStream(&pdf);
-    image.replaceDict(QPDFObjectHandle::parse(
-                          "<<"
-                          " /Type /XObject"
-                          " /Subtype /Image"
-                          " /BitsPerComponent 8"
-                          ">>"));
+    image.replaceDict("<<"
+                      " /Type /XObject"
+                      " /Subtype /Image"
+                      " /BitsPerComponent 8"
+                      ">>"_qpdf);
     QPDFObjectHandle image_dict = image.getDict();
     image_dict.replaceKey("/ColorSpace", newName(color_space));
     image_dict.replaceKey("/Width", newInteger(width));
@@ -195,8 +198,7 @@ void add_page(QPDFPageDocumentHelper& dh, QPDFObjectHandle font,
                             QPDFObjectHandle::newNull());
 
     // Create direct objects as needed by the page dictionary.
-    QPDFObjectHandle procset = QPDFObjectHandle::parse(
-        "[/PDF /Text /ImageC]");
+    QPDFObjectHandle procset = "[/PDF /Text /ImageC]"_qpdf;
 
     QPDFObjectHandle rfont = QPDFObjectHandle::newDictionary();
     rfont.replaceKey("/F1", font);
@@ -290,15 +292,14 @@ static void check(char const* filename,
         QPDFObjectHandle color_space = image_dict.getKey("/ColorSpace");
         QPDFObjectHandle filter = image_dict.getKey("/Filter");
         bool this_errors = false;
-        if (! (filter.isName() && (filter.getName() == desired_filter)))
+        if (! filter.isNameAndEquals(desired_filter))
         {
             this_errors = errors = true;
             std::cout << "page " << pageno << ": expected filter "
                       << desired_filter << "; actual filter = "
                       << filter.unparse() << std::endl;
         }
-        if (! (color_space.isName() &&
-               (color_space.getName() == desired_color_space)))
+        if (! color_space.isNameAndEquals(desired_color_space))
         {
             this_errors = errors = true;
             std::cout << "page " << pageno << ": expected color space "
@@ -381,14 +382,13 @@ static void create_pdf(char const* filename)
     // Add an indirect object to contain a font descriptor for the
     // built-in Helvetica font.
     QPDFObjectHandle font = pdf.makeIndirectObject(
-        QPDFObjectHandle::parse(
-            "<<"
-            " /Type /Font"
-            " /Subtype /Type1"
-            " /Name /F1"
-            " /BaseFont /Helvetica"
-            " /Encoding /WinAnsiEncoding"
-            ">>"));
+        "<<"
+        " /Type /Font"
+        " /Subtype /Type1"
+        " /Name /F1"
+        " /BaseFont /Helvetica"
+        " /Encoding /WinAnsiEncoding"
+        ">>"_qpdf);
 
     std::vector<std::string> color_spaces;
     color_spaces.push_back("/DeviceCMYK");
@@ -424,22 +424,22 @@ int main(int argc, char* argv[])
     // For libtool's sake....
     if (strncmp(whoami, "lt-", 3) == 0)
     {
-	whoami += 3;
+        whoami += 3;
     }
     if (argc != 2)
     {
-	usage();
+        usage();
     }
     char const* filename = argv[1];
 
     try
     {
-	create_pdf(filename);
+        create_pdf(filename);
     }
     catch (std::exception& e)
     {
-	std::cerr << e.what() << std::endl;
-	exit(2);
+        std::cerr << e.what() << std::endl;
+        exit(2);
     }
 
     return 0;

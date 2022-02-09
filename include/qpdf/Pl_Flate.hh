@@ -1,4 +1,4 @@
-// Copyright (c) 2005-2021 Jay Berkenbilt
+// Copyright (c) 2005-2022 Jay Berkenbilt
 //
 // This file is part of qpdf.
 //
@@ -24,6 +24,7 @@
 
 #include <qpdf/Pipeline.hh>
 #include <functional>
+#include <memory>
 
 class Pl_Flate: public Pipeline
 {
@@ -35,7 +36,7 @@ class Pl_Flate: public Pipeline
 
     QPDF_DLL
     Pl_Flate(char const* identifier, Pipeline* next,
-	     action_e action, unsigned int out_bufsize = def_bufsize);
+             action_e action, unsigned int out_bufsize = def_bufsize);
     QPDF_DLL
     virtual ~Pl_Flate();
 
@@ -73,7 +74,7 @@ class Pl_Flate: public Pipeline
         Members(size_t out_bufsize, action_e action);
         Members(Members const&);
 
-        PointerHolder<unsigned char> outbuf;
+        std::shared_ptr<unsigned char> outbuf;
         size_t out_bufsize;
         action_e action;
         bool initialized;

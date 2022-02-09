@@ -1,4 +1,4 @@
-/* Copyright (c) 2005-2021 Jay Berkenbilt
+/* Copyright (c) 2005-2022 Jay Berkenbilt
  *
  * This file is part of qpdf.
  *
@@ -22,6 +22,12 @@
 
 #ifndef QPDF_DLL_HH
 #define QPDF_DLL_HH
+
+/* The first version of qpdf to include the version constants is 10.6.0. */
+#define QPDF_MAJOR_VERSION 10
+#define QPDF_MINOR_VERSION 6
+#define QPDF_PATCH_VERSION 0
+#define QPDF_VERSION "10.6.0"
 
 #if (defined _WIN32 || defined __CYGWIN__) && defined(DLL_EXPORT)
 # define QPDF_DLL __declspec(dllexport)

@@ -1,7 +1,7 @@
 #include <qpdf/JSON.hh>
 #include <qpdf/QPDFObjectHandle.hh>
 #include <iostream>
-#include <assert.h>
+#include <cassert>
 
 static void check(JSON const& j, std::string const& exp)
 {
@@ -20,12 +20,26 @@ static void test_main()
           "\\u0003\\t\\b\\r\\n<4>\"");
     JSON jnull = JSON::makeNull();
     check(jnull, "null");
+    assert(jnull.isNull());
+    std::string value;
+    assert(! jnull.getNumber(value));
     JSON jarr = JSON::makeArray();
     check(jarr, "[]");
     JSON jstr2 = JSON::makeString("a\tb");
+    assert(jstr2.getString(value));
+    assert(value == "a\tb");
+    assert(! jstr2.getNumber(value));
+    /* cSpell: ignore jbool xavalue dvalue xdvalue */
     JSON jint = JSON::makeInt(16059);
     JSON jdouble = JSON::makeReal(3.14159);
     JSON jexp = JSON::makeNumber("2.1e5");
+    JSON jbool1 = JSON::makeBool(true);
+    JSON jbool2 = JSON::makeBool(false);
+    bool bvalue = false;
+    assert(jbool1.getBool(bvalue));
+    assert(bvalue);
+    assert(jbool2.getBool(bvalue));
+    assert(! bvalue);
     jarr.addArrayElement(jstr2);
     jarr.addArrayElement(jnull);
     jarr.addArrayElement(jint);
@@ -39,6 +53,18 @@ static void test_main()
           "  3.14159,\n"
           "  2.1e5\n"
           "]");
+    std::vector<std::string> avalue;
+    assert(jarr.forEachArrayItem([&avalue](JSON j) {
+        avalue.push_back(j.unparse());
+    }));
+    std::vector<std::string> xavalue = {
+        "\"a\\tb\"",
+        "null",
+        "16059",
+        "3.14159",
+        "2.1e5",
+    };
+    assert(avalue == xavalue);
     JSON jmap = JSON::makeDictionary();
     check(jmap, "{}");
     jmap.addDictionaryMember("b", jstr2);
@@ -73,14 +99,26 @@ static void test_main()
     check(QPDFObjectHandle::newReal(".34").getJSON(), "0.34");
     check(QPDFObjectHandle::newReal("-0.56").getJSON(), "-0.56");
     check(QPDFObjectHandle::newReal("-.78").getJSON(), "-0.78");
+    JSON jmap2 = JSON::parse(R"({"a": 1, "b": "two", "c": [true]})");
+    std::map<std::string, std::string> dvalue;
+    assert(jmap2.forEachDictItem([&dvalue]
+                                 (std::string const& k, JSON j) {
+        dvalue[k] = j.unparse();
+    }));
+    std::map<std::string, std::string> xdvalue = {
+        {"a", "1"},
+        {"b", "\"two\""},
+        {"c", "[\n  true\n]"},
+    };
+    assert(dvalue == xdvalue);
 }
 
-static void check_schema(JSON& obj, JSON& schema, bool exp,
-                         std::string const& description)
+static void check_schema(JSON& obj, JSON& schema, unsigned long flags,
+                         bool exp, std::string const& description)
 {
     std::list<std::string> errors;
     std::cout << "--- " << description << std::endl;
-    assert(exp == obj.checkSchema(schema, errors));
+    assert(exp == obj.checkSchema(schema, flags, errors));
     for (std::list<std::string>::iterator iter = errors.begin();
          iter != errors.end(); ++iter)
     {
@@ -91,71 +129,119 @@ static void check_schema(JSON& obj, JSON& schema, bool exp,
 
 static void test_schema()
 {
-    // Since we don't have a JSON parser, use the PDF parser as a
-    // shortcut for creating a complex JSON structure.
-    JSON schema = QPDFObjectHandle::parse(
-        "<<"
-        "  /one <<"
-        "    /a <<"
-        "      /q (queue)"
-        "      /r <<"
-        "        /x (ecks)"
-        "        /y (why)"
-        "      >>"
-        "      /s [ (esses) ]"
-        "    >>"
-        "  >>"
-        "  /two ["
-        "    <<"
-        "      /goose (gander)"
-        "      /glarp (enspliel)"
-        "    >>"
-        "  ]"
-        ">>").getJSON();
-    JSON three = JSON::makeDictionary();
-    three.addDictionaryMember(
-        "<objid>",
-        QPDFObjectHandle::parse("<< /z (ebra) >>").getJSON());
-    schema.addDictionaryMember("/three", three);
-    JSON a = QPDFObjectHandle::parse("[(not a) (dictionary)]").getJSON();
-    check_schema(a, schema, false, "top-level type mismatch");
-    JSON b = QPDFObjectHandle::parse(
-        "<<"
-        "  /one <<"
-        "    /a <<"
-        "      /t (oops)"
-        "      /r ["
-        "        /x (ecks)"
-        "        /y (why)"
-        "      ]"
-        "      /s << /z (esses) >>"
-        "    >>"
-        "  >>"
-        "  /two ["
-        "    <<"
-        "      /goose (0 gander)"
-        "      /glarp (0 enspliel)"
-        "    >>"
-        "    <<"
-        "      /goose (1 gander)"
-        "      /flarp (1 enspliel)"
-        "    >>"
-        "    2"
-        "    [ (three) ]"
-        "    <<"
-        "      /goose (4 gander)"
-        "      /glarp (4 enspliel)"
-        "    >>"
-        "  ]"
-        "  /three <<"
-        "    /anything << /x (oops) >>"
-        "    /else << /z (okay) >>"
-        "  >>"
-        ">>").getJSON();
-    check_schema(b, schema, false, "missing items");
-    check_schema(a, a, false, "top-level schema array error");
-    check_schema(b, b, false, "lower-level schema array error");
-    check_schema(schema, schema, true, "pass");
+    /* cSpell: ignore ptional ebra */
+    JSON schema = JSON::parse(R"(
+{
+  "one": {
+    "a": {
+      "q": "queue",
+      "r": {
+        "x": "ecks"
+      },
+      "s": [
+        "esses"
+      ]
+    }
+  },
+  "two": [
+    {
+      "goose": "gander",
+      "glarp": "enspliel"
+    }
+  ],
+  "three": {
+    "<objid>": {
+      "z": "ebra",
+      "o": "ptional"
+    }
+  }
+}
+)");
+
+    JSON a = JSON::parse(R"(["not a", "dictionary"])");
+    check_schema(a, schema, 0, false, "top-level type mismatch");
+    JSON b = JSON::parse(R"(
+{
+  "one": {
+    "a": {
+      "t": "oops",
+      "r": [
+        "x",
+        "ecks",
+        "y",
+        "why"
+      ],
+      "s": {
+        "z": "esses"
+      }
+    }
+  },
+  "two": [
+    {
+      "goose": "0 gander",
+      "glarp": "0 enspliel"
+    },
+    {
+      "goose": "1 gander",
+      "flarp": "1 enspliel"
+    },
+    2,
+    [
+      "three"
+    ],
+    {
+      "goose": "4 gander",
+      "glarp": 4
+    }
+  ],
+  "three": {
+    "anything": {
+      "x": "oops",
+      "o": "okay"
+    },
+    "else": {
+      "z": "okay"
+    }
+  }
+}
+)");
+
+    check_schema(b, schema, 0, false, "missing items");
+    check_schema(a, a, 0, false, "top-level schema array error");
+    check_schema(b, b, 0, false, "lower-level schema array error");
+
+    JSON bad_schema = JSON::parse(R"({"a": true, "b": "potato?"})");
+    check_schema(bad_schema, bad_schema, 0, false, "bad schema field type");
+
+    JSON good = JSON::parse(R"(
+{
+  "one": {
+    "a": {
+      "q": "potato",
+      "r": {
+        "x": [1, null]
+      },
+      "s": [
+        null,
+        "anything"
+      ]
+    }
+  },
+  "two": [
+    {
+      "glarp": "enspliel",
+      "goose": 3.14
+    }
+  ],
+  "three": {
+    "<objid>": {
+      "z": "ebra"
+    }
+  }
+}
+)");
+    check_schema(good, schema, 0, false, "not optional");
+    check_schema(good, schema, JSON::f_optional, true, "pass");
 }
 
 int main()

@@ -1,3 +1,166 @@
+2022-02-09  Jay Berkenbilt  <ejb@ql.org>
+
+	* 10.6.0: release
+
+	* Fix one more PDF doc encoding omission: 0xAD is also undefined.
+	Fixes #637.
+
+2022-02-08  Jay Berkenbilt  <ejb@ql.org>
+
+	* Bug fix: when splitting pages with --split-pages or selecting
+	pages with --pages, set the output PDF version to the maximum of
+	all the input PDF versions. This is a fix to QPDFJob. If you are
+	creating output PDF files yourself from multiple inputs, you will
+	need to code the same thing. The new PDFVersion object, its
+	updateIfGreater() method, and the new QPDF and QPDFWriter methods
+	described below make this very easy to do. Fixes #610.
+
+	* Add new class PDFVersion for more convenient comparison of PDF
+	version numbers from the %!PDF header.
+
+	* Add QPDF::getVersionAsPDFVersion() to return the PDF version and
+	extension together as a PDFVersion object instead of a string.
+
+	* Add a QPDFWriter::setMinimumPDFVersion() that takes a PDFVersion
+	object.
+
+2022-02-06  Jay Berkenbilt  <ejb@ql.org>
+
+	* Pl_Buffer and QPDFWriter: add getBufferSharedPointer(), which
+	turns a PointerHolder<Buffer> but will return a
+	std::shared_ptr<Buffer> in qpdf 11.
+
+	* From m-holger: add getKeyIfDict(), which calls getKey for
+	dictionaries and returns null if called on null. This is for
+	easier access to optional, lower-level dictionaries.
+
+2022-02-05  Jay Berkenbilt  <ejb@ql.org>
+
+	* Add several new accessors to QPDFObjectHandle: the bool
+	getValueAsX(X&) accessors allow an alternative way to retrieve
+	values from QPDFObjectHandle objects and can result in more
+	concise code in many situations. Thanks to m-holger for the
+	contribution.
+
+	* Add qpdf_oh_new_binary_unicode_string and
+	qpdf_oh_get_binary_utf8_value to the C API. This makes it possible
+	to handle UTF-8-encoded strings with embedded NUL characters. Thanks
+	to m-holger for the contribution.
+
+	* Add a global user-defined string literal "_qpdf" as a shorthand
+	for QPDFObjectHandle::parse, allowing you to create
+	QPDFObjectHandle objects with
+
+	QPDFObjectHandle oh = "<</Some (PDF)>>"_qpdf;
+
+	* Expose QPDF::emptyPDF to the C API as qpdf_empty_pdf()
+
+	* Add comments letting people know that the version string
+	returned by QPDF::QPDFVersion and qpdf_get_qpdf_version is static.
+
+	* Add QUtil::make_unique_cstr to return a std::unique_ptr<char[]>
+	as an alternative to QUtil::copy_string and
+	QUtil::make_shared_cstr.
+
+2022-02-04  Jay Berkenbilt  <ejb@ql.org>
+
+	* New preprocessor symbols QPDF_MAJOR_VERSION, QPDF_MINOR_VERSION,
+	QPDF_PATCH_VERSION as numbers and QPDF_VERSION as a string. These
+	can be used for feature testing in code. These are in qpdf/DLL.h,
+	which is included by every header that adds to the public API.
+	Since these constants are introduced in version 10.6, it's
+	important for them to be in a header that everyone already
+	includes so you don't have to try to include a header that won't
+	be there.
+
+	* PointerHolder: add a get() method and a use_count() method for
+	compatibility with std::shared_ptr. In qpdf 11, qpdf's APIs will
+	switch to using std::shared_ptr instead of PointerHolder, though
+	there will be a PointerHolder class with a backward-compatible
+	API. To ease the transition, we are adding get() now with the same
+	semantics as std::shared_ptr's get. Note that there is a
+	difference in behavior: const PointerHolder has always behaved
+	incorrectly. const PointerHolder objects only returned const
+	pointers. This is wrong. If you want a const pointer, use
+	PointerHolder<T const>. A const PointerHolder just shouldn't allow
+	its pointer to be reassigned. The new get() method behaves
+	correctly in that calling get() on a const PointerHolder to a
+	non-const pointer returns a non-const pointer. This is the way
+	regular pointers behave.
+
+2022-02-01  Jay Berkenbilt  <ejb@ql.org>
+
+	* Major refactor: all functionality from the qpdf CLI is now
+	available for library users using the QPDFJob class. See comments
+	in include/qpdf/QPDFJob.hh and a new chapter about QPDFJob in the
+	manual. QPDFJob provides fluent interfaces for setting options
+	that exactly map to command-line arguments. There are also methods
+	for initializing QPDFJob from an argv array and from a JSON
+	object.
+
+	* A light C API around basic QPDFJob functionality is in
+	include/qpdf/qpdfjob-c.h.p
+
+	* Add new functions version of QUtil::call_main_from_wmain that
+	takes a constant argv array.
+
+2022-01-31  Jay Berkenbilt  <ejb@ql.org>
+
+	* Have --json-help just output the JSON object, leaving a
+	description to --help and the manual.
+
+	* The --json flag now takes a version number as an optional
+	parameter. The default will remain version 1 for compatibility
+	until the release of qpdf 11, after which it will become "latest".
+	At this time, there's only version 1, but a version 2 may appear
+	in a future qpdf.
+
+2022-01-28  Jay Berkenbilt  <ejb@ql.org>
+
+	* Add QPDFUsage exception, which is thrown by QPDFJob to indicate
+	command-line usage or job configuration errors.
+
+2022-01-22  Jay Berkenbilt  <ejb@ql.org>
+
+	* Add QUtil::make_shared_cstr to return a std::shared_ptr<char>
+	instead of a char* like QUtil::copy_string
+
+	* JSON: for (qpdf-specific, not official) "schema" checking, add
+	the ability to treat missing fields as optional. Also ensure that
+	values in the schema are dictionary, array, or string.
+
+	* Add convenience methods isNameAndEquals and isDictionaryOfType
+	to QPDFObjectHandle with corresponding functions added to the C
+	API. Thanks to m-holger for the contribution.
+
+2022-01-17  Jay Berkenbilt  <ejb@ql.org>
+
+	* Add JSON::parse. Now qpdf's JSON class implements a
+	general-purpose JSON parser and serializer, but there are better
+	options for general use. This is really designed for qpdf's
+	internal use and is set up to be compatible with qpdf's existing
+	API and to hook into a planned JSON-based API to the QPDFJob
+	class.
+
+	* Add isDictionary and isArray to JSON
+
+2022-01-11  Jay Berkenbilt  <ejb@ql.org>
+
+	* Major overhaul of documentation and help for the qpdf
+	command-line tool. qpdf --help is now broken into topics rather
+	than being one great wall of text, and the command-line arguments
+	are indexed in the manual. The entire text of the "Running qpdf"
+	chapter has been reviewed thoroughly. Many thanks once again to
+	M. Holger for a detailed review and editorial assistance with the
+	manual.
+
+	* Bug fix: add missing characters from PDF doc encoding.
+	Fixes #606.
+
+2021-12-29  Jay Berkenbilt  <ejb@ql.org>
+
+	* Add method QUtil::file_can_be_opened
+
 2021-12-21  Jay Berkenbilt  <ejb@ql.org>
 
 	* 10.5.0: release

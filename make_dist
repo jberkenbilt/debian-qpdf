@@ -64,7 +64,6 @@ cd($tmpdir);
 my $config_version = get_version_from_configure();
 my $code_version = get_version_from_source();
 my $doc_version = get_version_from_manual();
-my $cli_version = get_version_from_cli();
 
 my $version_error = 0;
 if ($version ne $config_version)
@@ -80,11 +79,6 @@ if ($version ne $code_version)
 if ($version ne $doc_version)
 {
     print "$whoami: doc version = $doc_version\n";
-    $version_error = 1;
-}
-if ($version ne $cli_version)
-{
-    print "$whoami: qpdf.cc version = $cli_version\n";
     $version_error = 1;
 }
 if ($version_error)
@@ -127,16 +121,37 @@ sub get_version_from_configure
 
 sub get_version_from_source
 {
-    my $fh = safe_open("libqpdf/QPDF.cc");
+    my $fh = safe_open("include/qpdf/DLL.h");
     my $code_version = 'unknown';
+    my $major = '';
+    my $minor = '';
+    my $patch = '';
     while (<$fh>)
     {
-        if (m/QPDF::qpdf_version = \"([^\"]+)\"/)
+        if (m/QPDF_MAJOR_VERSION (\d+)/)
+        {
+            $major = $1;
+        }
+        elsif (m/QPDF_MINOR_VERSION (\d+)/)
+        {
+            $minor = $1;
+        }
+        elsif (m/QPDF_PATCH_VERSION (\d+)/)
+        {
+            $patch = $1;
+        }
+        elsif (m/QPDF_VERSION \"([^\"]+)\"/)
         {
             $code_version = $1;
-            last;
         }
     }
+    my $t = sprintf("%s.%s.%s", $major, $minor, $patch);
+    if ($t ne $code_version)
+    {
+        die "$whoami: version is inconsistent in DLL.h:" .
+            " $t vs $code_version\n";
+    }
+
     $fh->close();
     $code_version;
 }
@@ -155,22 +170,6 @@ sub get_version_from_manual
     }
     $fh->close();
     $doc_version;
-}
-
-sub get_version_from_cli
-{
-    my $fh = safe_open("qpdf/qpdf.cc");
-    my $cli_version = 'unknown';
-    while (<$fh>)
-    {
-        if (m/expected_version = \"([^\"]+)\"/)
-        {
-            $cli_version = $1;
-            last;
-        }
-    }
-    $fh->close();
-    $cli_version;
 }
 
 sub safe_open

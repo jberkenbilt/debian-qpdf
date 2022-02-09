@@ -1,4 +1,4 @@
-// Copyright (c) 2005-2021 Jay Berkenbilt
+// Copyright (c) 2005-2022 Jay Berkenbilt
 //
 // This file is part of qpdf.
 //
@@ -36,7 +36,7 @@ class QPDF_DLL_CLASS QPDFSystemError: public std::runtime_error
     QPDFSystemError(std::string const& description,
                     int system_errno);
     QPDF_DLL
-    virtual ~QPDFSystemError() throw ();
+    virtual ~QPDFSystemError() noexcept;
 
     // To get a complete error string, call what(), provided by
     // std::exception.  The accessors below return the original values
@@ -49,7 +49,7 @@ class QPDF_DLL_CLASS QPDFSystemError: public std::runtime_error
 
   private:
     static std::string createWhat(std::string const& description,
-				  int system_errno);
+                                  int system_errno);
 
     // This class does not use the Members pattern to avoid needless
     // memory allocations during exception handling.

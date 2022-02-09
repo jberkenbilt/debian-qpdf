@@ -1,4 +1,5 @@
 #include <qpdf/QPDFObjGen.hh>
+
 #include <qpdf/QUtil.hh>
 
 QPDFObjGen::QPDFObjGen() :
@@ -17,7 +18,7 @@ bool
 QPDFObjGen::operator<(QPDFObjGen const& rhs) const
 {
     return ((this->obj < rhs.obj) ||
-	    ((this->obj == rhs.obj) && (this->gen < rhs.gen)));
+            ((this->obj == rhs.obj) && (this->gen < rhs.gen)));
 }
 
 bool

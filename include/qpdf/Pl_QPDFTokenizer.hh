@@ -1,4 +1,4 @@
-// Copyright (c) 2005-2021 Jay Berkenbilt
+// Copyright (c) 2005-2022 Jay Berkenbilt
 //
 // This file is part of qpdf.
 //
@@ -28,6 +28,8 @@
 #include <qpdf/PointerHolder.hh>
 #include <qpdf/QPDFObjectHandle.hh>
 #include <qpdf/Pl_Buffer.hh>
+
+#include <memory>
 
 // Tokenize the incoming text using QPDFTokenizer and pass the tokens
 // in turn to a QPDFObjectHandle::TokenFilter object. All bytes of

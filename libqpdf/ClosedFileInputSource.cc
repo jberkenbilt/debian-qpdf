@@ -1,4 +1,5 @@
 #include <qpdf/ClosedFileInputSource.hh>
+
 #include <qpdf/FileInputSource.hh>
 
 ClosedFileInputSource::Members::Members(char const* filename) :
@@ -24,9 +25,9 @@ ClosedFileInputSource::~ClosedFileInputSource()
 void
 ClosedFileInputSource::before()
 {
-    if (0 == this->m->fis.getPointer())
+    if (0 == this->m->fis.get())
     {
-        this->m->fis = new FileInputSource();
+        this->m->fis = make_pointer_holder<FileInputSource>();
         this->m->fis->setFilename(this->m->filename.c_str());
         this->m->fis->seek(this->m->offset, SEEK_SET);
         this->m->fis->setLastOffset(this->last_offset);
@@ -81,7 +82,7 @@ void
 ClosedFileInputSource::rewind()
 {
     this->m->offset = 0;
-    if (this->m->fis.getPointer())
+    if (this->m->fis.get())
     {
         this->m->fis->rewind();
     }
@@ -109,7 +110,7 @@ void
 ClosedFileInputSource::stayOpen(bool val)
 {
     this->m->stay_open = val;
-    if ((! val) && this->m->fis.getPointer())
+    if ((! val) && this->m->fis.get())
     {
         after();
     }

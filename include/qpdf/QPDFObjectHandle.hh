@@ -1,4 +1,4 @@
-// Copyright (c) 2005-2021 Jay Berkenbilt
+// Copyright (c) 2005-2022 Jay Berkenbilt
 //
 // This file is part of qpdf.
 //
@@ -31,6 +31,7 @@
 #include <set>
 #include <map>
 #include <functional>
+#include <memory>
 
 #include <qpdf/QPDFObjGen.hh>
 #include <qpdf/PointerHolder.hh>
@@ -62,27 +63,27 @@ class QPDFObjectHandle
         QPDF_DLL
         StreamDataProvider(bool supports_retry = false);
 
-	QPDF_DLL
-	virtual ~StreamDataProvider()
-	{
-	}
-	// The implementation of this function must write stream data
-	// to the given pipeline. The stream data must conform to
-	// whatever filters are explicitly associated with the stream.
-	// QPDFWriter may, in some cases, add compression, but if it
-	// does, it will update the filters as needed. Every call to
-	// provideStreamData for a given stream must write the same
-	// data. Note that, when writing linearized files, qpdf will
-	// call your provideStreamData twice, and if it generates
-	// different output, you risk generating invalid output or
-	// having qpdf throw an exception. The object ID and
-	// generation passed to this method are those that belong to
-	// the stream on behalf of which the provider is called. They
-	// may be ignored or used by the implementation for indexing
-	// or other purposes. This information is made available just
-	// to make it more convenient to use a single
-	// StreamDataProvider object to provide data for multiple
-	// streams.
+        QPDF_DLL
+        virtual ~StreamDataProvider()
+        {
+        }
+        // The implementation of this function must write stream data
+        // to the given pipeline. The stream data must conform to
+        // whatever filters are explicitly associated with the stream.
+        // QPDFWriter may, in some cases, add compression, but if it
+        // does, it will update the filters as needed. Every call to
+        // provideStreamData for a given stream must write the same
+        // data. Note that, when writing linearized files, qpdf will
+        // call your provideStreamData twice, and if it generates
+        // different output, you risk generating invalid output or
+        // having qpdf throw an exception. The object ID and
+        // generation passed to this method are those that belong to
+        // the stream on behalf of which the provider is called. They
+        // may be ignored or used by the implementation for indexing
+        // or other purposes. This information is made available just
+        // to make it more convenient to use a single
+        // StreamDataProvider object to provide data for multiple
+        // streams.
 
         // A few things to keep in mind:
         //
@@ -116,14 +117,14 @@ class QPDFObjectHandle
         // version of the method, which should also return a boolean
         // indicating whether it ran without errors.
         QPDF_DLL
-	virtual void provideStreamData(int objid, int generation,
-				       Pipeline* pipeline);
+        virtual void provideStreamData(int objid, int generation,
+                                       Pipeline* pipeline);
         QPDF_DLL
-	virtual bool provideStreamData(
+        virtual bool provideStreamData(
             int objid, int generation, Pipeline* pipeline,
             bool suppress_warnings, bool will_retry);
         QPDF_DLL
-	bool supportsRetry();
+        bool supportsRetry();
 
       private:
         bool supports_retry;
@@ -144,18 +145,26 @@ class QPDFObjectHandle
     // TokenFilters.
     //
     // Please note that when you call token.getValue() on a token of
-    // type tt_string, you get the string value without any
-    // delimiters. token.getRawValue() will return something suitable
-    // for being written to output, or calling writeToken with a
-    // string token will also work. The correct way to construct a
-    // string token that would write the literal value (str) is
-    // QPDFTokenizer::Token(QPDFTokenizer::tt_string, "str"). A
-    // similar situation exists with tt_name. token.getValue() returns
-    // a normalized name with # codes resolved into characters, and
-    // may not be suitable for writing. You can pass it to
-    // QPDF_Name::normalizeName first, or you can use writeToken with
-    // a name token. The correct way to create a name token is
-    // QPDFTokenizer::Token(QPDFTokenizer::tt_name, "/Name").
+    // type tt_string or tt_name, you get the canonical, "parsed"
+    // representation of the token. For a string, this means that
+    // there are no delimiters, and for a name, it means that all
+    // escaping (# followed by two hex digits) has been resolved.
+    // qpdf's internal representation of a name includes the leading
+    // slash. As such, you can't write the value of token.getValue()
+    // directly to output that is supposed to be valid PDF syntax. If
+    // you want to do that, you need to call writeToken() instead, or
+    // you can retrieve the token as it appeared in the input with
+    // token.getRawValue(). To construct a new string or name token
+    // from a canonical representation, use
+    // QPDFTokenizer::Token(QPDFTokenizer::tt_string, "parsed-str") or
+    // QPDFTokenizer::Token(QPDFTokenizer::tt_name,
+    // "/Canonical-Name"). Tokens created this way won't have a
+    // PDF-syntax raw value, but you can still write them with
+    // writeToken(). Example:
+    // writeToken(QPDFTokenizer::Token(QPDFTokenizer::tt_name, "/text/plain"))
+    // would write `/text#2fplain`, and
+    // writeToken(QPDFTokenizer::Token(QPDFTokenizer::tt_string, "a\\(b"))
+    // would write `(a\(b)`.
     class QPDF_DLL_CLASS TokenFilter
     {
       public:
@@ -365,6 +374,22 @@ class QPDFObjectHandle
     QPDF_DLL
     bool isScalar();
 
+    // True if the object is a name object representing the provided name.
+    QPDF_DLL
+    bool isNameAndEquals(std::string const& name);
+
+    // True if the object is a dictionary of the specified type and
+    // subtype, if any.
+    QPDF_DLL
+    bool isDictionaryOfType(std::string const& type,
+                            std::string const& subtype = "");
+
+    // True if the object is a stream of the specified type and
+    // subtype, if any.
+    QPDF_DLL
+    bool isStreamOfType(std::string const& type,
+                        std::string const& subtype = "");
+
     // Public factory methods
 
     // Wrap an object in an array if it is not already an array. This
@@ -379,7 +404,7 @@ class QPDFObjectHandle
     // object syntax (obj gen R) will cause a logic_error exception to
     // be thrown.  If object_description is provided, it will appear
     // in the message of any QPDFExc exception thrown for invalid
-    // syntax.
+    // syntax. See also the global `operator ""_qpdf` defined below.
     QPDF_DLL
     static QPDFObjectHandle parse(std::string const& object_str,
                                   std::string const& object_description = "");
@@ -502,6 +527,22 @@ class QPDFObjectHandle
     QPDF_DLL
     static QPDFObjectHandle newReal(double value, int decimal_places,
                                     bool trim_trailing_zeroes);
+    // Note about name objects: qpdf's internal representation of a
+    // PDF name is a sequence of bytes, excluding the NUL character,
+    // and starting with a slash. Name objects as represented in the
+    // PDF specification can contain characters escaped with #, but
+    // such escaping is not of concern when calling QPDFObjectHandle
+    // methods not directly relating to parsing. For example,
+    // newName("/text/plain").getName() and
+    // parse("/text#2fplain").getName() both return "/text/plain",
+    // while newName("/text/plain").unparse() and
+    // parse("/text#2fplain").unparse() both return "/text#2fplain".
+    // When working with the qpdf API for creating, retrieving, and
+    // modifying objects, you want to work with the internal,
+    // canonical representation. For names containing alphanumeric
+    // characters, dashes, and underscores, there is no difference
+    // between the two representations. For a lengthy discussion, see
+    // https://github.com/qpdf/qpdf/discussions/625.
     QPDF_DLL
     static QPDFObjectHandle newName(std::string const& name);
     QPDF_DLL
@@ -522,7 +563,7 @@ class QPDFObjectHandle
     static QPDFObjectHandle newArray();
     QPDF_DLL
     static QPDFObjectHandle newArray(
-	std::vector<QPDFObjectHandle> const& items);
+        std::vector<QPDFObjectHandle> const& items);
     QPDF_DLL
     static QPDFObjectHandle newArray(Rectangle const&);
     QPDF_DLL
@@ -533,7 +574,7 @@ class QPDFObjectHandle
     static QPDFObjectHandle newDictionary();
     QPDF_DLL
     static QPDFObjectHandle newDictionary(
-	std::map<std::string, QPDFObjectHandle> const& items);
+        std::map<std::string, QPDFObjectHandle> const& items);
 
     // Create an array from a rectangle. Equivalent to the rectangle
     // form of newArray.
@@ -616,13 +657,25 @@ class QPDFObjectHandle
     //
     // In PDF files, objects have specific types, but there is nothing
     // that prevents PDF files from containing objects of types that
-    // aren't expected by the specification. Many of the accessors
-    // here expect objects of a particular type. Prior to qpdf 8,
-    // calling an accessor on a method of the wrong type, such as
-    // trying to get a dictionary key from an array, trying to get the
-    // string value of a number, etc., would throw an exception, but
-    // since qpdf 8, qpdf issues a warning and recovers using the
-    // following behavior:
+    // aren't expected by the specification.
+    //
+    // There are two flavors of accessor methods:
+    //
+    // * getSomethingValue() returns the value and issues a type
+    //   warning if the type is incorrect.
+    //
+    // * getValueAsSomething() returns false if the value is the wrong
+    //   type. Otherwise, it returns true and initializes a reference
+    //   of the appropriate type. These methods never issue type
+    //   warnings.
+    //
+    // The getSomethingValue() accessors and some of the other methods
+    // expect objects of a particular type. Prior to qpdf 8, calling
+    // an accessor on a method of the wrong type, such as trying to
+    // get a dictionary key from an array, trying to get the string
+    // value of a number, etc., would throw an exception, but since
+    // qpdf 8, qpdf issues a warning and recovers using the following
+    // behavior:
     //
     // * Requesting a value of the wrong type (int value from string,
     //   array item from a scalar or dictionary, etc.) will return a
@@ -662,6 +715,8 @@ class QPDFObjectHandle
     // Methods for bool objects
     QPDF_DLL
     bool getBoolValue();
+    QPDF_DLL
+    bool getValueAsBool(bool&);
 
     // Methods for integer objects. Note: if an integer value is too
     // big (too far away from zero in either direction) to fit in the
@@ -672,29 +727,48 @@ class QPDFObjectHandle
     QPDF_DLL
     long long getIntValue();
     QPDF_DLL
+    bool getValueAsInt(long long&);
+    QPDF_DLL
     int getIntValueAsInt();
+    QPDF_DLL
+    bool getValueAsInt(int&);
     QPDF_DLL
     unsigned long long getUIntValue();
     QPDF_DLL
+    bool getValueAsUInt(unsigned long long&);
+    QPDF_DLL
     unsigned int getUIntValueAsUInt();
+    QPDF_DLL
+    bool getValueAsUInt(unsigned int&);
 
     // Methods for real objects
     QPDF_DLL
     std::string getRealValue();
+    QPDF_DLL
+    bool getValueAsReal(std::string&);
 
     // Methods that work for both integer and real objects
     QPDF_DLL
     bool isNumber();
     QPDF_DLL
     double getNumericValue();
+    QPDF_DLL
+    bool getValueAsNumber(double&);
 
-    // Methods for name objects; see also name and array objects
+    // Methods for name objects. The returned name value is in qpdf's
+    // canonical form with all escaping resolved. See comments for
+    // newName() for details.
     QPDF_DLL
     std::string getName();
+    QPDF_DLL
+    bool getValueAsName(std::string&);
 
     // Methods for string objects
     QPDF_DLL
     std::string getStringValue();
+    QPDF_DLL
+    bool getValueAsString(std::string&);
+
     // If a string starts with the UTF-16 marker, it is converted from
     // UTF-16 to UTF-8. Otherwise, it is treated as a string encoded
     // with PDF Doc Encoding. PDF Doc Encoding is identical to
@@ -704,12 +778,18 @@ class QPDFObjectHandle
     // unmapped.
     QPDF_DLL
     std::string getUTF8Value();
+    QPDF_DLL
+    bool getValueAsUTF8(std::string&);
 
     // Methods for content stream objects
     QPDF_DLL
     std::string getOperatorValue();
     QPDF_DLL
+    bool getValueAsOperator(std::string&);
+    QPDF_DLL
     std::string getInlineImageValue();
+    QPDF_DLL
+    bool getValueAsInlineImage(std::string&);
 
     // Methods for array objects; see also name and array objects.
 
@@ -747,7 +827,10 @@ class QPDFObjectHandle
     QPDF_DLL
     Matrix getArrayAsMatrix();
 
-    // Methods for dictionary objects.
+    // Methods for dictionary objects. In all dictionary methods, keys
+    // are specified/represented as canonical name strings starting
+    // with a leading slash and not containing any PDF syntax
+    // escaping. See comments for getName() for details.
 
     // Return an object that enables iteration over members. You can
     // do
@@ -761,16 +844,30 @@ class QPDFObjectHandle
     QPDF_DLL
     QPDFDictItems ditems();
 
+    // Return true if key is present.  Keys with null values are treated as if
+    // they are not present.  This is as per the PDF spec.
     QPDF_DLL
     bool hasKey(std::string const&);
+    // Return the value for the key.  If the key is not present, null is
+    // returned.
     QPDF_DLL
     QPDFObjectHandle getKey(std::string const&);
+    // If the object is null, return null. Otherwise, call getKey().
+    // This makes it easier to access lower-level dictionaries, as in
+    // auto font = page.getKeyIfDict("/Resources").getKeyIfDict("/Font");
+    QPDF_DLL
+    QPDFObjectHandle getKeyIfDict(std::string const&);
+    // Return all keys.  Keys with null values are treated as if
+    // they are not present.  This is as per the PDF spec.
     QPDF_DLL
     std::set<std::string> getKeys();
+    // Return dictionary as a map.  Entries with null values are included.
     QPDF_DLL
     std::map<std::string, QPDFObjectHandle> getDictAsMap();
 
-    // Methods for name and array objects
+    // Methods for name and array objects. The name value is in qpdf's
+    // canonical form with all escaping resolved. See comments for
+    // newName() for details.
     QPDF_DLL
     bool isOrHasName(std::string const&);
 
@@ -870,7 +967,7 @@ class QPDFObjectHandle
     QPDF_DLL
     QPDF* getOwningQPDF();
 
-    // Create a shallow of an object as a direct object, but do not
+    // Create a shallow copy of an object as a direct object, but do not
     // traverse across indirect object boundaries. That means that,
     // for dictionaries and arrays, any keys or items that were
     // indirect objects will still be indirect objects that point to
@@ -1074,7 +1171,7 @@ class QPDFObjectHandle
     // Return value is whether filtering was attempted.
     QPDF_DLL
     bool pipeStreamData(Pipeline*, bool filter,
-			bool normalize, bool compress);
+                        bool normalize, bool compress);
 
     // Replace a stream's dictionary.  The new dictionary must be
     // consistent with the stream's data.  This is most appropriately
@@ -1094,8 +1191,8 @@ class QPDFObjectHandle
     // decryption filters have been applied, is as presented.
     QPDF_DLL
     void replaceStreamData(PointerHolder<Buffer> data,
-			   QPDFObjectHandle const& filter,
-			   QPDFObjectHandle const& decode_parms);
+                           QPDFObjectHandle const& filter,
+                           QPDFObjectHandle const& decode_parms);
 
     // Replace the stream's stream data with the given string.
     // This method will create a copy of the data rather than using
@@ -1103,8 +1200,8 @@ class QPDFObjectHandle
     // of replaceStreamData.
     QPDF_DLL
     void replaceStreamData(std::string const& data,
-			   QPDFObjectHandle const& filter,
-			   QPDFObjectHandle const& decode_parms);
+                           QPDFObjectHandle const& filter,
+                           QPDFObjectHandle const& decode_parms);
 
     // As above, replace this stream's stream data.  Instead of
     // directly providing a buffer with the stream data, call the
@@ -1133,8 +1230,8 @@ class QPDFObjectHandle
     // compute the length in advance.
     QPDF_DLL
     void replaceStreamData(PointerHolder<StreamDataProvider> provider,
-			   QPDFObjectHandle const& filter,
-			   QPDFObjectHandle const& decode_parms);
+                           QPDFObjectHandle const& filter,
+                           QPDFObjectHandle const& decode_parms);
 
     // Starting in qpdf 10.2, you can use C++-11 function objects
     // instead of StreamDataProvider.
@@ -1144,8 +1241,8 @@ class QPDFObjectHandle
     // pass QUtil::file_provider(filename) as provider.
     QPDF_DLL
     void replaceStreamData(std::function<void(Pipeline*)> provider,
-			   QPDFObjectHandle const& filter,
-			   QPDFObjectHandle const& decode_parms);
+                           QPDFObjectHandle const& filter,
+                           QPDFObjectHandle const& decode_parms);
     // The provider should write the stream data to the pipeline,
     // returning true if it succeeded without errors.
     QPDF_DLL
@@ -1183,8 +1280,8 @@ class QPDFObjectHandle
 
     // Return encoded as JSON. For most object types, there is an
     // obvious mapping. The JSON is generated as follows:
-    // * Names are encoded as strings representing the normalized value of
-    //   getName()
+    // * Names are encoded as strings representing the normalized name
+    //   in PDF syntax as returned by unparse()
     // * Indirect references are encoded as strings containing "obj gen R"
     // * Strings are encoded as UTF-8 strings with unrepresentable binary
     //   characters encoded as \uHHHH
@@ -1232,21 +1329,21 @@ class QPDFObjectHandle
     // making it a friend of the whole QPDFObjectHandle class.
     class Factory
     {
-	friend class QPDF;
+        friend class QPDF;
       private:
-	static QPDFObjectHandle newIndirect(QPDF* qpdf,
-					    int objid, int generation)
-	{
-	    return QPDFObjectHandle::newIndirect(qpdf, objid, generation);
-	}
-	// object must be dictionary object
-	static QPDFObjectHandle newStream(
-	    QPDF* qpdf, int objid, int generation,
-	    QPDFObjectHandle stream_dict, qpdf_offset_t offset, size_t length)
-	{
-	    return QPDFObjectHandle::newStream(
-		qpdf, objid, generation, stream_dict, offset, length);
-	}
+        static QPDFObjectHandle newIndirect(QPDF* qpdf,
+                                            int objid, int generation)
+        {
+            return QPDFObjectHandle::newIndirect(qpdf, objid, generation);
+        }
+        // object must be dictionary object
+        static QPDFObjectHandle newStream(
+            QPDF* qpdf, int objid, int generation,
+            QPDFObjectHandle stream_dict, qpdf_offset_t offset, size_t length)
+        {
+            return QPDFObjectHandle::newStream(
+                qpdf, objid, generation, stream_dict, offset, length);
+        }
     };
     friend class Factory;
 
@@ -1254,13 +1351,13 @@ class QPDFObjectHandle
     // call this.
     class ObjAccessor
     {
-	friend class QPDF;
+        friend class QPDF;
       private:
-	static PointerHolder<QPDFObject> getObject(QPDFObjectHandle& o)
-	{
-	    o.dereference();
-	    return o.obj;
-	}
+        static PointerHolder<QPDFObject> getObject(QPDFObjectHandle& o)
+        {
+            o.dereference();
+            return o.obj;
+        }
     };
     friend class ObjAccessor;
 
@@ -1268,14 +1365,14 @@ class QPDFObjectHandle
     // releaseResolved().
     class ReleaseResolver
     {
-	friend class QPDF_Dictionary;
+        friend class QPDF_Dictionary;
         friend class QPDF_Stream;
         friend class SparseOHArray;
       private:
-	static void releaseResolved(QPDFObjectHandle& o)
-	{
-	    o.releaseResolved();
-	}
+        static void releaseResolved(QPDFObjectHandle& o)
+        {
+            o.releaseResolved();
+        }
     };
     friend class ReleaseResolver;
 
@@ -1355,8 +1452,8 @@ class QPDFObjectHandle
     // Private object factory methods
     static QPDFObjectHandle newIndirect(QPDF*, int objid, int generation);
     static QPDFObjectHandle newStream(
-	QPDF* qpdf, int objid, int generation,
-	QPDFObjectHandle stream_dict, qpdf_offset_t offset, size_t length);
+        QPDF* qpdf, int objid, int generation,
+        QPDFObjectHandle stream_dict, qpdf_offset_t offset, size_t length);
 
     void typeWarning(char const* expected_type,
                      std::string const& warning);
@@ -1396,11 +1493,22 @@ class QPDFObjectHandle
     // a substantial performance penalty since QPDFObjectHandle
     // objects are copied around so frequently.
     QPDF* qpdf;
-    int objid;			// 0 for direct object
+    int objid;                  // 0 for direct object
     int generation;
     PointerHolder<QPDFObject> obj;
     bool reserved;
 };
+
+#ifndef QPDF_NO_QPDF_STRING
+// This is short for QPDFObjectHandle::parse, so you can do
+
+// auto oh = "<< /Key (value) >>"_qpdf;
+
+// If this is causing problems in your code, define
+// QPDF_NO_QPDF_STRING to prevent the declaration from being here.
+QPDF_DLL
+QPDFObjectHandle operator ""_qpdf(char const* v, size_t len);
+#endif // QPDF_NO_QPDF_STRING
 
 class QPDFObjectHandle::QPDFDictItems
 {
@@ -1420,12 +1528,17 @@ class QPDFObjectHandle::QPDFDictItems
     QPDF_DLL
     QPDFDictItems(QPDFObjectHandle const& oh);
 
-    class iterator: public std::iterator<
-        std::bidirectional_iterator_tag,
-        std::pair<std::string, QPDFObjectHandle>>
+    class iterator
     {
         friend class QPDFDictItems;
       public:
+        typedef std::pair<std::string, QPDFObjectHandle> T;
+        using iterator_category = std::bidirectional_iterator_tag;
+        using value_type = T;
+        using difference_type = long;
+        using pointer = T*;
+        using reference = T&;
+
         QPDF_DLL
         virtual ~iterator() = default;
         QPDF_DLL
@@ -1510,12 +1623,17 @@ class QPDFObjectHandle::QPDFArrayItems
     QPDF_DLL
     QPDFArrayItems(QPDFObjectHandle const& oh);
 
-    class iterator: public std::iterator<
-        std::bidirectional_iterator_tag,
-        QPDFObjectHandle>
+    class iterator
     {
         friend class QPDFArrayItems;
       public:
+        typedef QPDFObjectHandle T;
+        using iterator_category = std::bidirectional_iterator_tag;
+        using value_type = T;
+        using difference_type = long;
+        using pointer = T*;
+        using reference = T&;
+
         QPDF_DLL
         virtual ~iterator() = default;
         QPDF_DLL

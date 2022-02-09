@@ -1,4 +1,5 @@
 #include <qpdf/QPDFPageDocumentHelper.hh>
+
 #include <qpdf/QPDFAcroFormDocumentHelper.hh>
 #include <qpdf/QUtil.hh>
 #include <qpdf/QTC.hh>
@@ -160,8 +161,7 @@ QPDFPageDocumentHelper::flattenAnnotationsForPage(
                 name, rotate, required_flags, forbidden_flags);
             if (! content.empty())
             {
-                resources.mergeResources(
-                    QPDFObjectHandle::parse("<< /XObject << >> >>"));
+                resources.mergeResources("<< /XObject << >> >>"_qpdf);
                 resources.getKey("/XObject").replaceKey(name, as);
                 ++next_fx;
             }

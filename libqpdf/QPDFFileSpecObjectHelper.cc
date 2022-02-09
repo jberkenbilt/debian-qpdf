@@ -1,4 +1,5 @@
 #include <qpdf/QPDFFileSpecObjectHelper.hh>
+
 #include <qpdf/QTC.hh>
 #include <qpdf/QPDF.hh>
 #include <qpdf/QUtil.hh>
@@ -15,8 +16,7 @@ QPDFFileSpecObjectHelper::QPDFFileSpecObjectHelper(
         oh.warnIfPossible("Embedded file object is not a dictionary");
         return;
     }
-    auto type = oh.getKey("/Type");
-    if (! (type.isName() && (type.getName() == "/Filespec")))
+    if (! oh.isDictionaryOfType("/Filespec"))
     {
         oh.warnIfPossible("Embedded file object's type is not /Filespec");
     }

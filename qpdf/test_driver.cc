@@ -20,6 +20,8 @@
 #include <qpdf/QPDFWriter.hh>
 #include <qpdf/QPDFSystemError.hh>
 #include <qpdf/QIntC.hh>
+#include <qpdf/QPDFJob.hh>
+#include <qpdf/QPDFUsage.hh>
 #include <iostream>
 #include <sstream>
 #include <algorithm>
@@ -43,27 +45,27 @@ class Provider: public QPDFObjectHandle::StreamDataProvider
 {
   public:
     Provider(PointerHolder<Buffer> b) :
-	b(b),
-	bad_length(false)
+        b(b),
+        bad_length(false)
     {
     }
     virtual ~Provider()
     {
     }
     virtual void provideStreamData(int objid, int generation,
-				   Pipeline* p)
+                                   Pipeline* p)
     {
-	p->write(b->getBuffer(), b->getSize());
-	if (this->bad_length)
-	{
-	    unsigned char ch = ' ';
-	    p->write(&ch, 1);
-	}
-	p->finish();
+        p->write(b->getBuffer(), b->getSize());
+        if (this->bad_length)
+        {
+            unsigned char ch = ' ';
+            p->write(&ch, 1);
+        }
+        p->finish();
     }
     void badLength(bool v)
     {
-	this->bad_length = v;
+        this->bad_length = v;
     }
 
   private:
@@ -292,16 +294,16 @@ static void test_0_1(QPDF& pdf, char const* arg2)
         std::cout << "Raw stream data:" << std::endl;
         std::cout.flush();
         QUtil::binary_stdout();
-        PointerHolder<Pl_StdioFile> out = new Pl_StdioFile("raw", stdout);
-        qtest.pipeStreamData(out.getPointer(), 0, qpdf_dl_none);
+        auto out = make_pointer_holder<Pl_StdioFile>("raw", stdout);
+        qtest.pipeStreamData(out.get(), 0, qpdf_dl_none);
 
         std::cout << std::endl << "Uncompressed stream data:" << std::endl;
         if (qtest.pipeStreamData(0, 0, qpdf_dl_all))
         {
             std::cout.flush();
             QUtil::binary_stdout();
-            out = new Pl_StdioFile("filtered", stdout);
-            qtest.pipeStreamData(out.getPointer(), 0, qpdf_dl_all);
+            out = make_pointer_holder<Pl_StdioFile>("filtered", stdout);
+            qtest.pipeStreamData(out.get(), 0, qpdf_dl_all);
             std::cout << std::endl << "End of stream data" << std::endl;
         }
         else
@@ -341,8 +343,8 @@ static void test_2(QPDF& pdf, char const* arg2)
     QPDFObjectHandle page = kids.getArrayItem(1); // second page
     QPDFObjectHandle contents = page.getKey("/Contents");
     QUtil::binary_stdout();
-    PointerHolder<Pl_StdioFile> out = new Pl_StdioFile("filtered", stdout);
-    contents.pipeStreamData(out.getPointer(), 0, qpdf_dl_generalized);
+    auto out = make_pointer_holder<Pl_StdioFile>("filtered", stdout);
+    contents.pipeStreamData(out.get(), 0, qpdf_dl_generalized);
 }
 
 static void test_3(QPDF& pdf, char const* arg2)
@@ -354,9 +356,9 @@ static void test_3(QPDF& pdf, char const* arg2)
         std::cout << "-- stream " << i << " --" << std::endl;
         std::cout.flush();
         QUtil::binary_stdout();
-        PointerHolder<Pl_StdioFile> out =
-            new Pl_StdioFile("tokenized stream", stdout);
-        stream.pipeStreamData(out.getPointer(),
+        auto out = make_pointer_holder<Pl_StdioFile>(
+            "tokenized stream", stdout);
+        stream.pipeStreamData(out.get(),
                               qpdf_ef_normalize, qpdf_dl_generalized);
     }
 }
@@ -536,11 +538,11 @@ static void test_8(QPDF& pdf, char const* arg2)
     p2.write(QUtil::unsigned_char_pointer("new data for stream\n"),
              20); // no null!
     p2.finish();
-    PointerHolder<Buffer> b = p1.getBuffer();
+    auto b = p1.getBufferSharedPointer();
     // This is a bogus way to use StreamDataProvider, but it does
     // adequately test its functionality.
     Provider* provider = new Provider(b);
-    PointerHolder<QPDFObjectHandle::StreamDataProvider> p = provider;
+    auto p = PointerHolder<QPDFObjectHandle::StreamDataProvider>(provider);
     qstream.replaceStreamData(
         p, QPDFObjectHandle::newName("/FlateDecode"),
         QPDFObjectHandle::newNull());
@@ -570,7 +572,7 @@ static void test_9(QPDF& pdf, char const* arg2)
 {
     QPDFObjectHandle root = pdf.getRoot();
     // Explicitly exercise the Buffer version of newStream
-    PointerHolder<Buffer> buf = new Buffer(20);
+    auto buf = make_pointer_holder<Buffer>(20U);
     unsigned char* bp = buf->getBuffer();
     memcpy(bp, "data for new stream\n", 20); // no null!
     QPDFObjectHandle qstream = QPDFObjectHandle::newStream(
@@ -1098,9 +1100,9 @@ static void test_27(QPDF& pdf, char const* arg2)
         pl.write(QUtil::unsigned_char_pointer("new data for stream\n"),
                  20); // no null!
         pl.finish();
-        PointerHolder<Buffer> b = pl.getBuffer();
+        auto b = pl.getBufferSharedPointer();
         Provider* provider = new Provider(b);
-        p1 = provider;
+        p1 = decltype(p1)(provider);
     }
     // Create a stream that uses a provider in empty1 and copy it
     // to empty2. It is copied from empty2 to the final pdf.
@@ -1127,9 +1129,9 @@ static void test_27(QPDF& pdf, char const* arg2)
                          "more data for stream\n"),
                      21); // no null!
             pl.finish();
-            PointerHolder<Buffer> b = pl.getBuffer();
+            auto b = pl.getBufferSharedPointer();
             Provider* provider = new Provider(b);
-            p2 = provider;
+            p2 = decltype(p2)(provider);
         }
         QPDF empty3;
         empty3.emptyPDF();
@@ -1253,10 +1255,8 @@ static void test_31(QPDF& pdf, char const* arg2)
 {
     // Test object parsing from a string.  The input file is not used.
 
-    QPDFObjectHandle o1 =
-        QPDFObjectHandle::parse(
-            "[/name 16059 3.14159 false\n"
-            " << /key true /other [ (string1) (string2) ] >> null]");
+    auto o1 = "[/name 16059 3.14159 false\n"
+        " << /key true /other [ (string1) (string2) ] >> null]"_qpdf;
     std::cout << o1.unparse() << std::endl;
     QPDFObjectHandle o2 = QPDFObjectHandle::parse("   12345 \f  ");
     assert(o2.isInteger() && (o2.getIntValue() == 12345));
@@ -1315,7 +1315,7 @@ static void test_33(QPDF& pdf, char const* arg2)
     w.setStaticID(true);
     w.setOutputPipeline(&p);
     w.write();
-    PointerHolder<Buffer> b = p.getBuffer();
+    auto b = p.getBufferSharedPointer();
     FILE* f = QUtil::safe_fopen("a.pdf", "wb");
     fwrite(b->getBuffer(), b->getSize(), 1, f);
     fclose(f);
@@ -1327,6 +1327,12 @@ static void test_34(QPDF& pdf, char const* arg2)
     std::cout << "version: " << pdf.getPDFVersion() << std::endl
               << "extension level: " << pdf.getExtensionLevel() << std::endl
               << pdf.getRoot().getKey("/Extensions").unparse() << std::endl;
+    auto v = pdf.getVersionAsPDFVersion();
+    std::string v_string;
+    int extension_level;
+    v.getVersion(v_string, extension_level);
+    std::cout << "As PDFVersion: " << v_string << "/" << extension_level
+              << std::endl;
 }
 
 static void test_35(QPDF& pdf, char const* arg2)
@@ -1414,7 +1420,7 @@ static void test_36(QPDF& pdf, char const* arg2)
             Pl_Buffer p1("buffer");
             Pl_Flate p2("compress", &p1, Pl_Flate::a_inflate);
             stream.pipeStreamData(&p2, 0, qpdf_dl_none);
-            PointerHolder<Buffer> buf = p1.getBuffer();
+            auto buf = p1.getBufferSharedPointer();
             std::string data = std::string(
                 reinterpret_cast<char const*>(buf->getBuffer()),
                 buf->getSize());
@@ -1497,7 +1503,8 @@ static void test_41(QPDF& pdf, char const* arg2)
              pages.begin();
          iter != pages.end(); ++iter)
     {
-        (*iter).addContentTokenFilter(new TokenFilter);
+        (*iter).addContentTokenFilter(
+            PointerHolder<QPDFObjectHandle::TokenFilter>(new TokenFilter()));
     }
     QPDFWriter w(pdf, "a.pdf");
     w.setQDFMode(true);
@@ -1568,6 +1575,8 @@ static void test_42(QPDF& pdf, char const* arg2)
     integer.replaceOrRemoveKey("/Potato", null);
     integer.replaceOrRemoveKey("/Potato", QPDFObjectHandle::newInteger(1));
     integer.replaceKey("/Potato", QPDFObjectHandle::newInteger(1));
+    null.getKeyIfDict("/Integer").getKeyIfDict("/Potato").assertNull();
+    qtest.getKey("/Integer").getKeyIfDict("/Potato");
     qtest.getKey("/Integer").getKey("/Potato");
     assert(integer.getInlineImageValue().empty());
     assert(0 == dictionary.getIntValue());
@@ -1582,6 +1591,7 @@ static void test_42(QPDF& pdf, char const* arg2)
     assert(array.getArrayItem(0).getStringValue().empty());
     std::cerr << "One error\n";
     assert(dictionary.getKey("/Quack").getStringValue().empty());
+    assert(dictionary.getKeyIfDict("/Quack").getStringValue().empty());
     assert(array.getArrayItem(1).isDictionary());
     assert(array.getArrayItem(1).getKey("/K").isArray());
     assert(array.getArrayItem(1).getKey("/K").getArrayItem(0).isName());
@@ -2724,11 +2734,15 @@ static void test_72(QPDF& pdf, char const* arg2)
         Pl_Buffer b("buffer");
         if (i == 0)
         {
-            fx1.addContentTokenFilter(new TokenFilter);
+            fx1.addContentTokenFilter(
+                PointerHolder<QPDFObjectHandle::TokenFilter>(
+                    new TokenFilter()));
         }
         else
         {
-            fx1.getObjectHandle().addTokenFilter(new TokenFilter);
+            fx1.getObjectHandle().addTokenFilter(
+                PointerHolder<QPDFObjectHandle::TokenFilter>(
+                    new TokenFilter()));
         }
         fx1.pipeContents(&b);
         std::unique_ptr<Buffer> buf(b.getBuffer());
@@ -2887,7 +2901,7 @@ static void test_76(QPDF& pdf, char const* arg2)
     p.write(QUtil::unsigned_char_pointer("from buffer"), 11);
     p.finish();
     auto efs3 = QPDFEFStreamObjectHelper::createEFStream(
-        pdf, p.getBuffer());
+        pdf, p.getBufferSharedPointer());
     efs3.setSubtype("text/plain");
     efdh.replaceEmbeddedFile(
         "att2", QPDFFileSpecObjectHelper::createFileSpec(
@@ -3004,7 +3018,7 @@ static void test_79(QPDF& pdf, char const* arg2)
     Pl_Buffer b("buffer");
     b.write(QUtil::unsigned_char_pointer("from buffer"), 11);
     b.finish();
-    PointerHolder<Buffer> bp = b.getBuffer();
+    auto bp = b.getBufferSharedPointer();
     auto s3 = QPDFObjectHandle::newStream(&pdf, bp);
 
     std::vector<QPDFObjectHandle> streams = {s1, s2, s3};
@@ -3097,6 +3111,220 @@ static void test_81(QPDF& pdf, char const* arg2)
     }
 }
 
+static void test_82(QPDF& pdf, char const* arg2)
+{
+    // Exercise compound test methods QPDFObjectHandle::isNameAndEquals,
+    // isDictionaryOfType and isStreamOfType
+    auto name = QPDFObjectHandle::newName("/Marvin");
+    auto str = QPDFObjectHandle::newString("/Marvin");
+    assert(name.isNameAndEquals("/Marvin"));
+    assert(! name.isNameAndEquals("Marvin"));
+    assert(! str.isNameAndEquals("/Marvin"));
+    auto dict = QPDFObjectHandle::parse("<</A 1 /Type /Test /Subtype /Marvin>>");
+    assert(dict.isDictionaryOfType( "/Test", ""));
+    assert(dict.isDictionaryOfType("/Test"));
+    assert(dict.isDictionaryOfType("/Test", "/Marvin"));
+    assert(dict.isDictionaryOfType("", "/Marvin"));
+    assert(dict.isDictionaryOfType("", ""));
+    assert(! dict.isDictionaryOfType("/Test2", ""));
+    assert(! dict.isDictionaryOfType("/Test2", "/Marvin"));
+    assert(! dict.isDictionaryOfType("/Test", "/M"));
+    assert(! name.isDictionaryOfType("", ""));
+    dict = QPDFObjectHandle::parse("<</A 1 /Type null /Subtype /Marvin>>");
+    assert(! dict.isDictionaryOfType("/Test"));
+    dict = QPDFObjectHandle::parse("<</A 1 /Type (Test) /Subtype /Marvin>>");
+    assert(! dict.isDictionaryOfType("Test"));
+    dict = QPDFObjectHandle::parse("<</A 1 /Type /Test /Subtype (Marvin)>>");
+    assert(! dict.isDictionaryOfType("Test"));
+    dict = QPDFObjectHandle::parse("<</A 1 /Subtype /Marvin>>");
+    assert(! dict.isDictionaryOfType("/Test", "Marvin"));
+    auto stream = pdf.getObjectByID(1,0);
+    assert(stream.isStreamOfType("/ObjStm"));
+    assert(! stream.isStreamOfType("/Test"));
+    assert(! pdf.getObjectByID(2,0).isStreamOfType("/Pages"));
+    /* cSpell: ignore Blaah Blaaah Blaaaah */
+    auto array = QPDFObjectHandle::parse("[/Blah /Blaah /Blaaah]");
+    assert(array.isOrHasName("/Blah"));
+    assert(array.isOrHasName("/Blaaah"));
+    assert(! array.isOrHasName("/Blaaaah"));
+    assert(array.getArrayItem(0).isOrHasName("/Blah"));
+    assert(! array.getArrayItem(1).isOrHasName("/Blah"));
+    array = QPDFObjectHandle::parse("[]");
+    assert(! array.isOrHasName("/Blah"));
+    assert(! str.isOrHasName("/Marvin"));
+}
+
+static void test_83(QPDF& pdf, char const* arg2)
+{
+    // Test QPDFJob json with partial = false. For testing with
+    // partial = true, we just use qpdf --job-json-file.
+
+    QPDFJob j;
+    PointerHolder<char> file_buf;
+    size_t size;
+    QUtil::read_file_into_memory(arg2, file_buf, size);
+    try
+    {
+        std::cout << "calling initializeFromJson" << std::endl;
+        j.initializeFromJson(std::string(file_buf.get(), size));
+        std::cout << "called initializeFromJson" << std::endl;
+    }
+    catch (QPDFUsage& e)
+    {
+        std::cerr << "usage: " << e.what() << std::endl;
+    }
+    catch (std::exception& e)
+    {
+        std::cerr << "exception: " << e.what() << std::endl;
+    }
+}
+
+static void test_84(QPDF& pdf, char const* arg2)
+{
+    // Test QPDFJob API
+
+    std::cout << "normal" << std::endl;
+    {
+        QPDFJob j;
+        j.config()
+            ->inputFile("minimal.pdf")
+            ->outputFile("a.pdf")
+            ->qdf()
+            ->deterministicId()
+            ->objectStreams("preserve")
+            ->checkConfiguration();
+        j.run();
+        assert(j.getExitCode() == 0);
+        assert(! j.hasWarnings());
+        assert(j.getEncryptionStatus() == 0);
+    }
+
+    std::cout << "error caught by check" << std::endl;
+    try
+    {
+        QPDFJob j;
+        j.config()
+            ->outputFile("a.pdf")
+            ->qdf();
+        std::cout << "finished config" << std::endl;
+        j.checkConfiguration();
+        assert(false);
+    }
+    catch (QPDFUsage& e)
+    {
+        std::cout << "usage: " << e.what() << std::endl;
+    }
+
+    std::cout << "error caught by run" << std::endl;
+    try
+    {
+        QPDFJob j;
+        j.config()
+            ->outputFile("a.pdf")
+            ->qdf();
+        std::cout << "finished config" << std::endl;
+        j.run();
+        assert(false);
+    }
+    catch (QPDFUsage& e)
+    {
+        std::cout << "usage: " << e.what() << std::endl;
+    }
+}
+
+static void test_85(QPDF& pdf, char const* arg2)
+{
+    // Test QPDFObjectHandle::getValueAs... accessors
+
+    auto oh_b = QPDFObjectHandle::newBool(false);
+    auto oh_i = QPDFObjectHandle::newInteger(1);
+    auto oh_i_maxplus =
+        QPDFObjectHandle::newInteger(QIntC::to_longlong(INT_MAX) + 1LL);
+    auto oh_i_umaxplus =
+        QPDFObjectHandle::newInteger(QIntC::to_longlong(UINT_MAX) + 1LL);
+    auto oh_i_minminus =
+        QPDFObjectHandle::newInteger(QIntC::to_longlong(INT_MIN) - 1LL);
+    auto oh_i_neg = QPDFObjectHandle::newInteger(-1);
+    auto oh_r = QPDFObjectHandle::newReal("42.0");
+    auto oh_n = QPDFObjectHandle::newName("/Test");
+    auto oh_s = QPDFObjectHandle::newString("/Test");
+    auto oh_o = QPDFObjectHandle::newOperator("/Test");
+    auto oh_ii = QPDFObjectHandle::newInlineImage("/Test");
+
+    bool b = true;
+    assert(oh_b.getValueAsBool(b));
+    assert(! b);
+    assert(! oh_i.getValueAsBool(b));
+    assert(! b);
+    long long li = 0LL;
+    assert(oh_i.getValueAsInt(li));
+    assert(li == 1LL);
+    assert(! oh_b.getValueAsInt(li));
+    assert(li == 1LL);
+    int i = 0;
+    assert(oh_i.getValueAsInt(i));
+    assert(i == 1);
+    assert(! oh_b.getValueAsInt(i));
+    assert(i == 1);
+    assert(oh_i_maxplus.getValueAsInt(i));
+    assert(i == INT_MAX);
+    assert(oh_i_minminus.getValueAsInt(i));
+    assert(i == INT_MIN);
+    unsigned long long uli = 0U;
+    assert(oh_i.getValueAsUInt(uli));
+    assert(uli == 1u);
+    assert(! oh_b.getValueAsUInt(uli));
+    assert(uli == 1u);
+    assert(oh_i_neg.getValueAsUInt(uli));
+    assert(uli == 0u);
+    unsigned int ui = 0U;
+    assert(oh_i.getValueAsUInt(ui));
+    assert(ui == 1u);
+    assert(! oh_b.getValueAsUInt(ui));
+    assert(ui == 1u);
+    assert(oh_i_neg.getValueAsUInt(ui));
+    assert(ui == 0u);
+    assert(oh_i_umaxplus.getValueAsUInt(ui));
+    assert(ui == UINT_MAX);
+    std::string s = "0";
+    assert(oh_r.getValueAsReal(s));
+    assert(s == "42.0");
+    assert(! oh_i.getValueAsReal(s));
+    assert(s == "42.0");
+    double num = 0.0;
+    assert(oh_i.getValueAsNumber(num));
+    assert(abs(num - 1.0) < 1e-100);
+    assert(oh_r.getValueAsNumber(num));
+    assert(abs(num - 42.0) < 1e-100);
+    assert(! oh_b.getValueAsNumber(num));
+    assert(abs(num - 42.0) < 1e-100);
+    s = "";
+    assert(oh_n.getValueAsName(s));
+    assert(s == "/Test") ;
+    assert(! oh_r.getValueAsName(s));
+    assert(s == "/Test");
+    s = "";
+    assert(oh_s.getValueAsUTF8(s));
+    assert(s == "/Test");
+    assert(! oh_r.getValueAsUTF8(s));
+    assert(s == "/Test");
+    s = "";
+    assert(oh_s.getValueAsUTF8(s));
+    assert(s == "/Test");
+    assert(! oh_r.getValueAsUTF8(s));
+    assert(s == "/Test");
+    s = "";
+    assert(oh_o.getValueAsOperator(s));
+    assert(s == "/Test");
+    assert(! oh_r.getValueAsOperator(s));
+    assert(s == "/Test");
+    s = "";
+    assert(oh_ii.getValueAsInlineImage(s));
+    assert(s == "/Test");
+    assert(! oh_r.getValueAsInlineImage(s));
+    assert(s == "/Test");
+}
+
 void runtest(int n, char const* filename1, char const* arg2)
 {
     // Most tests here are crafted to work on specific files.  Look at
@@ -3129,12 +3357,12 @@ void runtest(int n, char const* filename1, char const* arg2)
     FILE* filep = 0;
     if (n == 0)
     {
-	pdf.setAttemptRecovery(false);
+        pdf.setAttemptRecovery(false);
     }
     if (((n == 35) || (n == 36)) && (arg2 != 0))
     {
         // arg2 is password
-	pdf.processFile(filename1, arg2);
+        pdf.processFile(filename1, arg2);
     }
     else if (n == 45)
     {
@@ -3155,15 +3383,15 @@ void runtest(int n, char const* filename1, char const* arg2)
         std::string filename(std::string(filename1) + ".obfuscated");
         size_t size = 0;
         QUtil::read_file_into_memory(filename.c_str(), file_buf, size);
-        char* p = file_buf.getPointer();
+        char* p = file_buf.get();
         for (size_t i = 0; i < size; ++i)
         {
             p[i] = static_cast<char>(p[i] ^ 0xcc);
         }
-	pdf.processMemoryFile((std::string(filename1) + ".pdf").c_str(),
+        pdf.processMemoryFile((std::string(filename1) + ".pdf").c_str(),
                               p, size);
     }
-    else if ((n == 61) || (n == 81))
+    else if ((n == 61) || (n == 81) || (n == 83) || (n == 84) || (n == 85))
     {
         // Ignore filename argument entirely
     }
@@ -3171,12 +3399,12 @@ void runtest(int n, char const* filename1, char const* arg2)
     {
         if (n % 4 == 0)
         {
-	    QTC::TC("qpdf", "exercise processFile(name)");
+            QTC::TC("qpdf", "exercise processFile(name)");
             pdf.processFile(filename1);
         }
         else
         {
-	    QTC::TC("qpdf", "exercise processFile(FILE*)");
+            QTC::TC("qpdf", "exercise processFile(FILE*)");
             filep = QUtil::safe_fopen(filename1, "rb");
             pdf.processFile(filename1, filep, false);
         }
@@ -3186,7 +3414,7 @@ void runtest(int n, char const* filename1, char const* arg2)
         QTC::TC("qpdf", "exercise processMemoryFile");
         size_t size = 0;
         QUtil::read_file_into_memory(filename1, file_buf, size);
-	pdf.processMemoryFile(filename1, file_buf.getPointer(), size);
+        pdf.processMemoryFile(filename1, file_buf.get(), size);
     }
 
     std::map<int, void (*)(QPDF&, char const*)> test_functions = {
@@ -3210,14 +3438,15 @@ void runtest(int n, char const* filename1, char const* arg2)
         {68, test_68}, {69, test_69}, {70, test_70}, {71, test_71},
         {72, test_72}, {73, test_73}, {74, test_74}, {75, test_75},
         {76, test_76}, {77, test_77}, {78, test_78}, {79, test_79},
-        {80, test_80}, {81, test_81},
+        {80, test_80}, {81, test_81}, {82, test_82}, {83, test_83},
+        {84, test_84}, {85, test_85},
     };
 
     auto fn = test_functions.find(n);
     if (fn == test_functions.end())
     {
-	throw std::runtime_error(std::string("invalid test ") +
-				 QUtil::int_to_string(n));
+        throw std::runtime_error(std::string("invalid test ") +
+                                 QUtil::int_to_string(n));
     }
     (fn->second)(pdf, arg2);
 
@@ -3233,34 +3462,34 @@ int main(int argc, char* argv[])
     QUtil::setLineBuf(stdout);
     if ((whoami = strrchr(argv[0], '/')) == NULL)
     {
-	whoami = argv[0];
+        whoami = argv[0];
     }
     else
     {
-	++whoami;
+        ++whoami;
     }
     // For libtool's sake....
     if (strncmp(whoami, "lt-", 3) == 0)
     {
-	whoami += 3;
+        whoami += 3;
     }
 
     if ((argc < 3) || (argc > 4))
     {
-	usage();
+        usage();
     }
 
     try
     {
-	int n = QUtil::string_to_int(argv[1]);
-	char const* filename1 = argv[2];
+        int n = QUtil::string_to_int(argv[1]);
+        char const* filename1 = argv[2];
         char const* arg2 = argv[3];
-	runtest(n, filename1, arg2);
+        runtest(n, filename1, arg2);
     }
     catch (std::exception& e)
     {
-	std::cerr << e.what() << std::endl;
-	exit(2);
+        std::cerr << e.what() << std::endl;
+        exit(2);
     }
 
     return 0;

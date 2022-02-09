@@ -22,6 +22,8 @@
 one
 7
 compare okay
+compare okay
+compare okay
 -2147483648 to int: PASSED
 2147483647 to int: PASSED
 2147483648 to int threw (integer out of range converting 2147483648 from a 8-byte signed type to a 4-byte signed type): PASSED
@@ -69,6 +71,7 @@ HAGOOGAMAGOOGLE: 0
 <c0>Does * have fingers?
 ---- transcoding
 bidirectional pdf doc done
+bidirectional pdf doc low done
 bidirectional win ansi done
 bidirectional mac roman done
 analysis done
@@ -85,6 +88,8 @@ alternatives
 2: 83a9e99e
 0: 717561636b
 done alternatives
+w˘wˇwˆw˙w˝w˛w˚w˜w�w�w
+done other characters
 ---- whoami
 quack1
 quack2

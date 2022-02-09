@@ -1,4 +1,4 @@
-// Copyright (c) 2005-2021 Jay Berkenbilt
+// Copyright (c) 2005-2022 Jay Berkenbilt
 //
 // This file is part of qpdf.
 //
@@ -30,6 +30,7 @@
 #include <vector>
 #include <stdexcept>
 #include <functional>
+#include <memory>
 #include <stdio.h>
 #include <time.h>
 
@@ -111,6 +112,10 @@ namespace QUtil
     QPDF_DLL
     FILE* fopen_wrapper(std::string const&, FILE*);
 
+    // Attempt to open the file read only and then close again
+    QPDF_DLL
+    bool file_can_be_opened(char const* filename);
+
     // Wrap around off_t versions of fseek and ftell if available
     QPDF_DLL
     int seek(FILE* stream, qpdf_offset_t offset, int whence);
@@ -147,8 +152,27 @@ namespace QUtil
     QPDF_DLL
     std::string path_basename(std::string const& filename);
 
+    // Returns a dynamically allocated copy of a string that the
+    // caller has to delete with delete[].
     QPDF_DLL
     char* copy_string(std::string const&);
+
+    // Returns a shared_ptr<char> with the correct deleter.
+    QPDF_DLL
+    std::shared_ptr<char> make_shared_cstr(std::string const&);
+
+    // Copy string as a unique_ptr to an array.
+    QPDF_DLL
+    std::unique_ptr<char[]> make_unique_cstr(std::string const&);
+
+    // Create a shared pointer to an array. From c++20,
+    // std::make_shared<T[]>(n) does this.
+    template <typename T>
+    std::shared_ptr<T>
+    make_shared_array(size_t n)
+    {
+        return std::shared_ptr<T>(new T[n], std::default_delete<T[]>());
+    }
 
     // Returns lower-case hex-encoded version of the string, treating
     // each character in the input string as unsigned.  The output
@@ -424,8 +448,13 @@ namespace QUtil
     // invoked, convert all UTF-16 encoded strings to UTF-8, and call
     // another main.
     QPDF_DLL
-    int call_main_from_wmain(int argc, wchar_t* argv[],
-                             std::function<int(int, char*[])> realmain);
+    int call_main_from_wmain(
+        int argc, wchar_t* argv[],
+        std::function<int(int, char*[])> realmain);
+    QPDF_DLL
+    int call_main_from_wmain(
+        int argc, wchar_t const* const argv[],
+        std::function<int(int, char const* const[])> realmain);
 #endif // QPDF_NO_WCHAR_T
 };
 

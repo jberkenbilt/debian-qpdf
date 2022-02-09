@@ -17,10 +17,10 @@ static char const* whoami = 0;
 void usage()
 {
     std::cerr << "Usage: " << whoami << " infile pagefile outfile"
-	      << std::endl
-	      << "Stamp page 1 of pagefile on every page of infile,"
+              << std::endl
+              << "Stamp page 1 of pagefile on every page of infile,"
               << " writing to outfile"
-	      << std::endl;
+              << std::endl;
     exit(2);
 }
 
@@ -65,8 +65,7 @@ static void stamp_page(char const* infile,
             // Append the content to the page's content. Surround the
             // original content with q...Q to the new content from the
             // page's original content.
-            resources.mergeResources(
-                QPDFObjectHandle::parse("<< /XObject << >> >>"));
+            resources.mergeResources("<< /XObject << >> >>"_qpdf);
             resources.getKey("/XObject").replaceKey(name, stamp_fo);
             ph.addPageContents(
                 QPDFObjectHandle::newStream(&inpdf, "q\n"), true);
@@ -92,7 +91,7 @@ int main(int argc, char* argv[])
     // For libtool's sake....
     if (strncmp(whoami, "lt-", 3) == 0)
     {
-	whoami += 3;
+        whoami += 3;
     }
 
     if (argc != 4)
@@ -109,8 +108,8 @@ int main(int argc, char* argv[])
     }
     catch (std::exception &e)
     {
-	std::cerr << whoami << ": " << e.what() << std::endl;
-	exit(2);
+        std::cerr << whoami << ": " << e.what() << std::endl;
+        exit(2);
     }
     return 0;
 }

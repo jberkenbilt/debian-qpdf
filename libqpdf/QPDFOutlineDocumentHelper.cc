@@ -1,4 +1,5 @@
 #include <qpdf/QPDFOutlineDocumentHelper.hh>
+
 #include <qpdf/QTC.hh>
 
 QPDFOutlineDocumentHelper::Members::~Members()
@@ -104,7 +105,7 @@ QPDFOutlineDocumentHelper::resolveNamedDest(QPDFObjectHandle name)
     }
     else if (name.isString())
     {
-        if (0 == this->m->names_dest.getPointer())
+        if (0 == this->m->names_dest.get())
         {
             QPDFObjectHandle names = this->qpdf.getRoot().getKey("/Names");
             if (names.isDictionary())
@@ -113,11 +114,12 @@ QPDFOutlineDocumentHelper::resolveNamedDest(QPDFObjectHandle name)
                 if (dests.isDictionary())
                 {
                     this->m->names_dest =
-                        new QPDFNameTreeObjectHelper(dests, this->qpdf);
+                        make_pointer_holder<QPDFNameTreeObjectHelper>(
+                            dests, this->qpdf);
                 }
             }
         }
-        if (this->m->names_dest.getPointer())
+        if (this->m->names_dest.get())
         {
             if (this->m->names_dest->findObject(name.getUTF8Value(), result))
             {

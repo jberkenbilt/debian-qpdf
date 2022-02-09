@@ -1,4 +1,4 @@
-// Copyright (c) 2005-2021 Jay Berkenbilt
+// Copyright (c) 2005-2022 Jay Berkenbilt
 //
 // This file is part of qpdf.
 //
@@ -24,7 +24,9 @@
 
 #include <qpdf/DLL.h>
 #include <qpdf/PointerHolder.hh>
+
 #include <stddef.h>
+#include <memory>
 
 class Buffer
 {

@@ -1,4 +1,5 @@
 #include <qpdf/QPDFFormFieldObjectHelper.hh>
+
 #include <qpdf/QTC.hh>
 #include <qpdf/QPDFAcroFormDocumentHelper.hh>
 #include <qpdf/QPDFAnnotationObjectHelper.hh>
@@ -980,8 +981,7 @@ QPDFFormFieldObjectHelper::generateTextAppearance(
                 AS.getDict().replaceKey("/Resources", resources);
             }
             // Use mergeResources to force /Font to be local
-            resources.mergeResources(
-                QPDFObjectHandle::parse("<< /Font << >> >>"));
+            resources.mergeResources("<< /Font << >> >>"_qpdf);
             resources.getKey("/Font").replaceKey(font_name, font);
         }
 
@@ -1008,5 +1008,7 @@ QPDFFormFieldObjectHelper::generateTextAppearance(
         opt.at(i) = (*encoder)(opt.at(i), '?');
     }
 
-    AS.addTokenFilter(new ValueSetter(DA, V, opt, tf, bbox));
+    AS.addTokenFilter(
+        PointerHolder<QPDFObjectHandle::TokenFilter>(
+            new ValueSetter(DA, V, opt, tf, bbox)));
 }

@@ -36,16 +36,16 @@ static void process(char const* infilename, char const* password,
     QPDF q;
     q.processFile(infilename, password);
 
-    // Create an indirect object for the built-in Helvetica font.
+    // Create an indirect object for the built-in Helvetica font. This
+    // uses the qpdf literal syntax introduced in qpdf 10.6.
     auto f1 = q.makeIndirectObject(
-        QPDFObjectHandle::parse(
-            "<<"
-            "  /Type /Font"
-            "  /Subtype /Type1"
-            "  /Name /F1"
-            "  /BaseFont /Helvetica"
-            "  /Encoding /WinAnsiEncoding"
-            ">>"));
+        "<<"
+        "  /Type /Font"
+        "  /Subtype /Type1"
+        "  /Name /F1"
+        "  /BaseFont /Helvetica"
+        "  /Encoding /WinAnsiEncoding"
+        ">>"_qpdf);
 
     // Create a resources dictionary with fonts. This uses the new
     // parse introduced in qpdf 10.2 that takes a QPDF* and allows
@@ -93,7 +93,7 @@ static void process(char const* infilename, char const* password,
     apdict.replaceKey("/Resources", QPDFObjectHandle::newDictionary());
     apdict.replaceKey("/Type", QPDFObjectHandle::newName("/XObject"));
     apdict.replaceKey("/Subtype", QPDFObjectHandle::newName("/Form"));
-    apdict.replaceKey("/BBox", QPDFObjectHandle::parse("[ 0 0 20 20 ]"));
+    apdict.replaceKey("/BBox", "[ 0 0 20 20 ]"_qpdf);
     auto annot = q.makeIndirectObject(
         QPDFObjectHandle::parse(
             &q,
@@ -150,7 +150,7 @@ int main(int argc, char* argv[])
     // For libtool's sake....
     if (strncmp(whoami, "lt-", 3) == 0)
     {
-	whoami += 3;
+        whoami += 3;
     }
 
     char const* infilename = 0;
@@ -216,9 +216,9 @@ int main(int argc, char* argv[])
     }
     catch (std::exception &e)
     {
-	std::cerr << whoami << " exception: "
-		  << e.what() << std::endl;
-	exit(2);
+        std::cerr << whoami << " exception: "
+                  << e.what() << std::endl;
+        exit(2);
     }
 
     return 0;
