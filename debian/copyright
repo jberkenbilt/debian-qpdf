@@ -68,7 +68,7 @@ documentation and/or software.
 QPDF embeds a copy of qtest (http://qtest.qbilt.org), which has the
 same author as qpdf. qtest has the following copyright:
 
-Copyright 1993-2021, Jay Berkenbilt
+Copyright 1993-2022, Jay Berkenbilt
 
 QTest is distributed under the terms of version 2.0 of the Artistic
 license, which may be found at
@@ -79,7 +79,7 @@ below.
 
 For everything else, the following copyright applies:
 
-Copyright (C) 2005-2021 Jay Berkenbilt
+Copyright (C) 2005-2022 Jay Berkenbilt
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
