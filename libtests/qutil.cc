@@ -115,11 +115,11 @@ void string_conversion_test()
     // a non-C locale.
     set_locale();
     std::cout << QUtil::int_to_string(16059) << std::endl
-	      << QUtil::int_to_string(16059, 7) << std::endl
-	      << QUtil::int_to_string(16059, -7) << std::endl
-	      << QUtil::double_to_string(3.14159, 0, false) << std::endl
-	      << QUtil::double_to_string(3.14159, 3) << std::endl
-	      << QUtil::double_to_string(1000.123, -1024, false) << std::endl
+              << QUtil::int_to_string(16059, 7) << std::endl
+              << QUtil::int_to_string(16059, -7) << std::endl
+              << QUtil::double_to_string(3.14159, 0, false) << std::endl
+              << QUtil::double_to_string(3.14159, 3) << std::endl
+              << QUtil::double_to_string(1000.123, -1024, false) << std::endl
               << QUtil::double_to_string(.1234, 5, false) << std::endl
               << QUtil::double_to_string(.0001234, 5) << std::endl
               << QUtil::double_to_string(.123456, 5) << std::endl
@@ -143,13 +143,32 @@ void string_conversion_test()
     char* tmp = QUtil::copy_string(embedded_null);
     if (memcmp(tmp, embedded_null.c_str(), 7) == 0)
     {
-	std::cout << "compare okay" << std::endl;
+        std::cout << "compare okay" << std::endl;
     }
     else
     {
-	std::cout << "compare failed" << std::endl;
+        std::cout << "compare failed" << std::endl;
     }
     delete [] tmp;
+    // Also test with make_shared_cstr and make_unique_cstr
+    auto tmp2 = QUtil::make_shared_cstr(embedded_null);
+    if (memcmp(tmp2.get(), embedded_null.c_str(), 7) == 0)
+    {
+        std::cout << "compare okay" << std::endl;
+    }
+    else
+    {
+        std::cout << "compare failed" << std::endl;
+    }
+    auto tmp3 = QUtil::make_unique_cstr(embedded_null);
+    if (memcmp(tmp3.get(), embedded_null.c_str(), 7) == 0)
+    {
+        std::cout << "compare okay" << std::endl;
+    }
+    else
+    {
+        std::cout << "compare failed" << std::endl;
+    }
 
     std::string int_max_str = QUtil::int_to_string(INT_MAX);
     std::string int_min_str = QUtil::int_to_string(INT_MIN);
@@ -178,14 +197,14 @@ void os_wrapper_test()
 {
     try
     {
-	std::cout << "before remove" << std::endl;
-	QUtil::os_wrapper("remove file",
+        std::cout << "before remove" << std::endl;
+        QUtil::os_wrapper("remove file",
                           remove("/this/file/does/not/exist"));
-	std::cout << "after remove" << std::endl;
+        std::cout << "after remove" << std::endl;
     }
     catch (std::runtime_error& s)
     {
-	std::cout << "exception: " << s.what() << std::endl;
+        std::cout << "exception: " << s.what() << std::endl;
     }
 }
 
@@ -193,26 +212,29 @@ void fopen_wrapper_test()
 {
     try
     {
-	std::cout << "before fopen" << std::endl;
-	FILE* f = QUtil::safe_fopen("/this/file/does/not/exist", "r");
-	std::cout << "after fopen" << std::endl;
-	(void) fclose(f);
+        std::cout << "before fopen" << std::endl;
+        FILE* f = QUtil::safe_fopen("/this/file/does/not/exist", "r");
+        std::cout << "after fopen" << std::endl;
+        (void) fclose(f);
     }
     catch (QPDFSystemError& s)
     {
-	std::cout << "exception: " << s.what() << std::endl;
+        std::cout << "exception: " << s.what() << std::endl;
         assert(s.getErrno() != 0);
     }
+
+    assert(QUtil::file_can_be_opened("qutil.out"));
+    assert(! QUtil::file_can_be_opened("/does/not/exist"));
 }
 
 void getenv_test()
 {
     std::string val;
     std::cout << "IN_TESTSUITE: " << QUtil::get_env("IN_TESTSUITE", &val)
-	      << ": " << val << std::endl;
+              << ": " << val << std::endl;
     // Hopefully this environment variable is not defined.
     std::cout << "HAGOOGAMAGOOGLE: " << QUtil::get_env("HAGOOGAMAGOOGLE")
-	      << std::endl;
+              << std::endl;
 }
 
 static void print_utf8(unsigned long val)
@@ -221,19 +243,19 @@ static void print_utf8(unsigned long val)
     std::cout << "0x" << QUtil::uint_to_string_base(val, 16) << " ->";
     if (val < 0xfffe)
     {
-	std::cout << " " << result;
+        std::cout << " " << result;
     }
     else
     {
-	// Emacs has trouble with utf-8 encoding files with characters
-	// outside the 16-bit portion, so just show the character
-	// values.
-	for (std::string::iterator iter = result.begin();
-	     iter != result.end(); ++iter)
-	{
-	    std::cout << " " << QUtil::int_to_string_base(
+        // Emacs has trouble with utf-8 encoding files with characters
+        // outside the 16-bit portion, so just show the character
+        // values.
+        for (std::string::iterator iter = result.begin();
+             iter != result.end(); ++iter)
+        {
+            std::cout << " " << QUtil::int_to_string_base(
                 static_cast<int>(static_cast<unsigned char>(*iter)), 16, 2);
-	}
+        }
     }
     std::cout << std::endl;
 }
@@ -247,11 +269,11 @@ void to_utf8_test()
     print_utf8(0x7fffffffUL);
     try
     {
-	print_utf8(0x80000000UL);
+        print_utf8(0x80000000UL);
     }
     catch (std::runtime_error& e)
     {
-	std::cout << "0x80000000: " << e.what() << std::endl;
+        std::cout << "0x80000000: " << e.what() << std::endl;
     }
 }
 
@@ -305,12 +327,12 @@ void utf8_to_ascii_test()
 
 void transcoding_test(std::string (*to_utf8)(std::string const&),
                       std::string (*from_utf8)(std::string const&, char),
-                      int last, std::string unknown)
+                      int first, int last, std::string unknown)
 {
     std::string in(" ");
     std::string out;
     std::string back;
-    for (int i = 128; i <= last; ++i)
+    for (int i = first; i <= last; ++i)
     {
         in.at(0) = static_cast<char>(static_cast<unsigned char>(i));
         out = (*to_utf8)(in);
@@ -352,13 +374,16 @@ void print_alternatives(std::string const& str)
 void transcoding_test()
 {
     transcoding_test(&QUtil::pdf_doc_to_utf8,
-                     &QUtil::utf8_to_pdf_doc, 160, "\x9f");
+                     &QUtil::utf8_to_pdf_doc, 127, 160, "\x9f");
     std::cout << "bidirectional pdf doc done" << std::endl;
+    transcoding_test(&QUtil::pdf_doc_to_utf8,
+                     &QUtil::utf8_to_pdf_doc, 24, 31, "?");
+    std::cout << "bidirectional pdf doc low done" << std::endl;
     transcoding_test(&QUtil::win_ansi_to_utf8,
-                     &QUtil::utf8_to_win_ansi, 160, "?");
+                     &QUtil::utf8_to_win_ansi, 128, 160, "?");
     std::cout << "bidirectional win ansi done" << std::endl;
     transcoding_test(&QUtil::mac_roman_to_utf8,
-                     &QUtil::utf8_to_mac_roman, 255, "?");
+                     &QUtil::utf8_to_mac_roman, 128, 255, "?");
     std::cout << "bidirectional mac roman done" << std::endl;
     check_analyze("pi = \317\200", true, true, false);
     check_analyze("pi != \317", true, false, false);
@@ -382,23 +407,27 @@ void transcoding_test()
     assert(! QUtil::utf8_to_pdf_doc(input2, output));
     assert(QUtil::utf8_to_pdf_doc(input3, output));
     std::cout << "alternatives" << std::endl;
-    // char	name		mac	win	pdf-doc
-    // U+0192	florin		304	203	206
-    // U+00A9	copyright	251	251	251
-    // U+00E9	eacute		216	351	351
-    // U+017E	zcaron		-	236	236
+    // char     name            mac     win     pdf-doc
+    // U+0192   florin          304     203     206
+    // U+00A9   copyright       251     251     251
+    // U+00E9   eacute          216     351     351
+    // U+017E   zcaron          -       236     236
     std::string pdfdoc = "\206\251\351\236";
     std::string utf8 = QUtil::pdf_doc_to_utf8(pdfdoc);
     print_alternatives(pdfdoc);
     print_alternatives(utf8);
     print_alternatives("quack");
     std::cout << "done alternatives" << std::endl;
+    std::string other = QUtil::pdf_doc_to_utf8(
+        "w\030w\031w\032w\033w\034w\035w\036w\037w\177w\255w");
+    std::cout << other << std::endl;
+    std::cout << "done other characters" << std::endl;
 }
 
 void print_whoami(char const* str)
 {
-    PointerHolder<char> dup(true, QUtil::copy_string(str));
-    std::cout << QUtil::getWhoami(dup.getPointer()) << std::endl;
+    auto dup = QUtil::make_unique_cstr(str);
+    std::cout << QUtil::getWhoami(dup.get()) << std::endl;
 }
 
 void get_whoami_test()
@@ -508,7 +537,7 @@ void read_from_file_test()
     size_t size = 0;
     QUtil::read_file_into_memory("other-file", buf, size);
     std::cout << "read " << size << " bytes" << std::endl;
-    char const* p = buf.getPointer();
+    char const* p = buf.get();
     assert(size == 24652);
     assert(memcmp(p, "This file is used for qutil testing.", 36) == 0);
     assert(p[59] == static_cast<char>(13));
@@ -516,7 +545,7 @@ void read_from_file_test()
     Pl_Buffer b2("buffer");
     // QUtil::file_provider also exercises QUtil::pipe_file
     QUtil::file_provider("other-file")(&b2);
-    PointerHolder<Buffer> buf2 = b2.getBuffer();
+    auto buf2 = b2.getBufferSharedPointer();
     assert(buf2->getSize() == size);
     assert(memcmp(buf2->getBuffer(), p, size) == 0);
 }
@@ -589,11 +618,11 @@ void rename_delete_test()
     fprintf(f1, "one");
     fclose(f1);
     QUtil::read_file_into_memory("old\xcf\x80", buf, size);
-    assert(memcmp(buf.getPointer(), "one", 3) == 0);
+    assert(memcmp(buf.get(), "one", 3) == 0);
     std::cout << "rename file" << std::endl;;
     QUtil::rename_file("old\xcf\x80", "old\xcf\x80.~tmp");
     QUtil::read_file_into_memory("old\xcf\x80.~tmp", buf, size);
-    assert(memcmp(buf.getPointer(), "one", 3) == 0);
+    assert(memcmp(buf.get(), "one", 3) == 0);
     assert_no_file("old\xcf\x80");
     std::cout << "create file" << std::endl;;
     f1 = QUtil::safe_fopen("old\xcf\x80", "w");
@@ -602,7 +631,7 @@ void rename_delete_test()
     std::cout << "rename over existing" << std::endl;;
     QUtil::rename_file("old\xcf\x80", "old\xcf\x80.~tmp");
     QUtil::read_file_into_memory("old\xcf\x80.~tmp", buf, size);
-    assert(memcmp(buf.getPointer(), "two", 3) == 0);
+    assert(memcmp(buf.get(), "two", 3) == 0);
     assert_no_file("old\xcf\x80");
     std::cout << "delete file" << std::endl;;
     QUtil::remove_file("old\xcf\x80.~tmp");
@@ -640,39 +669,39 @@ int main(int argc, char* argv[])
     try
     {
         std::cout << "---- string conversion" << std::endl;
-	string_conversion_test();
-	std::cout << "---- os wrapper" << std::endl;
-	os_wrapper_test();
-	std::cout << "---- fopen" << std::endl;
-	fopen_wrapper_test();
-	std::cout << "---- getenv" << std::endl;
-	getenv_test();
-	std::cout << "---- utf8" << std::endl;
-	to_utf8_test();
-	std::cout << "---- utf16" << std::endl;
-	to_utf16_test();
-	std::cout << "---- utf8_to_ascii" << std::endl;
+        string_conversion_test();
+        std::cout << "---- os wrapper" << std::endl;
+        os_wrapper_test();
+        std::cout << "---- fopen" << std::endl;
+        fopen_wrapper_test();
+        std::cout << "---- getenv" << std::endl;
+        getenv_test();
+        std::cout << "---- utf8" << std::endl;
+        to_utf8_test();
+        std::cout << "---- utf16" << std::endl;
+        to_utf16_test();
+        std::cout << "---- utf8_to_ascii" << std::endl;
         utf8_to_ascii_test();
-	std::cout << "---- transcoding" << std::endl;
+        std::cout << "---- transcoding" << std::endl;
         transcoding_test();
-	std::cout << "---- whoami" << std::endl;
-	get_whoami_test();
-	std::cout << "---- file" << std::endl;
-	same_file_test();
-	std::cout << "---- path" << std::endl;
-	path_test();
-	std::cout << "---- read from file" << std::endl;
-	read_from_file_test();
-	std::cout << "---- hex encode/decode" << std::endl;
-	hex_encode_decode_test();
-	std::cout << "---- rename/delete" << std::endl;
-	rename_delete_test();
-	std::cout << "---- timestamp" << std::endl;
-	timestamp_test();
+        std::cout << "---- whoami" << std::endl;
+        get_whoami_test();
+        std::cout << "---- file" << std::endl;
+        same_file_test();
+        std::cout << "---- path" << std::endl;
+        path_test();
+        std::cout << "---- read from file" << std::endl;
+        read_from_file_test();
+        std::cout << "---- hex encode/decode" << std::endl;
+        hex_encode_decode_test();
+        std::cout << "---- rename/delete" << std::endl;
+        rename_delete_test();
+        std::cout << "---- timestamp" << std::endl;
+        timestamp_test();
     }
     catch (std::exception& e)
     {
-	std::cout << "unexpected exception: " << e.what() << std::endl;
+        std::cout << "unexpected exception: " << e.what() << std::endl;
     }
 
     return 0;

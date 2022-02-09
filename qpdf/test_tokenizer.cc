@@ -205,7 +205,7 @@ static void process(char const* filename, bool include_ignorable,
     // Tokenize file, skipping streams
     FileInputSource* fis = new FileInputSource();
     fis->setFilename(filename);
-    is = fis;
+    is = PointerHolder<InputSource>(fis);
     dump_tokens(is, "FILE", max_len, include_ignorable, true, false);
 
     // Tokenize content streams, skipping inline images
@@ -220,10 +220,10 @@ static void process(char const* filename, bool include_ignorable,
         ++pageno;
         Pl_Buffer plb("buffer");
         (*iter).pipeContents(&plb);
-        PointerHolder<Buffer> content_data = plb.getBuffer();
+        auto content_data = plb.getBufferSharedPointer();
         BufferInputSource* bis = new BufferInputSource(
-            "content data", content_data.getPointer());
-        is = bis;
+            "content data", content_data.get());
+        is = PointerHolder<InputSource>(bis);
         dump_tokens(is, "PAGE " + QUtil::int_to_string(pageno),
                     max_len, include_ignorable, false, true);
     }
@@ -240,8 +240,8 @@ static void process(char const* filename, bool include_ignorable,
             PointerHolder<Buffer> b =
                 (*iter).getStreamData(qpdf_dl_specialized);
             BufferInputSource* bis = new BufferInputSource(
-                "object stream data", b.getPointer());
-            is = bis;
+                "object stream data", b.get());
+            is = PointerHolder<InputSource>(bis);
             dump_tokens(is, "OBJECT STREAM " +
                         QUtil::int_to_string((*iter).getObjectID()),
                         max_len, include_ignorable, false, false);
@@ -254,16 +254,16 @@ int main(int argc, char* argv[])
     QUtil::setLineBuf(stdout);
     if ((whoami = strrchr(argv[0], '/')) == NULL)
     {
-	whoami = argv[0];
+        whoami = argv[0];
     }
     else
     {
-	++whoami;
+        ++whoami;
     }
     // For libtool's sake....
     if (strncmp(whoami, "lt-", 3) == 0)
     {
-	whoami += 3;
+        whoami += 3;
     }
 
     char const* filename = 0;

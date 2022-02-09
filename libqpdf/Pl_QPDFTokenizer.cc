@@ -1,4 +1,5 @@
 #include <qpdf/Pl_QPDFTokenizer.hh>
+
 #include <qpdf/QTC.hh>
 #include <qpdf/QUtil.hh>
 #include <qpdf/BufferInputSource.hh>
@@ -42,16 +43,16 @@ void
 Pl_QPDFTokenizer::finish()
 {
     this->m->buf.finish();
-    PointerHolder<InputSource> input =
+    auto input = PointerHolder<InputSource>(
         new BufferInputSource("tokenizer data",
-                              this->m->buf.getBuffer(), true);
-
+                              this->m->buf.getBuffer(), true));
+    
     while (true)
     {
         QPDFTokenizer::Token token = this->m->tokenizer.readToken(
             input, "offset " + QUtil::int_to_string(input->tell()),
             true);
-	this->m->filter->handleToken(token);
+        this->m->filter->handleToken(token);
         if (token.getType() == QPDFTokenizer::tt_eof)
         {
             break;

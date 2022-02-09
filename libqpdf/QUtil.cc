@@ -2,6 +2,7 @@
 #include <qpdf/qpdf-config.h>
 
 #include <qpdf/QUtil.hh>
+
 #include <qpdf/PointerHolder.hh>
 #include <qpdf/CryptoRandomDataProvider.hh>
 #include <qpdf/QPDFSystemError.hh>
@@ -37,8 +38,20 @@
 # include <sys/stat.h>
 #endif
 
-// First element is 128
+// First element is 24
+static unsigned short pdf_doc_low_to_unicode[] = {
+    0x02d8,    // 0x18    BREVE
+    0x02c7,    // 0x19    CARON
+    0x02c6,    // 0x1a    MODIFIER LETTER CIRCUMFLEX ACCENT
+    0x02d9,    // 0x1b    DOT ABOVE
+    0x02dd,    // 0x1c    DOUBLE ACUTE ACCENT
+    0x02db,    // 0x1d    OGONEK
+    0x02da,    // 0x1e    RING ABOVE
+    0x02dc,    // 0x1f    SMALL TILDE
+};
+// First element is 127
 static unsigned short pdf_doc_to_unicode[] = {
+    0xfffd,    // 0x7f    UNDEFINED
     0x2022,    // 0x80    BULLET
     0x2020,    // 0x81    DAGGER
     0x2021,    // 0x82    DOUBLE DAGGER
@@ -287,12 +300,12 @@ int_to_string_base_internal(T num, int base, int length)
     int str_length = QIntC::to_int(cvt.length());
     if ((length > 0) && (str_length < length))
     {
-	result.append(QIntC::to_size(length - str_length), '0');
+        result.append(QIntC::to_size(length - str_length), '0');
     }
     result += cvt;
     if ((length < 0) && (str_length < -length))
     {
-	result.append(QIntC::to_size(-length - str_length), ' ');
+        result.append(QIntC::to_size(-length - str_length), ' ');
     }
     return result;
 }
@@ -442,7 +455,7 @@ QUtil::os_wrapper(std::string const& description, int status)
 {
     if (status == -1)
     {
-	throw_system_error(description);
+        throw_system_error(description);
     }
     return status;
 }
@@ -458,7 +471,7 @@ win_convert_filename(char const* filename)
     size_t len = u16.length();
     size_t wlen = (len / 2) - 1;
     PointerHolder<wchar_t> wfilenamep(true, new wchar_t[wlen + 1]);
-    wchar_t* wfilename = wfilenamep.getPointer();
+    wchar_t* wfilename = wfilenamep.get();
     wfilename[wlen] = 0;
     for (unsigned int i = 2; i < len; i += 2)
     {
@@ -477,9 +490,9 @@ QUtil::safe_fopen(char const* filename, char const* mode)
     FILE* f = 0;
 #ifdef _WIN32
     PointerHolder<wchar_t> wfilenamep = win_convert_filename(filename);
-    wchar_t* wfilename = wfilenamep.getPointer();
+    wchar_t* wfilename = wfilenamep.get();
     PointerHolder<wchar_t> wmodep(true, new wchar_t[strlen(mode) + 1]);
-    wchar_t* wmode = wmodep.getPointer();
+    wchar_t* wmode = wmodep.get();
     wmode[strlen(mode)] = 0;
     for (size_t i = 0; i < strlen(mode); ++i)
     {
@@ -510,9 +523,24 @@ QUtil::fopen_wrapper(std::string const& description, FILE* f)
 {
     if (f == 0)
     {
-	throw_system_error(description);
+        throw_system_error(description);
     }
     return f;
+}
+
+bool
+QUtil::file_can_be_opened(char const* filename)
+{
+    try
+    {
+        fclose(safe_fopen(filename, "rb"));
+        return true;
+    }
+    catch (std::runtime_error&)
+    {
+        // can't open the file
+    }
+    return false;
 }
 
 int
@@ -606,7 +634,7 @@ QUtil::remove_file(char const* path)
 {
 #ifdef _WIN32
     PointerHolder<wchar_t> wpath = win_convert_filename(path);
-    os_wrapper(std::string("remove ") + path, _wunlink(wpath.getPointer()));
+    os_wrapper(std::string("remove ") + path, _wunlink(wpath.get()));
 #else
     os_wrapper(std::string("remove ") + path, unlink(path));
 #endif
@@ -627,7 +655,7 @@ QUtil::rename_file(char const* oldname, char const* newname)
     PointerHolder<wchar_t> wold = win_convert_filename(oldname);
     PointerHolder<wchar_t> wnew = win_convert_filename(newname);
     os_wrapper(std::string("rename ") + oldname + " " + newname,
-               _wrename(wold.getPointer(), wnew.getPointer()));
+               _wrename(wold.get(), wnew.get()));
 #else
     os_wrapper(std::string("rename ") + oldname + " " + newname,
                rename(oldname, newname));
@@ -701,6 +729,26 @@ QUtil::copy_string(std::string const& str)
     // Use memcpy in case string contains nulls
     result[str.length()] = '\0';
     memcpy(result, str.c_str(), str.length());
+    return result;
+}
+
+std::shared_ptr<char>
+QUtil::make_shared_cstr(std::string const& str)
+{
+    auto result = QUtil::make_shared_array<char>(str.length() + 1);
+    // Use memcpy in case string contains nulls
+    result.get()[str.length()] = '\0';
+    memcpy(result.get(), str.c_str(), str.length());
+    return result;
+}
+
+std::unique_ptr<char[]>
+QUtil::make_unique_cstr(std::string const& str)
+{
+    auto result = std::make_unique<char[]>(str.length() + 1);
+    // Use memcpy in case string contains nulls
+    result.get()[str.length()] = '\0';
+    memcpy(result.get(), str.c_str(), str.length());
     return result;
 }
 
@@ -793,17 +841,17 @@ QUtil::getWhoami(char* argv0)
     if (((whoami = strrchr(argv0, '/')) == NULL) &&
         ((whoami = strrchr(argv0, '\\')) == NULL))
     {
-	whoami = argv0;
+        whoami = argv0;
     }
     else
     {
-	++whoami;
+        ++whoami;
     }
 
     if ((strlen(whoami) > 4) &&
-	(strcmp(whoami + strlen(whoami) - 4, ".exe") == 0))
+        (strcmp(whoami + strlen(whoami) - 4, ".exe") == 0))
     {
-	whoami[strlen(whoami) - 4] = '\0';
+        whoami[strlen(whoami) - 4] = '\0';
     }
 
     return whoami;
@@ -827,9 +875,9 @@ QUtil::get_env(std::string const& var, std::string* value)
 
     if (value)
     {
-	PointerHolder<char> t = PointerHolder<char>(true, new char[len + 1]);
-        ::GetEnvironmentVariable(var.c_str(), t.getPointer(), len);
-	*value = t.getPointer();
+        PointerHolder<char> t = PointerHolder<char>(true, new char[len + 1]);
+        ::GetEnvironmentVariable(var.c_str(), t.get(), len);
+        *value = t.get();
     }
 
     return true;
@@ -1009,42 +1057,42 @@ QUtil::toUTF8(unsigned long uval)
 
     if (uval > 0x7fffffff)
     {
-	throw std::runtime_error("bounds error in QUtil::toUTF8");
+        throw std::runtime_error("bounds error in QUtil::toUTF8");
     }
     else if (uval < 128)
     {
-	result += static_cast<char>(uval);
+        result += static_cast<char>(uval);
     }
     else
     {
-	unsigned char bytes[7];
-	bytes[6] = '\0';
-	unsigned char* cur_byte = &bytes[5];
+        unsigned char bytes[7];
+        bytes[6] = '\0';
+        unsigned char* cur_byte = &bytes[5];
 
-	// maximum value that will fit in the current number of bytes
-	unsigned char maxval = 0x3f; // six bits
+        // maximum value that will fit in the current number of bytes
+        unsigned char maxval = 0x3f; // six bits
 
-	while (uval > QIntC::to_ulong(maxval))
-	{
-	    // Assign low six bits plus 10000000 to lowest unused
-	    // byte position, then shift
-	    *cur_byte = static_cast<unsigned char>(0x80 + (uval & 0x3f));
-	    uval >>= 6;
-	    // Maximum that will fit in high byte now shrinks by one bit
-	    maxval = static_cast<unsigned char>(maxval >> 1);
-	    // Slide to the left one byte
-	    if (cur_byte <= bytes)
-	    {
-		throw std::logic_error("QUtil::toUTF8: overflow error");
-	    }
-	    --cur_byte;
-	}
-	// If maxval is k bits long, the high (7 - k) bits of the
-	// resulting byte must be high.
-	*cur_byte = static_cast<unsigned char>(
+        while (uval > QIntC::to_ulong(maxval))
+        {
+            // Assign low six bits plus 10000000 to lowest unused
+            // byte position, then shift
+            *cur_byte = static_cast<unsigned char>(0x80 + (uval & 0x3f));
+            uval >>= 6;
+            // Maximum that will fit in high byte now shrinks by one bit
+            maxval = static_cast<unsigned char>(maxval >> 1);
+            // Slide to the left one byte
+            if (cur_byte <= bytes)
+            {
+                throw std::logic_error("QUtil::toUTF8: overflow error");
+            }
+            --cur_byte;
+        }
+        // If maxval is k bits long, the high (7 - k) bits of the
+        // resulting byte must be high.
+        *cur_byte = static_cast<unsigned char>(
             QIntC::to_ulong(0xff - (1 + (maxval << 1))) + uval);
 
-	result += reinterpret_cast<char*>(cur_byte);
+        result += reinterpret_cast<char*>(cur_byte);
     }
 
     return result;
@@ -1221,8 +1269,8 @@ QUtil::read_file_into_memory(
     fseek(f, 0, SEEK_END);
     size = QIntC::to_size(QUtil::tell(f));
     fseek(f, 0, SEEK_SET);
-    file_buf = PointerHolder<char>(true, new char[size]);
-    char* buf_p = file_buf.getPointer();
+    file_buf = make_array_pointer_holder<char>(size);
+    char* buf_p = file_buf.get();
     size_t bytes_read = 0;
     size_t len = 0;
     while ((len = fread(buf_p + bytes_read, 1, size - bytes_read, f)) > 0)
@@ -1302,19 +1350,19 @@ QUtil::read_lines_from_file(std::function<bool(char&)> next_char,
     char c;
     while (next_char(c))
     {
-	if (buf == 0)
-	{
-	    lines.push_back("");
-	    buf = &(lines.back());
-	    buf->reserve(80);
-	}
+        if (buf == 0)
+        {
+            lines.push_back("");
+            buf = &(lines.back());
+            buf->reserve(80);
+        }
 
-	if (buf->capacity() == buf->size())
-	{
-	    buf->reserve(buf->capacity() * 2);
-	}
-	if (c == '\n')
-	{
+        if (buf->capacity() == buf->size())
+        {
+            buf->reserve(buf->capacity() * 2);
+        }
+        if (c == '\n')
+        {
             if (preserve_eol)
             {
                 buf->append(1, c);
@@ -1328,12 +1376,12 @@ QUtil::read_lines_from_file(std::function<bool(char&)> next_char,
                     buf->erase(buf->length() - 1);
                 }
             }
-	    buf = 0;
-	}
-	else
-	{
-	    buf->append(1, c);
-	}
+            buf = 0;
+        }
+        else
+        {
+            buf->append(1, c);
+        }
     }
 }
 
@@ -2017,6 +2065,30 @@ encode_pdfdoc(unsigned long codepoint)
     unsigned char ch = '\0';
     switch (codepoint)
     {
+      case 0x02d8:
+        ch = 0x18;
+        break;
+      case 0x02c7:
+        ch = 0x19;
+        break;
+      case 0x02c6:
+        ch = 0x1a;
+        break;
+      case 0x02d9:
+        ch = 0x1b;
+        break;
+      case 0x02dd:
+        ch = 0x1c;
+        break;
+      case 0x02db:
+        ch = 0x1d;
+        break;
+      case 0x02da:
+        ch = 0x1e;
+        break;
+      case 0x02dc:
+        ch = 0x1f;
+        break;
       case 0x2022:
         ch = 0x80;
         break;
@@ -2412,9 +2484,17 @@ QUtil::pdf_doc_to_utf8(std::string const& val)
     {
         unsigned char ch = static_cast<unsigned char>(val.at(i));
         unsigned short ch_short = ch;
-        if ((ch >= 128) && (ch <= 160))
+        if ((ch >= 127) && (ch <= 160))
         {
-            ch_short = pdf_doc_to_unicode[ch - 128];
+            ch_short = pdf_doc_to_unicode[ch - 127];
+        }
+        else if ((ch >= 24) && (ch <= 31))
+        {
+            ch_short = pdf_doc_low_to_unicode[ch - 24];
+        }
+        else if (ch == 173)
+        {
+            ch_short = 0xfffd;
         }
         result += QUtil::toUTF8(ch_short);
     }
@@ -2548,16 +2628,16 @@ QUtil::possible_repaired_encodings(std::string supplied)
 }
 
 #ifndef QPDF_NO_WCHAR_T
-int
-QUtil::call_main_from_wmain(int argc, wchar_t* argv[],
-                            std::function<int(int, char*[])> realmain)
+static int
+call_main_from_wmain(bool, int argc, wchar_t const* const argv[],
+                     std::function<int(int, char*[])> realmain)
 {
     // argv contains UTF-16-encoded strings with a 16-bit wchar_t.
     // Convert this to UTF-8-encoded strings for compatibility with
     // other systems. That way the rest of qpdf.cc can just act like
     // arguments are UTF-8.
 
-    std::vector<std::shared_ptr<char>> utf8_argv;
+    std::vector<std::unique_ptr<char[]>> utf8_argv;
     for (int i = 0; i < argc; ++i)
     {
         std::string utf16;
@@ -2570,10 +2650,9 @@ QUtil::call_main_from_wmain(int argc, wchar_t* argv[],
                              QIntC::to_uchar(codepoint & 0xff)));
         }
         std::string utf8 = QUtil::utf16_to_utf8(utf16);
-        utf8_argv.push_back(std::shared_ptr<char>(QUtil::copy_string(utf8.c_str()), std::default_delete<char[]>()));
+        utf8_argv.push_back(QUtil::make_unique_cstr(utf8));
     }
-    auto utf8_argv_sp =
-        std::shared_ptr<char*>(new char*[1+utf8_argv.size()], std::default_delete<char*[]>());
+    auto utf8_argv_sp = std::make_unique<char*[]>(1+utf8_argv.size());
     char** new_argv = utf8_argv_sp.get();
     for (size_t i = 0; i < utf8_argv.size(); ++i)
     {
@@ -2583,4 +2662,23 @@ QUtil::call_main_from_wmain(int argc, wchar_t* argv[],
     new_argv[argc] = 0;
     return realmain(argc, new_argv);
 }
+
+int
+QUtil::call_main_from_wmain(int argc, wchar_t* argv[],
+                            std::function<int(int, char*[])> realmain)
+{
+    return ::call_main_from_wmain(true, argc, argv, realmain);
+}
+
+int
+QUtil::call_main_from_wmain(
+    int argc, wchar_t const* const argv[],
+    std::function<int(int, char const* const[])> realmain)
+{
+    return ::call_main_from_wmain(
+        true, argc, argv, [realmain](int new_argc, char* new_argv[]) {
+            return realmain(new_argc, new_argv);
+        });
+}
+
 #endif // QPDF_NO_WCHAR_T

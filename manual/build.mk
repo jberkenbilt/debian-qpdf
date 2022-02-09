@@ -17,7 +17,7 @@ ifeq ($(BUILD_PDF),1)
 TARGETS_manual += $(PDF_TARGET)
 endif
 
-MANUAL_DEPS = $(wildcard manual/*.rst) manual/conf.py
+MANUAL_DEPS = $(wildcard manual/*.rst) manual/conf.py manual/_ext/qpdf.py
 
 # Prevent targets that run $(SPHINX) from running in parallel by using
 # order-only dependencies (the dependencies listed after the |) to
@@ -50,6 +50,12 @@ doc-dist: build_manual
 	else \
 	    mkdir -p $(DOC_DEST); \
 	fi
-	cp -r $(DOC_OUT)/html doc
-	cp -r $(DOC_OUT)/singlehtml doc
-	cp $(PDF_TARGET) $(DOC_DEST)/qpdf-manual.pdf
+	if [ -d $(DOC_OUT)/html ]; then \
+	    cp -r $(DOC_OUT)/html $(DOC_DEST); \
+	fi
+	if [ -d $(DOC_OUT)/singlehtml ]; then \
+	    cp -r $(DOC_OUT)/singlehtml $(DOC_DEST); \
+	fi
+	if [ -f $(PDF_TARGET) ]; then \
+	    cp $(PDF_TARGET) $(DOC_DEST)/qpdf-manual.pdf; \
+	fi

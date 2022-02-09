@@ -1,4 +1,5 @@
 #include <qpdf/FileInputSource.hh>
+
 #include <string.h>
 #include <qpdf/QUtil.hh>
 #include <qpdf/QPDFExc.hh>
@@ -14,7 +15,7 @@ FileInputSource::Members::~Members()
 {
     if (this->file && this->close_file)
     {
-	fclose(this->file);
+        fclose(this->file);
     }
 }
 
@@ -26,7 +27,7 @@ FileInputSource::FileInputSource() :
 void
 FileInputSource::setFilename(char const* filename)
 {
-    this->m = new Members(true);
+    this->m = PointerHolder<Members>(new Members(true));
     this->m->filename = filename;
     this->m->file = QUtil::safe_fopen(filename, "rb");
 }
@@ -35,7 +36,7 @@ void
 FileInputSource::setFile(
     char const* description, FILE* filep, bool close_file)
 {
-    this->m = new Members(close_file);
+    this->m = PointerHolder<Members>(new Members(close_file));
     this->m->filename = description;
     this->m->file = filep;
     this->seek(0, SEEK_SET);
@@ -107,9 +108,9 @@ FileInputSource::seek(qpdf_offset_t offset, int whence)
 {
     QUtil::os_wrapper(std::string("seek to ") +
                       this->m->filename + ", offset " +
-		      QUtil::int_to_string(offset) + " (" +
-		      QUtil::int_to_string(whence) + ")",
-		      QUtil::seek(this->m->file, offset, whence));
+                      QUtil::int_to_string(offset) + " (" +
+                      QUtil::int_to_string(whence) + ")",
+                      QUtil::seek(this->m->file, offset, whence));
 }
 
 void
@@ -146,5 +147,5 @@ void
 FileInputSource::unreadCh(char ch)
 {
     QUtil::os_wrapper(this->m->filename + ": unread character",
-		      ungetc(static_cast<unsigned char>(ch), this->m->file));
+                      ungetc(static_cast<unsigned char>(ch), this->m->file));
 }

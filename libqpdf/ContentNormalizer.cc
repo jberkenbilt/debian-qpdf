@@ -1,4 +1,5 @@
 #include <qpdf/ContentNormalizer.hh>
+
 #include <qpdf/QUtil.hh>
 
 ContentNormalizer::ContentNormalizer() :
@@ -60,16 +61,16 @@ ContentNormalizer::handleToken(QPDFTokenizer::Token const& token)
         // quoting of unprintable characters, etc.
         writeToken(QPDFTokenizer::Token(
                        QPDFTokenizer::tt_string, token.getValue()));
-	break;
+        break;
 
       case QPDFTokenizer::tt_name:
         writeToken(QPDFTokenizer::Token(
                        QPDFTokenizer::tt_name, token.getValue()));
-	break;
+        break;
 
       default:
         writeToken(token);
-	break;
+        break;
     }
 
     value = token.getRawValue();

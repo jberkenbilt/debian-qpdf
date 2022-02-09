@@ -1,4 +1,4 @@
-/* Copyright (c) 2005-2021 Jay Berkenbilt
+/* Copyright (c) 2005-2022 Jay Berkenbilt
  *
  * This file is part of qpdf.
  *
@@ -171,14 +171,16 @@ extern "C" {
     QPDF_DLL
     void qpdf_silence_errors(qpdf_data qpdf);
 
-    /* Returns the version of the qpdf software */
+    /* Returns the version of the qpdf software. This is guaranteed to
+     * be a static value.
+     */
     QPDF_DLL
     char const* qpdf_get_qpdf_version();
 
     /* Returns dynamically allocated qpdf_data pointer; must be freed
-     * by calling qpdf_cleanup. You must call qpdf_read or one of the
-     * other qpdf_read_* functions before calling any function that
-     * would need to operate on the PDF file.
+     * by calling qpdf_cleanup. You must call qpdf_read, one of the
+     * other qpdf_read_* functions, or qpdf_empty_pdf before calling
+     * any function that would need to operate on the PDF file.
      */
     QPDF_DLL
     qpdf_data qpdf_init();
@@ -272,7 +274,7 @@ extern "C" {
      */
     QPDF_DLL
     QPDF_ERROR_CODE qpdf_read(qpdf_data qpdf, char const* filename,
-			      char const* password);
+                              char const* password);
 
     /* Calling qpdf_read_memory causes processMemoryFile to be called
      * in the C++ API.  Otherwise, it behaves in the same way as
@@ -282,10 +284,17 @@ extern "C" {
      */
     QPDF_DLL
     QPDF_ERROR_CODE qpdf_read_memory(qpdf_data qpdf,
-				     char const* description,
-				     char const* buffer,
-				     unsigned long long size,
-				     char const* password);
+                                     char const* description,
+                                     char const* buffer,
+                                     unsigned long long size,
+                                     char const* password);
+
+    /* Calling qpdf_empty_pdf initializes this qpdf object with an
+     * empty PDF, making it possible to create a PDF from scratch
+     * using the C API. Added in 10.6.
+     */
+    QPDF_DLL
+    QPDF_ERROR_CODE qpdf_empty_pdf(qpdf_data qpdf);
 
     /* Read functions below must be called after qpdf_read or
      * qpdf_read_memory. */
@@ -401,11 +410,11 @@ extern "C" {
 
     QPDF_DLL
     void qpdf_set_object_stream_mode(qpdf_data qpdf,
-				     enum qpdf_object_stream_e mode);
+                                     enum qpdf_object_stream_e mode);
 
     QPDF_DLL
     void qpdf_set_stream_data_mode(qpdf_data qpdf,
-				   enum qpdf_stream_data_e mode);
+                                   enum qpdf_stream_data_e mode);
 
     QPDF_DLL
     void qpdf_set_compress_streams(qpdf_data qpdf, QPDF_BOOL value);
@@ -445,77 +454,77 @@ extern "C" {
 
     QPDF_DLL
     void qpdf_set_suppress_original_object_IDs(
-	qpdf_data qpdf, QPDF_BOOL value);
+        qpdf_data qpdf, QPDF_BOOL value);
 
     QPDF_DLL
     void qpdf_set_preserve_encryption(qpdf_data qpdf, QPDF_BOOL value);
 
     QPDF_DLL
     void qpdf_set_r2_encryption_parameters(
-	qpdf_data qpdf, char const* user_password, char const* owner_password,
-	QPDF_BOOL allow_print, QPDF_BOOL allow_modify,
-	QPDF_BOOL allow_extract, QPDF_BOOL allow_annotate);
+        qpdf_data qpdf, char const* user_password, char const* owner_password,
+        QPDF_BOOL allow_print, QPDF_BOOL allow_modify,
+        QPDF_BOOL allow_extract, QPDF_BOOL allow_annotate);
 
     QPDF_DLL
     void qpdf_set_r3_encryption_parameters2(
-	qpdf_data qpdf, char const* user_password, char const* owner_password,
-	QPDF_BOOL allow_accessibility, QPDF_BOOL allow_extract,
+        qpdf_data qpdf, char const* user_password, char const* owner_password,
+        QPDF_BOOL allow_accessibility, QPDF_BOOL allow_extract,
         QPDF_BOOL allow_assemble, QPDF_BOOL allow_annotate_and_form,
         QPDF_BOOL allow_form_filling, QPDF_BOOL allow_modify_other,
-	enum qpdf_r3_print_e print);
+        enum qpdf_r3_print_e print);
 
     QPDF_DLL
     void qpdf_set_r4_encryption_parameters2(
-	qpdf_data qpdf, char const* user_password, char const* owner_password,
-	QPDF_BOOL allow_accessibility, QPDF_BOOL allow_extract,
+        qpdf_data qpdf, char const* user_password, char const* owner_password,
+        QPDF_BOOL allow_accessibility, QPDF_BOOL allow_extract,
         QPDF_BOOL allow_assemble, QPDF_BOOL allow_annotate_and_form,
         QPDF_BOOL allow_form_filling, QPDF_BOOL allow_modify_other,
-	enum qpdf_r3_print_e print,
+        enum qpdf_r3_print_e print,
         QPDF_BOOL encrypt_metadata, QPDF_BOOL use_aes);
 
     QPDF_DLL
     void qpdf_set_r5_encryption_parameters2(
-	qpdf_data qpdf, char const* user_password, char const* owner_password,
-	QPDF_BOOL allow_accessibility, QPDF_BOOL allow_extract,
+        qpdf_data qpdf, char const* user_password, char const* owner_password,
+        QPDF_BOOL allow_accessibility, QPDF_BOOL allow_extract,
         QPDF_BOOL allow_assemble, QPDF_BOOL allow_annotate_and_form,
         QPDF_BOOL allow_form_filling, QPDF_BOOL allow_modify_other,
-	enum qpdf_r3_print_e print, QPDF_BOOL encrypt_metadata);
+        enum qpdf_r3_print_e print, QPDF_BOOL encrypt_metadata);
 
     QPDF_DLL
     void qpdf_set_r6_encryption_parameters2(
-	qpdf_data qpdf, char const* user_password, char const* owner_password,
-	QPDF_BOOL allow_accessibility, QPDF_BOOL allow_extract,
+        qpdf_data qpdf, char const* user_password, char const* owner_password,
+        QPDF_BOOL allow_accessibility, QPDF_BOOL allow_extract,
         QPDF_BOOL allow_assemble, QPDF_BOOL allow_annotate_and_form,
         QPDF_BOOL allow_form_filling, QPDF_BOOL allow_modify_other,
-	enum qpdf_r3_print_e print, QPDF_BOOL encrypt_metadata);
+        enum qpdf_r3_print_e print, QPDF_BOOL encrypt_metadata);
 
     /* Pre 8.4.0 encryption API */
     QPDF_DLL
     void qpdf_set_r3_encryption_parameters(
-	qpdf_data qpdf, char const* user_password, char const* owner_password,
-	QPDF_BOOL allow_accessibility, QPDF_BOOL allow_extract,
-	enum qpdf_r3_print_e print, enum qpdf_r3_modify_e modify);
+        qpdf_data qpdf, char const* user_password, char const* owner_password,
+        QPDF_BOOL allow_accessibility, QPDF_BOOL allow_extract,
+        enum qpdf_r3_print_e print, enum qpdf_r3_modify_e modify);
 
     QPDF_DLL
     void qpdf_set_r4_encryption_parameters(
-	qpdf_data qpdf, char const* user_password, char const* owner_password,
-	QPDF_BOOL allow_accessibility, QPDF_BOOL allow_extract,
-	enum qpdf_r3_print_e print, enum qpdf_r3_modify_e modify,
-	QPDF_BOOL encrypt_metadata, QPDF_BOOL use_aes);
+        qpdf_data qpdf, char const* user_password, char const* owner_password,
+        QPDF_BOOL allow_accessibility, QPDF_BOOL allow_extract,
+        enum qpdf_r3_print_e print, enum qpdf_r3_modify_e modify,
+        QPDF_BOOL encrypt_metadata, QPDF_BOOL use_aes);
 
     QPDF_DLL
     void qpdf_set_r5_encryption_parameters(
-	qpdf_data qpdf, char const* user_password, char const* owner_password,
-	QPDF_BOOL allow_accessibility, QPDF_BOOL allow_extract,
-	enum qpdf_r3_print_e print, enum qpdf_r3_modify_e modify,
-	QPDF_BOOL encrypt_metadata);
+        qpdf_data qpdf, char const* user_password, char const* owner_password,
+        QPDF_BOOL allow_accessibility, QPDF_BOOL allow_extract,
+        enum qpdf_r3_print_e print, enum qpdf_r3_modify_e modify,
+        QPDF_BOOL encrypt_metadata);
 
     QPDF_DLL
     void qpdf_set_r6_encryption_parameters(
-	qpdf_data qpdf, char const* user_password, char const* owner_password,
-	QPDF_BOOL allow_accessibility, QPDF_BOOL allow_extract,
-	enum qpdf_r3_print_e print, enum qpdf_r3_modify_e modify,
-	QPDF_BOOL encrypt_metadata);
+        qpdf_data qpdf, char const* user_password, char const* owner_password,
+        QPDF_BOOL allow_accessibility, QPDF_BOOL allow_extract,
+        enum qpdf_r3_print_e print, enum qpdf_r3_modify_e modify,
+        QPDF_BOOL encrypt_metadata);
 
     QPDF_DLL
     void qpdf_set_linearization(qpdf_data qpdf, QPDF_BOOL value);
@@ -645,7 +654,10 @@ extern "C" {
     /* Wrappers around QPDFObjectHandle methods. Be sure to read
      * corresponding comments in QPDFObjectHandle.hh to understand
      * what each function does and what kinds of objects it applies
-     * to.
+     * to. Note that names are to appear in a canonicalized form
+     * starting with a leading slash and with all PDF escaping
+     * resolved. See comments for getName() in QPDFObjectHandle.hh for
+     * details.
      */
 
     QPDF_DLL
@@ -676,6 +688,15 @@ extern "C" {
     QPDF_BOOL qpdf_oh_is_indirect(qpdf_data qpdf, qpdf_oh oh);
     QPDF_DLL
     QPDF_BOOL qpdf_oh_is_scalar(qpdf_data qpdf, qpdf_oh oh);
+
+    QPDF_DLL
+    QPDF_BOOL qpdf_oh_is_name_and_equals(
+        qpdf_data qpdf, qpdf_oh oh, char const* name);
+
+    QPDF_DLL
+    QPDF_BOOL qpdf_oh_is_dictionary_of_type(
+        qpdf_data qpdf, qpdf_oh oh, char const* type, char const* subtype);
+
     QPDF_DLL
     enum qpdf_object_type_e qpdf_oh_get_type_code(qpdf_data qpdf, qpdf_oh oh);
     QPDF_DLL
@@ -689,26 +710,50 @@ extern "C" {
 
     QPDF_DLL
     QPDF_BOOL qpdf_oh_get_bool_value(qpdf_data qpdf, qpdf_oh oh);
+    QPDF_DLL
+    QPDF_BOOL qpdf_oh_get_value_as_bool(
+        qpdf_data qpdf, qpdf_oh oh, QPDF_BOOL* value);
 
     QPDF_DLL
     long long qpdf_oh_get_int_value(qpdf_data qpdf, qpdf_oh oh);
     QPDF_DLL
+    QPDF_BOOL qpdf_oh_get_value_as_longlong(
+        qpdf_data qpdf, qpdf_oh oh, long long* value);
+    QPDF_DLL
     int qpdf_oh_get_int_value_as_int(qpdf_data qpdf, qpdf_oh oh);
+    QPDF_DLL
+    QPDF_BOOL qpdf_oh_get_value_as_int(
+        qpdf_data qpdf, qpdf_oh oh, int* value);
     QPDF_DLL
     unsigned long long qpdf_oh_get_uint_value(qpdf_data qpdf, qpdf_oh oh);
     QPDF_DLL
+    QPDF_BOOL qpdf_oh_get_value_as_ulonglong(
+        qpdf_data qpdf, qpdf_oh oh, unsigned long long* value);
+    QPDF_DLL
     unsigned int qpdf_oh_get_uint_value_as_uint(qpdf_data qpdf, qpdf_oh oh);
+    QPDF_DLL
+    QPDF_BOOL qpdf_oh_get_value_as_uint(
+        qpdf_data qpdf, qpdf_oh oh, unsigned int* value);
 
     QPDF_DLL
     char const* qpdf_oh_get_real_value(qpdf_data qpdf, qpdf_oh oh);
+    QPDF_DLL
+    QPDF_BOOL qpdf_oh_get_value_as_real(
+        qpdf_data qpdf, qpdf_oh oh, char const** value, size_t* length);
 
     QPDF_DLL
     QPDF_BOOL qpdf_oh_is_number(qpdf_data qpdf, qpdf_oh oh);
     QPDF_DLL
     double qpdf_oh_get_numeric_value(qpdf_data qpdf, qpdf_oh oh);
+    QPDF_DLL
+    QPDF_BOOL qpdf_oh_get_value_as_number(
+        qpdf_data qpdf, qpdf_oh oh, double* value);
 
     QPDF_DLL
     char const* qpdf_oh_get_name(qpdf_data qpdf, qpdf_oh oh);
+    QPDF_DLL
+    QPDF_BOOL qpdf_oh_get_value_as_name(
+        qpdf_data qpdf, qpdf_oh oh, char const** value, size_t* length);
 
     /* Return the length of the last string returned. This enables you
      * to retrieve the entire string for cases in which a char*
@@ -729,15 +774,30 @@ extern "C" {
     QPDF_DLL
     char const* qpdf_oh_get_string_value(qpdf_data qpdf, qpdf_oh oh);
     QPDF_DLL
+    QPDF_BOOL qpdf_oh_get_value_as_string(
+        qpdf_data qpdf, qpdf_oh oh, char const** value, size_t* length);
+    QPDF_DLL
     char const* qpdf_oh_get_utf8_value(qpdf_data qpdf, qpdf_oh oh);
     QPDF_DLL
+    QPDF_BOOL qpdf_oh_get_value_as_utf8(
+        qpdf_data qpdf, qpdf_oh oh, char const** value, size_t* length);
+    QPDF_DLL
     char const* qpdf_oh_get_binary_string_value(
+        qpdf_data qpdf, qpdf_oh oh, size_t* length);
+    QPDF_DLL
+    char const* qpdf_oh_get_binary_utf8_value(
         qpdf_data qpdf, qpdf_oh oh, size_t* length);
 
     QPDF_DLL
     int qpdf_oh_get_array_n_items(qpdf_data qpdf, qpdf_oh oh);
     QPDF_DLL
     qpdf_oh qpdf_oh_get_array_item(qpdf_data qpdf, qpdf_oh oh, int n);
+
+    /* In all dictionary APIs, keys are specified/represented as
+     * canonicalized name strings starting with / and with all PDF
+     * escaping resolved. See comments for getName() in
+     * QPDFObjectHandle for details.
+     */
 
     /* "C"-specific dictionary key iteration */
 
@@ -761,6 +821,9 @@ extern "C" {
     QPDF_BOOL qpdf_oh_has_key(qpdf_data qpdf, qpdf_oh oh, char const* key);
     QPDF_DLL
     qpdf_oh qpdf_oh_get_key(qpdf_data qpdf, qpdf_oh oh, char const* key);
+    QPDF_DLL
+    qpdf_oh qpdf_oh_get_key_if_dict(
+        qpdf_data qpdf, qpdf_oh oh, char const* key);
 
     QPDF_DLL
     QPDF_BOOL qpdf_oh_is_or_has_name(
@@ -790,6 +853,9 @@ extern "C" {
      */
     QPDF_DLL
     qpdf_oh qpdf_oh_new_binary_string(
+        qpdf_data qpdf, char const* str, size_t length);
+     QPDF_DLL
+    qpdf_oh qpdf_oh_new_binary_unicode_string(
         qpdf_data qpdf, char const* str, size_t length);
     QPDF_DLL
     qpdf_oh qpdf_oh_new_array(qpdf_data qpdf);

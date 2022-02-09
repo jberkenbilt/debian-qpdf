@@ -1,5 +1,11 @@
 TARGETS_libqpdf = libqpdf/$(OUTPUT_DIR)/$(call libname,qpdf)
 
+ifeq ($(MAINTAINER_MODE), 1)
+ifeq ($(shell if ./generate_auto_job --check; then echo 0; else echo 1; fi), 1)
+_ := $(shell ./generate_auto_job --generate)
+endif
+endif
+
 INCLUDES_libqpdf = include libqpdf
 LDFLAGS_libqpdf = -Llibqpdf/$(OUTPUT_DIR)
 LIBS_libqpdf = -lqpdf
@@ -32,9 +38,11 @@ SRCS_libqpdf = \
 	libqpdf/InputSource.cc \
 	libqpdf/InsecureRandomDataProvider.cc \
 	libqpdf/JSON.cc \
+	libqpdf/JSONHandler.cc \
 	libqpdf/MD5.cc \
 	libqpdf/NNTree.cc \
 	libqpdf/OffsetInputSource.cc \
+	libqpdf/PDFVersion.cc \
 	libqpdf/Pipeline.cc \
 	libqpdf/Pl_AES_PDF.cc \
 	libqpdf/Pl_ASCII85Decoder.cc \
@@ -57,12 +65,17 @@ SRCS_libqpdf = \
 	libqpdf/QPDF.cc \
 	libqpdf/QPDFAcroFormDocumentHelper.cc \
 	libqpdf/QPDFAnnotationObjectHelper.cc \
+	libqpdf/QPDFArgParser.cc \
 	libqpdf/QPDFCryptoProvider.cc \
 	libqpdf/QPDFEFStreamObjectHelper.cc \
 	libqpdf/QPDFEmbeddedFileDocumentHelper.cc \
 	libqpdf/QPDFExc.cc \
 	libqpdf/QPDFFileSpecObjectHelper.cc \
 	libqpdf/QPDFFormFieldObjectHelper.cc \
+	libqpdf/QPDFJob.cc \
+	libqpdf/QPDFJob_argv.cc \
+	libqpdf/QPDFJob_config.cc \
+	libqpdf/QPDFJob_json.cc \
 	libqpdf/QPDFMatrix.cc \
 	libqpdf/QPDFNameTreeObjectHelper.cc \
 	libqpdf/QPDFNumberTreeObjectHelper.cc \
@@ -77,6 +90,7 @@ SRCS_libqpdf = \
 	libqpdf/QPDFStreamFilter.cc \
 	libqpdf/QPDFSystemError.cc \
 	libqpdf/QPDFTokenizer.cc \
+	libqpdf/QPDFUsage.cc \
 	libqpdf/QPDFWriter.cc \
 	libqpdf/QPDFXRefEntry.cc \
 	libqpdf/QPDF_Array.cc \
@@ -102,7 +116,8 @@ SRCS_libqpdf = \
 	libqpdf/SecureRandomDataProvider.cc \
 	libqpdf/SF_FlateLzwDecode.cc \
 	libqpdf/SparseOHArray.cc \
-	libqpdf/qpdf-c.cc
+	libqpdf/qpdf-c.cc \
+	libqpdf/qpdfjob-c.cc
 
 ifeq ($(USE_CRYPTO_NATIVE), 1)
 SRCS_libqpdf += $(CRYPTO_NATIVE)

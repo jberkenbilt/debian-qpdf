@@ -1,4 +1,5 @@
 #include <qpdf/QPDFPageObjectHelper.hh>
+
 #include <qpdf/QTC.hh>
 #include <qpdf/QPDF.hh>
 #include <qpdf/Pl_Concatenate.hh>
@@ -257,7 +258,7 @@ InlineImageTracker::handleToken(QPDFTokenizer::Token const& token)
                 std::string name = resources.getUniqueResourceName(
                     "/IIm", this->min_suffix);
                 QPDFObjectHandle image = QPDFObjectHandle::newStream(
-                    this->qpdf, b.getBuffer());
+                    this->qpdf, b.getBufferSharedPointer());
                 image.replaceDict(dict);
                 resources.getKey("/XObject").replaceKey(name, image);
                 write(name);
@@ -429,7 +430,7 @@ QPDFPageObjectHelper::forEachXObject(
                     queue.push_back(QPDFPageObjectHelper(obj));
                 }
             }
-	}
+        }
     }
 }
 
@@ -499,8 +500,7 @@ QPDFPageObjectHelper::externalizeInlineImages(size_t min_size, bool shallow)
         QPDFObjectHandle resources = getAttribute("/Resources", true);
         // Calling mergeResources also ensures that /XObject becomes
         // direct and is not shared with other pages.
-        resources.mergeResources(
-            QPDFObjectHandle::parse("<< /XObject << >> >>"));
+        resources.mergeResources("<< /XObject << >> >>"_qpdf);
         InlineImageTracker iit(this->oh.getOwningQPDF(), min_size, resources);
         Pl_Buffer b("new page content");
         bool filtered = false;
@@ -521,7 +521,7 @@ QPDFPageObjectHelper::externalizeInlineImages(size_t min_size, bool shallow)
             if (this->oh.isFormXObject())
             {
                 this->oh.replaceStreamData(
-                    b.getBuffer(),
+                    b.getBufferSharedPointer(),
                     QPDFObjectHandle::newNull(),
                     QPDFObjectHandle::newNull());
             }
@@ -530,7 +530,8 @@ QPDFPageObjectHelper::externalizeInlineImages(size_t min_size, bool shallow)
                 this->oh.replaceKey(
                     "/Contents",
                     QPDFObjectHandle::newStream(
-                        this->oh.getOwningQPDF(), b.getBuffer()));
+                        this->oh.getOwningQPDF(),
+                        b.getBufferSharedPointer()));
             }
         }
     }
@@ -558,10 +559,7 @@ QPDFPageObjectHelper::getAnnotations(std::string const& only_subtype)
         for (int i = 0; i < nannots; ++i)
         {
             QPDFObjectHandle annot = annots.getArrayItem(i);
-            if (only_subtype.empty() ||
-                (annot.isDictionary() &&
-                 annot.getKey("/Subtype").isName() &&
-                 (only_subtype == annot.getKey("/Subtype").getName())))
+            if (annot.isDictionaryOfType("", only_subtype))
             {
                 result.push_back(QPDFAnnotationObjectHelper(annot));
             }
@@ -917,8 +915,8 @@ QPDFPageObjectHelper::getFormXObjectForPage(bool handle_transformations)
             " XObject created from page will not work");
     }
     newdict.replaceKey("/BBox", bbox);
-    PointerHolder<QPDFObjectHandle::StreamDataProvider> provider =
-        new ContentProvider(this->oh);
+    auto provider = PointerHolder<QPDFObjectHandle::StreamDataProvider>(
+        new ContentProvider(this->oh));
     result.replaceStreamData(
         provider, QPDFObjectHandle::newNull(), QPDFObjectHandle::newNull());
     QPDFObjectHandle rotate_obj = getAttribute("/Rotate", false);
@@ -1224,8 +1222,8 @@ QPDFPageObjectHelper::flattenRotation(QPDFAcroFormDocumentHelper* afdh)
         PointerHolder<QPDFAcroFormDocumentHelper> afdhph;
         if (! afdh)
         {
-            afdhph = new QPDFAcroFormDocumentHelper(*qpdf);
-            afdh = afdhph.getPointer();
+            afdhph = make_pointer_holder<QPDFAcroFormDocumentHelper>(*qpdf);
+            afdh = afdhph.get();
         }
         afdh->transformAnnotations(
             annots, new_annots, new_fields, old_fields, cm);
@@ -1272,8 +1270,8 @@ QPDFPageObjectHelper::copyAnnotations(
     PointerHolder<QPDFAcroFormDocumentHelper> from_afdhph;
     if (! afdh)
     {
-        afdhph = new QPDFAcroFormDocumentHelper(*this_qpdf);
-        afdh = afdhph.getPointer();
+        afdhph = make_pointer_holder<QPDFAcroFormDocumentHelper>(*this_qpdf);
+        afdh = afdhph.get();
     }
     if (this_qpdf == from_qpdf)
     {
@@ -1290,8 +1288,9 @@ QPDFPageObjectHelper::copyAnnotations(
     }
     else
     {
-        from_afdhph = new QPDFAcroFormDocumentHelper(*from_qpdf);
-        from_afdh = from_afdhph.getPointer();
+        from_afdhph =
+            make_pointer_holder<QPDFAcroFormDocumentHelper>(*from_qpdf);
+        from_afdh = from_afdhph.get();
     }
 
     afdh->transformAnnotations(

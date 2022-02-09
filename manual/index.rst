@@ -28,7 +28,14 @@ documentation, please visit `https://qpdf.readthedocs.io
    weak-crypto
    json
    design
+   qpdf-job
    linearization
    object-streams
+   encryption
    release-notes
    acknowledgement
+
+Indices
+=======
+
+* :ref:`qpdf-options`

@@ -1,4 +1,4 @@
-// Copyright (c) 2005-2021 Jay Berkenbilt
+// Copyright (c) 2005-2022 Jay Berkenbilt
 //
 // This file is part of qpdf.
 //
@@ -25,8 +25,10 @@
 #include <qpdf/DLL.h>
 #include <qpdf/Types.h>
 #include <qpdf/PointerHolder.hh>
+
 #include <stdio.h>
 #include <string>
+#include <memory>
 
 class QPDF_DLL_CLASS InputSource
 {

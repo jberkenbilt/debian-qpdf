@@ -1,11 +1,12 @@
 #include <qpdf/QPDFExc.hh>
+
 #include <qpdf/QUtil.hh>
 
 QPDFExc::QPDFExc(qpdf_error_code_e error_code,
-		 std::string const& filename,
-		 std::string const& object,
-		 qpdf_offset_t offset,
-		 std::string const& message) :
+                 std::string const& filename,
+                 std::string const& object,
+                 qpdf_offset_t offset,
+                 std::string const& message) :
     std::runtime_error(createWhat(filename, object, offset, message)),
     error_code(error_code),
     filename(filename),
@@ -17,14 +18,14 @@ QPDFExc::QPDFExc(qpdf_error_code_e error_code,
 
 std::string
 QPDFExc::createWhat(std::string const& filename,
-		    std::string const& object,
-		    qpdf_offset_t offset,
-		    std::string const& message)
+                    std::string const& object,
+                    qpdf_offset_t offset,
+                    std::string const& message)
 {
     std::string result;
     if (! filename.empty())
     {
-	result += filename;
+        result += filename;
     }
     if (! (object.empty() && offset == 0))
     {
@@ -32,18 +33,18 @@ QPDFExc::createWhat(std::string const& filename,
         {
             result += " (";
         }
-	if (! object.empty())
-	{
-	    result += object;
-	    if (offset > 0)
-	    {
-		result += ", ";
-	    }
-	}
-	if (offset > 0)
-	{
-	    result += "offset " + QUtil::int_to_string(offset);
-	}
+        if (! object.empty())
+        {
+            result += object;
+            if (offset > 0)
+            {
+                result += ", ";
+            }
+        }
+        if (offset > 0)
+        {
+            result += "offset " + QUtil::int_to_string(offset);
+        }
         if (! filename.empty())
         {
             result += ")";
@@ -51,7 +52,7 @@ QPDFExc::createWhat(std::string const& filename,
     }
     if (! result.empty())
     {
-	result += ": ";
+        result += ": ";
     }
     result += message;
     return result;

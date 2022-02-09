@@ -1,4 +1,4 @@
-// Copyright (c) 2005-2021 Jay Berkenbilt
+// Copyright (c) 2005-2022 Jay Berkenbilt
 //
 // This file is part of qpdf.
 //
@@ -46,7 +46,7 @@ class QPDFXRefEntry
     QPDF_DLL
     int getObjStreamNumber() const;     // only for type 2
     QPDF_DLL
-    int getObjStreamIndex() const;	// only for type 2
+    int getObjStreamIndex() const;      // only for type 2
 
   private:
     // This class does not use the Members pattern to avoid a memory

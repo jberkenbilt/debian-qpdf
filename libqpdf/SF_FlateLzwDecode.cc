@@ -1,4 +1,5 @@
 #include <qpdf/SF_FlateLzwDecode.hh>
+
 #include <qpdf/Pl_PNGFilter.hh>
 #include <qpdf/Pl_TIFFPredictor.hh>
 #include <qpdf/Pl_Flate.hh>
@@ -91,7 +92,7 @@ SF_FlateLzwDecode::setDecodeParms(QPDFObjectHandle decode_parms)
 
     if ((this->predictor > 1) && (this->columns == 0))
     {
-	filterable = false;
+        filterable = false;
     }
 
     return filterable;

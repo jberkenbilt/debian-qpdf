@@ -14,8 +14,7 @@ static void other_tests()
     // Test cases not covered by the pipeline: string as key, convert
     // in place
     RC4 r(reinterpret_cast<unsigned char const*>("quack"));
-    auto data = std::unique_ptr<unsigned char[]>(
-        new unsigned char[6], std::default_delete<unsigned char[]>());
+    auto data = std::make_unique<unsigned char[]>(6);
     memcpy(data.get(), "potato", 6);
     r.process(data.get(), 6);
     assert(memcmp(data.get(), "\xa5\x6f\xe7\x27\x2b\x5c", 6) == 0);
@@ -32,8 +31,8 @@ int main(int argc, char* argv[])
 
     if (argc != 4)
     {
-	std::cerr << "Usage: rc4 hex-key infile outfile" << std::endl;
-	exit(2);
+        std::cerr << "Usage: rc4 hex-key infile outfile" << std::endl;
+        exit(2);
     }
 
     char* hexkey = argv[1];
@@ -47,13 +46,13 @@ int main(int argc, char* argv[])
     FILE* infile = QUtil::safe_fopen(infilename, "rb");
     for (unsigned int i = 0; i < strlen(hexkey); i += 2)
     {
-	char t[3];
-	t[0] = hexkey[i];
-	t[1] = hexkey[i + 1];
-	t[2] = '\0';
+        char t[3];
+        t[0] = hexkey[i];
+        t[1] = hexkey[i + 1];
+        t[2] = '\0';
 
-	long val = strtol(t, 0, 16);
-	key[i/2] = static_cast<unsigned char>(val);
+        long val = strtol(t, 0, 16);
+        key[i/2] = static_cast<unsigned char>(val);
     }
 
     FILE* outfile = QUtil::safe_fopen(outfilename, "wb");
@@ -67,15 +66,15 @@ int main(int argc, char* argv[])
     bool done = false;
     while (! done)
     {
-	size_t len = fread(buf, 1, sizeof(buf), infile);
-	if (len <= 0)
-	{
-	    done = true;
-	}
-	else
-	{
-	    rc4->write(buf, len);
-	}
+        size_t len = fread(buf, 1, sizeof(buf), infile);
+        if (len <= 0)
+        {
+            done = true;
+        }
+        else
+        {
+            rc4->write(buf, len);
+        }
     }
     rc4->finish();
     delete rc4;
