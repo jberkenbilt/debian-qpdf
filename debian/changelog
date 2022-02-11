@@ -1,3 +1,9 @@
+qpdf (10.6.1-1) unstable; urgency=medium
+
+  * New upstream release.
+
+ -- Jay Berkenbilt <qjb@debian.org>  Fri, 11 Feb 2022 10:40:35 -0500
+
 qpdf (10.6.0-1) unstable; urgency=medium
 
   * New upstream release.
