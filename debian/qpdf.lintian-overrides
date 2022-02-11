@@ -1,2 +1,0 @@
-# hardening-check says this is from fread
-qpdf: hardening-no-fortify-functions usr/bin/zlib-flate
