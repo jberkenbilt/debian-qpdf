@@ -63,6 +63,7 @@ HAGOOGAMAGOOGLE: 0
 0x80000000 -> ff fd
 π
 π
+LE: π
 ---- utf8_to_ascii
 ¿Does π have fingers?
 ?Does ? have fingers?
@@ -88,7 +89,8 @@ alternatives
 2: 83a9e99e
 0: 717561636b
 done alternatives
-w˘wˇwˆw˙w˝w˛w˚w˜w�w�w
+w˘wˇwˆw˙w˝w˛w˚w˜w�w�w�w
+w?w?w?w?w?w?w?w?w?w?w?w
 done other characters
 ---- whoami
 quack1
