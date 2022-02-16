@@ -303,6 +303,7 @@ void to_utf16_test()
     std::string s(QUtil::utf8_to_utf16("\xcf\x80"));
     std::cout << QUtil::utf16_to_utf8(s) << std::endl;
     std::cout << QUtil::utf16_to_utf8(s + ".") << std::endl;
+    std::cout << "LE: " << QUtil::utf16_to_utf8("\xff\xfe\xc0\x03") << std::endl;
 }
 
 void utf8_to_ascii_test()
@@ -388,7 +389,8 @@ void transcoding_test()
     check_analyze("pi = \317\200", true, true, false);
     check_analyze("pi != \317", true, false, false);
     check_analyze("pi != 22/7", false, false, false);
-    check_analyze(std::string("\xfe\xff\00\x51", 4), true, false, true);
+    check_analyze(std::string("\xfe\xff\x00\x51", 4), true, false, true);
+    check_analyze(std::string("\xff\xfe\x51\x00", 4), true, false, true);
     std::cout << "analysis done" << std::endl;
     std::string input1("a\302\277b");
     std::string input2("a\317\200b");
@@ -418,9 +420,17 @@ void transcoding_test()
     print_alternatives(utf8);
     print_alternatives("quack");
     std::cout << "done alternatives" << std::endl;
-    std::string other = QUtil::pdf_doc_to_utf8(
-        "w\030w\031w\032w\033w\034w\035w\036w\037w\177w\255w");
-    std::cout << other << std::endl;
+    // These are characters are either valid in PDFDoc and invalid in
+    // UTF-8 or the other way around.
+    std::string other("w\x18w\x19w\x1aw\x1bw\x1cw\x1dw\x1ew\x1fw\x7fw");
+    // cSpell: ignore xadw
+    std::string other_doc = other + "\x9fw\xadw";
+    std::cout << QUtil::pdf_doc_to_utf8(other_doc) << std::endl;
+    std::string other_utf8 =
+        other + QUtil::toUTF8(0x9f) + "w" + QUtil::toUTF8(0xad) + "w";
+    std::string other_to_utf8;
+    assert(! QUtil::utf8_to_pdf_doc(other_utf8, other_to_utf8));
+    std::cout << other_to_utf8 << std::endl;
     std::cout << "done other characters" << std::endl;
 }
 
