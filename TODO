@@ -1,93 +1,139 @@
+
 Next
 ====
 
-Priorities (could be for 10.x)
+In order:
+* cmake
 * code formatting
+* PointerHolder -> shared_ptr
+* ABI including --json default is latest
 * json v2
 
-Priorities for 11:
-* PointerHolder -> shared_ptr
-* ABI
+Other (do in any order):
+
+Misc
+* Get rid of "ugly switch statements" in QUtil.cc -- replace with
+  static map initializers. (Search for "ugly switch statements" below
+  as well.)
+* Consider exposing get_next_utf8_codepoint in QUtil
+* Add QUtil::is_explicit_utf8 that does what QPDF_String::getUTF8Val
+  does to detect UTF-8 encoded strings per PDF 2.0 spec.
+* Add an option --ignore-encryption to ignore encryption information
+  and treat encrypted files as if they weren't encrypted. This should
+  make it possible to solve #598 (--show-encryption without a
+  password). We'll need to make sure we don't try to filter any
+  streams in this mode. Ideally we should be able to combine this with
+  --json so we can look at the raw encrypted strings and streams if we
+  want to. Since providing the password may reveal additional details,
+  --show-encryption could potentially retry with this option if the
+  first time doesn't work. Then, with the file open, we can read the
+  encryption dictionary normally.
 
 Soon: Break ground on "Document-level work"
 
 Code Formatting
 ===============
 
-It would be good to have automatic code formatting to make the code
-more consistent and to make it easier for contributors. We would do a
-big commit to bring everything up to spec. Things to keep in mind:
+Use clang-format-15.
 
-* clang-format looks promising but is a bit of a moving target; need
-  to see if its output has been stable over the past few releases
-  since the first one that can produce code the way I like it
+* Put a .clang-format at the top of the repository -- see below for content.
+* Reformat all files:
 
-* Try to match closely to what I have. At a minimum:
+  for i in  **/*.cc **/*.c **/*.h **/*.hh; do
+     clang-format < $i >| $i.new && mv $i.new $i
+  done
 
-  * 80 columns
+* Carefully inspect the diff. There are some places where a comment to
+  force a line break might be in order.
 
-  * 4-space indent (no tabs)
-
-  * Probably want to stick with braces on separate lines to minimize
-    impact, but might consider braces on separate lines for classes
-    and functions with compact braces for flow control and exception
-    handling since that seems to be more popular these days
-
-  * No "bin packing" -- if arguments (constructor initializers,
-    function arguments, etc.) don't fit on one line, do one argument
-    per line
-
-  * With the exception of short lambdas, no block constructs can be
-    collapsed to a single line.
-
-  * Braces are mandatory for all control constructs (no if, while,
-    etc. without braces)
-
-  * Space after control constructs
-
-* Try to get emacs c-style to match as closely as possible
-
-* Consider blame.ignoreRevsFile if it seems to help
-
-* See also https://bestpractices.coreinfrastructure.org/en
-
-* QTC::TC first two arguments have to be lexically on one line. If the
-  code formatter breaks this, some QTC calls may have to be surrounded by
+* Update README-maintainer about formatting. Mention
 
   // clang-format off
   // clang-format on
 
-  or qtest may have to be made more flexible unless the formatter has
-  some rules about some places where lines shouldn't be broken.
+  as well as the use of a comment to force a line break.
 
-* auto_* files from generate_auto_job should be exempt from
-  formatting.
+Tentative .clang-format:
 
-Ideally it should be possible to run formatting in CI so that pull
-requests have to be properly formatting, but if not, there needs to be
-a `make format` similar to `make spell` that I could apply after
-merging contributions and from time to time.
+```
+---
+Language:        Cpp
+BasedOnStyle:  LLVM
+AlignAfterOpenBracket: AlwaysBreak
+AlignEscapedNewlines: DontAlign
+AllowShortFunctionsOnASingleLine: None
+BinPackArguments: false
+BinPackParameters: false
+BreakConstructorInitializers: BeforeComma
+DeriveLineEnding: false
+PackConstructorInitializers: Never
+IncludeCategories:
+  - Regex:           '^["<](qpdf)/'
+    Priority:        1
+    SortPriority:    0
+    CaseSensitive:   false
+  - Regex:           '.*'
+    Priority:        2
+    SortPriority:    0
+    CaseSensitive:   false
+  - Regex:           '.*'
+    Priority:        1
+    SortPriority:    0
+    CaseSensitive:   false
+IndentCaseBlocks: true
+IndentWidth:     4
+InsertTrailingCommas: Wrapped
+KeepEmptyLinesAtTheStartOfBlocks: false
+PointerAlignment: Left
+```
 
-A .clang-format file can be created at the top of the repository.
+Remaining work:
+
+* Try to get emacs c-style to match as closely as possible
+* Consider blame.ignoreRevsFile if it seems to help
+* Add a `make format` similar to `make spell` (or whatever this ends
+  up being with cmake)
+* Consider a github action to check formatting. I don't want
+  formatting failures to prevent all the tests from being run.
+  Alternatively, add running `make format` as a release preparation
+  check like `make spell`.
+
+cmake
+=====
+
+* Rebase the cmake branch onto main and fast-forward over it.
+* Remove all "lt-" workarounds.
+* DLL.h
+  * Remove DLL.h and QPDF_DLL* from all private library classes.
+  * Change DLL_EXPORT to QPDF_EXPORT. Be sure to call attention to
+    this in the release notes. There should be a "migrating to cmake"
+    in the manual, and ./configure should draw attention to it.
+  * Remove the definition of QPDF_DLL_CLASS from DLL.h and change all
+    occurrences of QPDF_DLL_CLASS to QPDF_DLL. This will require
+    removing QPDF_DLL from methods inside classes that are declared
+    with QPDF_DLL. If we want to explicit exclude private methods, we
+    will need to mark them as not exported. See
+    https://gcc.gnu.org/wiki/Visibility
+* Nice to have:
+  * Split qpdf.test into multiple tests
+  * Rework tests so that nothing is written into the source directory.
+  * Ideally then the entire build could be done with a read-only
+    source tree.
 
 Output JSON v2
 ==============
 
-Output JSON v2 contain enough information to completely recreate a PDF
-file.
-
-This is not an ABI change as long as the default --json version is 1.
+Output JSON v2 will contain enough information to completely recreate
+a PDF file. In other words, qpdf will have full, bidirectional,
+lossless json serialization/deserialization of PDF.
 
 If this is done, update --json option in cli.rst to mention v2. Also
 update QPDFJob::Config::json and of course other parts of the docs
 (json.rst).
 
-Fix the following problems:
+You can't create a PDF from v1 json because
 
-* Include the PDF version header somewhere.
-
-* Using "n n R" as a key in "objects" and "objectinfo" messes up
-  searching for things
+* The PDF version header is not recorded
 
 * Strings cannot be unambiguously encoded/decoded
 
@@ -101,36 +147,99 @@ Fix the following problems:
 * You can't tell a stream from a dictionary except by looking in both
   "object" and "objectinfo". Fix this, and then remove "objectinfo".
 
-* There are differences between information shown in the json format
-  vs. information shown with options like --check, --list-attachments,
+Additionally, using "n n R" as a key in "objects" and "objectinfo"
+messes up searching for things.
+
+For json v2:
+
+* Make sure it is possible to serialize and deserializes a PDF to JSON
+  without loading the whole thing into memory.
+
+  * As with a regular PDF, we can load everything into memory at once
+    except stream data.
+
+  * I think we can do this by having the concept of generated values,
+    which we can make just be strings. We would have a JSON subclass
+    whose value is a lambda that gets called to generate output. When
+    we construct the JSON the stream values would be lambda functions
+    that generate the stream data.
+
+  * When we parse the file, we'll have to have a way for the parser to
+    know that it should create a lambda that reads the data from the
+    file. I think this means we want something that parses JSON from
+    an input source. It would have to keep track of the offset and
+    length of a value from the input source and have a (probably a
+    lambda that it can call with a path) that would indicate whether
+    to store the value or whether to create a lambda that retrieves
+    it. We would have to keep a std::shared_ptr<InputSource> around.
+
+  * Add json to the large file tests.
+
+* Resolve differences between information shown in the json format vs.
+  information shown with options like --check, --list-attachments,
   etc. The json format should be able to completely replace things
-  that write to stdout.
+  that write to stdout. Be sure getAllPages() and other top-level
+  convenience routines are there so people don't need to parse the
+  pages tree themselves. For many workflows, it should be possible for
+  someone to work in the json file based on json metadata rather than
+  calling the QPDF API. (Of course, you still need the QPDF API for
+  higher level helper objects.)
 
 * Consider using camelCase in multi-word key names to be consistent
   with job JSON and with how JSON is often represented in languages
-  that use it more natively
+  that use it more natively.
 
 * Consider changing the contract to allow fields to be absent even
   when present in the schema. It's reasonable for people to check for
   presence of a key. Most languages make this easy to do.
 
+* If we allow --json to be mixed with --ignore-encryption, we must
+  emphasize that the resulting json can't be turned back into a valid
+  PDF.
+
 Most things that are informational can stay the same. We will have to
-go through every item to decide for sure.
+go through every item to decide for sure, especially when camelCase is
+taken into consideration.
 
-To address ambiguity, consider the following:
+New APIs:
 
-Whenever a direct PDF object appears, disambiguate things represented
-in JSON as strings as follows:
+QPDFObjectHandle::parseJSON(QPDF* context, JSON);
+QPDFObjectHandle::parseJSON(QPDF* context, std::string const&);
+operator ""_qpdf_json
+C API to create a QPDFObjectHandle from a json string
 
-* "/Name" -- if it starts with /, it's a name
-* "n n R" -- if it is "n n R", it's an indirect object
-* "u:utf8-encoded" -- a utf8-encoded string
-* "b:<12ab34>" -- a binary string
+JSON::parseFile
+QPDF::parseJSON(JSON) (like parseFile, etc. -- deserializes json)
+QPDF::updateFromJSON(JSON)
 
-In "objects", the key is "obj:o,g", and the value is a dictionary with
-exactly one of "value" or "stream" as its single key.
+CLI: --infile-is-json -- indicate that the input is a qpdf json file
+rather than a PDF file
+CLI: --update-from-json=file.json
 
-For non-streams, the value of "value" is as described above.
+Have a "qpdf" key in the output that contains "jsonVersion",
+"pdfVersion", and "objects". This replaces the "objects" field at the
+top level. "objects" and "objectinfo" disappear from the top-level.
+".version" and ".qpdf.jsonVersion" will match. The input to parseJSON
+and updateFromJSON will have to have the "qpdf" key in it. All other
+keys are ignored.
+
+When creating from a JSON file, the JSON must be complete with data
+for all streams, a trailer, and a pdfVersion. When updating from a
+JSON:
+
+* Any object whose value is null (not "value": null, but just null) is
+  deleted.
+* For any stream that appears without stream data, the stream data is
+  left alone.
+* Otherwise, the object from the JSON completely replaces the input
+  object. No dictionary merges or anything like that are performed.
+  It will call replaceObject.
+
+Within .qpdf.objects, the key is "obj:o,g" or "obj:trailer", and the
+value is a dictionary with exactly one of "value" or "stream" as its
+single key.
+
+For non-streams:
 
 {
   "obj:o,g": {
@@ -140,7 +249,6 @@ For non-streams, the value of "value" is as described above.
 
 For streams:
 
-{
   "obj:o,g": {
     "stream": {
       "dict": { ... stream dictionary ... },
@@ -151,27 +259,89 @@ For streams:
   }
 }
 
-Notes about stream data:
+Wherever a PDF object appears in the JSON output, including "value"
+and "stream"."dict" above as well as other places where they might
+appear, objects are represented as follows:
 
-* Always include "dict".
+* Arrays, dictionaries, booleans, nulls, integers, and real numbers
+  with no more than six decimal places are represented as their native
+  JSON type.
+* Real numbers with more than six decimal places are represented as
+  "r:{real-value}".
+* Names: "/Name" -- internal/canonical representation (e.g.
+  "/Text/Plain", not #xx quoted)
+* Indirect objects: "n n R"
+* Strings: one of
+  "s:json string treated as Unicode"
+  "b:json string treated as bytes; character > \u00ff is an error"
+  "e:base64-encoded bytes"
+
+Test cases: these are the same:
+* "b:\u00c8\u0080", "s:π", "s:\u03c0", and "e:z4A="
+* "b:\u00d8\u003e\u00dd\u0054", "s:🥔", "s:\ud83e\udd54", and "e:8J+llA=="
+
+When creating output from a string:
+* If the string is explicitly unicode (UTF-8 or UTF-16), encode as
+  "s:" without the leading U+FEFF
+* Else if the string can be bidirectionally mapped between pdf-doc and
+  unicode, transcode to unicode and encode as "s:"
+* Else if the string would be decoded as binary, encode as "e:"
+* Else encode as "b:"
+
+When reading a string, any string that doesn't follow the above rules
+is an error. This includes "r:" strings not parseable as a real
+number, "/Name" strings containing a NUL character, "s:" or "b:"
+strings that are not valid JSON strings, "b:" strings containing
+character values > 0xff, or "e:" values that are not valid base64.
+Once the string is read in, if the "s:" string can be bidirectionally
+mapped between pdf-doc and unicode, store as PDFDoc. Otherwise store
+as UTF-16BE. "b:" strings are stored as bytes, and "e:" are decoded
+and stored as bytes.
+
+Implementing this will require some refactoring of things between
+QUtil and QPDF_String, plus we will need to implement a base64
+encoder/decoder.
+
+This enables a workflow like this:
+
+* qpdf --json=latest infile.pdf > pdf.json
+* modify pdf.json
+* qpdf infile.pdf --update-from=pdf.json out.pdf
+
+or
+
+* qpdf --json=latest --json-stream-data=raw|filtered infile.pdf > pdf.json
+* modify pdf.json
+* qpdf pdf.json --infile-is-json out.pdf
+
+Notes about streams and stream data:
+
+* Always include "dict". "/Length" is removed from the stream
+  dictionary.
+
+* Add new flag --json-stream-data={raw,filtered,none}. At most one of
+  "raw" and "filtered" will appear for each stream. If "filtered"
+  appears, "/Filter" and "/DecodeParms" are removed from the stream
+  dictionary. This makes the stream data and dictionary match for when
+  the file is read back in.
 
 * Always include "filterable" regardless of value of
   --json-stream-data. The value of filterable is influenced by
   --decode-level, which is already in parameters.
 
-* Add new flag --json-stream-data={raw,filtered,none}. At most one of
-  "raw" and "filtered" will appear for each stream.
-
 * Add to parameters: value of json-stream-data, default is none
 
-* If none, omit stream data entirely
+* If --json-stream-data=none, omit stream data entirely
 
-* If raw, include raw stream data as base64
+* If --json-stream-data=raw, include raw stream data as base64. Show
+  the data even for unfiltered streams in "raw".
 
-* If filtered, including the base64-encoded filtered stream data if we
-  can and should decode it based on decode-level. Otherwise, include
-  the base64-encoded raw data. See if we can honor
-  --normalize-content.
+* If --json-stream-data=filtered, include the base64-encoded filtered
+  stream data if we can and should decode it based on decode-level.
+  Otherwise, include the base64-encoded raw data. See if we can honor
+  --normalize-content. If a stream appears unfiltered in the input,
+  still show it as filtered. Remove /DecodeParms and /Filter if
+  filtering.
 
 Note that --json-stream-data=filtered is different from
 --filtered-stream-data in that --filtered-stream-data implies
@@ -314,6 +484,10 @@ we might do about it.
   misc/character-encoding/ (not on github) and font metric information
   for the 14 standard fonts in my local pdf-spec directory.
 
+* Once we know about character widths, we can correctly support
+  auto-sized variable text fields (0 Tf). If this is fixed, search for
+  "auto-sized" in cli.rst.
+
 Fuzz Errors
 ===========
 
@@ -432,7 +606,7 @@ Do a clean build and make check -- everything passes
 
 Final steps:
 
-* Change to POINTERHOLDER_TRANSITION=4 in autoconf.mk.in.
+* Change to POINTERHOLDER_TRANSITION=4
 * Check code formatting
 * std::shared_ptr<Members> m can be replaced with
   std::shared_ptr<Members> m_ph and Members* m if performance is critical
@@ -498,13 +672,17 @@ Comments appear in the code prefixed by "ABI"
   valid.
 * Use `= delete` and `= default` for constructors and destructors
   where possible
-* Consider having setters return Class& where possible to allow for
-  use of fluent interfaces
-* Consider having addArrayItem, replaceKey, etc. return the new value
-  so you can say
-  auto oh = dict.replaceKey("/Key", QPDFObjectHandle::newSomething());
-  But this has to be clean with respect to fluent interfaces, so we
-  might need something slightly different.
+* Having QPDFObjectHandle setters return Class& to allow for
+  use of fluent interfaces. This includes array and dictionary
+  mutators.
+  newDictionary().replaceKey("/X", "1"_qpdf),replaceKey("/Y", "(asdf)"_qpdf);
+* Add replaceKeyAndGet, appendItemAndGet, setArrayItemAndGet,
+  insertItemAndGet that return the new item so you can say
+  auto oh = dict.replaceKeyAndGet("/Key", QPDFObjectHandle::newSomething());
+* Add getOrInsertKey("/X", oh) that returns the existing value or adds
+  oh as the new value and returns it.
+* Add default values to the getters, like getIntValue(default_value).
+  If a default value is passed in, you never get a type warning.
 * Added QPDFObjectHandle::ParserCallbacks::handleWarning but had to
   revert because it was not binary compatible. Consider re-adding. The
   commit that added this comment includes the reverting of the change.
@@ -632,6 +810,8 @@ NOTE: Some items in this list refer to files in my personal home
 directory or that are otherwise not publicly accessible. This includes
 things sent to me by email that are specifically not public. Even so,
 I find it useful to make reference to them in this list.
+
+ * Look at https://bestpractices.coreinfrastructure.org/en
 
  * Get rid of remaining assert() calls from non-test code.
 
