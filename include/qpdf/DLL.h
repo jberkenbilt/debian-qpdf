@@ -26,17 +26,19 @@
 /* The first version of qpdf to include the version constants is 10.6.0. */
 #define QPDF_MAJOR_VERSION 10
 #define QPDF_MINOR_VERSION 6
-#define QPDF_PATCH_VERSION 2
-#define QPDF_VERSION "10.6.2"
+#define QPDF_PATCH_VERSION 3
+#define QPDF_VERSION "10.6.3"
 
 #if (defined _WIN32 || defined __CYGWIN__) && defined(DLL_EXPORT)
 # define QPDF_DLL __declspec(dllexport)
-# define QPDF_DLL_CLASS
-#elif __GNUC__ >= 4
+#elif defined __GNUC__
 # define QPDF_DLL __attribute__ ((visibility ("default")))
-# define QPDF_DLL_CLASS __attribute__ ((visibility ("default")))
 #else
 # define QPDF_DLL
+#endif
+#ifdef __GNUC__
+# define QPDF_DLL_CLASS QPDF_DLL
+#else
 # define QPDF_DLL_CLASS
 #endif
 

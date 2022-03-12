@@ -1,8 +1,8 @@
 #include <qpdf/BitWriter.hh>
 
-// See comments in bits.cc
+// See comments in bits_functions.hh
 #define BITS_WRITE 1
-#include "bits.icc"
+#include <qpdf/bits_functions.hh>
 
 BitWriter::BitWriter(Pipeline* pl) :
     pl(pl),
