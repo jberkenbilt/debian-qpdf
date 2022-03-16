@@ -3,30 +3,28 @@
 
 # Uncomment this to turn on verbose mode.
 #export DH_VERBOSE=1
+# To skip tests:
+#export DEB_BUILD_OPTIONS=nocheck
 
 export DEB_BUILD_MAINT_OPTIONS = hardening=+all
-export DEB_MAKE_CHECK_TARGET = check
 
 %:
 	dh $@
 
 override_dh_compress:
-	dh_compress --exclude=qpdf-manual --exclude=.css --exclude examples/
-
-override_dh_auto_clean:
-	make distclean CLEAN=1
+	dh_compress --exclude examples/
 
 override_dh_auto_configure:
 	dh_auto_configure -- \
-	  --libdir="\$${prefix}/lib/$(DEB_HOST_MULTIARCH)" \
-	  --enable-crypto-gnutls --disable-implicit-crypto \
-	  --enable-show-failed-test-output --disable-check-autofiles
+	  -DUSE_IMPLICIT_CRYPTO=0 -DREQUIRE_CRYPTO_GNUTLS=1 \
+	  -DSHOW_FAILED_TEST_OUTPUT=1 -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+	  -DQTEST_COLOR=0
 
 override_dh_install:
 	dh_install
-	mkdir -p debian/libqpdf-dev/usr/share/doc/libqpdf-dev/examples
-	cp -p examples/*.cc examples/*.c \
-		debian/libqpdf-dev/usr/share/doc/libqpdf-dev/examples
+	mkdir -p debian/libqpdf-dev/usr/share/doc/libqpdf-dev
+	mv debian/qpdf/usr/share/doc/qpdf/examples \
+		debian/libqpdf-dev/usr/share/doc/libqpdf-dev/
 	cp -p README.md debian/libqpdf-dev/usr/share/doc/libqpdf-dev/README.md
 	mkdir -p debian/qpdf/usr/share/bash-completion/completions
 	cp completions/bash/qpdf \
@@ -34,4 +32,4 @@ override_dh_install:
 	mkdir -p debian/qpdf/usr/share/zsh/vendor-completions
 	cp completions/zsh/_qpdf \
 		debian/qpdf/usr/share/zsh/vendor-completions/_qpdf
-	dh_missing --list-missing -X.la
+	dh_missing --list-missing
