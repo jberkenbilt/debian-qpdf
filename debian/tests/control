@@ -1,0 +1,11 @@
+Tests: cli
+Depends: qpdf
+Restrictions: allow-stderr
+
+Tests: cmake
+Depends: libqpdf-dev, build-essential, cmake
+Restrictions: allow-stderr
+
+Tests: pkg-config
+Depends: libqpdf-dev, build-essential, pkg-config
+Restrictions: allow-stderr
