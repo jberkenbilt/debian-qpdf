@@ -10,7 +10,7 @@ Using QPDF from C++
 
 The source tree for the qpdf package has an
 :file:`examples` directory that contains a few
-example programs. The :file:`qpdf/qpdf.cc` source
+example programs. The :file:`libqpdf/QPDFJob.cc` source
 file also serves as a useful example since it exercises almost all of
 the qpdf library's public interface. The best source of documentation on
 the library itself is reading comments in
@@ -23,10 +23,20 @@ All header files are installed in the
 you use ``#include <qpdf/QPDF.hh>`` rather than adding
 :file:`include/qpdf` to your include path.
 
-When linking against the qpdf static library, you may also need to
-specify ``-lz -ljpeg`` on your link command. If your system understands
-how to read libtool :file:`.la` files, this may not
-be necessary.
+qpdf installs a ``pkg-config`` configuration with package name
+``libqpdf`` and a ``cmake`` configuration with package name ``qpdf``.
+The ``libqpdf`` target is exported in the ``qpdf::`` namespace. The
+following is an example of a :file:`CMakeLists.txt` file for a
+single-file executable that links with qpdf:
+
+.. code-block:: cmake
+
+   cmake_minimum_required(VERSION 3.16)
+   project(some-application LANGUAGES CXX)
+   find_package(qpdf)
+   add_executable(some-application some-application.cc)
+   target_link_libraries(some-application qpdf::libqpdf)
+
 
 The qpdf library is safe to use in a multithreaded program, but no
 individual ``QPDF`` object instance (including ``QPDF``,
@@ -86,6 +96,6 @@ converted to ``wchar_t*``, and Unicode-aware Windows APIs are used. As
 such, qpdf will generally operate properly on files with non-ASCII
 characters in their names as long as the filenames are UTF-8 encoded for
 passing into the qpdf library API, but there are still some rough edges,
-such as the encoding of the filenames in error messages our CLI output
+such as the encoding of the filenames in error messages or CLI output
 messages. Patches or bug reports are welcome for any continuing issues
 with Unicode file names in Windows.

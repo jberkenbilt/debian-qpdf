@@ -4,27 +4,37 @@ ROUTINE DEVELOPMENT
 
 Default:
 
-./configure CXX="g++ --std=c++14" --enable-werror --enable-maintainer-mode
+cmake -DMAINTAINER_MODE=1 -DBUILD_STATIC_LIBS=0 \
+   -DCMAKE_BUILD_TYPE=RelWithDebInfo ..
 
 Debugging:
 
-./configure CXX="g++ --std=c++14" CFLAGS="-g" CXXFLAGS="-g" \
-   --enable-werror --disable-shared --enable-maintainer-mode
+cmake -DMAINTAINER_MODE=1 -DBUILD_SHARED_LIBS=0 \
+   -DCMAKE_BUILD_TYPE=Debug ..
 
 Profiling:
 
-./configure CXX="g++ --std=c++14" CFLAGS="-g -pg" CXXFLAGS="-g -pg" \
-   LDFLAGS="-pg" --enable-werror --disable-shared --enable-maintainer-mode
+CFLAGS=-pg LDFLAGS=-pg \
+   cmake -DMAINTAINER_MODE=1 -DBUILD_SHARED_LIBS=0 \
+   -DCMAKE_BUILD_TYPE=Debug ..
 
 Then run `gprof gmon.out`. Note that gmon.out is not cumulative.
 
 Memory checks:
 
-./configure CFLAGS="-fsanitize=address -fsanitize=undefined -g" \
-   CXXFLAGS="-fsanitize=address -fsanitize=undefined -g" \
+CFLAGS="-fsanitize=address -fsanitize=undefined" \
+   CXXFLAGS="-fsanitize=address -fsanitize=undefined" \
    LDFLAGS="-fsanitize=address -fsanitize=undefined" \
-   CC=clang CXX="clang++ --std=c++14" \
-   --enable-werror --disable-shared --enable-maintainer-mode
+   CC=clang CXX=clang++ \
+   cmake -DMAINTAINER_MODE=1 -DBUILD_SHARED_LIBS=0 \
+   -DCMAKE_BUILD_TYPE=Debug ..
+
+Windows:
+
+../cmake-win {mingw|msvc} maint
+
+See ./build-scripts for other ways to run the build for different
+configurations.
 
 
 VERSIONS
@@ -66,20 +76,18 @@ GOOGLE OSS-FUZZ
 * qpdf project: https://github.com/google/oss-fuzz/tree/master/projects/qpdf
 
 * Adding new test cases: download the file from oss-fuzz and drop it
-  in fuzz/qpdf_extra/issue-number.fuzz. If not ready to include, it
-  can be stored anywhere, and the absolute path can be passed to the
-  reproduction code as described below.
+  in fuzz/qpdf_extra/issue-number.fuzz. When ready to include it, add
+  to fuzz/CMakeLists.txt. Until ready to use, the file can be stored
+  anywhere, and the absolute path can be passed to the reproduction
+  code as described below.
 
 * To test locally, see https://github.com/google/oss-fuzz/tree/master/docs/,
   especially new_project_guide.md. Summary:
 
   Clone the oss-fuzz project. From the root directory of the repository:
 
-  Add `-e GITHUB_FORK=fork -e GITHUB_BRANCH=branch` to build_fuzzers
-  from a qpdf fork/branch rather than qpdf/main.
-
   python3 infra/helper.py build_image --pull qpdf
-  python3 infra/helper.py build_fuzzers [ --sanitizer memory|undefined|address ] qpdf
+  python3 infra/helper.py build_fuzzers [ --sanitizer memory|undefined|address ] qpdf [path-to-qpdf-source]
   python3 infra/helper.py check_build qpdf
   python3 infra/helper.py build_fuzzers --sanitizer coverage qpdf
   python3 infra/helper.py coverage qpdf
@@ -247,52 +255,19 @@ RELEASE PREPARATION
 * Run a spelling checker over the source code to catch errors in
   variable names, strings, and comments.
 
-  make spell CLEAN=1
+  ./spell-check
 
   This uses cspell. Install with `npm install -g cspell`. The output
   of cspell is suitable for use with `M-x grep` in emacs. Add
   exceptions to cSpell.json.
 
-* If needed, run large file and image comparison tests. Configure
-  options:
+* If needed, run large file and image comparison tests by setting
+  these environment variables:
 
---enable-test-compare-images --with-large-file-test-path=/path
+  QPDF_LARGE_FILE_TEST_PATH=/full/path
+  QPDF_TEST_COMPARE_IMAGES=1
 
   For Windows, use a Windows style path, not an MSYS path for large files.
-
-* Test with clang. Pass `CC=clang CXX=clang++` to `./configure`. (Done
-  in CI).
-
-* Test with newer version of gcc if available.
-
-* Test 32-bit. Pass `CC=i686-linux-gnu-gcc CXX=i686-linux-gnu-g++` to
-  `./configure`. (Done in CI.)
-
-* Test build on a mac. (Done in CI.)
-
-* Test with address sanitizer as described above. (Done in CI.)
-
-* A small handful of additional files have been taken from autotools
-  programs. These should probably be updated from time to time.
-
-  * `config.guess`, `config.sub`, `ltmain.sh`, and the `m4` directory:
-    these were created by running `libtoolize -c`. To update, run
-    `libtoolize -f -c` or remove the files and rerun `libtoolize`. For
-    `config.guess` and `config.sub`, search for "latest" in the files,
-    and follow directions for updating them.
-
-  * Other files copied as indicated:
-    ```
-    cp /usr/share/automake-1.16/install-sh .
-    cp /usr/share/automake-1.16/mkinstalldirs .
-    cp /usr/share/aclocal/pkg.m4 m4
-    ```
-
-  The entire contents of the `m4` directory came from `libtool.m4`. If
-  we had some additional local parts, we could also add those to the
-  `m4` directory. In order for this to work, it is necessary to run
-  `aclocal -I m4` before running `autoheader` and `autoconf`. The
-  `autogen.sh` script handles this.
 
 * If any interfaces were added or changed, check C API to see whether
   changes are appropriate there as well. If necessary, review the
@@ -304,16 +279,11 @@ RELEASE PREPARATION
 * Double check versions and shared library details. They should
   already be up to date in the code.
 
-  * Increment shared library version information as needed
-    (`LT_CURRENT` in `configure.ac`)
-
   * Make sure version numbers are consistent in the following locations:
-    * configure.ac
+    * CMakeLists.txt
     * include/qpdf/DLL.h
     * manual/conf.py
     `make_dist` verifies this consistency.
-
-  * Run ./autogen.sh
 
 * Update release notes in manual. Look at diffs and ChangeLog.
   Update release date in `manual/release-notes.rst`.
@@ -327,23 +297,24 @@ RELEASE PREPARATION
   testing, do performance testing.
 
 * Test for performance and binary compatibility:
-  * Check out the last release
-  * ./configure --enable-werror && make -j$(nproc)
-  * Check out the current version
-  * ./performance_check | tee -a /tmp/perf
-  * ./configure --enable-werror && make -j$(nproc) build_libqpdf
-  * Checkout the last release
-  * make -k check NO_REBUILD=1 (some failures are normal -- looking
-    for binary compatibility)
-  * Check out the current version
-  * make -j$(nproc)
-  * ./performance_check | tee -a /tmp/perf
+
+  ./abi-perf-test release-<old> @
+
+  Prefix with SKIP_PERF=1 to skip performance test.
+  Prefix with SKIP_TESTS=1 to skip test suite run.
+
+  See "ABI checks" for details about the process.
+  End state:
+  * /tmp/check-abi/old contains old sizes and library
+  * /tmp/check-abi/new contains new sizes and library
+  * run check_abi manually to compare
 
 * Run pikepdf's test suite. Do this in a separate shell.
 
 cd ...qpdf-source-tree...
 export QPDF_SOURCE_TREE=$PWD
-export LD_LIBRARY_PATH=$QPDF_SOURCE_TREE/libqpdf/build/.libs
+export QPDF_BUILD_LIBDIR=$QPDF_SOURCE_TREE/build/libqpdf
+export LD_LIBRARY_PATH=$QPDF_BUILD_LIBDIR
 cd /tmp/z
 git clone git@github.com:pikepdf/pikepdf
 virtualenv v
@@ -355,27 +326,34 @@ rehash
 pip3 install .
 pytest -n auto
 
+* Run package tests:
+
+cmake -S . -B build.tmp -DCMAKE_BUILD_TYPE=RelWithDebInfo
+cmake --build build.tmp -j$(nproc)
+DESTDIR=/tmp/inst cmake --install build.tmp
+env PKG_CONFIG_PATH=/tmp/inst/usr/local/lib/pkgconfig \
+    CMAKE_PREFIX_PATH=/tmp/inst/usr/local \
+   ./pkg-test/run-all
+
 
 CREATING A RELEASE
 
 * Push to main. This will create an artifact called distribution
   which will contain all the distribution files. Download these,
   verify the checksums from the job output, rename to remove -ci from
-  the names, and copy to the release archive area.
+  the names, and extract to the release archive area.
 
 * Sign the source distribution:
 
 version=x.y.z
 gpg --detach-sign --armor qpdf-$version.tar.gz
 
-* Build and test the debian package
+* Build and test the debian package. This includes running autopkgtest.
 
 * Add a calendar reminder to check the status of the debian package to
   make sure it is transitioning properly and to resolve any issues.
 
-* Sign the releases. The release archive area should contain the
-  Windows binaries, the AppImage, the source tarball, and the source
-  tarball signature.
+* From the release archive area, sign the releases.
 
 \rm -f *.sha256
 files=(*)
@@ -457,46 +435,33 @@ rsync -vrlcO ./ jay_berkenbilt,qpdf@frs.sourceforge.net:/home/frs/project/q/qp/q
 OTHER NOTES
 
 For local iteration on the AppImage generation, it works to just
-./build-scripts/build-appimage and get the resulting AppImage from
-the distribution directory. You can also pass -e SKIP_TESTS=1
-build-appimage, which passes it along to to docker, to skip the test
-suite, which useful for rapid iteration.
+./build-scripts/build-appimage and get the resulting AppImage from the
+distribution directory. You can pass additional arguments to
+build-appimage, which passes them along to to docker.
 
-
-GENERAL BUILD STUFF
-
-QPDF uses autoconf and libtool but does not use automake. The only
-files distributed with the qpdf source distribution that are not
-controlled are `configure`, `libqpdf/qpdf/qpdf-config.h.in`,
-`aclocal.m4`, and some documentation. See above for the steps required
-to prepare a source distribution.
-
-If building or editing documentation, configure with
-`--enable-doc-maintenance`. This will ensure that all tools or files
-required to validate and build documentation are available.
-
-If you want to run `make maintainer-clean` or `make distclean` and you
-haven't run `./configure`, you can pass `CLEAN=1` to make on the
-command line to prevent it from complaining about configure not having
-been run.
-
-If you want to run checks without rerunning the build, pass
-`NO_REBUILD=1` to make. This can be useful for special testing
-scenarios such as validation of memory fixes or binary compatibility.
+Use -e SKIP_TESTS=1 to skip the test suite.
+Use -ti -e RUN_SHELL=1 to run a shell instead of the build script.
 
 
 LOCAL WINDOWS TESTING PROCEDURE
 
 This is what I do for routine testing on Windows.
 
-From Windows, git clone from my Linux clone, and unzip
-`external-libs`.
+* From Windows, git clone from my Linux clone, and unzip
+  `external-libs`.
 
-Look at `make_windows_releases`. Set up path the same way and run
-whichever `./config-*` is appropriate for whichever compiler I need to
-test with. Start one of the Visual Studio native compiler shells, and
-from there, run one of the msys shells. The Visual Studio step is not
-necessary if just building with mingw.
+* Start a command-line shell for x86_64 and x86 tools from Visual
+  studio. From there, start C:\msys64\mingw64 twice and
+  C:\msys64\mingw32 twice.
+
+* Create a build directory for each of the four permutations. Then, in
+  each build directory, run `../cmake-win <tool> maint`.
+
+* Run `cmake --build . -j4`. For MSVC, add `--config Release`
+
+* Test with with msvc: `ctest --verbose -C Release`
+
+* Test with mingw:  `ctest --verbose -C RelWithDebInfo`
 
 
 DOCS ON readthedocs.org
@@ -525,3 +490,61 @@ following branching strategy to support docs:
 
 The release process includes updating the approach branches and
 activating versions.
+
+
+CMAKE notes
+
+To verify the various cmake options and their interactions, several
+manual tests were done:
+
+* Break installed qpdf executables (qpdf, fix-qdf, zlib-flate), the
+  shared library, and DLL.h to ensure that other qpdf installations do
+  not interfere with building from source
+
+* Build static only and shared only
+
+* Install separate components separately
+
+* Build only HTML docs and only PDF docs
+
+* Try MAINTAINER_MODE without BUILD_DOC
+
+We are using RelWithDebInfo for mingw and other non-Windows builds but
+Release for MSVC. There are linker warnings if MSVC is built with
+RelWithDebInfo when using external-libs.
+
+
+ABI checks
+
+Until the conversion of the build to cmake, we relied on running the
+test suite with old executables and a new library. When QPDFJob was
+introduced, this method got much less reliable since a lot of public
+API doesn't cross the shared library boundary. Also, when switching to
+cmake, we wanted a stronger check that the library had the expected
+ABI.
+
+Our ABI check now consists of three parts:
+
+* The same check as before: run the test suite with old executables
+  and a new library
+
+* Do a literal comparison of the symbols in the old and new shared
+  libraries -- this is a strong test of ABI change
+
+* Do a check to ensure that object sizes didn't change -- even with no
+  changes to the API of exported functions, size changes break API
+
+The combination of these checks is pretty strong, though there are
+still things that could potentially break ABI, such as
+
+* Changes to the types of public or protected data members without
+  changing the size
+
+* Changes to the meanings of parameters with changing the signature
+
+Not breaking ABI/API still requires care.
+
+The check_abi script is responsible for performing many of these
+steps. See comments in check_abi for additional notes. Running
+"check_abi check-sizes" is run by ctest on Linux when CHECK_SIZES is
+on.
