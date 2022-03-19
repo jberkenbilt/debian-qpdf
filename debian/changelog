@@ -1,3 +1,10 @@
+qpdf (10.6.3.0cmake1-1) experimental; urgency=medium
+
+  * Upstream pre-release after converting build to cmake
+  * Add autopkgtest to debian packages
+
+ -- Jay Berkenbilt <qjb@debian.org>  Sat, 19 Mar 2022 07:21:09 -0400
+
 qpdf (10.6.3-1) unstable; urgency=medium
 
   * New upstream release.
