@@ -1,3 +1,9 @@
+qpdf (10.6.3.0cmake1-3) experimental; urgency=medium
+
+  * Fix typo in previous fix.
+
+ -- Jay Berkenbilt <qjb@debian.org>  Sat, 19 Mar 2022 19:46:37 -0400
+
 qpdf (10.6.3.0cmake1-2) experimental; urgency=medium
 
   * Fix to test for atomic -- will rerelease upstream with fix soon.
