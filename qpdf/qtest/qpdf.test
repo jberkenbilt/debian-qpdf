@@ -20,11 +20,11 @@ cleanup();
 my $devNull = File::Spec->devnull();
 my $td = new TestDriver('qpdf');
 
-my $compare_images = 1;
-if ((exists $ENV{'QPDF_SKIP_TEST_COMPARE_IMAGES'}) &&
-    ($ENV{'QPDF_SKIP_TEST_COMPARE_IMAGES'} eq '1'))
+my $compare_images = 0;
+if ((exists $ENV{'QPDF_TEST_COMPARE_IMAGES'}) &&
+    ($ENV{'QPDF_TEST_COMPARE_IMAGES'} eq '1'))
 {
-    $compare_images = 0;
+    $compare_images = 1;
 }
 my $large_file_test_path = $ENV{'QPDF_LARGE_FILE_TEST_PATH'} || undef;
 if (defined($large_file_test_path))
@@ -1185,8 +1185,9 @@ my @bug_tests = (
     ["335a", "ozz-fuzz-12152", 2],
     ["335b", "ozz-fuzz-14845", 2],
     ["fuzz-16214", "stream in object stream", 3, "--preserve-unreferenced"],
-    # When adding to this list, consider adding to CORPUS_FROM_TEST
-    # in fuzz/build.mk and updating the count in fuzz/qtest/fuzz.test.
+    # When adding to this list, consider adding to CORPUS_FROM_TEST in
+    # fuzz/CMakeLists.txt and updating the count in
+    # fuzz/qtest/fuzz.test.
     );
 $n_tests += scalar(@bug_tests);
 foreach my $d (@bug_tests)
@@ -5529,7 +5530,7 @@ for (my $large = 0; $large < $nlarge; ++$large)
                               " --object-streams=$omode" .
                               " $lin '$file' '$newfile'"},
                          {$td->STRING => "", $td->EXIT_STATUS => 0});
-            $td->runtest("read test file",
+            $td->runtest("read: ostream=$ostream, linearize=$linearize",
                          {$td->COMMAND =>
                               "test_large_file read $size '$newfile'"},
                          {$td->FILE => "large_file.out", $td->EXIT_STATUS => 0},

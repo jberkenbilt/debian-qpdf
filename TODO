@@ -28,6 +28,9 @@ Misc
   --show-encryption could potentially retry with this option if the
   first time doesn't work. Then, with the file open, we can read the
   encryption dictionary normally.
+* Go through README-maintainer "CODING RULES" and update --
+  PointerHolder and other changes will make some of the rules
+  obsolete.
 
 Soon: Break ground on "Document-level work"
 
@@ -101,24 +104,31 @@ Remaining work:
 cmake
 =====
 
-* Rebase the cmake branch onto main and fast-forward over it.
-* Remove all "lt-" workarounds.
 * DLL.h
   * Remove DLL.h and QPDF_DLL* from all private library classes.
   * Change DLL_EXPORT to QPDF_EXPORT. Be sure to call attention to
     this in the release notes. There should be a "migrating to cmake"
     in the manual, and ./configure should draw attention to it.
-  * Remove the definition of QPDF_DLL_CLASS from DLL.h and change all
-    occurrences of QPDF_DLL_CLASS to QPDF_DLL. This will require
-    removing QPDF_DLL from methods inside classes that are declared
-    with QPDF_DLL. If we want to explicit exclude private methods, we
-    will need to mark them as not exported. See
-    https://gcc.gnu.org/wiki/Visibility
+  * The effect of QPDF_DLL_CLASS is to export everything in the class,
+    not just the vtable. On MSVC, we don't need this as the vtable
+    gets exported automatically when needed. With gcc, we need it to
+    export typeinfo and vtable. Whenever QPDF_DLL_CLASS is defined,
+    also define QPDF_DLL_LOCAL to __attribute__
+    ((visibility("hidden"))). Then add QPDF_DLL_LOCAL to everything in
+    QPDF_DLL_CLASS that is not marked with QPDF_DLL. The effect is
+    that, with MSVC, only methods are marked QPDF_DLL are public
+    because QPDF_DLL_CLASS is empty. For gcc, only methods marked
+    QPDF_DLL are public because QPDF_DLL_LOCAL makes the other things
+    private. See https://gcc.gnu.org/wiki/Visibility. Make sure this
+    is documented.
 * Nice to have:
   * Split qpdf.test into multiple tests
   * Rework tests so that nothing is written into the source directory.
   * Ideally then the entire build could be done with a read-only
     source tree.
+* pikepdf
+  * https://github.com/pikepdf/pikepdf/pull/315 -- setup.py + docs
+  * https://github.com/pikepdf/pikepdf/pull/316 -- setup.py only
 
 Output JSON v2
 ==============
@@ -815,6 +825,9 @@ I find it useful to make reference to them in this list.
 
  * Get rid of remaining assert() calls from non-test code.
 
+ * Large file tests fail with linux32 before and after cmake. This was
+   first noticed after 10.6.3. I don't think it's worth fixing.
+
  * Consider updating the fuzzer with code that exercises
    copyAnnotations, file attachments, and name and number trees. Check
    fuzzer coverage.
@@ -1031,12 +1044,6 @@ Rejected Ideas
 
 * Investigate whether there is a way to automate the memory checker
   tests for Windows.
-
-* Consider adding "uninstall" target to makefile. It should only
-  uninstall what it installed, which means that you must run
-  uninstall from the version you ran install with. It would only be
-  supported for the toolchains that support the install target
-  (libtool).
 
 * Provide support in QPDFWriter for writing incremental updates.
   Provide support in qpdf for preserving incremental updates.  The
