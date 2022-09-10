@@ -22,11 +22,11 @@
 #ifndef QPDFNAMETREEOBJECTHELPER_HH
 #define QPDFNAMETREEOBJECTHELPER_HH
 
-#include <qpdf/QPDFObjectHelper.hh>
 #include <qpdf/QPDFObjGen.hh>
+#include <qpdf/QPDFObjectHelper.hh>
+#include <iterator>
 #include <map>
 #include <memory>
-#include <iterator>
 
 #include <qpdf/DLL.h>
 
@@ -42,28 +42,18 @@ class NNTreeImpl;
 class NNTreeIterator;
 class NNTreeDetails;
 
-class QPDFNameTreeObjectHelper: public QPDFObjectHelper
+class QPDF_DLL_CLASS QPDFNameTreeObjectHelper: public QPDFObjectHelper
 {
   public:
     // The qpdf object is required so that this class can issue
     // warnings, attempt repairs, and add indirect objects.
     QPDF_DLL
-    QPDFNameTreeObjectHelper(QPDFObjectHandle, QPDF&,
-                             bool auto_repair = true);
-
-    // ABI: Legacy Constructor will be removed in QPDF 11. A
-    // QPDFNameTreeObjectHelper constructed in this way can't be
-    // modified or repaired and will silently ignore problems in the
-    // structure.
-    [[deprecated("use constructor that takes QPDF&")]]
-    QPDF_DLL
-    QPDFNameTreeObjectHelper(QPDFObjectHandle);
+    QPDFNameTreeObjectHelper(QPDFObjectHandle, QPDF&, bool auto_repair = true);
 
     // Create an empty name tree
     QPDF_DLL
     static QPDFNameTreeObjectHelper newEmpty(QPDF&, bool auto_repair = true);
 
-    // ABI: = default
     QPDF_DLL
     virtual ~QPDFNameTreeObjectHelper();
 
@@ -77,9 +67,10 @@ class QPDFNameTreeObjectHelper: public QPDFObjectHelper
     QPDF_DLL
     bool findObject(std::string const& utf8, QPDFObjectHandle& oh);
 
-    class iterator
+    class QPDF_DLL_PRIVATE iterator
     {
         friend class QPDFNameTreeObjectHelper;
+
       public:
         typedef std::pair<std::string, QPDFObjectHandle> T;
         using iterator_category = std::bidirectional_iterator_tag;
@@ -94,7 +85,8 @@ class QPDFNameTreeObjectHelper: public QPDFObjectHelper
         QPDF_DLL
         iterator& operator++();
         QPDF_DLL
-        iterator operator++(int)
+        iterator
+        operator++(int)
         {
             iterator t = *this;
             ++(*this);
@@ -103,7 +95,8 @@ class QPDFNameTreeObjectHelper: public QPDFObjectHelper
         QPDF_DLL
         iterator& operator--();
         QPDF_DLL
-        iterator operator--(int)
+        iterator
+        operator--(int)
         {
             iterator t = *this;
             --(*this);
@@ -116,9 +109,10 @@ class QPDFNameTreeObjectHelper: public QPDFObjectHelper
         QPDF_DLL
         bool operator==(iterator const& other) const;
         QPDF_DLL
-        bool operator!=(iterator const& other) const
+        bool
+        operator!=(iterator const& other) const
         {
-            return ! operator==(other);
+            return !operator==(other);
         }
 
         // DANGER: this method can create inconsistent trees if not
@@ -162,8 +156,8 @@ class QPDFNameTreeObjectHelper: public QPDFObjectHelper
     // Find the entry with the given key. If return_prev_if_not_found
     // is true and the item is not found, return the next lower item.
     QPDF_DLL
-    iterator find(std::string const& key,
-                  bool return_prev_if_not_found = false);
+    iterator
+    find(std::string const& key, bool return_prev_if_not_found = false);
 
     // Insert a new item. If the key already exists, it is replaced.
     QPDF_DLL
@@ -187,22 +181,22 @@ class QPDFNameTreeObjectHelper: public QPDFObjectHelper
     void setSplitThreshold(int);
 
   private:
-    class Members
+    class QPDF_DLL_PRIVATE Members
     {
         friend class QPDFNameTreeObjectHelper;
 
       public:
         QPDF_DLL
-        ~Members();
+        ~Members() = default;
 
       private:
-        Members(QPDFObjectHandle& oh, QPDF*, bool auto_repair);
+        Members(QPDFObjectHandle& oh, QPDF&, bool auto_repair);
         Members(Members const&) = delete;
 
         std::shared_ptr<NNTreeImpl> impl;
     };
 
-    PointerHolder<Members> m;
+    std::shared_ptr<Members> m;
 };
 
 #endif // QPDFNAMETREEOBJECTHELPER_HH

@@ -1,9 +1,8 @@
 #!/bin/sh
 #
 # Test that the installed qpdf development packages enable a qpdf
-# application to be build with cmake using qpdf's cmake package
-# information. Requires cmake as well as libqpdf development
-# dependencies.
+# application to be built with cmake. Requires cmake as well as
+# libqpdf development dependencies.
 #
 set -ex
 
@@ -13,9 +12,18 @@ if [ ! -d "$TMP" ]; then
     exit 2
 fi
 
+WANTED_VERSION=$(awk -F'"' '/#define QPDF_VERSION / {print $2}' include/qpdf/DLL.h)
+
 cp pkg-test/qpdf-version.cc $TMP
 cd $TMP
+if [ "$(pkg-config libqpdf --modversion)" != "$WANTED_VERSION" ]; then
+    echo 1>&2 "Failed to get correct qpdf version from pkg-config --modversion"
+fi
+pkg-config libqpdf --libs --static
 g++ qpdf-version.cc -o qpdf-version \
     $(pkg-config libqpdf --cflags) \
     $(pkg-config libqpdf --libs)
-./qpdf-version
+if [ "$(./qpdf-version)" != "$WANTED_VERSION" ]; then
+    echo 1>&2 "Failed to get correct qpdf version from pkg-config test"
+    exit 2
+fi

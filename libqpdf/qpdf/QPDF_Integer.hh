@@ -1,20 +1,20 @@
 #ifndef QPDF_INTEGER_HH
 #define QPDF_INTEGER_HH
 
-#include <qpdf/QPDFObject.hh>
+#include <qpdf/QPDFValue.hh>
 
-class QPDF_Integer: public QPDFObject
+class QPDF_Integer: public QPDFValue
 {
   public:
-    QPDF_Integer(long long val);
-    virtual ~QPDF_Integer();
+    virtual ~QPDF_Integer() = default;
+    static std::shared_ptr<QPDFObject> create(long long value);
+    virtual std::shared_ptr<QPDFObject> shallowCopy();
     virtual std::string unparse();
-    virtual JSON getJSON();
-    virtual QPDFObject::object_type_e getTypeCode() const;
-    virtual char const* getTypeName() const;
+    virtual JSON getJSON(int json_version);
     long long getVal() const;
 
   private:
+    QPDF_Integer(long long val);
     long long val;
 };
 

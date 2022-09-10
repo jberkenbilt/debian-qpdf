@@ -24,40 +24,42 @@
 
 #include <qpdf/Pipeline.hh>
 
-class Pl_RunLength: public Pipeline
+class QPDF_DLL_CLASS Pl_RunLength: public Pipeline
 {
   public:
     enum action_e { a_encode, a_decode };
 
     QPDF_DLL
-    Pl_RunLength(char const* identifier, Pipeline* next,
-                 action_e action);
+    Pl_RunLength(char const* identifier, Pipeline* next, action_e action);
     QPDF_DLL
     virtual ~Pl_RunLength();
 
     QPDF_DLL
-    virtual void write(unsigned char* data, size_t len);
+    virtual void write(unsigned char const* data, size_t len);
     QPDF_DLL
     virtual void finish();
 
   private:
-    void encode(unsigned char* data, size_t len);
-    void decode(unsigned char* data, size_t len);
+    QPDF_DLL_PRIVATE
+    void encode(unsigned char const* data, size_t len);
+    QPDF_DLL_PRIVATE
+    void decode(unsigned char const* data, size_t len);
+    QPDF_DLL_PRIVATE
     void flush_encode();
 
     enum state_e { st_top, st_copying, st_run };
 
-    class Members
+    class QPDF_DLL_PRIVATE Members
     {
         friend class Pl_RunLength;
 
       public:
         QPDF_DLL
-        ~Members();
+        ~Members() = default;
 
       private:
         Members(action_e);
-        Members(Members const&);
+        Members(Members const&) = delete;
 
         action_e action;
         state_e state;
@@ -65,7 +67,7 @@ class Pl_RunLength: public Pipeline
         unsigned int length;
     };
 
-    PointerHolder<Members> m;
+    std::shared_ptr<Members> m;
 };
 
 #endif // PL_RUNLENGTH_HH

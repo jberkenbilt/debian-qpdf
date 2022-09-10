@@ -5,33 +5,29 @@
 Buffer::Members::Members(size_t size, unsigned char* buf, bool own_memory) :
     own_memory(own_memory),
     size(size),
-    buf(0)
+    buf(nullptr)
 {
-    if (own_memory)
-    {
-        this->buf = (size ? new unsigned char[size] : 0);
-    }
-    else
-    {
+    if (own_memory) {
+        this->buf = (size ? new unsigned char[size] : nullptr);
+    } else {
         this->buf = buf;
     }
 }
 
 Buffer::Members::~Members()
 {
-    if (this->own_memory)
-    {
-        delete [] this->buf;
+    if (this->own_memory) {
+        delete[] this->buf;
     }
 }
 
 Buffer::Buffer() :
-    m(new Members(0, 0, true))
+    m(new Members(0, nullptr, true))
 {
 }
 
 Buffer::Buffer(size_t size) :
-    m(new Members(size, 0, true))
+    m(new Members(size, nullptr, true))
 {
 }
 
@@ -52,14 +48,25 @@ Buffer::operator=(Buffer const& rhs)
     return *this;
 }
 
+Buffer::Buffer(Buffer&& rhs) noexcept :
+    m(std::move(rhs.m))
+{
+}
+
+Buffer&
+Buffer::operator=(Buffer&& rhs) noexcept
+{
+    std::swap(this->m, rhs.m);
+    return *this;
+}
+
 void
 Buffer::copy(Buffer const& rhs)
 {
-    if (this != &rhs)
-    {
-        this->m = PointerHolder<Members>(new Members(rhs.m->size, 0, true));
-        if (this->m->size)
-        {
+    if (this != &rhs) {
+        this->m =
+            std::unique_ptr<Members>(new Members(rhs.m->size, nullptr, true));
+        if (this->m->size) {
             memcpy(this->m->buf, rhs.m->buf, this->m->size);
         }
     }

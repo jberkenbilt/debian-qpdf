@@ -19,34 +19,42 @@
 // continue to consider qpdf to be licensed under those terms. Please
 // see the manual for additional information.
 
-#ifndef QPDFOBJECT_HH
-#define QPDFOBJECT_HH
+#ifndef QPDFOBJECT_OLD_HH
+#define QPDFOBJECT_OLD_HH
 
-#include <qpdf/DLL.h>
-#include <qpdf/Types.h>
-#include <qpdf/JSON.hh>
+// **********************************************************************
+//
+//   This file is for backward compatibility. The header file for the
+//   internal QPDFObject class (not part of the public API) is in
+//   QPDFObject_private.hh (not installed).
+//
+// **********************************************************************
+
+// ABI: in qpdf 12, leave this file in place and have it generate an
+// error. This is to prevent someone from being able to successfully
+// include this file and get a copy from a previous installation
+// thereby accidentally creating sources depend on having an older
+// version installed. When enough time has passed, this file can be
+// removed, and libqpdf/qpdf/QPDFObject_private.hh can be renamed to
+// libqpdf/qpdf/QPDFObject.hh.
+
+#ifndef QPDF_OBJECT_NOWARN
+// ABI: remove this file in qpdf 12
+# warning "QPDFObject.hh is deprecated see comments in QPDFObject.hh"
+#endif
+
 #include <qpdf/Constants.h>
-
-#include <string>
-
-class QPDF;
-class QPDFObjectHandle;
-
-class QPDF_DLL_CLASS QPDFObject
+class QPDFObject
 {
   public:
-    QPDFObject();
-
-    // Objects derived from QPDFObject are accessible through
-    // QPDFObjectHandle. Each object returns a unique type code that
-    // has one of the valid qpdf_object_type_e values. As new object
-    // types are added to qpdf, additional items may be added to the
-    // list, so code that switches on these values should take that
-    // into consideration.
+    // This file and these symbols will be removed in QPDF 12. Instead
+    // of including this header, include <qpdf/Constants.h>. Replace
+    // `QPDFObject::ot_` with `::ot_` in your code.
 
     // Prior to qpdf 10.5, qpdf_object_type_e was
     // QPDFObject::object_type_e but was moved to make it accessible
-    // to the C API. The code below is for backward compatibility.
+    // to the C API. The code below is for backward compatibility
+    // until qpdf 12.
     typedef enum qpdf_object_type_e object_type_e;
     static constexpr object_type_e ot_uninitialized = ::ot_uninitialized;
     static constexpr object_type_e ot_reserved = ::ot_reserved;
@@ -62,50 +70,10 @@ class QPDF_DLL_CLASS QPDFObject
     static constexpr object_type_e ot_operator = ::ot_operator;
     static constexpr object_type_e ot_inlineimage = ::ot_inlineimage;
 
-    virtual ~QPDFObject() {}
-    virtual std::string unparse() = 0;
-    virtual JSON getJSON() = 0;
-
-    // Return a unique type code for the object
-    virtual object_type_e getTypeCode() const = 0;
-
-    // Return a string literal that describes the type, useful for
-    // debugging and testing
-    virtual char const* getTypeName() const = 0;
-
-    // Accessor to give specific access to non-public methods
-    class ObjAccessor
-    {
-        friend class QPDF;
-        friend class QPDFObjectHandle;
-      private:
-        static void releaseResolved(QPDFObject* o)
-        {
-            if (o)
-            {
-                o->releaseResolved();
-            }
-        }
-    };
-    friend class ObjAccessor;
-
-    virtual void setDescription(QPDF*, std::string const&);
-    bool getDescription(QPDF*&, std::string&);
-    bool hasDescription();
-
-    void setParsedOffset(qpdf_offset_t offset);
-    qpdf_offset_t getParsedOffset();
-
-  protected:
-    virtual void releaseResolved() {}
-
   private:
+    QPDFObject() = delete;
     QPDFObject(QPDFObject const&) = delete;
     QPDFObject& operator=(QPDFObject const&) = delete;
-
-    QPDF* owning_qpdf;
-    std::string object_description;
-    qpdf_offset_t parsed_offset;
 };
 
-#endif // QPDFOBJECT_HH
+#endif // QPDFOBJECT_OLD_HH

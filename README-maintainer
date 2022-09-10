@@ -119,6 +119,28 @@ GOOGLE OSS-FUZZ
 
 CODING RULES
 
+* Code is formatted with clang-format >= 15. See .clang-format and the
+  "Code Formatting" section in manual/contributing.rst for details.
+  See also "CODE FORMATTING" below.
+
+* Use of assert:
+
+  * Test code: #include <qpdf/assert_test.h> first.
+  * Debug code: #include <qpdf/assert_debug.h> first and use
+    qpdf_assert_debug instead of assert.
+
+  These rules are enforced by the check-assert test. This practices
+  serves to
+
+  * remind us that assert in release code disappears and so should only
+    be used for debugging; when doing so use a Debug build
+    configuration
+
+  * protect us from using assert in test code without explicitly
+    removing the NDEBUG definition, since that would cause the assert
+    not to actually be testing anything in non-Debug build
+    configurations.
+
 * In a source file, include the header file that declares the source
   class first followed by a blank line. If a config file is needed
   first, put a blank line between that and the header followed by
@@ -152,15 +174,37 @@ CODING RULES
 
 * Use QPDF_DLL on all methods that are to be exported in the shared
   library/DLL. Use QPDF_DLL_CLASS for all classes whose type
-  information is needed. This is important for exception classes and
-  it seems also for classes that are intended to be subclassed across
-  the shared library boundary.
+  information is needed. This is important for classes that are used
+  as exceptions, subclassed, or tested with dynamic_cast across the
+  the shared object boundary (or "shared library boundary" -- we may
+  use either term in comments and documentation). In particular,
+  anything new derived from Pipeline or InputSource should be marked
+  with QPDF_DLL_CLASS, but we don't need to do it for QPDFObjectHelper
+  or QPDFDocumentHelper subclasses since there's no reason to use
+  dynamic_cast with those.
 
-* Put private member variables in PointerHolder<Members> for all
+  IMPORTANT NOTE ABOUT QPDF_DLL_CLASS: On mingw, the vtable for a
+  class with some virtual methods and no pure virtual methods seems
+  often (always?) not to be generated if the destructor is inline or
+  declared with `= default`. Therefore, for any class that is intended
+  to be used as a base class and doesn't contain any pure virtual
+  methods, you must declare the destructor in the header without
+  `= default` and provide a non-inline implementation in the source
+  file. Add this comment to the implementation:
+
+    // Must be explicit and not inline -- see QPDF_DLL_CLASS in
+    // README-maintainer
+
+* Put private member variables in std::shared_ptr<Members> for all
   public classes. Remember to use QPDF_DLL on ~Members(). Exception:
-  indirection through PointerHolder<Members> is expensive, so don't do
-  it for classes that are copied a lot, like QPDFObjectHandle and
-  QPDFObject.
+  indirection through std::shared_ptr<Members> is expensive, so don't
+  do it for classes that are copied a lot, like QPDFObjectHandle and
+  QPDFObject. It may be possible to declare
+  std::shared_ptr<Members> m_ph;
+  Member* m;
+  with m = m_ph.get(), and then indirect through m in
+  performance-critical settings, though in 2022, std::shared_ptr is
+  sufficiently performant that this may not be worth it.
 
 * Traversal of objects is expensive. It's worth adding some complexity
   to avoid needless traversals of objects.
@@ -170,6 +214,14 @@ CODING RULES
 
 
 HOW TO ADD A COMMAND-LINE ARGUMENT
+
+Quick reminder:
+
+* Add an entry to the top half of job.yml for the command-line
+  argument
+* Add an entry to the bottom half of job.yml for the job JSON field
+* Add documentation for the new option to cli.rst
+* Implement the QPDFJob::Config method in QPDFJob_config.cc.
 
 QPDFJob is documented in three places:
 
@@ -239,8 +291,6 @@ RELEASE PREPARATION
 
 * Check for open fuzz crashes at https://oss-fuzz.com
 
-* Check lgtm: https://lgtm.com/projects/g/qpdf/qpdf/?mode=list
-
 * Check all open issues and pull requests in github and the
   sourceforge trackers. See ~/scripts/github-issues. Don't forget pull
   requests. Note: If the location for reporting issues changes, do a
@@ -251,6 +301,10 @@ RELEASE PREPARATION
   done or retargeted.
 
 * Check work `qpdf` project for private issues
+
+* Make sure the code is formatted.
+
+  ./format-code
 
 * Run a spelling checker over the source code to catch errors in
   variable names, strings, and comments.
@@ -286,11 +340,12 @@ RELEASE PREPARATION
     `make_dist` verifies this consistency.
 
 * Update release notes in manual. Look at diffs and ChangeLog.
-  Update release date in `manual/release-notes.rst`.
+  Update release date in `manual/release-notes.rst`. Change "not yet
+  released" to an actual date for the release.
 
 * Add a release entry to ChangeLog: "x.y.z: release"
 
-* Commit title: "Prepare x.y.z release"
+* Commit changes with title "Prepare x.y.z release"
 
 * Performance test is included with binary compatibility steps. Even
   if releasing a new major release and not doing binary compatibility
@@ -328,11 +383,16 @@ pytest -n auto
 
 * Run package tests:
 
-cmake -S . -B build.tmp -DCMAKE_BUILD_TYPE=RelWithDebInfo
+(Note: can't use DESTDIR because pkg-config won't know about it.)
+
+\rm -rf /tmp/inst build.tmp
+cmake -S . -B build.tmp \
+    -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_INSTALL_PREFIX=/tmp/inst
 cmake --build build.tmp -j$(nproc)
-DESTDIR=/tmp/inst cmake --install build.tmp
-env PKG_CONFIG_PATH=/tmp/inst/usr/local/lib/pkgconfig \
-    CMAKE_PREFIX_PATH=/tmp/inst/usr/local \
+cmake --install build.tmp
+env PKG_CONFIG_PATH=/tmp/inst/lib/pkgconfig \
+    LD_LIBRARY_PATH=/tmp/inst/lib \
+    CMAKE_PREFIX_PATH=/tmp/inst \
    ./pkg-test/run-all
 
 
@@ -373,8 +433,8 @@ chmod 555 *.AppImage
   HEAD pointing to the tip of main.
 
 git rev-parse qpdf/main @
-git tag -s release-qpdf-$version @ -m"qpdf $version"
-git push qpdf release-qpdf-$version
+git tag -s v$version @ -m"qpdf $version"
+git push qpdf v$version
 
 * Update documentation branches
 
@@ -391,7 +451,8 @@ git push qpdf @:stable
 # Create release
 GITHUB_TOKEN=$(qdata-show cred github-token)
 function gcurl() { curl -H "Authorization: token $GITHUB_TOKEN" ${1+"$@"}; }
-url=$(gcurl -s -XPOST https://api.github.com/repos/qpdf/qpdf/releases -d'{"tag_name": "release-qpdf-'$version'", "name": "qpdf '$version'", "draft": true}' | jq -r '.url')
+
+url=$(gcurl -s -XPOST https://api.github.com/repos/qpdf/qpdf/releases -d'{"tag_name": "v'$version'", "name": "qpdf '$version'", "draft": true}' | jq -r '.url')
 
 # Get upload url
 upload_url=$(gcurl -s $url | jq -r '.upload_url' | sed -E -e 's/\{.*\}//')
@@ -441,6 +502,41 @@ build-appimage, which passes them along to to docker.
 
 Use -e SKIP_TESTS=1 to skip the test suite.
 Use -ti -e RUN_SHELL=1 to run a shell instead of the build script.
+
+To iterate on the scripts directly in the source tree, you can run
+
+docker build -t qpdfbuild appimage
+docker run --privileged --rm -ti -e SKIP_TESTS=1 -e RUN_SHELL=1 \
+       -v $PWD/..:/tmp/build ${1+"$@"} qpdfbuild
+
+This will put you at a shell prompt inside the container with your
+current directory set to the top of the source tree and your uid equal
+to the owner of the parent directory source tree.
+
+Note: this will leave some extra files (like .bash_history) in the
+parent directory of the source tree. You will want to clean those up.
+
+DEPRECATION
+
+This is a reminder of how to use and test deprecation.
+
+To temporarily disable deprecation warnings for testing:
+
+#ifdef _MSC_VER
+# pragma warning(disable : 4996)
+#endif
+#if (defined(__GNUC__) || defined(__clang__))
+# pragma GCC diagnostic push
+# pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+#endif
+    // Do deprecated thing here
+#if (defined(__GNUC__) || defined(__clang__))
+# pragma GCC diagnostic pop
+#endif
+
+To declare something as deprecated:
+
+[[deprecated("explanation")]]
 
 
 LOCAL WINDOWS TESTING PROCEDURE
@@ -548,3 +644,36 @@ The check_abi script is responsible for performing many of these
 steps. See comments in check_abi for additional notes. Running
 "check_abi check-sizes" is run by ctest on Linux when CHECK_SIZES is
 on.
+
+
+CODE FORMATTING
+
+* Emacs doesn't indent breaking strings concatenated with + over
+  lines but clang-format does. It's clearer with clang-format. To
+  get emacs and clang-format to agree, parenthesize the expression
+  that builds the concatenated string.
+
+* With
+
+  long_function(long_function(
+      args)
+
+  clang-format anchors relative to the first function, and emacs
+  anchors relative to the second function. Use
+
+  long_function(
+      // line-break
+      long_function(
+	  args)
+
+  to resolve.
+
+In the revision control history, there is a commit around April 3,
+2022 with the title "Update some code manually to get better
+formatting results" that shows several examples of changing code so
+that clang-format produces several results. (In git this is commit
+77e889495f7c513ba8677df5fe662f08053709eb.)
+
+The commit that has the bulk of the automatic reformatting is
+12f1eb15ca3fed6310402847559a7c99d3c77847. This could go in a
+blame.ignoreRevsFile file for `git blame` if needed.

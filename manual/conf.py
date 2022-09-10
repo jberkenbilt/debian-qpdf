@@ -16,7 +16,7 @@ project = 'QPDF'
 copyright = '2005-2022, Jay Berkenbilt'
 author = 'Jay Berkenbilt'
 # make_dist and the CI build lexically find the release version from this file.
-release = '10.6.3'
+release = '11.0.0'
 version = release
 extensions = [
     'sphinx_rtd_theme',
@@ -35,6 +35,7 @@ latex_elements = {
     'preamble': r'''
 \sphinxDUC{2264}{$\leq$}
 \sphinxDUC{2265}{$\geq$}
+\sphinxDUC{03C0}{$\pi$}
 ''',
 }
 highlight_language = 'none'

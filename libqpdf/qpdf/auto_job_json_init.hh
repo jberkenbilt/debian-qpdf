@@ -12,8 +12,10 @@ static char const* decode_level_choices[] = {"none", "generalized", "specialized
 static char const* object_streams_choices[] = {"disable", "preserve", "generate", 0};
 static char const* remove_unref_choices[] = {"auto", "yes", "no", 0};
 static char const* flatten_choices[] = {"all", "print", "screen", 0};
-static char const* json_version_choices[] = {"1", "latest", 0};
-static char const* json_key_choices[] = {"acroform", "attachments", "encrypt", "objectinfo", "objects", "outlines", "pagelabels", "pages", 0};
+static char const* json_key_choices[] = {"acroform", "attachments", "encrypt", "objectinfo", "objects", "outlines", "pagelabels", "pages", "qpdf", 0};
+static char const* json_output_choices[] = {"2", "latest", 0};
+static char const* json_stream_data_choices[] = {"none", "inline", "file", 0};
+static char const* json_version_choices[] = {"1", "2", "latest", 0};
 static char const* print128_choices[] = {"full", "low", "none", 0};
 static char const* modify128_choices[] = {"all", "annotate", "form", "assembly", "none", 0};
 
@@ -29,6 +31,9 @@ popHandler(); // key: passwordFile
 pushKey("empty");
 setupEmpty();
 popHandler(); // key: empty
+pushKey("jsonInput");
+addBare([this]() { c_main->jsonInput(); });
+popHandler(); // key: jsonInput
 pushKey("outputFile");
 setupOutputFile();
 popHandler(); // key: outputFile
@@ -101,6 +106,9 @@ popHandler(); // key: progress
 pushKey("splitPages");
 addParameter([this](std::string const& p) { c_main->splitPages(p); });
 popHandler(); // key: splitPages
+pushKey("jsonOutput");
+addChoices(json_output_choices, false, [this](std::string const& p) { c_main->jsonOutput(p); });
+popHandler(); // key: jsonOutput
 pushKey("encrypt");
 beginDict(bindJSON(&Handlers::beginEncrypt), bindBare(&Handlers::endEncrypt)); // .encrypt
 pushKey("userPassword");
@@ -252,6 +260,15 @@ beginArray(bindJSON(&Handlers::beginJsonObjectArray), bindBare(&Handlers::endJso
 addParameter([this](std::string const& p) { c_main->jsonObject(p); });
 popHandler(); // array: .jsonObject[]
 popHandler(); // key: jsonObject
+pushKey("jsonStreamData");
+addChoices(json_stream_data_choices, true, [this](std::string const& p) { c_main->jsonStreamData(p); });
+popHandler(); // key: jsonStreamData
+pushKey("jsonStreamPrefix");
+addParameter([this](std::string const& p) { c_main->jsonStreamPrefix(p); });
+popHandler(); // key: jsonStreamPrefix
+pushKey("updateFromJson");
+addParameter([this](std::string const& p) { c_main->updateFromJson(p); });
+popHandler(); // key: updateFromJson
 pushKey("allowWeakCrypto");
 addBare([this]() { c_main->allowWeakCrypto(); });
 popHandler(); // key: allowWeakCrypto
@@ -267,6 +284,9 @@ popHandler(); // key: noWarn
 pushKey("verbose");
 addBare([this]() { c_main->verbose(); });
 popHandler(); // key: verbose
+pushKey("testJsonSchema");
+addBare([this]() { c_main->testJsonSchema(); });
+popHandler(); // key: testJsonSchema
 pushKey("ignoreXrefStreams");
 addBare([this]() { c_main->ignoreXrefStreams(); });
 popHandler(); // key: ignoreXrefStreams
@@ -327,7 +347,9 @@ popHandler(); // key: replace
 popHandler(); // array: .addAttachment[]
 popHandler(); // key: addAttachment
 pushKey("removeAttachment");
+beginArray(bindJSON(&Handlers::beginRemoveAttachmentArray), bindBare(&Handlers::endRemoveAttachmentArray)); // .removeAttachment[]
 addParameter([this](std::string const& p) { c_main->removeAttachment(p); });
+popHandler(); // array: .removeAttachment[]
 popHandler(); // key: removeAttachment
 pushKey("copyAttachmentsFrom");
 beginArray(bindJSON(&Handlers::beginCopyAttachmentsFromArray), bindBare(&Handlers::endCopyAttachmentsFromArray)); // .copyAttachmentsFrom[]
@@ -387,6 +409,9 @@ popHandler(); // key: pages
 pushKey("removePageLabels");
 addBare([this]() { c_main->removePageLabels(); });
 popHandler(); // key: removePageLabels
+pushKey("reportMemoryUsage");
+addBare([this]() { c_main->reportMemoryUsage(); });
+popHandler(); // key: reportMemoryUsage
 pushKey("rotate");
 addParameter([this](std::string const& p) { c_main->rotate(p); });
 popHandler(); // key: rotate

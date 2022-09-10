@@ -1,20 +1,20 @@
 #ifndef QPDF_OPERATOR_HH
 #define QPDF_OPERATOR_HH
 
-#include <qpdf/QPDFObject.hh>
+#include <qpdf/QPDFValue.hh>
 
-class QPDF_Operator: public QPDFObject
+class QPDF_Operator: public QPDFValue
 {
   public:
-    QPDF_Operator(std::string const& val);
-    virtual ~QPDF_Operator();
+    virtual ~QPDF_Operator() = default;
+    static std::shared_ptr<QPDFObject> create(std::string const& val);
+    virtual std::shared_ptr<QPDFObject> shallowCopy();
     virtual std::string unparse();
-    virtual JSON getJSON();
-    virtual QPDFObject::object_type_e getTypeCode() const;
-    virtual char const* getTypeName() const;
+    virtual JSON getJSON(int json_version);
     std::string getVal() const;
 
   private:
+    QPDF_Operator(std::string const& val);
     std::string val;
 };
 

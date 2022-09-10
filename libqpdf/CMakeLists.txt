@@ -1,10 +1,3 @@
-
-if(GENERATE_AUTO_JOB)
-  execute_process(
-    COMMAND ${qpdf_SOURCE_DIR}/generate_auto_job --generate
-    WORKING_DIRECTORY ${qpdf_SOURCE_DIR})
-endif()
-
 set(libqpdf_crypto_native
   AES_PDF_native.cc
   MD5_native.cc
@@ -42,20 +35,24 @@ set(libqpdf_SOURCES
   Pl_AES_PDF.cc
   Pl_ASCII85Decoder.cc
   Pl_ASCIIHexDecoder.cc
+  Pl_Base64.cc
   Pl_Buffer.cc
   Pl_Concatenate.cc
   Pl_Count.cc
   Pl_DCT.cc
   Pl_Discard.cc
   Pl_Flate.cc
+  Pl_Function.cc
   Pl_LZWDecoder.cc
   Pl_MD5.cc
+  Pl_OStream.cc
   Pl_PNGFilter.cc
   Pl_QPDFTokenizer.cc
   Pl_RC4.cc
   Pl_RunLength.cc
   Pl_SHA2.cc
   Pl_StdioFile.cc
+  Pl_String.cc
   Pl_TIFFPredictor.cc
   QPDF.cc
   QPDFAcroFormDocumentHelper.cc
@@ -71,25 +68,29 @@ set(libqpdf_SOURCES
   QPDFJob_argv.cc
   QPDFJob_config.cc
   QPDFJob_json.cc
+  QPDFLogger.cc
   QPDFMatrix.cc
   QPDFNameTreeObjectHelper.cc
   QPDFNumberTreeObjectHelper.cc
-  QPDFObjGen.cc
   QPDFObject.cc
   QPDFObjectHandle.cc
+  QPDFObjGen.cc
   QPDFOutlineDocumentHelper.cc
   QPDFOutlineObjectHelper.cc
   QPDFPageDocumentHelper.cc
   QPDFPageLabelDocumentHelper.cc
   QPDFPageObjectHelper.cc
+  QPDFParser.cc
   QPDFStreamFilter.cc
   QPDFSystemError.cc
   QPDFTokenizer.cc
   QPDFUsage.cc
+  QPDFValue.cc
   QPDFWriter.cc
   QPDFXRefEntry.cc
   QPDF_Array.cc
   QPDF_Bool.cc
+  QPDF_Destroyed.cc
   QPDF_Dictionary.cc
   QPDF_InlineImage.cc
   QPDF_Integer.cc
@@ -100,7 +101,9 @@ set(libqpdf_SOURCES
   QPDF_Reserved.cc
   QPDF_Stream.cc
   QPDF_String.cc
+  QPDF_Unresolved.cc
   QPDF_encryption.cc
+  QPDF_json.cc
   QPDF_linearization.cc
   QPDF_optimization.cc
   QPDF_pages.cc
@@ -112,7 +115,8 @@ set(libqpdf_SOURCES
   SF_FlateLzwDecode.cc
   SparseOHArray.cc
   qpdf-c.cc
-  qpdfjob-c.cc)
+  qpdfjob-c.cc
+  qpdflogger-c.cc)
 
 include(FindPkgConfig)
 include(CheckTypeSize)
@@ -207,7 +211,7 @@ if(USE_IMPLICIT_CRYPTO OR REQUIRE_CRYPTO_OPENSSL)
     if(pc_openssl_FOUND)
       set(USE_CRYPTO_OPENSSL ON)
       set(FOUND_CRYPTO ON)
-      set(CRYPTO_PKG "${CRYPTO_PKG}, openssl>=1.1.0")
+      set(CRYPTO_PKG "${CRYPTO_PKG}, openssl >= 1.1.0")
     else()
       find_path(OPENSSL_H_PATH openssl/evp.h)
       find_library(OPENSSL_LIB_PATH crypto)
@@ -375,6 +379,29 @@ int main(int argc, char* argv[]) {
   endif()
 endfunction()
 
+check_c_source_compiles(
+"#include <malloc.h>
+#include <stdio.h>
+int main(int argc, char* argv[]) {
+    malloc_info(0, stdout);
+    return 0;
+}"
+    HAVE_MALLOC_INFO)
+
+check_c_source_compiles(
+"#include <stdio.h>
+#include <stdlib.h>
+int main(int argc, char* argv[]) {
+    char* buf;
+    size_t size;
+    FILE* f;
+    f = open_memstream(&buf, &size);
+    fclose(f);
+    free(buf);
+    return 0;
+}"
+    HAVE_OPEN_MEMSTREAM)
+
 qpdf_check_ll_fmt("%lld" fmt_lld)
 qpdf_check_ll_fmt("%I64d" fmt_i64d)
 qpdf_check_ll_fmt("%I64lld" fmt_i64lld)
@@ -398,6 +425,9 @@ endif()
 # use PIC for the object library so we don't have to compile twice.
 set(OBJECT_LIB libqpdf_object)
 add_library(${OBJECT_LIB} OBJECT ${libqpdf_SOURCES})
+if(OBJECT_LIB_IS_PIC)
+  target_compile_definitions(${OBJECT_LIB} PRIVATE libqpdf_EXPORTS)
+endif()
 set_target_properties(${OBJECT_LIB} PROPERTIES
   POSITION_INDEPENDENT_CODE ${OBJECT_LIB_IS_PIC})
 target_include_directories(${OBJECT_LIB}
@@ -410,6 +440,9 @@ target_include_directories(${OBJECT_LIB}
   ${CMAKE_CURRENT_BINARY_DIR})
 target_link_directories(${OBJECT_LIB} INTERFACE ${dep_link_directories})
 target_link_libraries(${OBJECT_LIB} INTERFACE ${dep_link_libraries})
+if(ATOMIC_LIBRARY)
+  target_link_libraries(${OBJECT_LIB} INTERFACE ${ATOMIC_LIBRARY})
+endif()
 
 set(LD_VERSION_FLAGS "")
 function(ld_version_script)
@@ -443,8 +476,6 @@ if(NOT WIN32)
 endif()
 
 if(BUILD_SHARED_LIBS)
-  add_compile_definitions(DLL_EXPORT)
-
   set(SHARED_LIB libqpdf)
   if(OBJECT_LIB_IS_PIC)
     add_library(${SHARED_LIB} SHARED $<TARGET_OBJECTS:libqpdf_object>)
@@ -482,6 +513,7 @@ if(BUILD_SHARED_LIBS)
     SOVERSION ${qpdf_SOVERSION}
     POSITION_INDEPENDENT_CODE ${BUILD_SHARED_LIBS})
 
+  target_compile_definitions(${SHARED_LIB} PRIVATE libqpdf_EXPORTS)
   target_include_directories(${SHARED_LIB}
     SYSTEM PRIVATE ${dep_include_directories})
   target_include_directories(${SHARED_LIB}
@@ -490,6 +522,9 @@ if(BUILD_SHARED_LIBS)
     $<INSTALL_INTERFACE:include>)
   target_link_directories(${SHARED_LIB} PRIVATE ${dep_link_directories})
   target_link_libraries(${SHARED_LIB} PRIVATE ${dep_link_libraries})
+  if(ATOMIC_LIBRARY)
+    target_link_libraries(${SHARED_LIB} PRIVATE ${ATOMIC_LIBRARY})
+  endif()
   if(LD_VERSION_FLAGS)
     target_link_options(${SHARED_LIB} PRIVATE ${LD_VERSION_FLAGS})
   endif()
@@ -527,6 +562,9 @@ if(BUILD_STATIC_LIBS)
     INTERFACE $<BUILD_INTERFACE:${dep_link_directories}>
     PRIVATE $<INSTALL_INTERFACE:${dep_link_directories}>)
   target_link_libraries(${STATIC_LIB} INTERFACE ${dep_link_libraries})
+  if(ATOMIC_LIBRARY)
+    target_link_libraries(${STATIC_LIB} INTERFACE ${ATOMIC_LIBRARY})
+  endif()
 
   # Avoid name clashes on Windows with the the DLL import library.
   if(NOT DEFINED STATIC_SUFFIX AND BUILD_SHARED_LIBS)

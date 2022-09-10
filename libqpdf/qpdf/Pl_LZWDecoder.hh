@@ -9,14 +9,10 @@
 class Pl_LZWDecoder: public Pipeline
 {
   public:
-    QPDF_DLL
-    Pl_LZWDecoder(char const* identifier, Pipeline* next,
-                  bool early_code_change);
-    QPDF_DLL
-    virtual ~Pl_LZWDecoder();
-    QPDF_DLL
-    virtual void write(unsigned char* buf, size_t len);
-    QPDF_DLL
+    Pl_LZWDecoder(
+        char const* identifier, Pipeline* next, bool early_code_change);
+    virtual ~Pl_LZWDecoder() = default;
+    virtual void write(unsigned char const* buf, size_t len);
     virtual void finish();
 
   private:
@@ -30,7 +26,7 @@ class Pl_LZWDecoder: public Pipeline
     unsigned int code_size;
     unsigned int next;
     unsigned int byte_pos;
-    unsigned int bit_pos;       // left to right: 01234567
+    unsigned int bit_pos; // left to right: 01234567
     unsigned int bits_available;
 
     // members used for handle LZW decompression

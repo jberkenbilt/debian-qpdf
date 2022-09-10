@@ -23,13 +23,16 @@
 #define QPDF_INPUTSOURCE_HH
 
 #include <qpdf/DLL.h>
-#include <qpdf/Types.h>
 #include <qpdf/PointerHolder.hh>
+#include <qpdf/Types.h>
 
+#include <memory>
 #include <stdio.h>
 #include <string>
-#include <memory>
 
+// Remember to use QPDF_DLL_CLASS on anything derived from InputSource
+// so it will work with dynamic_cast across the shared object
+// boundary.
 class QPDF_DLL_CLASS InputSource
 {
   public:
@@ -39,20 +42,13 @@ class QPDF_DLL_CLASS InputSource
     {
     }
     QPDF_DLL
-    virtual ~InputSource()
-    {
-    }
+    virtual ~InputSource() = default;
 
     class QPDF_DLL_CLASS Finder
     {
       public:
-        Finder()
-        {
-        }
-        virtual ~Finder()
-        {
-        }
-
+        Finder() = default;
+        virtual ~Finder() = default;
         virtual bool check() = 0;
     };
 
@@ -71,13 +67,17 @@ class QPDF_DLL_CLASS InputSource
     // methods return true and leave the input source positioned
     // wherever check() left it at the end of the matching pattern.
     QPDF_DLL
-    bool findFirst(char const* start_chars,
-                   qpdf_offset_t offset, size_t len,
-                   Finder& finder);
+    bool findFirst(
+        char const* start_chars,
+        qpdf_offset_t offset,
+        size_t len,
+        Finder& finder);
     QPDF_DLL
-    bool findLast(char const* start_chars,
-                  qpdf_offset_t offset, size_t len,
-                  Finder& finder);
+    bool findLast(
+        char const* start_chars,
+        qpdf_offset_t offset,
+        size_t len,
+        Finder& finder);
 
     virtual qpdf_offset_t findAndSkipNextEOL() = 0;
     virtual std::string const& getName() const = 0;
@@ -93,24 +93,92 @@ class QPDF_DLL_CLASS InputSource
     // efficient.
     virtual void unreadCh(char ch) = 0;
 
+    // The following methods are for use by QPDFTokenizer
+    inline qpdf_offset_t fastTell();
+    inline bool fastRead(char&);
+    inline void fastUnread(bool);
+    inline void loadBuffer();
+
   protected:
     qpdf_offset_t last_offset;
 
   private:
-    class Members
+    class QPDF_DLL_PRIVATE Members
     {
         friend class InputSource;
 
       public:
         QPDF_DLL
-        ~Members();
+        ~Members() = default;
 
       private:
-        Members();
-        Members(Members const&);
+        Members() = default;
+        Members(Members const&) = delete;
     };
 
-    PointerHolder<Members> m;
+    std::shared_ptr<Members> m;
+
+    // State for fast... methods
+    static const qpdf_offset_t buf_size = 128;
+    char buffer[buf_size];
+    qpdf_offset_t buf_len = 0;
+    qpdf_offset_t buf_idx = 0;
+    qpdf_offset_t buf_start = 0;
 };
+
+inline void
+InputSource::loadBuffer()
+{
+    this->buf_idx = 0;
+    this->buf_len = qpdf_offset_t(read(this->buffer, this->buf_size));
+    // NB read sets last_offset
+    this->buf_start = this->last_offset;
+}
+
+inline qpdf_offset_t
+InputSource::fastTell()
+{
+    if (this->buf_len == 0) {
+        loadBuffer();
+    } else {
+        auto curr = tell();
+        if (curr < this->buf_start ||
+            curr >= (this->buf_start + this->buf_len)) {
+            loadBuffer();
+        } else {
+            this->last_offset = curr;
+            this->buf_idx = curr - this->buf_start;
+        }
+    }
+    return this->last_offset;
+}
+
+inline bool
+InputSource::fastRead(char& ch)
+{
+    // Before calling fastRead, fastTell must be called to prepare the buffer.
+    // Once reading is complete, fastUnread must be called to set the correct
+    // file position.
+    if (this->buf_idx < this->buf_len) {
+        ch = this->buffer[this->buf_idx];
+        ++(this->buf_idx);
+        ++(this->last_offset);
+        return true;
+
+    } else if (this->buf_len == 0) {
+        return false;
+    } else {
+        seek(this->buf_start + this->buf_len, SEEK_SET);
+        fastTell();
+        return fastRead(ch);
+    }
+}
+
+inline void
+InputSource::fastUnread(bool back)
+{
+    this->last_offset -= back ? 1 : 0;
+    seek(this->last_offset, SEEK_SET);
+}
 
 #endif // QPDF_INPUTSOURCE_HH

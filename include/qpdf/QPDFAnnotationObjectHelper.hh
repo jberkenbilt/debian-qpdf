@@ -22,8 +22,8 @@
 #ifndef QPDFANNOTATIONOBJECTHELPER_HH
 #define QPDFANNOTATIONOBJECTHELPER_HH
 
-#include <qpdf/QPDFObjectHelper.hh>
 #include <qpdf/Constants.h>
+#include <qpdf/QPDFObjectHelper.hh>
 
 #include <qpdf/DLL.h>
 
@@ -33,9 +33,7 @@ class QPDFAnnotationObjectHelper: public QPDFObjectHelper
     QPDF_DLL
     QPDFAnnotationObjectHelper(QPDFObjectHandle);
     QPDF_DLL
-    virtual ~QPDFAnnotationObjectHelper()
-    {
-    }
+    virtual ~QPDFAnnotationObjectHelper() = default;
 
     // This class provides helper methods for annotations. More
     // functionality will likely be added in the future.
@@ -78,8 +76,8 @@ class QPDFAnnotationObjectHelper: public QPDFObjectHelper
     // which appearance stream is desired. If not specified, the
     // appearance state in "/AS" will used.
     QPDF_DLL
-    QPDFObjectHandle getAppearanceStream(std::string const& which,
-                                         std::string const& state = "");
+    QPDFObjectHandle getAppearanceStream(
+        std::string const& which, std::string const& state = "");
 
     // Generate text suitable for addition to the containing page's
     // content stream that draws this annotation's appearance stream
@@ -96,7 +94,8 @@ class QPDFAnnotationObjectHelper: public QPDFObjectHelper
     // preparing to print.
     QPDF_DLL
     std::string getPageContentForAppearance(
-        std::string const& name, int rotate,
+        std::string const& name,
+        int rotate,
         int required_flags = 0,
         int forbidden_flags = an_invisible | an_hidden);
 
@@ -107,14 +106,14 @@ class QPDFAnnotationObjectHelper: public QPDFObjectHelper
 
       public:
         QPDF_DLL
-        ~Members();
+        ~Members() = default;
 
       private:
-        Members();
-        Members(Members const&);
+        Members() = default;
+        Members(Members const&) = delete;
     };
 
-    PointerHolder<Members> m;
+    std::shared_ptr<Members> m;
 };
 
 #endif // QPDFANNOTATIONOBJECTHELPER_HH

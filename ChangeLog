@@ -1,3 +1,347 @@
+2022-09-10  Jay Berkenbilt  <ejb@ql.org>
+
+        * 11.0.0: release
+
+2022-09-09  Jay Berkenbilt  <ejb@ql.org>
+
+        * Add QPDFObjectHandle::isSameObjectAs to test whether two
+        QPDFObjectHandle objects point to the same underlying object.
+
+        * Expose ability to create custom loggers and to get and set the
+        logger for QPDF and QPDFJob through the C API.
+
+2022-09-08  Jay Berkenbilt  <ejb@ql.org>
+
+        * Added new functions to the C API to support qpdf JSON:
+        qpdf_create_from_json_file, qpdf_create_from_json_data,
+        qpdf_update_from_json_file, qpdf_update_from_json_data, and
+        qpdf_write_json. Examples can be found in qpdf-ctest.c (in the
+        source tree), tests 42 through 47.
+
+        * Add QPDFObjectHandle::isDestroyed() to test whether an indirect
+        object was from a QPDF that has been destroyed.
+
+2022-09-07  Jay Berkenbilt  <ejb@ql.org>
+
+        * Add QPDFObjectHandle::getQPDF(), which returns a reference, as
+        an alternative to QPDFObjectHandle::getOwningQPDF().
+
+2022-09-06  Jay Berkenbilt  <ejb@ql.org>
+
+        * For all bounding box methods in QPDFPageObjectHelper other than
+        MediaBox, add a parameter `copy_if_fallback`, and add comments
+        explaining in depth exactly what copy_if_shared and
+        copy_if_fallback mean. Fixes #664.
+
+        * Add new methods getArtBox and getBleedBox to
+        QPDFPageObjectHelper, completing the set of bounding box methods.
+
+        * The --show-encryption option now works even if a correct
+        password is not supplied. If you were using --show-encryption to
+        test whether you have the right password, use --requires-password
+        instead. Fixes #598.
+
+2022-09-05  Jay Berkenbilt  <ejb@ql.org>
+
+        * Add a move constructor to Buffer, making it possible to move
+        rather than copy the internal buffer. Thanks to jbarlow83 for the
+        contribution.
+
+2022-09-02  Jay Berkenbilt  <ejb@ql.org>
+
+        * Add new QPDF::create() factory method that returns
+        std::shared_ptr<QPDF>.
+
+        * Prevent copying/assigning to QPDF objects in the API. It has
+        never been safe to do this, but the API wasn't preventing it.
+
+2022-09-01  Jay Berkenbilt  <ejb@ql.org>
+
+        * Remove QPDFObject.hh from include/qpdf. The only reason to
+        include was to get QPDFObject::object_type_e. Instead, include
+        qpdf/Constants.h, and change `QPDFObject::ot_` to `::ot_`.
+
+        * More optimizations and cleanup from m-holger (#726, #730)
+        including major refactor of QPDF's internal representations of
+        objects. In addition to a large performance improvement, this also
+        made it possible for QPDFObjectHandle::getOwningQPDF() to return a
+        null pointer if the owning QPDF had been destroyed. (A more
+        complete solution to this problem will be introduced for qpdf 12.)
+        This work also paves the way for a future alternative to
+        QPDFObjectHandle that is more idiomatic C++ and has greater type
+        safety.
+
+2022-08-31  Jay Berkenbilt  <ejb@ql.org>
+
+        * From m-holger (#729): refactor QPDF's parser into a new
+        QPDFParser class, cleaning the code, significantly improving
+        performance.
+
+2022-08-27  Jay Berkenbilt  <ejb@ql.org>
+
+        * From m-holger: major refactoring of QPDFTokenizer to improve
+        readability and to optimize performance. This also included some
+        optimizations to some InputSource classes. Thanks for this
+        excellent contribution. Fixes #749, #442.
+
+2022-08-07  Jay Berkenbilt  <ejb@ql.org>
+
+        * Add new build configuration option ENABLE_QTC, which is off by
+        default when not running in MAINTAINER_MODE. When this is off,
+        QTC coverage calls sprinkled throughout the qpdf source code are
+        compiled out for increased performance. See "Build Options" in the
+        manual for a discussion. Fixes #714.
+
+2022-08-06  Jay Berkenbilt  <ejb@ql.org>
+
+        * Added by m-holger: QPDF::getObject() method as a simpler form of
+        getObjectByID or getObjectByObjGen. The older methods are being
+        retained for compatibility and are not deprecated.
+
+2022-07-24  Jay Berkenbilt  <ejb@ql.org>
+
+        * include/qpdf/JSON.hh: Schema validation: allow a single item to
+        appear anywhere that the schema has an array of a single item.
+        This makes it possible to change an element of the schema from an
+        item to an array to allow the data to accept an array where a
+        single value was previously required. This change is needed to
+        allow QPDFJob JSON to start accepting multiple items where a
+        single item used to be expected without breaking backward
+        compatibility. Without this change, the earlier fix to
+        removeAttachment would be a breaking change. Also allow the schema
+        to contain a multi-element array, which means that the output has
+        to have an array of the same length in the corresponding location,
+        and each element is validated against the corresponding schema
+        element.
+
+        * QPDFObjectHandle: for the methods insertItem, appendItem,
+        eraseItem, replaceKey, and removeKey, add a corresponding
+        "AndGetNew" and/or "AndGetOld" methods. The ones that end with
+        "AndGetNew" return the newly added item. The ones that end with
+        "AndGetOld" return the old value. The AndGetNew methods make it
+        possible to create a new object, add it to an array or dictionary,
+        and get a handle to it all in one line. The AndGetOld methods make
+        it easier to retrieve an old value when removing or replacing it.
+
+        * Thanks to m-holger for doing significant cleanup of private APIs
+        and internals around QPDFObjGen and for significantly improving
+        the performance of QPDFObjGen -- See #731. This includes a few
+        user-visible changes:
+        - Addition of QPDFObjectHandle::StreamDataProvider::provideStreamData
+          overloads that take QPDFObjGen
+        - Addition of an optional argument to QPDFObjGen::unparse allowing
+          specification of a separator character, with the default
+          resulting in the old behavior
+        Examples have been updated to use improved APIs. The old
+        provideStreamData overloads will continue to be supported, so
+        updating older code to use the new interfaces is entirely at the
+        programmer's discretion.
+
+2022-06-25  Jay Berkenbilt  <ejb@ql.org>
+
+        * Add tracking methods QPDF::everCalledGetAllPages() and
+        QPDF::everPushedInheritedAttributesToPages(). Since those methods
+        may have the side effect of creating new objects and replace
+        objects in various places in the pages tree, it's useful to be
+        able to find out whether they've ever been called.
+
+2022-06-18  Jay Berkenbilt  <ejb@ql.org>
+
+        * Add QPDFJob::registerProgressReporter, making it possible to
+        override the progress reporter that is used when --progress (or
+        the equivalent) is configured with QPDFJob. This is
+        qpdfjob_register_progress_reporter in the C API.
+
+        * Add examples that show how to capture QPDFJob's output by
+        configuring the default logger (qpdfjob-save-attachment.cc,
+        qpdfjob-c-save-attachment.c). Fixes #691.
+
+        * Add C API for QPDFLogger -- see qpdflogger-c.h
+
+        * Add additional qpdfjob C API functions take a handle.
+
+        * Add qpdf_exit_code_e to Constants.h so that exit codes from
+        QPDFJob are accessible to the C API.
+
+        * When --progress or --verbose is combined with writing to
+        standard output, progress reporting and verbose messages go to
+        standard error. Previously it was disabled in this case.
+
+2022-06-05  Jay Berkenbilt  <ejb@ql.org>
+
+        * QPDFJob: API breaking change: QPDFJob::doIfVerbose passes a
+        Pipeline& rather than a std::ostream& to the the callback
+        function.
+
+        * Add integer types to pipeline's operator<<: short, int, long,
+        long long, unsigned short, unsigned int, unsigned long, unsigned
+        long long.
+
+2022-05-30  Jay Berkenbilt  <ejb@ql.org>
+
+        * qpdf JSON is now at version 2. New command-line arguments:
+        --json-output, --json-input, --update-from-json. New methods
+        QPDF::writeJSON, QPDF::createFromJSON, QPDF::updateFromJSON. For
+        details, see the "qpdf JSON" chapter of the manual.
+
+        * When showing encryption data in json output, when the user
+        password was recovered with by the owner password and the
+        specified password does not match the user password, reveal the
+        user password. This is not possible with 256-bit keys.
+
+        * Include additional information in --list-attachments --verbose
+        and in --json --json-key=attachments.
+
+        * Add QUtil::qpdf_time_to_iso8601 and QUtil::pdf_time_to_iso8601
+        for converting PDF/qpdf timestamps to ISO-8601 date format.
+
+2022-05-18  Jay Berkenbilt  <ejb@ql.org>
+
+        * Add QUtil::FileCloser to the public API. This is a simple inline
+        class to help with automatic file closing.
+
+2022-05-17  Jay Berkenbilt  <ejb@ql.org>
+
+        * Allow passing *uninitialized* (not null) objects to
+        replaceStreamData as filter and/or decode_parms to leave any
+        existing values for /Filter and /DecodeParms untouched.
+
+2022-05-15  Jay Berkenbilt  <ejb@ql.org>
+
+        * Add QUtil::is_long_long to test whether a string can be
+        converted to a long long and back without loss of information.
+
+2022-05-04  Jay Berkenbilt  <ejb@ql.org>
+
+        * JSON: add a new "blob" type that takes a function to write data
+        into. The blob is serialized as a base64-encoded representation of
+        whatever is written to the function.
+
+        * FileInputSource has new constructors that eliminate the need to
+        call setFilename or setFile in most cases.
+
+        * Enhance JSON by adding a write method that takes a Pipeline* and
+        depth, and add several helper methods to make it easier to write
+        large amounts of JSON incrementally without having to have the
+        whole thing in memory.
+
+        * json v1 output: make "pages" and "objects" consistent.
+        Previously, "objects" always reflected the objects exactly as they
+        appeared in the original file, while "pages" reflected objects
+        after repair of the pages tree. This could be misleading. Now, if
+        "pages" is specified, "objects" shows the effects of repairing the
+        page tree, and if not, it doesn't. This makes no difference for
+        correct PDF files that don't have problems in the pages tree. JSON
+        v2 will behave in a similar way.
+
+2022-05-03  Jay Berkenbilt  <ejb@ql.org>
+
+        * Add new Pipeline class Pl_String which appends to a std::string&
+        passed to it at construction.
+
+        * Add new Pipeline class Pl_OStream, similar to Pl_StdioFile but
+        takes a std::ostream instead of a FILE*.
+
+        * Add new convenience methods to Pipeline: writeCStr and
+        writeString. Also add a limit << operator that takes C strings and
+        std::strings. Also add an overloaded version of write that takes
+        "char const*".
+
+        * API change: Pipeline::write now takes "unsigned char const *"
+        instead of "unsigned char*". Callers shouldn't have to change
+        anything, though can stop using writable strings or
+        QUtil::unsigned_char_pointer. If you have implemented your own
+        pipelines, you should change your write method to take a const
+        pointer.
+
+2022-05-01  Jay Berkenbilt  <ejb@ql.org>
+
+        * JSON: add reactors to the JSON parser, making it possible to
+        react to JSON parsing events as they occur and to block the
+        results from being stored. This makes it possible to incrementally
+        parse arbitrarily large JSON inputs.
+
+2022-04-30  Jay Berkenbilt  <ejb@ql.org>
+
+        * QPDFWriter: change encryption API calls
+          - Remove deprecated versions of setR*EncryptionParameters
+            methods from before qpdf 8.4.0
+          - Replace setR2EncryptionParameters with
+            setR2EncryptionParametersInsecure
+          - Replace setR3EncryptionParameters with
+            setR3EncryptionParametersInsecure
+          - Replace setR4EncryptionParameters with
+            setR4EncryptionParametersInsecure
+
+        * C API: change encryption API calls to match C++ interface
+          - Remove pre-8.4.0 functions:
+            - qpdf_set_r3_encryption_parameters
+            - qpdf_set_r4_encryption_parameters
+            - qpdf_set_r5_encryption_parameters
+            - qpdf_set_r6_encryption_parameters
+          - Add "_insecure" to insecure encryption triggers:
+            - Replace void qpdf_set_r2_encryption_parameters
+              with qpdf_set_r2_encryption_parameters_insecure
+            - Replace void qpdf_set_r3_encryption_parameters2
+              with qpdf_set_r3_encryption_parameters_insecure
+            - Replace void qpdf_set_r4_encryption_parameters2
+              with qpdf_set_r4_encryption_parameters_insecure
+
+        * Make attempting to write encrypted files that use RC4 (40-bit or
+        128-bit without AES) an error rather than a warning when
+        --allow-weak-crypto is not specified. Fixes #576.
+
+2022-04-24  Jay Berkenbilt  <ejb@ql.org>
+
+        * Bug fix: "removeAttachment" in the job JSON now takes an array
+        of strings instead of a string. It should have taken an array of
+        strings since the corresponding command-line argument,
+        --remove-attachment, is repeatable. Fixes #693.
+
+        * Deprecate QPDFObjectHandle::replaceOrRemoveKey -- it does and
+        always has done the same thing as replaceKey.
+
+2022-04-23  Jay Berkenbilt  <ejb@ql.org>
+
+        * Add a new QPDF::warn method that takes the parameters of
+        QPDFExc's constructor except for the filename, which is taken from
+        the QPDF object. This is a shorter way to issue warnings on behalf
+        of a QPDF object.
+
+	* Add new method QUtil::is_explicit_utf8 that tests whether a
+	string is explicitly marked as being UTF-8 encoded, as allowed by
+	the PDF 2.0 spec. Such a string starts with the bytes 0xEF 0xBB
+	0xBF, which is the UTF-8 encoding of U+FEFF.
+
+	* Add new method QUtil::get_next_utf8_codepoint as a low-level
+	helper for iterating through the UTF-8 characters in a byte
+	string.
+
+2022-04-16  Jay Berkenbilt  <ejb@ql.org>
+
+	* Breaking CLI change: the default value for --json is now
+	"latest" rather than "1". At this moment, "1" is the latest
+	version, but version "2" will be added before the release of
+	qpdf 11.
+
+	* Perform code cleanup including some source-compatible but not
+	binary compatible changes to function signatures, use of anonymous
+	namespaces, and use of "= default" and "= delete" in declarations.
+
+2022-04-09  Jay Berkenbilt  <ejb@ql.org>
+
+	* Replace PointerHolder with std::shared_ptr through the QPDF API.
+	A backward-compatible interface is provided and enabled by default
+	with a warning that can be turned off. See "Smart Pointers" in the
+	"Design and Library Notes" section of the manual for information
+	including a detailed migration process to assist with migrating
+	code that uses the qpdf library.
+
+2022-04-03  Jay Berkenbilt  <ejb@ql.org>
+
+	* Add automatic code formatting with clang-format. See "Code
+	Formatting" in the "Contributing to qpdf" chapter of the manual.
+
 2022-03-19  Jay Berkenbilt  <ejb@ql.org>
 
 	* 10.6.3.0cmake1: unofficial release

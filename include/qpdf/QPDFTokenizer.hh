@@ -27,9 +27,9 @@
 #include <qpdf/InputSource.hh>
 #include <qpdf/PointerHolder.hh>
 
-#include <string>
-#include <stdio.h>
 #include <memory>
+#include <stdio.h>
+#include <string>
 
 class QPDFTokenizer
 {
@@ -38,8 +38,7 @@ class QPDFTokenizer
     // the tokenizer. tt_eof was introduced in QPDF version 4.1.
     // tt_space, tt_comment, and tt_inline_image were added in QPDF
     // version 8.
-    enum token_type_e
-    {
+    enum token_type_e {
         tt_bad,
         tt_array_close,
         tt_array_open,
@@ -63,39 +62,50 @@ class QPDFTokenizer
     class Token
     {
       public:
-        Token() : type(tt_bad) {}
+        Token() :
+            type(tt_bad)
+        {
+        }
         QPDF_DLL
         Token(token_type_e type, std::string const& value);
-        Token(token_type_e type, std::string const& value,
-              std::string raw_value, std::string error_message) :
+        Token(
+            token_type_e type,
+            std::string const& value,
+            std::string raw_value,
+            std::string error_message) :
             type(type),
             value(value),
             raw_value(raw_value),
             error_message(error_message)
         {
         }
-        token_type_e getType() const
+        token_type_e
+        getType() const
         {
             return this->type;
         }
-        std::string const& getValue() const
+        std::string const&
+        getValue() const
         {
             return this->value;
         }
-        std::string const& getRawValue() const
+        std::string const&
+        getRawValue() const
         {
             return this->raw_value;
         }
-        std::string const& getErrorMessage() const
+        std::string const&
+        getErrorMessage() const
         {
             return this->error_message;
         }
-        bool operator==(Token const& rhs) const
+        bool
+        operator==(Token const& rhs) const
         {
             // Ignore fields other than type and value
-            return ((this->type != tt_bad) &&
-                    (this->type == rhs.type) &&
-                    (this->value == rhs.value));
+            return (
+                (this->type != tt_bad) && (this->type == rhs.type) &&
+                (this->value == rhs.value));
         }
 
       private:
@@ -162,10 +172,11 @@ class QPDFTokenizer
     // offset" as returned by input->getLastOffset() points to the
     // beginning of the token.
     QPDF_DLL
-    Token readToken(PointerHolder<InputSource> input,
-                    std::string const& context,
-                    bool allow_bad = false,
-                    size_t max_len = 0);
+    Token readToken(
+        std::shared_ptr<InputSource> input,
+        std::string const& context,
+        bool allow_bad = false,
+        size_t max_len = 0);
 
     // Calling this method puts the tokenizer in a state for reading
     // inline images. You should call this method after reading the
@@ -176,58 +187,88 @@ class QPDFTokenizer
     // tt_inline_image or tt_bad. This is the only way readToken
     // returns a tt_inline_image token.
     QPDF_DLL
-    void expectInlineImage(PointerHolder<InputSource> input);
+    void expectInlineImage(std::shared_ptr<InputSource> input);
 
   private:
     QPDFTokenizer(QPDFTokenizer const&) = delete;
     QPDFTokenizer& operator=(QPDFTokenizer const&) = delete;
 
-    void resolveLiteral();
     bool isSpace(char);
     bool isDelimiter(char);
-    void findEI(PointerHolder<InputSource> input);
+    void findEI(std::shared_ptr<InputSource> input);
 
     enum state_e {
-        st_top, st_in_space, st_in_comment, st_in_string, st_lt, st_gt,
-        st_literal, st_in_hexstring, st_inline_image, st_token_ready
+        st_top,
+        st_in_hexstring,
+        st_in_string,
+        st_in_hexstring_2nd,
+        st_name,
+        st_literal,
+        st_in_space,
+        st_in_comment,
+        st_string_escape,
+        st_char_code,
+        st_string_after_cr,
+        st_lt,
+        st_gt,
+        st_inline_image,
+        st_sign,
+        st_number,
+        st_real,
+        st_decimal,
+        st_name_hex1,
+        st_name_hex2,
+        st_before_token,
+        st_token_ready
     };
 
-    class Members
-    {
-        friend class QPDFTokenizer;
+    void handleCharacter(char);
+    void inBeforeToken(char);
+    void inTop(char);
+    void inSpace(char);
+    void inComment(char);
+    void inString(char);
+    void inName(char);
+    void inLt(char);
+    void inGt(char);
+    void inStringAfterCR(char);
+    void inStringEscape(char);
+    void inLiteral(char);
+    void inCharCode(char);
+    void inHexstring(char);
+    void inHexstring2nd(char);
+    void inInlineImage(char);
+    void inTokenReady(char);
+    void inNameHex1(char);
+    void inNameHex2(char);
+    void inSign(char);
+    void inDecimal(char);
+    void inNumber(char);
+    void inReal(char);
+    void reset();
 
-      public:
-        QPDF_DLL
-        ~Members();
+    // Lexer state
+    state_e state;
 
-      private:
-        Members();
-        Members(Members const&);
-        void reset();
+    bool allow_eof;
+    bool include_ignorable;
 
-        // Lexer state
-        state_e state;
+    // Current token accumulation
+    token_type_e type;
+    std::string val;
+    std::string raw_val;
+    std::string error_message;
+    bool before_token;
+    bool in_token;
+    char char_to_unread;
+    size_t inline_image_bytes;
+    bool bad;
 
-        bool allow_eof;
-        bool include_ignorable;
-
-        // Current token accumulation
-        token_type_e type;
-        std::string val;
-        std::string raw_val;
-        std::string error_message;
-        bool unread_char;
-        char char_to_unread;
-        size_t inline_image_bytes;
-
-        // State for strings
-        int string_depth;
-        bool string_ignoring_newline;
-        char bs_num_register[4];
-        bool last_char_was_bs;
-        bool last_char_was_cr;
-    };
-    PointerHolder<Members> m;
+    // State for strings
+    int string_depth;
+    int char_code;
+    char hex_char;
+    int digit_count;
 };
 
 #endif // QPDFTOKENIZER_HH

@@ -70,6 +70,9 @@ ap.addOptionHelp("--copyright", "help", "show copyright information", R"(Display
 ap.addOptionHelp("--show-crypto", "help", "show available crypto providers", R"(Show a list of available crypto providers, one per line. The
 default provider is shown first.
 )");
+ap.addOptionHelp("--job-json-help", "help", "show format of job JSON", R"(Describe the format of the QPDFJob JSON input used by
+--job-json-file.
+)");
 ap.addHelpTopic("general", "general options", R"(General options control qpdf's behavior in ways that are not
 directly related to the operation it is performing.
 )");
@@ -87,11 +90,11 @@ ap.addOptionHelp("--verbose", "general", "print additional information", R"(Outp
 doing, including information about files created and operations
 performed.
 )");
-ap.addOptionHelp("--progress", "general", "show progress when writing", R"(Indicate progress when writing files.
-)");
 }
 static void add_help_2(QPDFArgParser& ap)
 {
+ap.addOptionHelp("--progress", "general", "show progress when writing", R"(Indicate progress when writing files.
+)");
 ap.addOptionHelp("--no-warn", "general", "suppress printing of warning messages", R"(Suppress printing of warning messages. If warnings were
 encountered, qpdf still exits with exit status 3.
 Use --warning-exit-0 with --no-warn to completely ignore
@@ -172,12 +175,12 @@ companion tool "fix-qdf" can be used to repair hand-edited QDF
 files. QDF is a feature specific to the qpdf tool. Please see
 the "QDF Mode" chapter in the manual.
 )");
-ap.addOptionHelp("--no-original-object-ids", "transformation", "omit original object IDs in qdf", R"(Omit comments in a QDF file indicating the object ID an object
-had in the original file.
-)");
 }
 static void add_help_3(QPDFArgParser& ap)
 {
+ap.addOptionHelp("--no-original-object-ids", "transformation", "omit original object IDs in qdf", R"(Omit comments in a QDF file indicating the object ID an object
+had in the original file.
+)");
 ap.addOptionHelp("--compress-streams", "transformation", "compress uncompressed streams", R"(--compress-streams=[y|n]
 
 Setting --compress-streams=n prevents qpdf from compressing
@@ -188,9 +191,11 @@ ap.addOptionHelp("--decode-level", "transformation", "control which streams to u
 
 When uncompressing streams, control which types of compression
 schemes should be uncompressed:
-- none: don't uncompress anything
+- none: don't uncompress anything. This is the default with
+  --json-output.
 - generalized: uncompress streams compressed with a
-  general-purpose compression algorithm. This is the default.
+  general-purpose compression algorithm. This is the default
+  except when --json-output is given.
 - specialized: in addition to generalized, also uncompress
   streams compressed with a special-purpose but non-lossy
   compression scheme
@@ -290,13 +295,13 @@ from the resulting set, not based on the original page numbers.
 ap.addHelpTopic("modification", "change parts of the PDF", R"(Modification options make systematic changes to certain parts of
 the PDF, causing the PDF to render differently from the original.
 )");
+}
+static void add_help_4(QPDFArgParser& ap)
+{
 ap.addOptionHelp("--pages", "modification", "begin page selection", R"(--pages file [--password=password] [page-range] [...] --
 
 Run qpdf --help=page-selection for details.
 )");
-}
-static void add_help_4(QPDFArgParser& ap)
-{
 ap.addOptionHelp("--collate", "modification", "collate with --pages", R"(--collate[=n]
 
 Collate rather than concatenate pages specified with --pages.
@@ -460,14 +465,14 @@ ap.addOptionHelp("--assemble", "encryption", "restrict document assembly", R"(--
 Enable/disable document assembly (rotation and reordering of
 pages). This option is not available with 40-bit encryption.
 )");
+}
+static void add_help_5(QPDFArgParser& ap)
+{
 ap.addOptionHelp("--extract", "encryption", "restrict text/graphic extraction", R"(--extract=[y|n]
 
 Enable/disable text/graphic extraction for purposes other than
 accessibility.
 )");
-}
-static void add_help_5(QPDFArgParser& ap)
-{
 ap.addOptionHelp("--form", "encryption", "restrict form filling", R"(--form=[y|n]
 
 Enable/disable whether filling form fields is allowed even if
@@ -638,6 +643,9 @@ ap.addOptionHelp("--remove-attachment", "attachments", "remove an embedded file"
 Remove an embedded file using its key. Get the key with
 --list-attachments.
 )");
+}
+static void add_help_6(QPDFArgParser& ap)
+{
 ap.addHelpTopic("pdf-dates", "PDF date format", R"(When a date is required, the date should conform to the PDF date
 format specification, which is "D:yyyymmddhhmmssz" where "z" is
 either literally upper case "Z" for UTC or a timezone offset in
@@ -650,9 +658,6 @@ Examples:
 - D:20210207161528-05'00'   February 7, 2021 at 4:15:28 p.m.
 - D:20210207211528Z         February 7, 2021 at 21:15:28 UTC
 )");
-}
-static void add_help_6(QPDFArgParser& ap)
-{
 ap.addHelpTopic("add-attachment", "attach (embed) files", R"(The options listed below appear between --add-attachment and its
 terminating "--".
 )");
@@ -747,14 +752,14 @@ the linearization hint tables are correct.
 )");
 ap.addOptionHelp("--show-linearization", "inspection", "show linearization hint tables", R"(Check and display all data in the linearization hint tables.
 )");
+}
+static void add_help_7(QPDFArgParser& ap)
+{
 ap.addOptionHelp("--show-xref", "inspection", "show cross reference data", R"(Show the contents of the cross-reference table or stream (object
 locations in the file) in a human-readable form. This is
 especially useful for files with cross-reference streams, which
 are stored in a binary format.
 )");
-}
-static void add_help_7(QPDFArgParser& ap)
-{
 ap.addOptionHelp("--show-object", "inspection", "show contents of an object", R"(--show-object={trailer|obj[,gen]}
 
 Show the contents of the given object. This is especially useful
@@ -795,10 +800,12 @@ ap.addOptionHelp("--json", "json", "show file in JSON format", R"(--json[=versio
 
 Generate a JSON representation of the file. This is described in
 depth in the JSON section of the manual. "version" may be a
-specific version or "latest". Run qpdf --json-help for a
-description of the generated JSON object.
+specific version or "latest" (the default). Run qpdf --json-help
+for a description of the generated JSON object.
 )");
-ap.addOptionHelp("--json-help", "json", "show format of JSON output", R"(Describe the format of the JSON output by writing to standard
+ap.addOptionHelp("--json-help", "json", "show format of JSON output", R"(--json-help[=version]
+
+Describe the format of the JSON output by writing to standard
 output a JSON object with the same keys and with values
 containing descriptive text.
 )");
@@ -806,7 +813,8 @@ ap.addOptionHelp("--json-key", "json", "limit which keys are in JSON output", R"
 
 This option is repeatable. If given, only the specified
 top-level keys will be included in the JSON output. Otherwise,
-all keys will be included.
+all keys will be included. With --json-output, when not given,
+only the "qpdf" key will appear in the output.
 )");
 ap.addOptionHelp("--json-object", "json", "limit which objects are in JSON", R"(--json-object={trailer|obj[,gen]}
 
@@ -814,9 +822,46 @@ This option is repeatable. If given, only specified objects will
 be shown in the "objects" key of the JSON output. Otherwise, all
 objects will be shown.
 )");
-ap.addOptionHelp("--job-json-help", "json", "show format of job JSON", R"(Describe the format of the QPDFJob JSON input used by
---job-json-file.
+ap.addOptionHelp("--json-stream-data", "json", "how to handle streams in json output", R"(--json-stream-data={none|inline|file}
+
+When used with --json, this option controls whether streams in
+json output should be omitted, written inline (base64-encoded)
+or written to a file. If "file" is chosen, the file will be the
+name of the output file appended with -nnn where nnn is the
+object number. The prefix can be overridden with
+--json-stream-prefix. The default is "none", except
+when --json-output is specified, in which case the default is
+"inline".
 )");
+ap.addOptionHelp("--json-stream-prefix", "json", "prefix for json stream data files", R"(--json-stream-prefix=file-prefix
+
+When used with --json-stream-data=file, --json-stream-data=file-prefix
+sets the prefix for stream data files, overriding the default,
+which is to use the output file name. Whatever is given here
+will be appended with -nnn to create the name of the file that
+will contain the data for the stream stream in object nnn.
+)");
+ap.addOptionHelp("--json-output", "json", "apply defaults for JSON serialization", R"(--json-output[=version]
+
+Implies --json=version. Changes default values for certain
+options so that the JSON output written is the most faithful
+representation of the original PDF and contains no additional
+JSON keys. See also --json-stream-data, --json-stream-prefix,
+and --decode-level.
+)");
+ap.addOptionHelp("--json-input", "json", "input file is qpdf JSON", R"(Treat the input file as a JSON file in qpdf JSON format. See the
+"qpdf JSON Format" section of the manual for information about
+how to use this option.
+)");
+ap.addOptionHelp("--update-from-json", "json", "update a PDF from qpdf JSON", R"(--update-from-json=qpdf-json-file
+
+Update a PDF file from a JSON file. Please see the "qpdf JSON"
+chapter of the manual for information about how to use this
+option.
+)");
+}
+static void add_help_8(QPDFArgParser& ap)
+{
 ap.addHelpTopic("testing", "options for testing or debugging", R"(The options below are useful when writing automated test code that
 includes files created by qpdf or when testing qpdf itself.
 )");
@@ -835,6 +880,12 @@ Write the first pass of linearization to the named file. The
 resulting file is not a valid PDF file. This option is useful only
 for debugging qpdf.
 )");
+ap.addOptionHelp("--test-json-schema", "testing", "test generated json against schema", R"(This is used by qpdf's test suite to check consistency between
+the output of qpdf --json and the output of qpdf --json-help.
+)");
+ap.addOptionHelp("--report-memory-usage", "testing", "best effort report of memory usage", R"(This is used by qpdf's performance test suite to report the
+maximum amount of memory used in supported environments.
+)");
 }
 static void add_help(QPDFArgParser& ap)
 {
@@ -845,6 +896,7 @@ static void add_help(QPDFArgParser& ap)
     add_help_5(ap);
     add_help_6(ap);
     add_help_7(ap);
+    add_help_8(ap);
 ap.addHelpFooter("For detailed help, visit the qpdf manual: https://qpdf.readthedocs.io\n");
 }
 

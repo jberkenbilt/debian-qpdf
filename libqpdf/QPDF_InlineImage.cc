@@ -1,14 +1,21 @@
 #include <qpdf/QPDF_InlineImage.hh>
 
-#include <qpdf/QUtil.hh>
-
 QPDF_InlineImage::QPDF_InlineImage(std::string const& val) :
+    QPDFValue(::ot_inlineimage, "inline-image"),
     val(val)
 {
 }
 
-QPDF_InlineImage::~QPDF_InlineImage()
+std::shared_ptr<QPDFObject>
+QPDF_InlineImage::create(std::string const& val)
 {
+    return do_create(new QPDF_InlineImage(val));
+}
+
+std::shared_ptr<QPDFObject>
+QPDF_InlineImage::shallowCopy()
+{
+    return create(val);
 }
 
 std::string
@@ -18,21 +25,9 @@ QPDF_InlineImage::unparse()
 }
 
 JSON
-QPDF_InlineImage::getJSON()
+QPDF_InlineImage::getJSON(int json_version)
 {
     return JSON::makeNull();
-}
-
-QPDFObject::object_type_e
-QPDF_InlineImage::getTypeCode() const
-{
-    return QPDFObject::ot_inlineimage;
-}
-
-char const*
-QPDF_InlineImage::getTypeName() const
-{
-    return "inline-image";
 }
 
 std::string

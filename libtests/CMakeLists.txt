@@ -3,6 +3,7 @@ set(TEST_PROGRAMS
   aes
   arg_parser
   ascii85
+  base64
   bits
   buffer
   closed_file_input_source
@@ -15,6 +16,7 @@ set(TEST_PROGRAMS
   json
   json_handler
   json_parse
+  logger
   lzw
   main_from_wmain
   matrix
@@ -22,6 +24,7 @@ set(TEST_PROGRAMS
   nntree
   numrange
   pdf_version
+  pl_function
   pointer_holder
   predictors
   qintc
@@ -31,9 +34,17 @@ set(TEST_PROGRAMS
   runlength
   sha2
   sparse_array)
+set(TEST_C_PROGRAMS
+  logger_c)
+
 foreach(PROG ${TEST_PROGRAMS})
   add_executable(${PROG} ${PROG}.cc)
   target_link_libraries(${PROG} libqpdf_object)
+endforeach()
+foreach(PROG ${TEST_C_PROGRAMS})
+  add_executable(${PROG} ${PROG}.c)
+  target_link_libraries(${PROG} libqpdf_object)
+  set_property(TARGET ${PROG} PROPERTY LINKER_LANGUAGE CXX)
 endforeach()
 
 # Since libtests link with the object library and don't use the DLL,

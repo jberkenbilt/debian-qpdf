@@ -22,8 +22,8 @@
 #ifndef QPDFMATRIX_HH
 #define QPDFMATRIX_HH
 
-#include <qpdf/QPDFObjectHandle.hh>
 #include <qpdf/DLL.h>
+#include <qpdf/QPDFObjectHandle.hh>
 #include <string>
 
 // This class represents a PDF transformation matrix using a tuple
@@ -41,8 +41,7 @@ class QPDFMatrix
     QPDF_DLL
     QPDFMatrix();
     QPDF_DLL
-    QPDFMatrix(double a, double b, double c,
-               double d, double e, double f);
+    QPDFMatrix(double a, double b, double c, double d, double e, double f);
     QPDF_DLL
     QPDFMatrix(QPDFObjectHandle::Matrix const&);
 
@@ -75,29 +74,23 @@ class QPDFMatrix
     // and take the first and second rows of the result as xp and yp.
     QPDF_DLL
     void transform(double x, double y, double& xp, double& yp) const;
-    // ABI: delete non-const version
-    QPDF_DLL
-    void transform(double x, double y, double& xp, double& yp);
 
     // Transform a rectangle by creating a new rectangle that tightly
     // bounds the polygon resulting from transforming the four
     // corners.
     QPDF_DLL
-    QPDFObjectHandle::Rectangle transformRectangle(
-        QPDFObjectHandle::Rectangle r) const;
-    // ABI: delete non-const version
-    QPDF_DLL
-    QPDFObjectHandle::Rectangle transformRectangle(
-        QPDFObjectHandle::Rectangle r);
+    QPDFObjectHandle::Rectangle
+    transformRectangle(QPDFObjectHandle::Rectangle r) const;
 
     // operator== tests for exact equality, not considering deltas for
     // floating point.
     QPDF_DLL
     bool operator==(QPDFMatrix const& rhs) const;
     QPDF_DLL
-    bool operator!=(QPDFMatrix const& rhs) const
+    bool
+    operator!=(QPDFMatrix const& rhs) const
     {
-        return ! operator==(rhs);
+        return !operator==(rhs);
     }
 
     double a;

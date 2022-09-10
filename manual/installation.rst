@@ -144,7 +144,17 @@ Run ``ctest`` to run the test suite. Since the real tests are
 implemented with `qtest <https://qtest.sourceforge.io/>`__, you will
 want to pass ``--verbose`` to ``cmake`` so you can see the individual
 test outputs. Otherwise, you will see a small number of ``ctest``
-commands that take a very long to run.
+commands that take a very long to run. If you want to run only a
+specific test file in a specific test suite, you can set the ``TESTS``
+environment variable (used by ``qtest-driver``) and pass the ``-R``
+parameter to ``ctest``. For example:
+
+::
+
+   TESTS=qutil ctest --verbose -R libtests
+
+would run only ``qutil.test`` from the ``libtests`` test suite.
+
 
 .. _installation:
 
@@ -213,7 +223,7 @@ BUILD_DOC
 BUILD_DOC_HTML
   Visible when BUILD_DOC is selected. This option controls building
   HTML documentation separately from PDF documentation since
-  the sphinx theme only needed for the HTML documentation.
+  the sphinx theme is only needed for the HTML documentation.
 
 BUILD_DOC_PDF
   Visible when BUILD_DOC is selected. This option controls building
@@ -246,6 +256,16 @@ CHECK_SIZES
   the binary interface (ABI). Turning this on causes a test to be run
   that ensures an exact match between classes in ``sizes.cc`` and
   classes in the library's public API. This option requires Python 3.
+
+ENABLE_QTC
+  This is off by default, except in maintainer mode. When off,
+  ``QTC::TC`` calls are compiled out by having ``QTC::TC`` be an empty
+  inline function. The underlying ``QTC::TC`` remains in the library,
+  so it is possible to build and package the qpdf library with
+  ``ENABLE_QTC`` turned off while still allowing developer code to use
+  ``QTC::TC`` if desired. If you are modifying qpdf code, it's a good
+  idea to have this on for more robust automated testing. Otherwise,
+  there's no reason to have it on.
 
 GENERATE_AUTO_JOB
   Some qpdf source files are automatically generated from
@@ -286,6 +306,8 @@ MAINTAINER_MODE
   - ``BUILD_DOC``
 
   - ``CHECK_SIZES``
+
+  - ``ENABLE_QTC``
 
   - ``GENERATE_AUTO_JOB``
 
@@ -616,6 +638,14 @@ and cmake options. There are a few exceptions:
   comparison tests. This was done by default. Now you have to set
   ``QPDF_TEST_COMPARE_IMAGES`` to ``1`` to *enable* image comparison
   tests. Either way, they are off by default.
+
+- Non-user-visible change: the preprocessor symbol that triggers the
+  export of functions into the public ABI (application binary
+  interface) has been changed from ``DLL_EXPORT`` to
+  ``libqpdf_EXPORTS``. This detail is encapsulated in the build and is
+  only relevant to people who are building qpdf on their own or who
+  may have previously needed to work around a collision between qpdf's
+  use of ``DLL_EXPORT`` and someone else's use of the same symbol.
 
 - A handful of options that were specific to autoconf or the old build
   system have been dropped.

@@ -171,7 +171,9 @@ Related Options
    equivalent command-line arguments were supplied. It can be repeated
    and mixed freely with other options. Run ``qpdf`` with
    :qpdf:ref:`--job-json-help` for a description of the job JSON input
-   file format. For more information, see :ref:`qpdf-job`.
+   file format. For more information, see :ref:`qpdf-job`. Note that
+   this is unrelated to :qpdf:ref:`--json` but may be combined with
+   it.
 
 .. _exit-status:
 
@@ -341,6 +343,17 @@ Related Options
    itself. The default provider is always listed first. See
    :ref:`crypto` for more information about crypto providers.
 
+.. qpdf:option:: --job-json-help
+
+   .. help: show format of job JSON
+
+      Describe the format of the QPDFJob JSON input used by
+      --job-json-file.
+
+   Describe the format of the QPDFJob JSON input used by
+   :qpdf:ref:`--job-json-file`. For more information about QPDFJob,
+   see :ref:`qpdf-job`.
+
 .. _general-options:
 
 General Options
@@ -470,11 +483,17 @@ Related Options
       option is necessary to create 40-bit files or 128-bit files that
       use RC4 encryption.
 
-   Starting with version 10.4, qpdf issues warnings when requested to
-   create files using RC4 encryption. This option suppresses those
-   warnings. In future versions of qpdf, qpdf will refuse to create
-   files with weak cryptography when this flag is not given. See
+   Encrypted PDF files using 40-bit keys or 128-bit keys without AES
+   use the insecure *RC4* encryption algorithm. Starting with version
+   11.0, qpdf's default behavior is to refuse to write files using RC4
+   encryption. Use this option to allow creation of such files. In
+   versions 10.4 through 10.6, attempting to create weak encrypted
+   files was a warning, rather than an error, without this flag. See
    :ref:`weak-crypto` for additional details.
+
+   No check is performed for weak crypto when preserving encryption
+   parameters from or copying encryption parameters from other files.
+   The rationale for this is discussed in :ref:`weak-crypto`.
 
 .. qpdf:option:: --keep-files-open=[y|n]
 
@@ -741,6 +760,9 @@ Related Options
    file without having to manual specify all the individual settings.
    See also :qpdf:ref:`--decrypt`.
 
+   Checks for weak cryptographic algorithms are intentionally not made
+   by this operation. See :ref:`weak-crypto` for the rationale.
+
 .. qpdf:option:: --encryption-file-password=password
 
    .. help: supply password for --copy-encryption
@@ -843,9 +865,11 @@ Related Options
 
       When uncompressing streams, control which types of compression
       schemes should be uncompressed:
-      - none: don't uncompress anything
+      - none: don't uncompress anything. This is the default with
+        --json-output.
       - generalized: uncompress streams compressed with a
-        general-purpose compression algorithm. This is the default.
+        general-purpose compression algorithm. This is the default
+        except when --json-output is given.
       - specialized: in addition to generalized, also uncompress
         streams compressed with a special-purpose but non-lossy
         compression scheme
@@ -858,14 +882,16 @@ Related Options
 
    The following values for :samp:`{parameter}` are available:
 
-   - :samp:`none`: do not attempt to decode any streams
+   - :samp:`none`: do not attempt to decode any streams. This is the
+     default with :qpdf:ref:`--json-output`.
 
    - :samp:`generalized`: decode streams filtered with supported
      generalized filters: ``/LZWDecode``, ``/FlateDecode``,
      ``/ASCII85Decode``, and ``/ASCIIHexDecode``. We define
      generalized filters as those to be used for general-purpose
      compression or encoding, as opposed to filters specifically
-     designed for image data.
+     designed for image data. This is the default except when
+     :qpdf:ref:`--json-output` is given.
 
    - :samp:`specialized`: in addition to generalized, decode streams
      with supported non-lossy specialized filters; currently this is
@@ -887,7 +913,9 @@ Related Options
    qpdf will recompress streams with generalized filters using flate
    compression, effectively eliminating LZW and ASCII-based filters.
    This is usually desirable behavior but can be disabled with
-   ``--decode-level=none``.
+   ``--decode-level=none``. Note that ``--decode-level=none`` is the
+   default when :qpdf:ref:`--json-output` is specified, but it can be
+   overridden in that case as well.
 
    As a special case, streams already compressed with ``/FlateDecode``
    are not uncompressed and recompressed. You can change this behavior
@@ -3112,7 +3140,11 @@ Related Options
    :qpdf:ref:`--verbose`, additional information, including preferred
    file name, description, dates, and more are also displayed. The key
    is usually but not always equal to the file name and is needed by
-   some of the other options. See also :ref:`attachments`.
+   some of the other options. See also :ref:`attachments`. Note that
+   this option displays dates in PDF timestamp syntax. When attachment
+   information is included in json output in the ``"attachments"`` key
+   (see :qpdf:ref:`--json`), dates are shown (just within that object)
+   in ISO-8601 format.
 
 .. qpdf:option:: --show-attachment=key
 
@@ -3149,23 +3181,30 @@ Related Options
 
       Generate a JSON representation of the file. This is described in
       depth in the JSON section of the manual. "version" may be a
-      specific version or "latest". Run qpdf --json-help for a
-      description of the generated JSON object.
+      specific version or "latest" (the default). Run qpdf --json-help
+      for a description of the generated JSON object.
 
    Generate a JSON representation of the file. This is described in
    depth in :ref:`json`. The version parameter can be used to specify
-   which version of the qpdf JSON format should be output. The only
-   supported value is ``1``, but it's possible that a new JSON output
-   version will be added in a future version. You can also specify
-   ``latest`` to use the latest JSON version. For backward
-   compatibility, the default value will remain ``1`` until qpdf
-   version 11, after which point it will become ``latest``. In all
-   case, you can tell what version of the JSON output you have from
-   the ``"version"`` key in the output. Use the
+   which version of the qpdf JSON format should be output. The version
+   number be a number or ``latest``. The default is ``latest``. As of
+   qpdf 11, the latest version is ``2``. If you have code that reads
+   qpdf JSON output, you can tell what version of the JSON output you
+   have from the ``"version"`` key in the output. Use the
    :qpdf:ref:`--json-help` option to get a description of the JSON
    object.
 
-.. qpdf:option:: --json-help
+   Starting with qpdf 11, when this option is specified, an output
+   file is optional (for backward compatibility) and defaults to
+   standard output. You may specify an output file to write the JSON
+   to a file rather than standard output. (Example: ``qpdf --json
+   in.pdf out.json``)
+
+   Stream data is only included if :qpdf:ref:`--json-output` is
+   specified or if a value other than ``none`` is passed to
+   :qpdf:ref:`--json-stream-data`.
+
+.. qpdf:option:: --json-help[=version]
 
    .. help: show format of JSON output
 
@@ -3173,12 +3212,13 @@ Related Options
       output a JSON object with the same keys and with values
       containing descriptive text.
 
-   Describe the format of the JSON output by writing to standard
-   output a JSON object with the same structure with the same keys as
+   Describe the format of the corresponding version of JSON output by
+   writing to standard output a JSON object with the same structure as
    the JSON generated by qpdf. In the output written by
    ``--json-help``, each key's value is a description of the key. The
    specific contract guaranteed by qpdf in its JSON representation is
-   explained in more detail in the :ref:`json`.
+   explained in more detail in the :ref:`json`. The default version of
+   help is version ``2``, as with the :qpdf:ref:`--json` flag.
 
 .. qpdf:option:: --json-key=key
 
@@ -3186,12 +3226,16 @@ Related Options
 
       This option is repeatable. If given, only the specified
       top-level keys will be included in the JSON output. Otherwise,
-      all keys will be included.
+      all keys will be included. With --json-output, when not given,
+      only the "qpdf" key will appear in the output.
 
    This option is repeatable. If given, only the specified top-level
    keys will be included in the JSON output. Otherwise, all keys will
-   be included. ``version`` and ``parameters`` will always appear in
-   the output.
+   be included. If not given, all keys will be included, unless
+   :qpdf:ref:`--json-output` was specified, in which case, only the
+   ``"qpdf"`` key will be included by default. If
+   :qpdf:ref:`--json-output` was not given, the ``version`` and
+   ``parameters`` keys will always appear in the output.
 
 .. qpdf:option:: --json-object={trailer|obj[,gen]}
 
@@ -3201,20 +3245,108 @@ Related Options
       be shown in the "objects" key of the JSON output. Otherwise, all
       objects will be shown.
 
-   This option is repeatable. If given, only specified objects will
-   be shown in the "``objects``" key of the JSON output. Otherwise, all
-   objects will be shown.
+   This option is repeatable. If given, only specified objects will be
+   shown in the objects dictionary in the JSON output. Otherwise, all
+   objects will be shown. See :ref:`json` for details about the qpdf
+   JSON format.
 
-.. qpdf:option:: --job-json-help
+.. qpdf:option:: --json-stream-data={none|inline|file}
 
-   .. help: show format of job JSON
+   .. help: how to handle streams in json output
 
-      Describe the format of the QPDFJob JSON input used by
-      --job-json-file.
+      When used with --json, this option controls whether streams in
+      json output should be omitted, written inline (base64-encoded)
+      or written to a file. If "file" is chosen, the file will be the
+      name of the output file appended with -nnn where nnn is the
+      object number. The prefix can be overridden with
+      --json-stream-prefix. The default is "none", except
+      when --json-output is specified, in which case the default is
+      "inline".
 
-   Describe the format of the QPDFJob JSON input used by
-   :qpdf:ref:`--job-json-file`. For more information about QPDFJob,
-   see :ref:`qpdf-job`.
+   When used with :qpdf:ref:`--json`, this option controls
+   whether streams in JSON output should be omitted, written inline
+   (base64-encoded) or written to a file. If ``file`` is chosen, the
+   file will be the name of the output file appended with
+   :samp:`-{nnn}` where :samp:`{nnn}` is the object number. The stream
+   data file prefix can be overridden with
+   :qpdf:ref:`--json-stream-prefix`. The default value is ``none``,
+   except when :qpdf:ref:`--json-output` is specified, in which case
+   the default is ``inline``.
+
+.. qpdf:option:: --json-stream-prefix=file-prefix
+
+   .. help: prefix for json stream data files
+
+      When used with --json-stream-data=file, --json-stream-data=file-prefix
+      sets the prefix for stream data files, overriding the default,
+      which is to use the output file name. Whatever is given here
+      will be appended with -nnn to create the name of the file that
+      will contain the data for the stream stream in object nnn.
+
+   When used with ``--json-stream-data=file``,
+   ``--json-stream-data=file-prefix`` sets the prefix for stream data
+   files, overriding the default, which is to use the output file
+   name. Whatever is given here will be appended with :samp:`-{nnn}`
+   to create the name of the file that will contain the data for the
+   stream stream in object :samp:`{nnn}`.
+
+.. qpdf:option:: --json-output[=version]
+
+   .. help: apply defaults for JSON serialization
+
+      Implies --json=version. Changes default values for certain
+      options so that the JSON output written is the most faithful
+      representation of the original PDF and contains no additional
+      JSON keys. See also --json-stream-data, --json-stream-prefix,
+      and --decode-level.
+
+   Implies :qpdf:ref:`--json` at the specified version. This option
+   changes several default values, all of which can be overridden by
+   specifying the stated option:
+
+   - The default value for :qpdf:ref:`--json-stream-data` changes from
+     ``none`` to ``inline``.
+
+   - The default value for :qpdf:ref:`--decode-level` changes from
+     ``generalized`` to ``none``.
+
+   - By default, only the ``"qpdf"`` key is included in the JSON
+     output, but you can add additional keys with
+     :qpdf:ref:`--json-key`.
+
+   - The ``"version"`` and ``"parameters"`` keys will be excluded from
+     the JSON output.
+
+   If you want to look at the contents of streams easily as you would
+   in QDF mode (see :ref:`qdf`), you can use
+   ``--decode-level=generalized`` and ``--json-stream-data=file`` for
+   a convenient way to do that.
+
+.. qpdf:option:: --json-input
+
+   .. help: input file is qpdf JSON
+
+      Treat the input file as a JSON file in qpdf JSON format. See the
+      "qpdf JSON Format" section of the manual for information about
+      how to use this option.
+
+   Treat the input file as a JSON file in qpdf JSON format. The input
+   file must be complete and include all stream data. The JSON version
+   must be at least 2. All top-level keys are ignored except for
+   ``"qpdf"``. For information about converting between PDF and JSON,
+   please see :ref:`json`.
+
+.. qpdf:option:: --update-from-json=qpdf-json-file
+
+   .. help: update a PDF from qpdf JSON
+
+      Update a PDF file from a JSON file. Please see the "qpdf JSON"
+      chapter of the manual for information about how to use this
+      option.
+
+   This option updates a PDF file from the specified qpdf JSON file.
+   For a information about how to use this option, please see
+   :ref:`json`.
 
 .. _test-options:
 
@@ -3317,6 +3449,29 @@ Related Options
    is discarded. This option enables it to be captured, allowing
    inspection of the file before values calculated in pass 1 are
    inserted into the file for pass 2.
+
+.. qpdf:option:: --test-json-schema
+
+   .. help: test generated json against schema
+
+      This is used by qpdf's test suite to check consistency between
+      the output of qpdf --json and the output of qpdf --json-help.
+
+   This is used by qpdf's test suite to check consistency between the
+   output of ``qpdf --json`` and the output of ``qpdf --json-help``.
+   This option causes an extra copy of the generated JSON to appear in
+   memory and is therefore unsuitable for use with large files. This
+   is why it's also not on by default.
+
+.. qpdf:option:: --report-memory-usage
+
+   .. help: best effort report of memory usage
+
+      This is used by qpdf's performance test suite to report the
+      maximum amount of memory used in supported environments.
+
+   This is used by qpdf's performance test suite to report the maximum
+   amount of memory used in supported environments.
 
 .. _unicode-passwords:
 

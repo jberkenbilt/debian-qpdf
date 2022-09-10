@@ -1,13 +1,10 @@
+#include <qpdf/assert_test.h>
+
 #include <qpdf/SparseOHArray.hh>
 #include <iostream>
 
-#ifdef NDEBUG
-// We need assert even in a release build for test code.
-# undef NDEBUG
-#endif
-#include <cassert>
-
-int main()
+int
+main()
 {
     SparseOHArray a;
     assert(a.size() == 0);

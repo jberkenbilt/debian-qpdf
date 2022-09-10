@@ -30,7 +30,7 @@
 
 #include <qpdf/Pipeline.hh>
 
-class Pl_Discard: public Pipeline
+class QPDF_DLL_CLASS Pl_Discard: public Pipeline
 {
   public:
     QPDF_DLL
@@ -38,25 +38,25 @@ class Pl_Discard: public Pipeline
     QPDF_DLL
     virtual ~Pl_Discard();
     QPDF_DLL
-    virtual void write(unsigned char*, size_t);
+    virtual void write(unsigned char const*, size_t);
     QPDF_DLL
     virtual void finish();
 
   private:
-    class Members
+    class QPDF_DLL_PRIVATE Members
     {
         friend class Pl_Discard;
 
       public:
         QPDF_DLL
-        ~Members();
+        ~Members() = default;
 
       private:
-        Members();
-        Members(Members const&);
+        Members() = default;
+        Members(Members const&) = delete;
     };
 
-    PointerHolder<Members> m;
+    std::shared_ptr<Members> m;
 };
 
 #endif // PL_DISCARD_HH

@@ -1,27 +1,43 @@
 #include <qpdf/QPDF_Array.hh>
 
-#include <qpdf/QUtil.hh>
 #include <qpdf/QIntC.hh>
+#include <qpdf/QUtil.hh>
 #include <stdexcept>
 
-QPDF_Array::QPDF_Array(std::vector<QPDFObjectHandle> const& v)
+QPDF_Array::QPDF_Array(std::vector<QPDFObjectHandle> const& v) :
+    QPDFValue(::ot_array, "array")
 {
     setFromVector(v);
 }
 
 QPDF_Array::QPDF_Array(SparseOHArray const& items) :
+    QPDFValue(::ot_array, "array"),
     elements(items)
 {
 }
 
-QPDF_Array::~QPDF_Array()
+std::shared_ptr<QPDFObject>
+QPDF_Array::create(std::vector<QPDFObjectHandle> const& items)
 {
+    return do_create(new QPDF_Array(items));
+}
+
+std::shared_ptr<QPDFObject>
+QPDF_Array::create(SparseOHArray const& items)
+{
+    return do_create(new QPDF_Array(items));
+}
+
+std::shared_ptr<QPDFObject>
+QPDF_Array::shallowCopy()
+{
+    return create(elements);
 }
 
 void
-QPDF_Array::releaseResolved()
+QPDF_Array::disconnect()
 {
-    this->elements.releaseResolved();
+    elements.disconnect();
 }
 
 std::string
@@ -29,8 +45,7 @@ QPDF_Array::unparse()
 {
     std::string result = "[ ";
     size_t size = this->elements.size();
-    for (size_t i = 0; i < size; ++i)
-    {
+    for (size_t i = 0; i < size; ++i) {
         result += this->elements.at(i).unparse();
         result += " ";
     }
@@ -39,33 +54,14 @@ QPDF_Array::unparse()
 }
 
 JSON
-QPDF_Array::getJSON()
+QPDF_Array::getJSON(int json_version)
 {
     JSON j = JSON::makeArray();
     size_t size = this->elements.size();
-    for (size_t i = 0; i < size; ++i)
-    {
-        j.addArrayElement(this->elements.at(i).getJSON());
+    for (size_t i = 0; i < size; ++i) {
+        j.addArrayElement(this->elements.at(i).getJSON(json_version));
     }
     return j;
-}
-
-QPDFObject::object_type_e
-QPDF_Array::getTypeCode() const
-{
-    return QPDFObject::ot_array;
-}
-
-char const*
-QPDF_Array::getTypeName() const
-{
-    return "array";
-}
-
-void
-QPDF_Array::setDescription(QPDF* qpdf, std::string const& description)
-{
-    this->QPDFObject::setDescription(qpdf, description);
 }
 
 int
@@ -79,8 +75,7 @@ QPDF_Array::getNItems() const
 QPDFObjectHandle
 QPDF_Array::getItem(int n) const
 {
-    if ((n < 0) || (n >= QIntC::to_int(elements.size())))
-    {
+    if ((n < 0) || (n >= QIntC::to_int(elements.size()))) {
         throw std::logic_error(
             "INTERNAL ERROR: bounds error accessing QPDF_Array element");
     }
@@ -91,8 +86,7 @@ void
 QPDF_Array::getAsVector(std::vector<QPDFObjectHandle>& v) const
 {
     size_t size = this->elements.size();
-    for (size_t i = 0; i < size; ++i)
-    {
+    for (size_t i = 0; i < size; ++i) {
         v.push_back(this->elements.at(i));
     }
 }
@@ -107,10 +101,8 @@ void
 QPDF_Array::setFromVector(std::vector<QPDFObjectHandle> const& v)
 {
     this->elements = SparseOHArray();
-    for (std::vector<QPDFObjectHandle>::const_iterator iter = v.begin();
-         iter != v.end(); ++iter)
-    {
-        this->elements.append(*iter);
+    for (auto const& iter: v) {
+        this->elements.append(iter);
     }
 }
 
@@ -118,8 +110,7 @@ void
 QPDF_Array::insertItem(int at, QPDFObjectHandle const& item)
 {
     // As special case, also allow insert beyond the end
-    if ((at < 0) || (at > QIntC::to_int(this->elements.size())))
-    {
+    if ((at < 0) || (at > QIntC::to_int(this->elements.size()))) {
         throw std::logic_error(
             "INTERNAL ERROR: bounds error accessing QPDF_Array element");
     }
@@ -138,17 +129,10 @@ QPDF_Array::eraseItem(int at)
     this->elements.erase(QIntC::to_size(at));
 }
 
-SparseOHArray const&
-QPDF_Array::getElementsForShallowCopy() const
-{
-    return this->elements;
-}
-
 void
 QPDF_Array::addExplicitElementsToList(std::list<QPDFObjectHandle>& l) const
 {
-    for (auto const& iter: this->elements)
-    {
+    for (auto const& iter: this->elements) {
         l.push_back(iter.second);
     }
 }

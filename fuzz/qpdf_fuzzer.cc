@@ -1,22 +1,28 @@
+#include <qpdf/Buffer.hh>
+#include <qpdf/BufferInputSource.hh>
+#include <qpdf/Pl_Discard.hh>
 #include <qpdf/QPDF.hh>
+#include <qpdf/QPDFAcroFormDocumentHelper.hh>
+#include <qpdf/QPDFOutlineDocumentHelper.hh>
+#include <qpdf/QPDFPageDocumentHelper.hh>
+#include <qpdf/QPDFPageLabelDocumentHelper.hh>
+#include <qpdf/QPDFPageObjectHelper.hh>
 #include <qpdf/QPDFWriter.hh>
 #include <qpdf/QUtil.hh>
-#include <qpdf/BufferInputSource.hh>
-#include <qpdf/Buffer.hh>
-#include <qpdf/Pl_Discard.hh>
-#include <qpdf/QPDFPageDocumentHelper.hh>
-#include <qpdf/QPDFPageObjectHelper.hh>
-#include <qpdf/QPDFPageLabelDocumentHelper.hh>
-#include <qpdf/QPDFOutlineDocumentHelper.hh>
-#include <qpdf/QPDFAcroFormDocumentHelper.hh>
 #include <cstdlib>
 
 class DiscardContents: public QPDFObjectHandle::ParserCallbacks
 {
   public:
-    virtual ~DiscardContents() {}
-    virtual void handleObject(QPDFObjectHandle) {}
-    virtual void handleEOF() {}
+    virtual ~DiscardContents() = default;
+    virtual void
+    handleObject(QPDFObjectHandle)
+    {
+    }
+    virtual void
+    handleEOF()
+    {
+    }
 };
 
 class FuzzHelper
@@ -26,9 +32,9 @@ class FuzzHelper
     void run();
 
   private:
-    PointerHolder<QPDF> getQpdf();
-    PointerHolder<QPDFWriter> getWriter(PointerHolder<QPDF>);
-    void doWrite(PointerHolder<QPDFWriter> w);
+    std::shared_ptr<QPDF> getQpdf();
+    std::shared_ptr<QPDFWriter> getWriter(std::shared_ptr<QPDF>);
+    void doWrite(std::shared_ptr<QPDFWriter> w);
     void testWrite();
     void testPages();
     void testOutlines();
@@ -44,38 +50,33 @@ FuzzHelper::FuzzHelper(unsigned char const* data, size_t size) :
 {
 }
 
-PointerHolder<QPDF>
+std::shared_ptr<QPDF>
 FuzzHelper::getQpdf()
 {
-    auto is = PointerHolder<InputSource>(
+    auto is = std::shared_ptr<InputSource>(
         new BufferInputSource("fuzz input", &this->input_buffer));
-    auto qpdf = make_pointer_holder<QPDF>();
+    auto qpdf = QPDF::create();
     qpdf->processInputSource(is);
     return qpdf;
 }
 
-PointerHolder<QPDFWriter>
-FuzzHelper::getWriter(PointerHolder<QPDF> qpdf)
+std::shared_ptr<QPDFWriter>
+FuzzHelper::getWriter(std::shared_ptr<QPDF> qpdf)
 {
-    auto w = make_pointer_holder<QPDFWriter>(*qpdf);
+    auto w = std::make_shared<QPDFWriter>(*qpdf);
     w->setOutputPipeline(&this->discard);
     w->setDecodeLevel(qpdf_dl_all);
     return w;
 }
 
 void
-FuzzHelper::doWrite(PointerHolder<QPDFWriter> w)
+FuzzHelper::doWrite(std::shared_ptr<QPDFWriter> w)
 {
-    try
-    {
+    try {
         w->write();
-    }
-    catch (QPDFExc const& e)
-    {
+    } catch (QPDFExc const& e) {
         std::cerr << e.what() << std::endl;
-    }
-    catch (std::runtime_error const& e)
-    {
+    } catch (std::runtime_error const& e) {
         std::cerr << e.what() << std::endl;
     }
 }
@@ -85,8 +86,8 @@ FuzzHelper::testWrite()
 {
     // Write in various ways to exercise QPDFWriter
 
-    PointerHolder<QPDF> q;
-    PointerHolder<QPDFWriter> w;
+    std::shared_ptr<QPDF> q;
+    std::shared_ptr<QPDFWriter> w;
 
     q = getQpdf();
     w = getWriter(q);
@@ -106,7 +107,7 @@ FuzzHelper::testWrite()
     w = getWriter(q);
     w->setStaticID(true);
     w->setObjectStreamMode(qpdf_o_disable);
-    w->setR3EncryptionParameters(
+    w->setR3EncryptionParametersInsecure(
         "u", "o", true, true, true, true, true, true, qpdf_r3p_full);
     doWrite(w);
 
@@ -123,46 +124,31 @@ FuzzHelper::testPages()
 {
     // Parse all content streams, and exercise some helpers that
     // operate on pages.
-    PointerHolder<QPDF> q = getQpdf();
+    std::shared_ptr<QPDF> q = getQpdf();
     QPDFPageDocumentHelper pdh(*q);
     QPDFPageLabelDocumentHelper pldh(*q);
     QPDFOutlineDocumentHelper odh(*q);
     QPDFAcroFormDocumentHelper afdh(*q);
     afdh.generateAppearancesIfNeeded();
     pdh.flattenAnnotations();
-    std::vector<QPDFPageObjectHelper> pages = pdh.getAllPages();
     DiscardContents discard_contents;
     int pageno = 0;
-    for (std::vector<QPDFPageObjectHelper>::iterator iter =
-             pages.begin();
-         iter != pages.end(); ++iter)
-    {
-        QPDFPageObjectHelper& page(*iter);
+    for (auto& page: pdh.getAllPages()) {
         ++pageno;
-        try
-        {
+        try {
             page.coalesceContentStreams();
             page.parseContents(&discard_contents);
             page.getImages();
             pldh.getLabelForPage(pageno);
             QPDFObjectHandle page_obj(page.getObjectHandle());
-            page_obj.getJSON(true).unparse();
+            page_obj.getJSON(JSON::LATEST, true).unparse();
             odh.getOutlinesForPage(page_obj.getObjGen());
 
-            std::vector<QPDFAnnotationObjectHelper> annotations =
-                afdh.getWidgetAnnotationsForPage(page);
-            for (std::vector<QPDFAnnotationObjectHelper>::iterator annot_iter =
-                     annotations.begin();
-                 annot_iter != annotations.end(); ++annot_iter)
-            {
-                QPDFAnnotationObjectHelper& aoh = *annot_iter;
+            for (auto& aoh: afdh.getWidgetAnnotationsForPage(page)) {
                 afdh.getFieldForAnnotation(aoh);
             }
-        }
-        catch (QPDFExc& e)
-        {
-            std::cerr << "page " << pageno << ": "
-                      << e.what() << std::endl;
+        } catch (QPDFExc& e) {
+            std::cerr << "page " << pageno << ": " << e.what() << std::endl;
         }
     }
 }
@@ -170,18 +156,12 @@ FuzzHelper::testPages()
 void
 FuzzHelper::testOutlines()
 {
-    PointerHolder<QPDF> q = getQpdf();
-    std::list<std::vector<QPDFOutlineObjectHelper> > queue;
+    std::shared_ptr<QPDF> q = getQpdf();
+    std::list<std::vector<QPDFOutlineObjectHelper>> queue;
     QPDFOutlineDocumentHelper odh(*q);
     queue.push_back(odh.getTopLevelOutlines());
-    while (! queue.empty())
-    {
-        std::vector<QPDFOutlineObjectHelper>& outlines = *(queue.begin());
-        for (std::vector<QPDFOutlineObjectHelper>::iterator iter =
-                 outlines.begin();
-             iter != outlines.end(); ++iter)
-        {
-            QPDFOutlineObjectHelper& ol = *iter;
+    while (!queue.empty()) {
+        for (auto& ol: *(queue.begin())) {
             ol.getDestPage();
             queue.push_back(ol.getKids());
         }
@@ -208,21 +188,17 @@ FuzzHelper::run()
     // std::runtime_error. Throwing any other kind of exception,
     // segfaulting, or having a memory error (when built with
     // appropriate sanitizers) will all cause abnormal exit.
-    try
-    {
+    try {
         doChecks();
-    }
-    catch (QPDFExc const& e)
-    {
+    } catch (QPDFExc const& e) {
         std::cerr << "QPDFExc: " << e.what() << std::endl;
-    }
-    catch (std::runtime_error const& e)
-    {
+    } catch (std::runtime_error const& e) {
         std::cerr << "runtime_error: " << e.what() << std::endl;
     }
 }
 
-extern "C" int LLVMFuzzerTestOneInput(unsigned char const* data, size_t size)
+extern "C" int
+LLVMFuzzerTestOneInput(unsigned char const* data, size_t size)
 {
 #ifndef _WIN32
     // Used by jpeg library to work around false positives in memory

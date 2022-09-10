@@ -30,7 +30,7 @@
 
 #include <qpdf/Pipeline.hh>
 
-class Pl_Concatenate: public Pipeline
+class QPDF_DLL_CLASS Pl_Concatenate: public Pipeline
 {
   public:
     QPDF_DLL
@@ -39,7 +39,7 @@ class Pl_Concatenate: public Pipeline
     virtual ~Pl_Concatenate();
 
     QPDF_DLL
-    virtual void write(unsigned char* data, size_t len);
+    virtual void write(unsigned char const* data, size_t len);
 
     QPDF_DLL
     virtual void finish();
@@ -50,20 +50,20 @@ class Pl_Concatenate: public Pipeline
     void manualFinish();
 
   private:
-    class Members
+    class QPDF_DLL_PRIVATE Members
     {
         friend class Pl_Concatenate;
 
       public:
         QPDF_DLL
-        ~Members();
+        ~Members() = default;
 
       private:
-        Members();
-        Members(Members const&);
+        Members() = default;
+        Members(Members const&) = delete;
     };
 
-    PointerHolder<Members> m;
+    std::shared_ptr<Members> m;
 };
 
 #endif // PL_CONCATENATE_HH

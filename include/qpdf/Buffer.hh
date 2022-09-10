@@ -25,8 +25,8 @@
 #include <qpdf/DLL.h>
 #include <qpdf/PointerHolder.hh>
 
-#include <stddef.h>
 #include <memory>
+#include <stddef.h>
 
 class Buffer
 {
@@ -49,6 +49,10 @@ class Buffer
     QPDF_DLL
     Buffer& operator=(Buffer const&);
     QPDF_DLL
+    Buffer(Buffer&&) noexcept;
+    QPDF_DLL
+    Buffer& operator=(Buffer&&) noexcept;
+    QPDF_DLL
     size_t getSize() const;
     QPDF_DLL
     unsigned char const* getBuffer() const;
@@ -66,7 +70,7 @@ class Buffer
 
       private:
         Members(size_t size, unsigned char* buf, bool own_memory);
-        Members(Members const&);
+        Members(Members const&) = delete;
 
         bool own_memory;
         size_t size;
@@ -75,7 +79,7 @@ class Buffer
 
     void copy(Buffer const&);
 
-    PointerHolder<Members> m;
+    std::unique_ptr<Members> m;
 };
 
 #endif // BUFFER_HH

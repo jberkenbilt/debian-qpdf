@@ -22,9 +22,9 @@
 #ifndef QPDFPAGEOBJECTHELPER_HH
 #define QPDFPAGEOBJECTHELPER_HH
 
-#include <qpdf/QPDFObjectHelper.hh>
 #include <qpdf/QPDFAnnotationObjectHelper.hh>
 #include <qpdf/QPDFMatrix.hh>
+#include <qpdf/QPDFObjectHelper.hh>
 
 #include <qpdf/DLL.h>
 
@@ -43,37 +43,153 @@ class QPDFPageObjectHelper: public QPDFObjectHelper
     QPDF_DLL
     QPDFPageObjectHelper(QPDFObjectHandle);
     QPDF_DLL
-    virtual ~QPDFPageObjectHelper()
-    {
-    }
+    virtual ~QPDFPageObjectHelper() = default;
 
-    // Works with pages and form XObjects. Return the effective value
-    // of this attribute for the page/form XObject. For pages, if the
-    // requested attribute is not present on the page but is
-    // inheritable, look up through the page's ancestors in the page
-    // tree. If copy_if_shared is true, then this method will replace
-    // the attribute with a shallow copy if it is in indirect or
-    // inherited and return the copy. You should do this if you are
-    // going to modify the returned object and want the modifications
-    // to apply to the current page/form XObject only.
+    // PAGE ATTRIBUTES
+
+    // The getAttribute method works with pages and form XObjects. It
+    // return the value of the requested attribute from the page/form
+    // XObject's dictionary, taking inheritance from the pages tree
+    // into consideration. For pages, the attributes /MediaBox,
+    // /CropBox, /Resources, and /Rotate are inheritable, meaning that
+    // if they are not present directly on the page node, they may be
+    // inherited from ancestor nodes in the pages tree.
+    //
+    // There are two ways that an attribute can be "shared":
+    //
+    // * For inheritable attributes on pages, it may appear in a
+    //   higher level node of the pages tree
+    //
+    // * For any attribute, the attribute may be an indirect object
+    //   which may be referenced by more than one page/form XObject.
+    //
+    // If copy_if_shared is true, then this method will replace the
+    // attribute with a shallow copy if it is indirect or inherited
+    // and return the copy. You should do this if you are going to
+    // modify the returned object and want the modifications to apply
+    // to the current page/form XObject only.
+    QPDF_DLL
+    QPDFObjectHandle getAttribute(std::string const& name, bool copy_if_shared);
+
+    // PAGE BOXES
+    //
+    // Pages have various types of boundary boxes. These are described
+    // in detail in the PDF specification (section 14.11.2 Page
+    // boundaries). They are, by key in the page dictionary:
+    //
+    // * /MediaBox -- boundaries of physical page
+    // * /CropBox -- clipping region of what is displayed
+    // * /BleedBox -- clipping region for production environments
+    // * /TrimBox -- dimensions of final printed page after trimming
+    // * /ArtBox -- extent of meaningful content including margins
+    //
+    // Of these, only /MediaBox is required. If any are absent, the
+    // fallback value for /CropBox is /MediaBox, and the fallback
+    // values for the other boxes are /CropBox.
+    //
+    // As noted above (PAGE ATTRIBUTES), /MediaBox and /CropBox can be
+    // inherited from parent nodes in the pages tree. The other boxes
+    // can't be inherited.
+    //
+    // When the comments below refer to the "effective value" of an
+    // box, this takes into consideration both inheritance through the
+    // pages tree (in the case of /MediaBox and /CropBox) and fallback
+    // values for missing attributes (for all except /MediaBox).
+    //
+    // For the methods below, copy_if_shared is passed to getAttribute
+    // and therefore refers only to indirect objects and values that
+    // are inherited through the pages tree.
+    //
+    // If copy_if_fallback is true, a copy is made if the object's
+    // value was obtained by falling back to a different box.
+    //
+    // The copy_if_shared and copy_if_fallback parameters carry across
+    // multiple layers. This is explained below.
+    //
+    // You should set copy_if_shared to true if you want to modify a
+    // bounding box for the current page without affecting other pages
+    // but you don't want to change the fallback behavior. For
+    // example, if you want to modify the /TrimBox for the current
+    // page only but have it continue to fall back to the value of
+    // /CropBox or /MediaBox if they are not defined, you could set
+    // copy_if_shared to true.
+    //
+    // You should set copy_if_fallback to true if you want to modify a
+    // specific box as distinct from any other box. For example, if
+    // you want to make /TrimBox differ from /CropBox, then you should
+    // set copy_if_fallback to true.
+    //
+    // The copy_if_fallback flags were added in qpdf 11.
+    //
+    // For example, suppose that neither /CropBox nor /TrimBox is
+    // present on a page but /CropBox is present in the page's parent
+    // node in the page tree.
+    //
+    // * getTrimBox(false, false) would return the /CropBox from the
+    //   parent node.
+    //
+    // * getTrimBox(true, false) would make a shallow copy of the
+    //   /CropBox from the parent node into the current node and
+    //   return it.
+    //
+    // * getTrimBox(false, true) would make a shallow copy of the
+    //   /CropBox from the parent node into /TrimBox of the current
+    //   node and return it.
+    //
+    // * getTrimBox(true, true) would make a shallow copy of the
+    //   /CropBox from the parent node into the current node, then
+    //   make a shallow copy of the resulting copy to /TrimBox of the
+    //   current node, and then return that.
+    //
+    // To illustrate how these parameters carry across multiple
+    // layers, suppose that neither /MediaBox, /CropBox, nor /TrimBox
+    // is present on a page but /MediaBox is present on the parent. In
+    // this case:
+    //
+    // * getTrimBox(false, false) would return the value of /MediaBox
+    //   from the parent node.
+    //
+    // * getTrimBox(true, false) would copy /MediaBox to the current
+    //   node and return it.
+    //
+    // * getTrimBox(false, true) would first copy /MediaBox from the
+    //   parent to /CropBox, then copy /CropBox to /TrimBox, and then
+    //   return the result.
+    //
+    // * getTrimBox(true, true) would first copy /MediaBox from the
+    //   parent to the current page, then copy it to /CropBox, then
+    //   copy /CropBox to /TrimBox, and then return the result.
+    //
+    // If you need different behavior, call getAttribute directly and
+    // take care of your own copying.
+
+    // Return the effective MediaBox
+    QPDF_DLL
+    QPDFObjectHandle getMediaBox(bool copy_if_shared = false);
+
+    // Return the effective CropBox. If not defined, fall back to
+    // MediaBox
     QPDF_DLL
     QPDFObjectHandle
-    getAttribute(std::string const& name, bool copy_if_shared);
+    getCropBox(bool copy_if_shared = false, bool copy_if_fallback = false);
 
-    // Return the TrimBox. If not defined, fall back to CropBox
+    // Return the effective BleedBox. If not defined, fall back to
+    // CropBox.
     QPDF_DLL
     QPDFObjectHandle
-    getTrimBox(bool copy_if_shared = false);
+    getBleedBox(bool copy_if_shared = false, bool copy_if_fallback = false);
 
-    // Return the CropBox. If not defined, fall back to MediaBox
+    // Return the effective TrimBox. If not defined, fall back to
+    // CropBox.
     QPDF_DLL
     QPDFObjectHandle
-    getCropBox(bool copy_if_shared = false);
+    getTrimBox(bool copy_if_shared = false, bool copy_if_fallback = false);
 
-    // Return the MediaBox
+    // Return the effective ArtBox. If not defined, fall back to
+    // CropBox.
     QPDF_DLL
     QPDFObjectHandle
-    getMediaBox(bool copy_if_shared = false);
+    getArtBox(bool copy_if_shared = false, bool copy_if_fallback = false);
 
     // Iterate through XObjects, possibly recursing into form
     // XObjects. This works with pages or form XObjects. Call action
@@ -86,24 +202,27 @@ class QPDFPageObjectHelper: public QPDFObjectHelper
     QPDF_DLL
     void forEachXObject(
         bool recursive,
-        std::function<void(QPDFObjectHandle& obj,
-                           QPDFObjectHandle& xobj_dict,
-                           std::string const& key)> action,
-        std::function<bool(QPDFObjectHandle)> selector=nullptr);
+        std::function<void(
+            QPDFObjectHandle& obj,
+            QPDFObjectHandle& xobj_dict,
+            std::string const& key)> action,
+        std::function<bool(QPDFObjectHandle)> selector = nullptr);
     // Only call action for images
     QPDF_DLL
     void forEachImage(
         bool recursive,
-        std::function<void(QPDFObjectHandle& obj,
-                           QPDFObjectHandle& xobj_dict,
-                           std::string const& key)> action);
+        std::function<void(
+            QPDFObjectHandle& obj,
+            QPDFObjectHandle& xobj_dict,
+            std::string const& key)> action);
     // Only call action for form XObjects
     QPDF_DLL
     void forEachFormXObject(
         bool recursive,
-        std::function<void(QPDFObjectHandle& obj,
-                           QPDFObjectHandle& xobj_dict,
-                           std::string const& key)> action);
+        std::function<void(
+            QPDFObjectHandle& obj,
+            QPDFObjectHandle& xobj_dict,
+            std::string const& key)> action);
 
     // Returns an empty map if there are no images or no resources.
     // Prior to qpdf 8.4.0, this function did not support inherited
@@ -133,17 +252,14 @@ class QPDFPageObjectHelper: public QPDFObjectHelper
     // this behavior. Prior to qpdf 10.1, form XObjects were ignored,
     // but this was considered a bug.
     QPDF_DLL
-    void externalizeInlineImages(size_t min_size, bool shallow);
-    // ABI: make shallow optional (default false) and merge
-    QPDF_DLL
-    void externalizeInlineImages(size_t min_size = 0);
+    void externalizeInlineImages(size_t min_size = 0, bool shallow = false);
 
     // Return the annotations in the page's "/Annots" list, if any. If
     // only_subtype is non-empty, only include annotations of the
     // given subtype.
     QPDF_DLL
-    std::vector<QPDFAnnotationObjectHelper> getAnnotations(
-        std::string const& only_subtype = "");
+    std::vector<QPDFAnnotationObjectHelper>
+    getAnnotations(std::string const& only_subtype = "");
 
     // Returns a vector of stream objects representing the content
     // streams for the given page.  This routine allows the caller to
@@ -203,13 +319,13 @@ class QPDFPageObjectHelper: public QPDFObjectHelper
     // contents, as happens with addContentTokenFilter. See
     // examples/pdf-count-strings.cc for an example.
     QPDF_DLL
-    void filterContents(QPDFObjectHandle::TokenFilter* filter,
-                        Pipeline* next = 0);
+    void
+    filterContents(QPDFObjectHandle::TokenFilter* filter, Pipeline* next = 0);
 
     // Old name -- calls filterContents()
     QPDF_DLL
-    void filterPageContents(QPDFObjectHandle::TokenFilter* filter,
-                            Pipeline* next = 0);
+    void filterPageContents(
+        QPDFObjectHandle::TokenFilter* filter, Pipeline* next = 0);
 
     // Pipe a page's contents through the given pipeline. This method
     // works whether the contents are a single stream or an array of
@@ -226,7 +342,7 @@ class QPDFPageObjectHelper: public QPDFObjectHelper
     // stream. Also works on form XObjects.
     QPDF_DLL
     void addContentTokenFilter(
-        PointerHolder<QPDFObjectHandle::TokenFilter> token_filter);
+        std::shared_ptr<QPDFObjectHandle::TokenFilter> token_filter);
 
     // A page's resources dictionary maps names to objects elsewhere
     // in the file. This method walks through a page's contents and
@@ -303,7 +419,8 @@ class QPDFPageObjectHelper: public QPDFObjectHelper
     // behavior.
     QPDF_DLL
     std::string placeFormXObject(
-        QPDFObjectHandle fo, std::string const& name,
+        QPDFObjectHandle fo,
+        std::string const& name,
         QPDFObjectHandle::Rectangle rect,
         bool invert_transformations = true,
         bool allow_shrink = true,
@@ -313,7 +430,8 @@ class QPDFPageObjectHelper: public QPDFObjectHelper
     // matrix that was used.
     QPDF_DLL
     std::string placeFormXObject(
-        QPDFObjectHandle fo, std::string const& name,
+        QPDFObjectHandle fo,
+        std::string const& name,
         QPDFObjectHandle::Rectangle rect,
         QPDFMatrix& cm,
         bool invert_transformations = true,
@@ -326,9 +444,11 @@ class QPDFPageObjectHelper: public QPDFObjectHelper
     // placeFormXObject.
     QPDF_DLL
     QPDFMatrix getMatrixForFormXObjectPlacement(
-        QPDFObjectHandle fo, QPDFObjectHandle::Rectangle rect,
+        QPDFObjectHandle fo,
+        QPDFObjectHandle::Rectangle rect,
         bool invert_transformations = true,
-        bool allow_shrink = true, bool allow_expand = false);
+        bool allow_shrink = true,
+        bool allow_expand = false);
 
     // If a page is rotated using /Rotate in the page's dictionary,
     // instead rotate the page by the same amount by altering the
@@ -341,10 +461,7 @@ class QPDFPageObjectHelper: public QPDFObjectHelper
     // rotated. If not, one will be created inside the function, which
     // is less efficient.
     QPDF_DLL
-    void flattenRotation();
-    // ABI: merge versions and make afdh default to nullptr
-    QPDF_DLL
-    void flattenRotation(QPDFAcroFormDocumentHelper* afdh);
+    void flattenRotation(QPDFAcroFormDocumentHelper* afdh = nullptr);
 
     // Copy annotations from another page into this page. The other
     // page may be from the same QPDF or from a different QPDF. Each
@@ -372,13 +489,18 @@ class QPDFPageObjectHelper: public QPDFObjectHelper
     // these outside and pass them in.
     QPDF_DLL
     void copyAnnotations(
-        QPDFPageObjectHelper from_page, QPDFMatrix const& cm = QPDFMatrix(),
+        QPDFPageObjectHelper from_page,
+        QPDFMatrix const& cm = QPDFMatrix(),
         QPDFAcroFormDocumentHelper* afdh = nullptr,
         QPDFAcroFormDocumentHelper* from_afdh = nullptr);
 
   private:
-    static bool
-    removeUnreferencedResourcesHelper(
+    QPDFObjectHandle getAttribute(
+        std::string const& name,
+        bool copy_if_shared,
+        std::function<QPDFObjectHandle()> get_fallback,
+        bool copy_if_fallback);
+    static bool removeUnreferencedResourcesHelper(
         QPDFPageObjectHelper ph, std::set<std::string>& unresolved);
 
     class Members
@@ -387,14 +509,14 @@ class QPDFPageObjectHelper: public QPDFObjectHelper
 
       public:
         QPDF_DLL
-        ~Members();
+        ~Members() = default;
 
       private:
-        Members();
-        Members(Members const&);
+        Members() = default;
+        Members(Members const&) = delete;
     };
 
-    PointerHolder<Members> m;
+    std::shared_ptr<Members> m;
 };
 
 #endif // QPDFPAGEOBJECTHELPER_HH

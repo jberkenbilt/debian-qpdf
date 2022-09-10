@@ -1,40 +1,17 @@
-#include <qpdf/QPDFObject.hh>
+#include <qpdf/QPDFObject_private.hh>
 
-QPDFObject::QPDFObject() :
-    owning_qpdf(0),
-    parsed_offset(-1)
+#include <qpdf/QPDF.hh>
+#include <qpdf/QPDF_Destroyed.hh>
+
+void
+QPDFObject::doResolve()
 {
+    auto og = value->og;
+    QPDF::Resolver::resolve(value->qpdf, og);
 }
 
 void
-QPDFObject::setDescription(QPDF* qpdf, std::string const& description)
+QPDFObject::destroy()
 {
-    this->owning_qpdf = qpdf;
-    this->object_description = description;
-}
-
-bool
-QPDFObject::getDescription(QPDF*& qpdf, std::string& description)
-{
-    qpdf = this->owning_qpdf;
-    description = this->object_description;
-    return this->owning_qpdf != 0;
-}
-
-bool
-QPDFObject::hasDescription()
-{
-    return this->owning_qpdf != 0;
-}
-
-void
-QPDFObject::setParsedOffset(qpdf_offset_t offset)
-{
-    this->parsed_offset = offset;
-}
-
-qpdf_offset_t
-QPDFObject::getParsedOffset()
-{
-    return this->parsed_offset;
+    value = QPDF_Destroyed::getInstance();
 }

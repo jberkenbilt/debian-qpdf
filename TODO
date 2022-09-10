@@ -1,388 +1,58 @@
 
+Always
+======
+
+* Evaluate issues tagged with `next` and `bug`. Remember to check
+  discussions and pull requests in addition to regular issues.
+* When close to release, make sure external-libs is building and
+  follow instructions in ../external-libs/README
+
 Next
 ====
 
-In order:
-* cmake
-* code formatting
-* PointerHolder -> shared_ptr
-* ABI including --json default is latest
-* json v2
-
-Other (do in any order):
-
-Misc
-* Get rid of "ugly switch statements" in QUtil.cc -- replace with
-  static map initializers. (Search for "ugly switch statements" below
-  as well.)
-* Consider exposing get_next_utf8_codepoint in QUtil
-* Add QUtil::is_explicit_utf8 that does what QPDF_String::getUTF8Val
-  does to detect UTF-8 encoded strings per PDF 2.0 spec.
-* Add an option --ignore-encryption to ignore encryption information
-  and treat encrypted files as if they weren't encrypted. This should
-  make it possible to solve #598 (--show-encryption without a
-  password). We'll need to make sure we don't try to filter any
-  streams in this mode. Ideally we should be able to combine this with
-  --json so we can look at the raw encrypted strings and streams if we
-  want to. Since providing the password may reveal additional details,
-  --show-encryption could potentially retry with this option if the
-  first time doesn't work. Then, with the file open, we can read the
-  encryption dictionary normally.
-* Go through README-maintainer "CODING RULES" and update --
-  PointerHolder and other changes will make some of the rules
-  obsolete.
-
-Soon: Break ground on "Document-level work"
-
-Code Formatting
-===============
-
-Use clang-format-15.
-
-* Put a .clang-format at the top of the repository -- see below for content.
-* Reformat all files:
-
-  for i in  **/*.cc **/*.c **/*.h **/*.hh; do
-     clang-format < $i >| $i.new && mv $i.new $i
-  done
-
-* Carefully inspect the diff. There are some places where a comment to
-  force a line break might be in order.
-
-* Update README-maintainer about formatting. Mention
-
-  // clang-format off
-  // clang-format on
-
-  as well as the use of a comment to force a line break.
-
-Tentative .clang-format:
-
-```
----
-Language:        Cpp
-BasedOnStyle:  LLVM
-AlignAfterOpenBracket: AlwaysBreak
-AlignEscapedNewlines: DontAlign
-AllowShortFunctionsOnASingleLine: None
-BinPackArguments: false
-BinPackParameters: false
-BreakConstructorInitializers: BeforeComma
-DeriveLineEnding: false
-PackConstructorInitializers: Never
-IncludeCategories:
-  - Regex:           '^["<](qpdf)/'
-    Priority:        1
-    SortPriority:    0
-    CaseSensitive:   false
-  - Regex:           '.*'
-    Priority:        2
-    SortPriority:    0
-    CaseSensitive:   false
-  - Regex:           '.*'
-    Priority:        1
-    SortPriority:    0
-    CaseSensitive:   false
-IndentCaseBlocks: true
-IndentWidth:     4
-InsertTrailingCommas: Wrapped
-KeepEmptyLinesAtTheStartOfBlocks: false
-PointerAlignment: Left
-```
-
-Remaining work:
-
-* Try to get emacs c-style to match as closely as possible
-* Consider blame.ignoreRevsFile if it seems to help
-* Add a `make format` similar to `make spell` (or whatever this ends
-  up being with cmake)
-* Consider a github action to check formatting. I don't want
-  formatting failures to prevent all the tests from being run.
-  Alternatively, add running `make format` as a release preparation
-  check like `make spell`.
-
-cmake
-=====
-
-* DLL.h
-  * Remove DLL.h and QPDF_DLL* from all private library classes.
-  * Change DLL_EXPORT to QPDF_EXPORT. Be sure to call attention to
-    this in the release notes. There should be a "migrating to cmake"
-    in the manual, and ./configure should draw attention to it.
-  * The effect of QPDF_DLL_CLASS is to export everything in the class,
-    not just the vtable. On MSVC, we don't need this as the vtable
-    gets exported automatically when needed. With gcc, we need it to
-    export typeinfo and vtable. Whenever QPDF_DLL_CLASS is defined,
-    also define QPDF_DLL_LOCAL to __attribute__
-    ((visibility("hidden"))). Then add QPDF_DLL_LOCAL to everything in
-    QPDF_DLL_CLASS that is not marked with QPDF_DLL. The effect is
-    that, with MSVC, only methods are marked QPDF_DLL are public
-    because QPDF_DLL_CLASS is empty. For gcc, only methods marked
-    QPDF_DLL are public because QPDF_DLL_LOCAL makes the other things
-    private. See https://gcc.gnu.org/wiki/Visibility. Make sure this
-    is documented.
-* Nice to have:
-  * Split qpdf.test into multiple tests
-  * Rework tests so that nothing is written into the source directory.
-  * Ideally then the entire build could be done with a read-only
-    source tree.
-* pikepdf
-  * https://github.com/pikepdf/pikepdf/pull/315 -- setup.py + docs
-  * https://github.com/pikepdf/pikepdf/pull/316 -- setup.py only
-
-Output JSON v2
-==============
-
-Output JSON v2 will contain enough information to completely recreate
-a PDF file. In other words, qpdf will have full, bidirectional,
-lossless json serialization/deserialization of PDF.
-
-If this is done, update --json option in cli.rst to mention v2. Also
-update QPDFJob::Config::json and of course other parts of the docs
-(json.rst).
-
-You can't create a PDF from v1 json because
-
-* The PDF version header is not recorded
-
-* Strings cannot be unambiguously encoded/decoded
-
-  * Can't tell string from name from indirect object
-
-  * Strings are treated as PDF doc encoding and output as UTF-8, which
-    doesn't work since multiple PDF doc code points are undefined
-
-* There is no representation of stream data
-
-* You can't tell a stream from a dictionary except by looking in both
-  "object" and "objectinfo". Fix this, and then remove "objectinfo".
-
-Additionally, using "n n R" as a key in "objects" and "objectinfo"
-messes up searching for things.
-
-For json v2:
-
-* Make sure it is possible to serialize and deserializes a PDF to JSON
-  without loading the whole thing into memory.
-
-  * As with a regular PDF, we can load everything into memory at once
-    except stream data.
-
-  * I think we can do this by having the concept of generated values,
-    which we can make just be strings. We would have a JSON subclass
-    whose value is a lambda that gets called to generate output. When
-    we construct the JSON the stream values would be lambda functions
-    that generate the stream data.
-
-  * When we parse the file, we'll have to have a way for the parser to
-    know that it should create a lambda that reads the data from the
-    file. I think this means we want something that parses JSON from
-    an input source. It would have to keep track of the offset and
-    length of a value from the input source and have a (probably a
-    lambda that it can call with a path) that would indicate whether
-    to store the value or whether to create a lambda that retrieves
-    it. We would have to keep a std::shared_ptr<InputSource> around.
-
-  * Add json to the large file tests.
-
-* Resolve differences between information shown in the json format vs.
-  information shown with options like --check, --list-attachments,
-  etc. The json format should be able to completely replace things
-  that write to stdout. Be sure getAllPages() and other top-level
-  convenience routines are there so people don't need to parse the
-  pages tree themselves. For many workflows, it should be possible for
-  someone to work in the json file based on json metadata rather than
-  calling the QPDF API. (Of course, you still need the QPDF API for
-  higher level helper objects.)
-
-* Consider using camelCase in multi-word key names to be consistent
-  with job JSON and with how JSON is often represented in languages
-  that use it more natively.
-
-* Consider changing the contract to allow fields to be absent even
-  when present in the schema. It's reasonable for people to check for
-  presence of a key. Most languages make this easy to do.
-
-* If we allow --json to be mixed with --ignore-encryption, we must
-  emphasize that the resulting json can't be turned back into a valid
-  PDF.
-
-Most things that are informational can stay the same. We will have to
-go through every item to decide for sure, especially when camelCase is
-taken into consideration.
-
-New APIs:
-
-QPDFObjectHandle::parseJSON(QPDF* context, JSON);
-QPDFObjectHandle::parseJSON(QPDF* context, std::string const&);
-operator ""_qpdf_json
-C API to create a QPDFObjectHandle from a json string
-
-JSON::parseFile
-QPDF::parseJSON(JSON) (like parseFile, etc. -- deserializes json)
-QPDF::updateFromJSON(JSON)
-
-CLI: --infile-is-json -- indicate that the input is a qpdf json file
-rather than a PDF file
-CLI: --update-from-json=file.json
-
-Have a "qpdf" key in the output that contains "jsonVersion",
-"pdfVersion", and "objects". This replaces the "objects" field at the
-top level. "objects" and "objectinfo" disappear from the top-level.
-".version" and ".qpdf.jsonVersion" will match. The input to parseJSON
-and updateFromJSON will have to have the "qpdf" key in it. All other
-keys are ignored.
-
-When creating from a JSON file, the JSON must be complete with data
-for all streams, a trailer, and a pdfVersion. When updating from a
-JSON:
-
-* Any object whose value is null (not "value": null, but just null) is
-  deleted.
-* For any stream that appears without stream data, the stream data is
-  left alone.
-* Otherwise, the object from the JSON completely replaces the input
-  object. No dictionary merges or anything like that are performed.
-  It will call replaceObject.
-
-Within .qpdf.objects, the key is "obj:o,g" or "obj:trailer", and the
-value is a dictionary with exactly one of "value" or "stream" as its
-single key.
-
-For non-streams:
-
-{
-  "obj:o,g": {
-    "value": ...
-  }
-}
-
-For streams:
-
-  "obj:o,g": {
-    "stream": {
-      "dict": { ... stream dictionary ... },
-      "filterable": bool,
-      "raw": "base64-encoded raw data",
-      "filtered": "base64-encoded filtered data"
-    }
-  }
-}
-
-Wherever a PDF object appears in the JSON output, including "value"
-and "stream"."dict" above as well as other places where they might
-appear, objects are represented as follows:
-
-* Arrays, dictionaries, booleans, nulls, integers, and real numbers
-  with no more than six decimal places are represented as their native
-  JSON type.
-* Real numbers with more than six decimal places are represented as
-  "r:{real-value}".
-* Names: "/Name" -- internal/canonical representation (e.g.
-  "/Text/Plain", not #xx quoted)
-* Indirect objects: "n n R"
-* Strings: one of
-  "s:json string treated as Unicode"
-  "b:json string treated as bytes; character > \u00ff is an error"
-  "e:base64-encoded bytes"
-
-Test cases: these are the same:
-* "b:\u00c8\u0080", "s:π", "s:\u03c0", and "e:z4A="
-* "b:\u00d8\u003e\u00dd\u0054", "s:🥔", "s:\ud83e\udd54", and "e:8J+llA=="
-
-When creating output from a string:
-* If the string is explicitly unicode (UTF-8 or UTF-16), encode as
-  "s:" without the leading U+FEFF
-* Else if the string can be bidirectionally mapped between pdf-doc and
-  unicode, transcode to unicode and encode as "s:"
-* Else if the string would be decoded as binary, encode as "e:"
-* Else encode as "b:"
-
-When reading a string, any string that doesn't follow the above rules
-is an error. This includes "r:" strings not parseable as a real
-number, "/Name" strings containing a NUL character, "s:" or "b:"
-strings that are not valid JSON strings, "b:" strings containing
-character values > 0xff, or "e:" values that are not valid base64.
-Once the string is read in, if the "s:" string can be bidirectionally
-mapped between pdf-doc and unicode, store as PDFDoc. Otherwise store
-as UTF-16BE. "b:" strings are stored as bytes, and "e:" are decoded
-and stored as bytes.
-
-Implementing this will require some refactoring of things between
-QUtil and QPDF_String, plus we will need to implement a base64
-encoder/decoder.
-
-This enables a workflow like this:
-
-* qpdf --json=latest infile.pdf > pdf.json
-* modify pdf.json
-* qpdf infile.pdf --update-from=pdf.json out.pdf
-
-or
-
-* qpdf --json=latest --json-stream-data=raw|filtered infile.pdf > pdf.json
-* modify pdf.json
-* qpdf pdf.json --infile-is-json out.pdf
-
-Notes about streams and stream data:
-
-* Always include "dict". "/Length" is removed from the stream
-  dictionary.
-
-* Add new flag --json-stream-data={raw,filtered,none}. At most one of
-  "raw" and "filtered" will appear for each stream. If "filtered"
-  appears, "/Filter" and "/DecodeParms" are removed from the stream
-  dictionary. This makes the stream data and dictionary match for when
-  the file is read back in.
-
-* Always include "filterable" regardless of value of
-  --json-stream-data. The value of filterable is influenced by
-  --decode-level, which is already in parameters.
-
-* Add to parameters: value of json-stream-data, default is none
-
-* If --json-stream-data=none, omit stream data entirely
-
-* If --json-stream-data=raw, include raw stream data as base64. Show
-  the data even for unfiltered streams in "raw".
-
-* If --json-stream-data=filtered, include the base64-encoded filtered
-  stream data if we can and should decode it based on decode-level.
-  Otherwise, include the base64-encoded raw data. See if we can honor
-  --normalize-content. If a stream appears unfiltered in the input,
-  still show it as filtered. Remove /DecodeParms and /Filter if
-  filtering.
-
-Note that --json-stream-data=filtered is different from
---filtered-stream-data in that --filtered-stream-data implies
---decode-level=all while --json-stream-data=filtered does not. Make
-sure this is mentioned in the help for both options.
+* Break ground on "Document-level work"
+
+Possible future JSON enhancements
+=================================
+
+* Consider not including unreferenced objects and trimming the trailer
+  in the same way that QPDFWriter does (except don't remove `/ID`).
+  This means excluding the linearization dictionary and hint stream,
+  the encryption dictionary, all keys from trailer that are removed by
+  QPDFWriter::getTrimmedTrailer except `/ID`, any object streams, and
+  the xref stream as long as all those objects are unreferenced. (They
+  always should be, but there could be some bizarre case of someone
+  creating a PDF file that has an indirect reference to one of those,
+  in which case we need to preserve it.) If this is done, make
+  `--preserve-unreferenced` preserve unreference objects and also
+  those extra keys. Search for "linear" and "trailer" in json.rst to
+  update the various places in the documentation that discuss this.
+  Also update the help for --json and --preserve-unreferenced.
+
+* Add to JSON output the information available from a few additional
+  informational options:
+
+  * --check: add but maybe not by default?
+
+  * --show-linearization: add but maybe not by default? Also figure
+    out whether warnings reported for some of the PDF specs (1.7) are
+    qpdf problems. This may not be worth adding in the first
+    increment.
+
+  * --show-xref: add
+
+* Consider having --check, --show-encryption, etc., just select the
+  right keys when in json mode. I don't think I want check on by
+  default, so that might be different.
+
+* Consider having warnings be included in the json in a "warnings" key
+  in json mode.
 
 QPDFJob
 =======
 
 Here are some ideas for QPDFJob that didn't make it into 10.6. Not all
 of these are necessarily good -- just things to consider.
-
-* replace mode: --replace-object, --replace-stream-raw,
-  --replace-stream-filtered
-  * update first paragraph of QPDF JSON in the manual to mention this
-  * object numbers are not preserved by write, so object ID lookup
-    has to be done separately for each invocation
-  * you don't have to specify length for streams
-  * you only have to specify filtering for streams if providing raw data
-
-* Allow users to supply a custom progress reporter for QPDFJob
-
-* Better interoperability with json output:
-
-  * Make sure all the things that print stuff to stdout have json
-    equivalents (check, showLinearizationData, etc.)
-  * There should be a way to get json output other than having it
-    print to stdout. It should be multi-language friendly and allow
-    for large amounts of data, such as providing a callback that qpdf
-    can write to (like a pipeline)
-  * See also JSON v2
 
 * How do we chain jobs? The idea would be that the input and/or output
   of a QPDFJob could be a QPDF object rather than a file. For input,
@@ -489,10 +159,9 @@ we might do about it.
 * When mapping characters to widths, we will need to care about
   character encoding. For built-in fonts, we can create a map from
   Unicode code point to width and then go from the font's encoding to
-  unicode to the width. Get rid of "ugly switch statements" in
-  QUtil.cc and replace with static map initializers. See
-  misc/character-encoding/ (not on github) and font metric information
-  for the 14 standard fonts in my local pdf-spec directory.
+  unicode to the width. See misc/character-encoding/ (not on github)
+  and font metric information for the 14 standard fonts in my local
+  pdf-spec directory.
 
 * Once we know about character widths, we can correctly support
   auto-sized variable text fields (0 Tf). If this is fixed, search for
@@ -564,171 +233,17 @@ Other notes:
   way that works for the qpdf/qpdf repository as well since they are
   very similar.
 
-PointerHolder to std::shared_ptr
-================================
-
-To perform update:
-
-Cherry-pick pointerholder branch commit
-
-Upgrade just the library. This is not necessary, but it's an added
-check that the compatibility code works since it will show that tests,
-examples, and CLI will work properly with the upgraded APIs, which
-provides some assurance that other people will have a smooth time with
-their code.
-
-patrepl s/PointerHolder/std::shared_ptr/g {include,libqpdf}/qpdf/*.hh
-patrepl s/PointerHolder/std::shared_ptr/g libqpdf/*.cc
-patrepl s/make_pointer_holder/std::make_shared/g libqpdf/*.cc
-patrepl s/make_array_pointer_holder/QUtil::make_shared_array/g libqpdf/*.cc
-patrepl s,qpdf/std::shared_ptr,qpdf/PointerHolder, **/*.cc **/*.hh
-git restore include/qpdf/PointerHolder.hh
-cleanpatch
-
-Increase to POINTERHOLDER_TRANSITION=3
-
-make build_libqpdf -- no errors
-
-Drop back to POINTERHOLDER_TRANSITION=2
-
-make check -- everything passes
-
-Then upgrade everything else. It would work to just start here.
-
-Increase to POINTERHOLDER_TRANSITION=3
-
-patrepl s/PointerHolder/std::shared_ptr/g **/*.cc **/*.hh
-patrepl s/make_pointer_holder/std::make_shared/g **/*.cc
-patrepl s/make_array_pointer_holder/QUtil::make_shared_array/g **/*.cc
-patrepl s,qpdf/std::shared_ptr,qpdf/PointerHolder, **/*.cc **/*.hh
-git restore include/qpdf/PointerHolder.hh
-git restore libtests/pointer_holder.cc
-cleanpatch
-
-Remove all references to PointerHolder.hh from everything except
-public headers and pointer_holder.cc.
-
-make check -- everything passes
-
-Increase to POINTERHOLDER_TRANSITION=4
-
-Do a clean build and make check -- everything passes
-
-Final steps:
-
-* Change to POINTERHOLDER_TRANSITION=4
-* Check code formatting
-* std::shared_ptr<Members> m can be replaced with
-  std::shared_ptr<Members> m_ph and Members* m if performance is critical
-* Could try Members indirection with Members* for QPDFObjectHandle
-
-When done:
-
-* Update the smart-pointers section of the manual in design.rst
-* Update comments in PointerHolder.hh
-
-PointerHolder in public API:
-
-  PointerHolder<Buffer> Pl_Buffer::getBufferSharedPointer();
-  PointerHolder<Buffer> QPDFWriter::getBufferSharedPointer();
-  QUtil::read_file_into_memory(
-    char const*, PointerHolder<char>&, unsigned long&)
-  QPDFObjectHandle::addContentTokenFilter(
-    PointerHolder<QPDFObjectHandle::TokenFilter>)
-  QPDFObjectHandle::addTokenFilter(
-    PointerHolder<QPDFObjectHandle::TokenFilter>)
-  QPDFObjectHandle::newStream(
-    QPDF*, PointerHolder<Buffer>)
-  QPDFObjectHandle::parse(
-    PointerHolder<InputSource>, std::string const&,
-    QPDFTokenizer&, bool&, QPDFObjectHandle::StringDecrypter*, QPDF*)
-  QPDFObjectHandle::replaceStreamData(
-    PointerHolder<Buffer>, QPDFObjectHandle const&,
-    QPDFObjectHandle const&)
-  QPDFObjectHandle::replaceStreamData(
-    PointerHolder<QPDFObjectHandle::StreamDataProvider>,
-    QPDFObjectHandle const&, QPDFObjectHandle const&)
-  QPDFTokenizer::expectInlineImage(
-    PointerHolder<InputSource>)
-  QPDFTokenizer::readToken(
-    PointerHolder<InputSource>, std::string const&,
-    bool, unsigned long)
-  QPDF::processInputSource(
-    PointerHolder<InputSource>, char const*)
-  QPDFWriter::registerProgressReporter(
-    PointerHolder<QPDFWriter::ProgressReporter>)
-  QPDFEFStreamObjectHelper::createEFStream(
-    QPDF&, PointerHolder<Buffer>)
-  QPDFPageObjectHelper::addContentTokenFilter(
-    PointerHolder<QPDFObjectHandle::TokenFilter>)
-
 ABI Changes
 ===========
 
 This is a list of changes to make next time there is an ABI change.
-Comments appear in the code prefixed by "ABI"
+Comments appear in the code prefixed by "ABI". Always Search for ABI
+in source and header files to find items not listed here. Also search
+for "[[deprecated" to find deprecated APIs that can be removed.
 
-* Search for ABI to find items not listed here.
-* Switch default --json to latest
-* See PointerHolder to std::shared_ptr above.
-* See where anonymous namespaces can be used to keep things private to
-  a source file. Search for `(class|struct)` in **/*.cc.
-* See if we can use constructor delegation instead of init() in
-  classes with overloaded constructors.
-* Merge two versions of QPDFObjectHandle::makeDirect per comment
-* After removing legacy QPDFNameTreeObjectHelper and
-  QPDFNumberTreeObjectHelper constructors, NNTreeImpl can switch to
-  having a QPDF reference and assume that the reference is always
-  valid.
-* Use `= delete` and `= default` for constructors and destructors
-  where possible
-* Having QPDFObjectHandle setters return Class& to allow for
-  use of fluent interfaces. This includes array and dictionary
-  mutators.
-  newDictionary().replaceKey("/X", "1"_qpdf),replaceKey("/Y", "(asdf)"_qpdf);
-* Add replaceKeyAndGet, appendItemAndGet, setArrayItemAndGet,
-  insertItemAndGet that return the new item so you can say
-  auto oh = dict.replaceKeyAndGet("/Key", QPDFObjectHandle::newSomething());
-* Add getOrInsertKey("/X", oh) that returns the existing value or adds
-  oh as the new value and returns it.
-* Add default values to the getters, like getIntValue(default_value).
-  If a default value is passed in, you never get a type warning.
-* Added QPDFObjectHandle::ParserCallbacks::handleWarning but had to
-  revert because it was not binary compatible. Consider re-adding. The
-  commit that added this comment includes the reverting of the change.
-  The previous commit removes the code that was calling and using
-  handleWarning.
-* Make it easier to deal with objects that should be indirect. Search
-  for makeIndirectObject in the code to find patterns. For example, it
-  would be nice to have a one-liner for the case of one or all
-  dictionary values or array items being replaced with an indirect
-  objects if direct. Maybe we want a version of copyForeignObject that
-  takes the foreign qpdf and converts the source object to indirect
-  before copying, though maybe we don't because it could cause
-  multiple copies to be made...usually it's better to handle that
-  explicitly.
-* Deal with weak cryptographic algorithms:
-  * Github issue #576
-  * Add something to QPDFWriter that you must call in order to allow
-    creation of files with insecure crypto. Maybe
-    QPDFWriter::allowWeakCrypto. Call this when --allow-weak-crypto is
-    passed and probably also when copying encryption by default from
-    an input file. There should be some API change so that, when
-    people recompile with qpdf 11, their code won't suddenly stop
-    working. Getting this right will take careful consideration of the
-    developer and user experience. We don't want to create a situation
-    where exactly the same code fails to work in 11 but worked on 10.
-    See #576 for latest notes.
-  * Change deterministic id to use something other than MD5 but allow
-    the old way for compatibility -- maybe rename the method to force
-    the developer to make a choice
-  * Find other uses of MD5 and find the ones that are discretionary,
-    if any
-  * Have QPDFWriter raise an exception if it's about to write using
-    weak crypto and hasn't been given permission
-  * Search for --allow-weak-crypto in the manual and in qpdf.cc's help
-    information
-  * Update the ref.weak-crypto section of the manual
+* As long as QPDF disallows copying, its Members could be a unique_ptr
+  instead of a shared_ptr. There may be other classes that could also
+  be converted.
 
 Page splitting/merging
 ======================
@@ -821,167 +336,199 @@ directory or that are otherwise not publicly accessible. This includes
 things sent to me by email that are specifically not public. Even so,
 I find it useful to make reference to them in this list.
 
- * Look at https://bestpractices.coreinfrastructure.org/en
+* Consider enabling code scanning on GitHub.
 
- * Get rid of remaining assert() calls from non-test code.
+* Add an option --ignore-encryption to ignore encryption information
+  and treat encrypted files as if they weren't encrypted. This should
+  make it possible to solve #598 (--show-encryption without a
+  password). We'll need to make sure we don't try to filter any
+  streams in this mode. Ideally we should be able to combine this with
+  --json so we can look at the raw encrypted strings and streams if we
+  want to, though be sure to document that the resulting JSON won't be
+  convertible back to a valid PDF. Since providing the password may
+  reveal additional details, --show-encryption could potentially retry
+  with this option if the first time doesn't work. Then, with the file
+  open, we can read the encryption dictionary normally. If this is
+  done, search for "raw, encrypted" in json.rst.
 
- * Large file tests fail with linux32 before and after cmake. This was
-   first noticed after 10.6.3. I don't think it's worth fixing.
+* In libtests, separate executables that need the object library
+  from those that strictly use public API. Move as many of the test
+  drivers from the qpdf directory into the latter category as long
+  as doing so isn't too troublesome from a coverage standpoint.
 
- * Consider updating the fuzzer with code that exercises
-   copyAnnotations, file attachments, and name and number trees. Check
-   fuzzer coverage.
+* Consider generating a non-flat pages tree before creating output to
+  better handle files with lots of pages. If there are more than 256
+  pages, add a second layer with the second layer nodes having no more
+  than 256 nodes and being as evenly sizes as possible. Don't worry
+  about the case of more than 65,536 pages. If the top node has more
+  than 256 children, we'll live with it. This is only safe if all
+  intermediate page nodes have only /Kids, /Parent, /Type, and /Count.
 
- * Add code for creation of a file attachment annotation. It should
-   also be possible to create a widget annotation and a form field.
-   Update the pdf-attach-file.cc example with new APIs when ready.
+* Look at https://bestpractices.coreinfrastructure.org/en
 
- * Flattening of form XObjects seems like something that would be
-   useful in the library. We are seeing more cases of completely valid
-   PDF files with form XObjects that cause problems in other software.
-   Flattening of form XObjects could be a useful way to work around
-   those issues or to prepare files for additional processing, making
-   it possible for users of the qpdf library to not be concerned about
-   form XObjects. This could be done recursively; i.e., we could have a
-   method to embed a form XObject into whatever contains it, whether
-   that is a form XObject or a page. This would require more
-   significant interpretation of the content stream. We would need a
-   test file in which the placement of the form XObject has to be in
-   the right place, e.g., the form XObject partially obscures earlier
-   code and is partially obscured by later code. Keys in the resource
-   dictionary may need to be changed -- create test cases with lots of
-   duplicated/overlapping keys.
+* Consider adding fuzzer code for JSON
 
- * Part of closed_file_input_source.cc is disabled on Windows because
-   of odd failures. It might be worth investigating so we can fully
-   exercise this in the test suite. That said, ClosedFileInputSource
-   is exercised elsewhere in qpdf's test suite, so this is not that
-   pressing.
+* Rework tests so that nothing is written into the source directory.
+  Ideally then the entire build could be done with a read-only
+  source tree.
 
- * If possible, consider adding CCITT3, CCITT4, or any other easy
-   filters. For some reference code that we probably can't use but may
-   be handy anyway, see
-   http://partners.adobe.com/public/developer/ps/sdk/index_archive.html
+* Large file tests fail with linux32 before and after cmake. This was
+  first noticed after 10.6.3. I don't think it's worth fixing.
 
- * If possible, support the following types of broken files:
+* Consider updating the fuzzer with code that exercises
+  copyAnnotations, file attachments, and name and number trees. Check
+  fuzzer coverage.
 
-    - Files that have no whitespace token after "endobj" such that
-      endobj collides with the start of the next object
+* Add code for creation of a file attachment annotation. It should
+  also be possible to create a widget annotation and a form field.
+  Update the pdf-attach-file.cc example with new APIs when ready.
 
-    - See ../misc/broken-files
+* Flattening of form XObjects seems like something that would be
+  useful in the library. We are seeing more cases of completely valid
+  PDF files with form XObjects that cause problems in other software.
+  Flattening of form XObjects could be a useful way to work around
+  those issues or to prepare files for additional processing, making
+  it possible for users of the qpdf library to not be concerned about
+  form XObjects. This could be done recursively; i.e., we could have a
+  method to embed a form XObject into whatever contains it, whether
+  that is a form XObject or a page. This would require more
+  significant interpretation of the content stream. We would need a
+  test file in which the placement of the form XObject has to be in
+  the right place, e.g., the form XObject partially obscures earlier
+  code and is partially obscured by later code. Keys in the resource
+  dictionary may need to be changed -- create test cases with lots of
+  duplicated/overlapping keys.
 
-    - See ../misc/bad-files-issue-476. This directory contains a
-      snapshot of the google doc and linked PDF files from issue #476.
-      Please see the issue for details.
+* Part of closed_file_input_source.cc is disabled on Windows because
+  of odd failures. It might be worth investigating so we can fully
+  exercise this in the test suite. That said, ClosedFileInputSource
+  is exercised elsewhere in qpdf's test suite, so this is not that
+  pressing.
 
- * Additional form features
-   * set value from CLI? Specify title, and provide way to
-     disambiguate, probably by giving objgen of field
+* If possible, consider adding CCITT3, CCITT4, or any other easy
+  filters. For some reference code that we probably can't use but may
+  be handy anyway, see
+  http://partners.adobe.com/public/developer/ps/sdk/index_archive.html
 
- * Pl_TIFFPredictor is pretty slow.
+* If possible, support the following types of broken files:
 
- * Support for handling file names with Unicode characters in Windows
-   is incomplete. qpdf seems to support them okay from a functionality
-   standpoint, and the right thing happens if you pass in UTF-8
-   encoded filenames to QPDF library routines in Windows (they are
-   converted internally to wchar_t*), but file names are encoded in
-   UTF-8 on output, which doesn't produce nice error messages or
-   output on Windows in some cases.
+   - Files that have no whitespace token after "endobj" such that
+     endobj collides with the start of the next object
 
- * If we ever wanted to do anything more with character encoding, see
-   ../misc/character-encoding/, which includes machine-readable dump
-   of table D.2 in the ISO-32000 PDF spec. This shows the mapping
-   between Unicode, StandardEncoding, WinAnsiEncoding,
-   MacRomanEncoding, and PDFDocEncoding.
+   - See ../misc/broken-files
 
- * Some test cases on bad files fail because qpdf is unable to find
-   the root dictionary when it fails to read the trailer. Recovery
-   could find the root dictionary and even the info dictionary in
-   other ways. In particular, issue-202.pdf can be opened by evince,
-   and there's no real reason that qpdf couldn't be made to be able to
-   recover that file as well.
+   - See ../misc/bad-files-issue-476. This directory contains a
+     snapshot of the google doc and linked PDF files from issue #476.
+     Please see the issue for details.
 
- * Audit every place where qpdf allocates memory to see whether there
-   are cases where malicious inputs could cause qpdf to attempt to
-   grab very large amounts of memory. Certainly there are cases like
-   this, such as if a very highly compressed, very large image stream
-   is requested in a buffer. Hopefully normal input to output
-   filtering doesn't ever try to do this. QPDFWriter should be checked
-   carefully too. See also bugs/private/from-email-663916/
+* Additional form features
+  * set value from CLI? Specify title, and provide way to
+    disambiguate, probably by giving objgen of field
 
- * Interactive form modification:
-   https://github.com/qpdf/qpdf/issues/213 contains a good discussion
-   of some ideas for adding methods to modify annotations and form
-   fields if we want to make it easier to support modifications to
-   interactive forms. Some of the ideas have been implemented, and
-   some of the probably never will be implemented, but it's worth a
-   read if there is an intention to work on this. In the issue, search
-   for "Regarding write functionality", and read that comment and the
-   responses to it.
+* Pl_TIFFPredictor is pretty slow.
 
- * Look at ~/Q/pdf-collection/forms-from-appian/
+* Support for handling file names with Unicode characters in Windows
+  is incomplete. qpdf seems to support them okay from a functionality
+  standpoint, and the right thing happens if you pass in UTF-8
+  encoded filenames to QPDF library routines in Windows (they are
+  converted internally to wchar_t*), but file names are encoded in
+  UTF-8 on output, which doesn't produce nice error messages or
+  output on Windows in some cases.
 
- * When decrypting files with /R=6, hash_V5 is called more than once
-   with the same inputs.  Caching the results or refactoring to reduce
-   the number of identical calls could improve performance for
-   workloads that involve processing large numbers of small files.
+* If we ever wanted to do anything more with character encoding, see
+  ../misc/character-encoding/, which includes machine-readable dump
+  of table D.2 in the ISO-32000 PDF spec. This shows the mapping
+  between Unicode, StandardEncoding, WinAnsiEncoding,
+  MacRomanEncoding, and PDFDocEncoding.
 
- * Consider adding a method to balance the pages tree.  It would call
-   pushInheritedAttributesToPage, construct a pages tree from scratch,
-   and replace the /Pages key of the root dictionary with the new
-   tree.
+* Some test cases on bad files fail because qpdf is unable to find
+  the root dictionary when it fails to read the trailer. Recovery
+  could find the root dictionary and even the info dictionary in
+  other ways. In particular, issue-202.pdf can be opened by evince,
+  and there's no real reason that qpdf couldn't be made to be able to
+  recover that file as well.
 
- * Study what's required to support savable forms that can be saved by
-   Adobe Reader. Does this require actually signing the document with
-   an Adobe private key? Search for "Digital signatures" in the PDF
-   spec, and look at ~/Q/pdf-collection/form-with-full-save.pdf, which
-   came from Adobe's example site. See also
-   ../misc/digital-sign-from-trueroad/. If digital signatures are
-   implemented, update the docs on crypto providers, which mention
-   that this may happen in the future.
+* Audit every place where qpdf allocates memory to see whether there
+  are cases where malicious inputs could cause qpdf to attempt to
+  grab very large amounts of memory. Certainly there are cases like
+  this, such as if a very highly compressed, very large image stream
+  is requested in a buffer. Hopefully normal input to output
+  filtering doesn't ever try to do this. QPDFWriter should be checked
+  carefully too. See also bugs/private/from-email-663916/
 
- * Qpdf does not honor /EFF when adding new file attachments. When it
-   encrypts, it never generates streams with explicit crypt filters.
-   Prior to 10.2, there was an incorrect attempt to treat /EFF as a
-   default value for decrypting file attachment streams, but it is not
-   supposed to mean that. Instead, it is intended for conforming
-   writers to obey this when adding new attachments. Qpdf is not a
-   conforming writer in that respect.
+* Interactive form modification:
+  https://github.com/qpdf/qpdf/issues/213 contains a good discussion
+  of some ideas for adding methods to modify annotations and form
+  fields if we want to make it easier to support modifications to
+  interactive forms. Some of the ideas have been implemented, and
+  some of the probably never will be implemented, but it's worth a
+  read if there is an intention to work on this. In the issue, search
+  for "Regarding write functionality", and read that comment and the
+  responses to it.
 
- * The whole xref handling code in the QPDF object allows the same
-   object with more than one generation to coexist, but a lot of logic
-   assumes this isn't the case.  Anything that creates mappings only
-   with the object number and not the generation is this way,
-   including most of the interaction between QPDFWriter and QPDF.  If
-   we wanted to allow the same object with more than one generation to
-   coexist, which I'm not sure is allowed, we could fix this by
-   changing xref_table.  Alternatively, we could detect and disallow
-   that case.  In fact, it appears that Adobe reader and other PDF
-   viewing software silently ignores objects of this type, so this is
-   probably not a big deal.
+* Look at ~/Q/pdf-collection/forms-from-appian/
 
- * From a suggestion in bug 3152169, consider having an option to
-   re-encode inline images with an ASCII encoding.
+* When decrypting files with /R=6, hash_V5 is called more than once
+  with the same inputs.  Caching the results or refactoring to reduce
+  the number of identical calls could improve performance for
+  workloads that involve processing large numbers of small files.
 
- * From github issue 2, provide more in-depth output for examining
-   hint stream contents. Consider adding on option to provide a
-   human-readable dump of linearization hint tables. This should
-   include improving the 'overflow reading bit stream' message as
-   reported in issue #2. There are multiple calls to stopOnError in
-   the linearization checking code. Ideally, these should not
-   terminate checking. It would require re-acquiring an understanding
-   of all that code to make the checks more robust. In particular,
-   it's hard to look at the code and quickly determine what is a true
-   logic error and what could happen because of malformed user input.
-   See also ../misc/linearization-errors.
+* Consider adding a method to balance the pages tree.  It would call
+  pushInheritedAttributesToPage, construct a pages tree from scratch,
+  and replace the /Pages key of the root dictionary with the new
+  tree.
 
- * If I ever decide to make appearance stream-generation aware of
-   fonts or font metrics, see email from Tobias with Message-ID
-   <5C3C9C6C.8000102@thax.hardliners.org> dated 2019-01-14.
+* Study what's required to support savable forms that can be saved by
+  Adobe Reader. Does this require actually signing the document with
+  an Adobe private key? Search for "Digital signatures" in the PDF
+  spec, and look at ~/Q/pdf-collection/form-with-full-save.pdf, which
+  came from Adobe's example site. See also
+  ../misc/digital-sign-from-trueroad/. If digital signatures are
+  implemented, update the docs on crypto providers, which mention
+  that this may happen in the future.
 
- * Look at places in the code where object traversal is being done and,
-   where possible, try to avoid it entirely or at least avoid ever
-   traversing the same objects multiple times.
+* Qpdf does not honor /EFF when adding new file attachments. When it
+  encrypts, it never generates streams with explicit crypt filters.
+  Prior to 10.2, there was an incorrect attempt to treat /EFF as a
+  default value for decrypting file attachment streams, but it is not
+  supposed to mean that. Instead, it is intended for conforming
+  writers to obey this when adding new attachments. Qpdf is not a
+  conforming writer in that respect.
+
+* The whole xref handling code in the QPDF object allows the same
+  object with more than one generation to coexist, but a lot of logic
+  assumes this isn't the case.  Anything that creates mappings only
+  with the object number and not the generation is this way,
+  including most of the interaction between QPDFWriter and QPDF.  If
+  we wanted to allow the same object with more than one generation to
+  coexist, which I'm not sure is allowed, we could fix this by
+  changing xref_table.  Alternatively, we could detect and disallow
+  that case.  In fact, it appears that Adobe reader and other PDF
+  viewing software silently ignores objects of this type, so this is
+  probably not a big deal.
+
+* From a suggestion in bug 3152169, consider having an option to
+  re-encode inline images with an ASCII encoding.
+
+* From github issue 2, provide more in-depth output for examining
+  hint stream contents. Consider adding on option to provide a
+  human-readable dump of linearization hint tables. This should
+  include improving the 'overflow reading bit stream' message as
+  reported in issue #2. There are multiple calls to stopOnError in
+  the linearization checking code. Ideally, these should not
+  terminate checking. It would require re-acquiring an understanding
+  of all that code to make the checks more robust. In particular,
+  it's hard to look at the code and quickly determine what is a true
+  logic error and what could happen because of malformed user input.
+  See also ../misc/linearization-errors.
+
+* If I ever decide to make appearance stream-generation aware of
+  fonts or font metrics, see email from Tobias with Message-ID
+  <5C3C9C6C.8000102@thax.hardliners.org> dated 2019-01-14.
+
+* Look at places in the code where object traversal is being done and,
+  where possible, try to avoid it entirely or at least avoid ever
+  traversing the same objects multiple times.
 
 ----------------------------------------------------------------------
 
@@ -1037,7 +584,47 @@ A few important lessons (in README-maintainer)
   possible.
 
 Also, it turns out that PointerHolder is more performant than
-std::shared_ptr.
+std::shared_ptr. (This was true at the time but subsequent
+implementations of std::shared_ptr became much more efficient.)
+
+QPDFPagesTree
+=============
+
+On a few occasions, I have considered implementing a QPDFPagesTree
+object that would allow the document's original page tree structure to
+be preserved. See comments at the top QPDF_pages.cc for why this was
+abandoned.
+
+Partial work is in refs/attic/QPDFPagesTree. QPDFPageTree is mostly
+implemented and mostly tested. There are not enough cases of different
+kinds of operations (pclm, linearize, json, etc.) with non-flat pages
+trees. Insertion is not implemented. Insertion is potentially complex
+because of the issue of inherited objects. We will have to call
+pushInheritedAttributesToPage before adding any pages to the pages
+tree. The test suite is failing on that branch.
+
+Some parts of page tree repair are silent (no warnings). All page tree
+repair should warn. The reason is that page tree repair will change
+object numbers, and knowing that is important when working with JSON
+output.
+
+If we were to do this, we would still need keep a pages cache for
+efficient insertion. There's no reason we can't keep a vector of page
+objects up to date and just do a traversal the first time we do
+getAllPages just like we do now. The difference is that we would not
+flatten the pages tree. It would be useful to go through QPDF_pages
+and reimplement everything without calling flattenPagesTree. Then we
+can remove flattenPagesTree, which is private. That said, with the
+addition of creating non-flat pages trees, there is really no reason
+not to flatten the pages tree for internal use.
+
+In its current state, QPDFPagesTree does not proactively fix /Type or
+correct page objects that are used multiple times. You have to
+traverse the pages tree to trigger this operation. It would be nice if
+we would do that somewhere but not do it more often than necessary so
+isPagesObject and isPageObject are reliable and can be made more
+reliable. Maybe add a validate or repair function? It should also make
+sure /Count and /Parent are correct.
 
 Rejected Ideas
 ==============
@@ -1159,3 +746,72 @@ Rejected Ideas
   stream filter, as well as modification of a stream's dictionary to
   include creation of a new stream that is referenced from
   /DecodeParms.
+
+* Removal of raw QPDF* from the API. Discussions in #747 and #754.
+  This is a summary of the arguments I put forth in #754. The idea was
+  to make QPDF::QPDF() private and require all QPDF objects to be
+  shared pointers created with QPDF::create(). This would enable us to
+  have QPDFObjectHandle::getOwningQPDF() return a std::weak_ptr<QPDF>.
+  Prior to #726 (QPDFObject/QPDFValue split, released in qpdf 11.0.0),
+  getOwningQPDF() could return an invalid pointer if the owning QPDF
+  disappeared, but this is no longer the case, which removes the main
+  motivation. QPDF 11 added QPDF::create() anyway though.
+
+  Removing raw QPDF* would look something like this. Note that you
+  can't use std::make_shared<T> unless T has a public constructor.
+
+  QPDF_POINTER_TRANSITION = 0 -- no warnings around calling the QPDF constructor
+  QPDF_POINTER_TRANSITION = 1 -- calls to QPDF() are deprecated, but QPDF is still available so code can be backward compatible and use std::make_shared<QPDF>
+  QPDF_POINTER_TRANSITION = 2 -- the QPDF constructor is private; all calls to std::make_shared<QPDF> have to be replaced with QPDF::create
+
+  If we were to do this, we'd have to look at each use of QPDF* in the
+  interface and decide whether to use a std::shared_ptr or a
+  std::weak_ptr. The answer would almost always be to use a
+  std::weak_ptr, which means we'd have to take the extra step of
+  calling lock(), and it means there would be lots of code changes
+  cause people would have to pass weak pointers instead of raw
+  pointers around, and those have to be constructed and locked.
+  Passing std::shared_ptr around leaves the possibility of creating
+  circular references. It seems to be too much trouble in the library
+  and too much toil for library users to be worth the small benefit of
+  not having to call resetObjGen in QPDF's destructor.
+
+* Fix Multiple Direct Object Parent Issue
+
+  This idea was rejected because it would be complicated to implement
+  and would likely have a high performance cost to fix what is not
+  really that big of a problem in practice.
+
+  It is possible for a QPDFObjectHandle for a direct object to be
+  contained inside of multiple QPDFObjectHandle objects or even
+  replicated across multiple QPDF objects. This creates a potentially
+  confusing and unintentional aliasing of direct objects. There are
+  known cases in the qpdf library where this happens including page
+  splitting and merging (particularly with page labels, and possibly
+  with other cases), and also with unsafeShallowCopy. Disallowing this
+  would incur a significant performance penalty and is probably not
+  worth doing. If we were to do it, here are some ideas.
+
+  * Add std::weak_ptr<QPDFObject> parent to QPDFObject. When adding a
+    direct object to an array or dictionary, set its parent. When
+    removing it, clear the parent pointer. The parent pointer would
+    always be null for indirect objects, so the parent pointer, which
+    would reside in QPDFObject, would have to be managed by
+    QPDFObjectHandle. This is because QPDFObject can't tell the
+    difference between a resolved indirect object and a direct object.
+
+  * Phase 1: When a direct object that already has a parent is added
+    to a dictionary or array, issue a warning. There would need to be
+    unsafe add methods used by unsafeShallowCopy. These would add but
+    not modify the parent pointer.
+
+  * Phase 2: In the next major release, make the multiple parent case
+    an error. Require people to create a copy. The unsafe operations
+    would still have to be permitted.
+
+  This approach would allow an object to be moved from one object to
+  another by removing it, which returns the now orphaned object, and
+  then inserting it somewhere else. It also doesn't break the pattern
+  of adding a direct object to something and subsequently mutating it.
+  It just prevents the same object from being added to more than one
+  thing.

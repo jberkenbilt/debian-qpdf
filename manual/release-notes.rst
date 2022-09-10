@@ -6,47 +6,335 @@ Release Notes
 For a detailed list of changes, please see the file
 :file:`ChangeLog` in the source distribution.
 
-10.6.3 + cmake: March 19, 2022
-  - This is an unofficial release and is marked as "pre-release" at
-    github. It is intended for developers and packagers who want to
-    test out the new build system.
+.. x.y.z: not yet released
 
-  - The old autoconf-based build has been replaced with CMake. Version
-    3.16 or newer is required. For all the details, please read
-    :ref:`installing` and, if you package qpdf for a distribution,
-    :ref:`packaging`.
+11.0.0: September 10, 2022
+  - Replacement of ``PointerHolder`` with ``std::shared_ptr``
 
-  - For the most part, other than being familiar with generally how to
-    build things with cmake, what you need to know to convert your
-    build over is described in :ref:`autoconf-to-cmake`. Here are a
-    few changes in behavior to be aware of:
+    - The qpdf-specific ``PointerHolder`` smart pointer implementation
+      has now been completely replaced with ``std::shared_ptr``
+      through the qpdf API. Please see :ref:`smart-pointers` for
+      details about this change and a comprehensive migration plan.
+      Note that a backward-compatible ``PointerHolder`` class is
+      provided and is enabled by default. A warning is issued, but
+      this can be turned off by following the migration steps outlined
+      in the manual.
 
-    - Example sources are installed by default in the documentation
-      directory.
+  - qpdf JSON version 2
 
-    - The configure options to enable image comparison and large file
-      tests have been replaced by environment variables. The old
-      options set environment variables behind the scenes. Before, to
-      skip image tests, you had to set
-      ``QPDF_SKIP_TEST_COMPARE_IMAGES=1``, which was done by default.
-      Now these are off by default, and you have to set
-      ``QPDF_TEST_COMPARE_IMAGES=1`` to enable them.
+    - qpdf's JSON output mode is now at version 2. This fixes several
+      flaws with version 1. Version 2 JSON output is unambiguous and
+      complete, and bidirectional conversion between JSON and PDF is
+      supported. Command-line options and library API are available
+      for creating JSON from PDF, creating PDF from JSON and updating
+      existing PDF at the object level from JSON.
 
-    - In the default configuration, the native crypto provider is only
-      selected when explicitly requested or when there are no other
-      options. See :ref:`crypto.build` for a detailed discussion.
+    - New command-line arguments: :qpdf:ref:`--json-output`,
+      :qpdf:ref:`--json-input`, :qpdf:ref:`--update-from-json`
 
-    - Windows external libraries are detected by default if the
-      :file:`external-libraries` directory is found. Static libraries
-      for zlib, libjpeg, and openssl are provided as described in
-      :file:`README-windows.md`. They are only compatible with
-      non-debug builds.
+    - New C++ API calls: ``QPDF::writeJSON``,
+      ``QPDF::createFromJSON``, ``QPDF::updateFromJSON``
 
-    - A new directory called ``pkg-tests`` has been added which
-      contains short shell scripts that can be used to smoke test an
-      installed qpdf package. These are used by the debian
-      ``autopkgtest`` framework but can be used by others. See
-      :file:`pkg-test/README.md` for details.
+    - New C API calls: ``qpdf_create_from_json_file``,
+      ``qpdf_create_from_json_data``, ``qpdf_update_from_json_file``,
+      ``qpdf_update_from_json_data``, and ``qpdf_write_json``.
+
+    - Complete documentation can be found at :ref:`json`. A
+      comprehensive list of changes from version 1 to version 2 can be
+      found at :ref:`json-v2-changes`.
+
+  - Build replaced with cmake
+
+    - The old autoconf-based build has been replaced with CMake. CMake
+      version 3.16 or newer is required. For details, please read
+      :ref:`installing` and, if you package qpdf for a distribution,
+      :ref:`packaging`.
+
+    - For the most part, other than being familiar with generally how to
+      build things with cmake, what you need to know to convert your
+      build over is described in :ref:`autoconf-to-cmake`. Here are a
+      few changes in behavior to be aware of:
+
+      - Example sources are installed by default in the documentation
+	directory.
+
+      - The configure options to enable image comparison and large file
+	tests have been replaced by environment variables. The old
+	options set environment variables behind the scenes. Before, to
+	skip image tests, you had to set
+	``QPDF_SKIP_TEST_COMPARE_IMAGES=1``, which was done by default.
+	Now these are off by default, and you have to set
+	``QPDF_TEST_COMPARE_IMAGES=1`` to enable them.
+
+      - In the default configuration, the native crypto provider is only
+	selected when explicitly requested or when there are no other
+	options. See :ref:`crypto.build` for a detailed discussion.
+
+      - Windows external libraries are detected by default if the
+	:file:`external-libraries` directory is found. Static libraries
+	for zlib, libjpeg, and openssl are provided as described in
+	:file:`README-windows.md`. They are only compatible with
+	non-debug builds.
+
+      - A new directory called ``pkg-tests`` has been added which
+	contains short shell scripts that can be used to smoke test an
+	installed qpdf package. These are used by the debian
+	``autopkgtest`` framework but can be used by others. See
+	:file:`pkg-test/README.md` for details.
+
+  - Performance improvements
+
+    - Many performance enhancements have been added. In developer
+      performance benchmarks, gains on the order of 20% have been
+      observed. Most of that work, including major optimization of
+      qpdf's lexical and parsing layers, was done by M. Holger.
+
+  - CLI: breaking changes
+
+    - The :qpdf:ref:`--show-encryption` flag now provides encryption
+      information even if a correct password is not supplied. If you
+      were relying on its not working in this case, see
+      :qpdf:ref:`--requires-password` for a reliable test.
+
+    - The default json output version when :qpdf:ref:`--json` is
+      specified has been changed from ``1`` to ``latest``, which is
+      now ``2``.
+
+    - The :qpdf:ref:`--allow-weak-crypto` flag is now mandatory when
+      explicitly creating files with weak cryptographic algorithms.
+      See :ref:`weak-crypto` for a discussion.
+
+  - API: breaking changes
+
+    - Deprecate ``QPDFObject.hh`` for removal in qpdf 12. The only use
+      case for including ``qpdf/QPDFObject.hh`` was to get
+      ``QPDFObject::object_type_e``. Since 10.5.0, this has been an
+      alias to ``qpdf_object_type_e``, defined in
+      ``qpdf/Constants.h``. To fix your code, replace any includes of
+      ``qpdf/QPDFObject.hh`` with ``qpdf/Constants.h``, and replace
+      all occurrences of ``QPDFObject::ot_`` with ``::ot_``. If you
+      need your code to be backward compatible to qpdf versions prior
+      to 10.5.0, you can check that the preprocessor symbol
+      ``QPDF_MAJOR_VERSION`` is defined and ``>= 11``. As a stop-gap,
+      you can ``#define QPDF_OBJECT_NOWARN`` to suppress the warning.
+
+    - ``Pipeline::write`` now takes ``unsigned char const*`` instead
+      of ``unsigned char*``. Callers don't need to change anything,
+      but you no longer have to pass writable pointers to pipelines.
+      If you've implemented your own pipeline classes, you will need
+      to update them.
+
+    - Remove deprecated
+      ``QPDFAcroFormDocumentHelper::copyFieldsFromForeignPage``. This
+      method never worked and only did something in qpdf version
+      10.2.x.
+
+    - Remove deprecated ``QPDFNameTreeObjectHelper`` and
+      ``QPDFNumberTreeObjectHelper`` constructors that don't take a
+      ``QPDF&`` argument.
+
+    - The function passed to and called by ``QPDFJob::doIfVerbose``
+      now takes a ``Pipeline&`` argument instead of a
+      ``std::ostream&`` argument.
+
+    - Intentionally break API to call attention to operations that
+      write files with insecure encryption:
+
+      - Remove pre qpdf-8.4.0 encryption API methods from ``QPDFWriter``
+        and their corresponding C API functions
+
+      - Add ``Insecure`` to the names of some ``QPDFWriter`` methods
+        and ``_insecure`` to the names of some C API functions without
+        otherwise changing their behavior
+
+      - See :ref:`breaking-crypto-api` for specific details, and see
+        :ref:`weak-crypto` for a general discussion.
+
+    - ``QPDFObjectHandle::warnIfPossible`` no longer takes an optional
+      argument to throw an exception if there is no description. If
+      there is no description, it writes to the default
+      ``QPDFLogger``'s error stream. (``QPDFLogger`` is new in qpdf
+      11---see below.)
+
+    - ``QPDF`` objects can no longer be copied or assigned to. It has
+      never been safe to do this because of assumptions made by
+      library code. Now it is prevented by the API. If you run into
+      trouble, use ``QPDF::create()`` to create ``QPDF`` shared
+      pointers (or create them in some other way if you need backward
+      compatibility with older qpdf versions).
+
+  - CLI Enhancements
+
+    - ``qpdf --list-attachments --verbose`` includes some additional
+      information about attachments. Additional information about
+      attachments is also included in the ``attachments`` JSON key
+      with ``--json``.
+
+    - For encrypted files, ``qpdf --json`` reveals the user password
+      when the specified password did not match the user password and
+      the owner password was used to recover the user password. The
+      user password is not recoverable from the owner password when
+      256-bit keys are in use.
+
+    - ``--verbose`` and ``--progress`` may be now used when writing
+      the output PDF to standard output. In that case, the verbose and
+      progress messages are written to standard error.
+
+  - Library Enhancements
+
+    - A new object ``QPDFLogger`` has been added. Details are in
+      :file:`include/qpdf/QPDFLogger.hh`.
+
+      - ``QPDF`` and ``QPDFJob`` both use the default logger by
+        default but can have their loggers overridden. The
+        ``setOutputStreams`` method is deprecated in both classes.
+
+      - A few things from ``QPDFObjectHandle`` that used to be
+        exceptions now write errors with the default logger.
+
+      - By configuring the default logger, it is possible to capture
+        output and errors that slipped through the cracks with
+        ``setOutputStreams``.
+
+      - A C API is available in :file:`include/qpdf/qpdflogger-c.h`.
+
+      - See examples :file:`examples/qpdfjob-save-attachment.cc` and
+        :file:`examples/qpdfjob-c-save-attachment.cc`.
+
+    - In ``QPDFObjectHandle``, new methods ``insertItemAndGetNew``,
+      ``appendItemAndGetNew``, and ``replaceKeyAndGetNew`` return the
+      newly added item. New methods ``eraseItemAndGetOld``,
+      ``replaceKeyAndGetOld``, and ``removeKeyAndGetOld`` return the
+      item that was just removed or, in the case of
+      ``replaceKeyAndGetOld``, a ``null`` object if the object was not
+      previously there.
+
+    - The ``QPDFObjectHandle::isDestroyed`` method can be used to
+      detect when an indirect object ``QPDFObjectHandle`` belongs to a
+      ``QPDF`` that has been destroyed. Any attempt to unparse this
+      type of ``QPDFObjectHandle`` will throw a logic error.
+
+    - The ``QPDFObjectHandle::getOwningQPDF`` method now returns a
+      null pointer rather than an invalid pointer when the owning
+      ``QPDF`` object has been destroyed. Indirect objects whose
+      owning ``QPDF`` has been destroyed become invalid. Direct
+      objects just lose their owning ``QPDF`` but continue to be
+      valid.
+
+    - The method ``QPDFObjectHandle::getQPDF`` is an alternative to
+      ``QPDFObjectHandle::getOwningQPDF``. It returns a ``QPDF&``
+      rather than a ``QPDF*`` and can be used when the object is known
+      to have an owning ``QPDF``. It throws an exception if the object
+      does not have an owning ``QPDF``. Only indirect objects are
+      guaranteed to have an owning ``QPDF``. Direct objects may have
+      one if they were initially read from a PDF input source that is
+      still valid, but it's also possible to have direct objects that
+      don't have an owning ``QPDF``.
+
+    - Add method ``QPDFObjectHandle::isSameObjectAs`` for testing
+      whether two ``QPDFObjectHandle`` objects point to the same
+      underlying object, meaning changes to one will be reflected in
+      the other. Note that this method does not compare the contents
+      of the objects, so two distinct but structurally identical
+      objects will not be considered the same object.
+
+    - New factory method ``QPDF::create()`` returns a
+      ``std::shared_ptr<QPDF>``.
+
+    - New ``Pipeline`` methods have been added to reduce the amount of
+      casting that is needed:
+
+      - ``write``: overloaded version that takes ``char const*`` in
+        addition to the one that takes ``unsigned char const*``
+
+      - ``writeCstr``: writes a null-terminated C string
+
+      - ``writeString``: writes a std::string
+
+      - ``operator <<``: for null-terminated C strings, std::strings,
+        and integer types
+
+    - New ``Pipeline`` type ``Pl_OStream`` writes to a
+      ``std::ostream``.
+
+    - New ``Pipeline`` type ``Pl_String`` appends to a
+      ``std::string``.
+
+    - New ``Pipeline`` type ``Pl_Function`` can be used to call an
+      arbitrary function on write. It supports ``std::function`` for
+      C++ code and can also accept C-style functions that indicate
+      success using a return value and take an extra parameter for
+      passing user data.
+
+    - Methods have been added to ``QUtil`` for converting PDF
+      timestamps and ``QPDFTime`` objects to ISO-8601 timestamps.
+
+    - Enhance JSON class to better support incrementally reading and
+      writing large amounts of data without having to keep everything
+      in memory.
+
+    - Add new functions to the C API for ``qpdfjob`` that use a
+      ``qpdfjob_handle``. Like with the regular C API for qpdf, you
+      have to call ``qpdfjob_init`` first, pass the handle to the
+      functions, and call ``qpdfjob_cleanup`` at the end. This
+      interface offers more flexibility than the old interface, which
+      remains available.
+
+    - Add ``QPDFJob::registerProgressReporter`` and
+      ``qpdfjob_register_progress_reporter`` to allow a custom
+      progress reporter to be used with ``QPDFJob``. The ``QPDFJob``
+      object must be configured to report progress (via command-line
+      argument or otherwise) for this to be used.
+
+    - Add new overloads to
+      ``QPDFObjectHandle::StreamDataProvider::provideStreamData`` that
+      take ``QPDFObjGen const&`` instead of separate object ID and
+      generation parameters. The old versions will continue to be
+      supported and are not deprecated.
+
+    - In ``QPDFPageObjectHelper``, add a ``copy_if_fallback``
+      parameter to most of the page bounding box methods, and clarify
+      in the comments about the difference between ``copy_if_shared``
+      and ``copy_if_fallback``.
+
+    - Add a move constructor to the ``Buffer`` class.
+
+  - Other changes
+
+    - In JSON v1 mode, the ``"objects"`` key now reflects the repaired
+      pages tree if ``"pages"`` (or any other key that has the side
+      effect of repairing the page tree) is specified. To see the
+      original objects with any unrepaired page tree errors, specify
+      ``"objects"`` and/or ``"objectinfo"`` by themselves. This is
+      consistent with how JSON v2 behaves.
+
+    - A new chapter on contributing to qpdf has been added to the
+      documentation. See :ref:`contributing`.
+
+    - The qpdf source code is now formatted automatically with
+      ``clang-format``. See :ref:`code-formatting` for information.
+
+    - Test coverage with ``QTC`` is enabled during development but
+      compiled out of distributed qpdf binaries by default. This
+      results in a significant performance improvement, especially on
+      Windows. ``QTC::TC`` is still available in the library and is
+      still usable by end user code even though calls to it made
+      internally by the library are turned off. Internally, there is
+      some additional caching to reduce the overhead of repeatedly
+      reading environment variables at runtime.
+
+    - The test files used by the ``performance_check`` script at the
+      top of the repository are now available in the
+      `qpdf/performance-test-files github repository
+      <https://github.com/qpdf/performance-test-files>`__. In addition
+      to running time, memory usage is also included in performance
+      test results when available. The ``performance_check`` tool has
+      only been tested on Linux.
+
+    - Lots of code cleanup and refactoring work was contributed in
+      multiple pull requests by M. Holger. This includes the work
+      required to enable detection of ``QPDFObjectHandle`` objects
+      that belong to destroyed ``QPDF`` objects.
 
 10.6.3: March 8, 2022
   - Announcement of upcoming change:
@@ -539,8 +827,8 @@ For a detailed list of changes, please see the file
       passwords from files or standard input than using
       :samp:`@file` for this purpose.
 
-    - Add some information about attachments to the json output, and
-      added ``attachments`` as an additional json key. The
+    - Add some information about attachments to the JSON output, and
+      added ``attachments`` as an additional JSON key. The
       information included here is limited to the preferred name and
       content stream and a reference to the file spec object. This is
       enough detail for clients to avoid the hassle of navigating a
@@ -1560,6 +1848,12 @@ For a detailed list of changes, please see the file
       method takes care of computing the proper transformation matrix
       and may optionally compensate for rotation or scaling of the
       destination page.
+
+    - Exit codes returned by ``QPDFJob::run()`` and the C API wrappers
+      are now defined in :file:`qpdf/Constants.h` in the
+      ``qpdf_exit_code_e`` type so that they are accessible from the C
+      API. They were previously only defined as constants in
+      :file:`qpdf/QPDFJob.hh`.
 
   - Build Improvements
 

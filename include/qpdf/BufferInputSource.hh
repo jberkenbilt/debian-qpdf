@@ -22,20 +22,20 @@
 #ifndef QPDF_BUFFERINPUTSOURCE_HH
 #define QPDF_BUFFERINPUTSOURCE_HH
 
-#include <qpdf/InputSource.hh>
 #include <qpdf/Buffer.hh>
+#include <qpdf/InputSource.hh>
 
-class BufferInputSource: public InputSource
+class QPDF_DLL_CLASS BufferInputSource: public InputSource
 {
   public:
     // If own_memory is true, BufferInputSource will delete the buffer
     // when finished with it. Otherwise, the caller owns the memory.
     QPDF_DLL
-    BufferInputSource(std::string const& description, Buffer* buf,
-                      bool own_memory = false);
+    BufferInputSource(
+        std::string const& description, Buffer* buf, bool own_memory = false);
     QPDF_DLL
-    BufferInputSource(std::string const& description,
-                      std::string const& contents);
+    BufferInputSource(
+        std::string const& description, std::string const& contents);
     QPDF_DLL
     virtual ~BufferInputSource();
     QPDF_DLL
@@ -54,26 +54,11 @@ class BufferInputSource: public InputSource
     virtual void unreadCh(char ch);
 
   private:
-    class Members
-    {
-        friend class BufferInputSource;
-
-      public:
-        QPDF_DLL
-        ~Members();
-
-      private:
-        Members(bool own_memory, std::string const& description, Buffer* buf);
-        Members(Members const&);
-
-        bool own_memory;
-        std::string description;
-        Buffer* buf;
-        qpdf_offset_t cur_offset;
-        qpdf_offset_t max_offset;
-    };
-
-    PointerHolder<Members> m;
+    bool own_memory;
+    std::string description;
+    Buffer* buf;
+    qpdf_offset_t cur_offset;
+    qpdf_offset_t max_offset;
 };
 
 #endif // QPDF_BUFFERINPUTSOURCE_HH

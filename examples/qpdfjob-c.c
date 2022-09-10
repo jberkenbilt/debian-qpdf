@@ -10,13 +10,15 @@
 
 static char const* whoami = 0;
 
-static void usage()
+static void
+usage()
 {
     fprintf(stderr, "Usage: %s infile outfile\n", whoami);
     exit(2);
 }
 
-int main(int argc, char* argv[])
+int
+main(int argc, char* argv[])
 {
     char* infile = NULL;
     char* outfile = NULL;
@@ -24,21 +26,15 @@ int main(int argc, char* argv[])
     int r = 0;
     char* p = 0;
 
-    if ((p = strrchr(argv[0], '/')) != NULL)
-    {
+    if ((p = strrchr(argv[0], '/')) != NULL) {
         whoami = p + 1;
-    }
-    else if ((p = strrchr(argv[0], '\\')) != NULL)
-    {
+    } else if ((p = strrchr(argv[0], '\\')) != NULL) {
         whoami = p + 1;
-    }
-    else
-    {
+    } else {
         whoami = argv[0];
     }
 
-    if (argc != 3)
-    {
+    if (argc != 3) {
         usage();
     }
 
@@ -56,6 +52,10 @@ int main(int argc, char* argv[])
      * To use that from C just like the argv one, call
      * qpdfjob_run_from_json instead and pass the json string as a
      * single char const* argument.
+     *
+     * See qpdfjob-c-save-attachment.c for an example of using the
+     * full form of the qpdfjob interface with init and cleanup
+     * functions.
      */
     r = qpdfjob_run_from_argv(new_argv);
     return r;
