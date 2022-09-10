@@ -32,22 +32,57 @@ class QPDFObjGen
 {
   public:
     QPDF_DLL
-    QPDFObjGen();
+    QPDFObjGen() :
+        obj(0),
+        gen(0)
+    {
+    }
     QPDF_DLL
-    QPDFObjGen(int obj, int gen);
+    explicit QPDFObjGen(int obj, int gen) :
+        obj(obj),
+        gen(gen)
+    {
+    }
     QPDF_DLL
-    bool operator<(QPDFObjGen const&) const;
+    bool
+    operator<(QPDFObjGen const& rhs) const
+    {
+        return (obj < rhs.obj) || ((obj == rhs.obj) && (gen < rhs.gen));
+    }
     QPDF_DLL
-    bool operator==(QPDFObjGen const&) const;
+    bool
+    operator==(QPDFObjGen const& rhs) const
+    {
+        return (obj == rhs.obj) && (gen == rhs.gen);
+    }
     QPDF_DLL
-    int getObj() const;
+    bool
+    operator!=(QPDFObjGen const& rhs) const
+    {
+        return (obj != rhs.obj) || (gen != rhs.gen);
+    }
     QPDF_DLL
-    int getGen() const;
+    int
+    getObj() const
+    {
+        return obj;
+    }
     QPDF_DLL
-    std::string unparse() const;
-
+    int
+    getGen() const
+    {
+        return gen;
+    }
     QPDF_DLL
-    friend std::ostream& operator<<(std::ostream&, const QPDFObjGen&);
+    bool
+    isIndirect() const
+    {
+        return obj != 0;
+    }
+    QPDF_DLL
+    std::string unparse(char separator = ',') const;
+    QPDF_DLL
+    friend std::ostream& operator<<(std::ostream& os, const QPDFObjGen& og);
 
   private:
     // This class does not use the Members pattern to avoid a memory

@@ -50,9 +50,7 @@ class QPDFPageLabelDocumentHelper: public QPDFDocumentHelper
     QPDF_DLL
     QPDFPageLabelDocumentHelper(QPDF&);
     QPDF_DLL
-    virtual ~QPDFPageLabelDocumentHelper()
-    {
-    }
+    virtual ~QPDFPageLabelDocumentHelper() = default;
 
     QPDF_DLL
     bool hasPageLabels();
@@ -77,10 +75,11 @@ class QPDFPageLabelDocumentHelper: public QPDFDocumentHelper
     // behavior facilitates using this function to incrementally build
     // up a page labels tree when merging files.
     QPDF_DLL
-    void
-    getLabelsForPageRange(long long start_idx, long long end_idx,
-                          long long new_start_idx,
-                          std::vector<QPDFObjectHandle>& new_labels);
+    void getLabelsForPageRange(
+        long long start_idx,
+        long long end_idx,
+        long long new_start_idx,
+        std::vector<QPDFObjectHandle>& new_labels);
 
   private:
     class Members
@@ -89,16 +88,16 @@ class QPDFPageLabelDocumentHelper: public QPDFDocumentHelper
 
       public:
         QPDF_DLL
-        ~Members();
+        ~Members() = default;
 
       private:
-        Members();
-        Members(Members const&);
+        Members() = default;
+        Members(Members const&) = delete;
 
-        PointerHolder<QPDFNumberTreeObjectHelper> labels;
+        std::shared_ptr<QPDFNumberTreeObjectHelper> labels;
     };
 
-    PointerHolder<Members> m;
+    std::shared_ptr<Members> m;
 };
 
 #endif // QPDFPAGELABELDOCUMENTHELPER_HH

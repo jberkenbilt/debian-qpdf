@@ -1,20 +1,20 @@
 #ifndef QPDF_INLINEIMAGE_HH
 #define QPDF_INLINEIMAGE_HH
 
-#include <qpdf/QPDFObject.hh>
+#include <qpdf/QPDFValue.hh>
 
-class QPDF_InlineImage: public QPDFObject
+class QPDF_InlineImage: public QPDFValue
 {
   public:
-    QPDF_InlineImage(std::string const& val);
-    virtual ~QPDF_InlineImage();
+    virtual ~QPDF_InlineImage() = default;
+    static std::shared_ptr<QPDFObject> create(std::string const& val);
+    virtual std::shared_ptr<QPDFObject> shallowCopy();
     virtual std::string unparse();
-    virtual JSON getJSON();
-    virtual QPDFObject::object_type_e getTypeCode() const;
-    virtual char const* getTypeName() const;
+    virtual JSON getJSON(int json_version);
     std::string getVal() const;
 
   private:
+    QPDF_InlineImage(std::string const& val);
     std::string val;
 };
 

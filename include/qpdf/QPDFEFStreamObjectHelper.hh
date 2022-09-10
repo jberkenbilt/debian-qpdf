@@ -57,9 +57,11 @@ class QPDFEFStreamObjectHelper: public QPDFObjectHelper
     // Subtype is a mime type such as "text/plain"
     QPDF_DLL
     std::string getSubtype();
-    // Return the MD5 checksum as stored in the object as a binary
-    // string. This does not check consistency with the data. If not
-    // present, return an empty string.
+    // Return the checksum as stored in the object as a binary string.
+    // This does not check consistency with the data. If not present,
+    // return an empty string. The PDF spec specifies this as an MD5
+    // checksum and notes that it is not to be used for security
+    // purposes since MD5 is known not to be secure.
     QPDF_DLL
     std::string getChecksum();
 
@@ -74,7 +76,7 @@ class QPDFEFStreamObjectHelper: public QPDFObjectHelper
     // parameters may be supplied using setters defined below.
     QPDF_DLL
     static QPDFEFStreamObjectHelper
-    createEFStream(QPDF& qpdf, PointerHolder<Buffer> data);
+    createEFStream(QPDF& qpdf, std::shared_ptr<Buffer> data);
     QPDF_DLL
     static QPDFEFStreamObjectHelper
     createEFStream(QPDF& qpdf, std::string const& data);
@@ -112,11 +114,11 @@ class QPDFEFStreamObjectHelper: public QPDFObjectHelper
         ~Members() = default;
 
       private:
-        Members();
+        Members() = default;
         Members(Members const&) = delete;
     };
 
-    PointerHolder<Members> m;
+    std::shared_ptr<Members> m;
 };
 
 #endif // QPDFEFSTREAMOBJECTHELPER_HH

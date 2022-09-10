@@ -1,59 +1,147 @@
 #include <qpdf/qpdfjob-c.h>
 
 #include <qpdf/QPDFJob.hh>
-#include <qpdf/QUtil.hh>
+#include <qpdf/QPDFLogger.hh>
 #include <qpdf/QPDFUsage.hh>
+#include <qpdf/QUtil.hh>
+#include <qpdf/qpdflogger-c_impl.hh>
 
 #include <cstdio>
 #include <cstring>
 
-int qpdfjob_run_from_argv(char const* const argv[])
+struct _qpdfjob_handle
 {
-    auto whoami_p = QUtil::make_unique_cstr(argv[0]);
-    auto whoami = QUtil::getWhoami(whoami_p.get());
-    QUtil::setLineBuf(stdout);
+    _qpdfjob_handle() = default;
+    ~_qpdfjob_handle() = default;
 
     QPDFJob j;
-    try
-    {
-        j.initializeFromArgv(argv);
-        j.run();
+};
+
+qpdfjob_handle
+qpdfjob_init()
+{
+    return new _qpdfjob_handle;
+}
+
+void
+qpdfjob_cleanup(qpdfjob_handle* j)
+{
+    delete *j;
+    *j = nullptr;
+}
+
+static int
+wrap_qpdfjob(qpdfjob_handle j, std::function<int(qpdfjob_handle j)> fn)
+{
+    try {
+        return fn(j);
+    } catch (std::exception& e) {
+        *j->j.getLogger()->getError()
+            << j->j.getMessagePrefix() << ": " << e.what() << "\n";
     }
-    catch (std::exception& e)
-    {
-        std::cerr << whoami << ": " << e.what() << std::endl;
-        return QPDFJob::EXIT_ERROR;
-    }
-    return j.getExitCode();
+    return QPDFJob::EXIT_ERROR;
+}
+
+void
+qpdfjob_set_logger(qpdfjob_handle j, qpdflogger_handle logger)
+{
+    j->j.setLogger(logger->l);
+}
+
+qpdflogger_handle
+qpdfjob_get_logger(qpdfjob_handle j)
+{
+    return new _qpdflogger_handle(j->j.getLogger());
+}
+
+int
+qpdfjob_initialize_from_argv(qpdfjob_handle j, char const* const argv[])
+{
+    return wrap_qpdfjob(j, [argv](qpdfjob_handle jh) {
+        jh->j.initializeFromArgv(argv);
+        return 0;
+    });
 }
 
 #ifndef QPDF_NO_WCHAR_T
-int qpdfjob_run_from_wide_argv(wchar_t const* const argv[])
+int
+qpdfjob_initialize_from_wide_argv(qpdfjob_handle j, wchar_t const* const argv[])
 {
     int argc = 0;
-    for (auto k = argv; *k; ++k)
-    {
+    for (auto k = argv; *k; ++k) {
         ++argc;
     }
     return QUtil::call_main_from_wmain(
-        argc, argv, [](int, char const* const new_argv[]) {
-            return qpdfjob_run_from_argv(new_argv);
+        argc, argv, [j](int, char const* const new_argv[]) {
+            return qpdfjob_initialize_from_argv(j, new_argv);
         });
 }
 #endif // QPDF_NO_WCHAR_T
 
-int qpdfjob_run_from_json(char const* json)
+int
+qpdfjob_initialize_from_json(qpdfjob_handle j, char const* json)
 {
-    QPDFJob j;
-    try
-    {
-        j.initializeFromJson(json);
-        j.run();
+    return wrap_qpdfjob(j, [json](qpdfjob_handle jh) {
+        jh->j.setMessagePrefix("qpdfjob json");
+        jh->j.initializeFromJson(json);
+        return 0;
+    });
+}
+
+int
+qpdfjob_run(qpdfjob_handle j)
+{
+    QUtil::setLineBuf(stdout);
+    return wrap_qpdfjob(j, [](qpdfjob_handle jh) {
+        jh->j.run();
+        return jh->j.getExitCode();
+    });
+}
+
+static int
+run_with_handle(std::function<int(qpdfjob_handle)> fn)
+{
+    auto j = qpdfjob_init();
+    int status = fn(j);
+    if (status == 0) {
+        status = qpdfjob_run(j);
     }
-    catch (std::exception& e)
-    {
-        std::cerr << "qpdfjob json: " << e.what() << std::endl;
-        return QPDFJob::EXIT_ERROR;
-    }
-    return j.getExitCode();
+    qpdfjob_cleanup(&j);
+    return status;
+}
+
+int
+qpdfjob_run_from_argv(char const* const argv[])
+{
+    return run_with_handle([argv](qpdfjob_handle j) {
+        return qpdfjob_initialize_from_argv(j, argv);
+    });
+}
+
+#ifndef QPDF_NO_WCHAR_T
+int
+qpdfjob_run_from_wide_argv(wchar_t const* const argv[])
+{
+    return run_with_handle([argv](qpdfjob_handle j) {
+        return qpdfjob_initialize_from_wide_argv(j, argv);
+    });
+}
+#endif /* QPDF_NO_WCHAR_T */
+
+int
+qpdfjob_run_from_json(char const* json)
+{
+    return run_with_handle([json](qpdfjob_handle j) {
+        return qpdfjob_initialize_from_json(j, json);
+    });
+}
+
+void
+qpdfjob_register_progress_reporter(
+    qpdfjob_handle j,
+    void (*report_progress)(int percent, void* data),
+    void* data)
+{
+    j->j.registerProgressReporter(
+        std::bind(report_progress, std::placeholders::_1, data));
 }

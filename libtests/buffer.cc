@@ -1,24 +1,22 @@
+#include <qpdf/assert_test.h>
+
 #include <qpdf/Pl_Buffer.hh>
 #include <qpdf/Pl_Count.hh>
 #include <qpdf/Pl_Discard.hh>
 #include <qpdf/QUtil.hh>
-#include <stdlib.h>
-#include <stdexcept>
-#include <iostream>
 #include <cstring>
+#include <iostream>
+#include <stdexcept>
+#include <stdlib.h>
 
-#ifdef NDEBUG
-// We need assert even in a release build for test code.
-# undef NDEBUG
-#endif
-#include <cassert>
-
-static unsigned char* uc(char const* s)
+static unsigned char*
+uc(char const* s)
 {
     return QUtil::unsigned_char_pointer(s);
 }
 
-int main()
+int
+main()
 {
     {
         // Test that buffers can be copied by value.
@@ -39,8 +37,24 @@ int main()
         assert(bc2p[1] == 'W');
     }
 
-    try
     {
+        // Test that buffers can be moved.
+        Buffer bm1(2);
+        unsigned char* bm1p = bm1.getBuffer();
+        bm1p[0] = 'Q';
+        bm1p[1] = 'W';
+        Buffer bm2(std::move(bm1));
+        bm1p[0] = 'R';
+        unsigned char* bm2p = bm2.getBuffer();
+        assert(bm2p == bm1p);
+        assert(bm2p[0] == 'R');
+
+        Buffer bm3 = std::move(bm2);
+        unsigned char* bm3p = bm3.getBuffer();
+        assert(bm3p == bm2p);
+    }
+
+    try {
         Pl_Discard discard;
         Pl_Count count("count", &discard);
         Pl_Buffer bp1("bp1", &count);
@@ -68,12 +82,9 @@ int main()
         Pl_Buffer bp2("bp2");
         bp2.write(uc("moo"), 3);
         bp2.write(uc("quack"), 6);
-        try
-        {
+        try {
             delete bp2.getBuffer();
-        }
-        catch (std::exception& e)
-        {
+        } catch (std::exception& e) {
             std::cout << e.what() << std::endl;
         }
         bp2.finish();
@@ -84,9 +95,7 @@ int main()
 
         unsigned char lbuf[10];
         Buffer b1(lbuf, 10);
-        if (! ((b1.getBuffer() == lbuf) &&
-               (b1.getSize() == 10)))
-        {
+        if (!((b1.getBuffer() == lbuf) && (b1.getSize() == 10))) {
             throw std::logic_error("hand-created buffer is not as expected");
         }
 
@@ -110,13 +119,10 @@ int main()
         bp4.write(uc("asdf"), 4);
         unsigned char* mbuf;
         size_t len;
-        try
-        {
+        try {
             bp4.getMallocBuffer(&mbuf, &len);
             assert(false);
-        }
-        catch (std::logic_error& e)
-        {
+        } catch (std::logic_error& e) {
             std::cout << "malloc buffer logic error: " << e.what() << std::endl;
         }
         bp4.finish();
@@ -129,9 +135,7 @@ int main()
         bp4.getMallocBuffer(&mbuf, &len);
         assert(mbuf == nullptr);
         assert(len == 0);
-    }
-    catch (std::exception& e)
-    {
+    } catch (std::exception& e) {
         std::cout << "unexpected exception: " << e.what() << std::endl;
         exit(2);
     }

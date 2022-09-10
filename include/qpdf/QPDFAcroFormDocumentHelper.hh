@@ -67,7 +67,6 @@
 //     the "/AcroForm" field entry until you find the annotation
 //     dictionary.
 
-
 #include <qpdf/QPDFDocumentHelper.hh>
 
 #include <qpdf/DLL.h>
@@ -86,9 +85,7 @@ class QPDFAcroFormDocumentHelper: public QPDFDocumentHelper
     QPDF_DLL
     QPDFAcroFormDocumentHelper(QPDF&);
     QPDF_DLL
-    virtual ~QPDFAcroFormDocumentHelper()
-    {
-    }
+    virtual ~QPDFAcroFormDocumentHelper() = default;
 
     // This class lazily creates an internal cache of the mapping
     // among form fields, annotations, and pages. Methods within this
@@ -144,8 +141,7 @@ class QPDFAcroFormDocumentHelper: public QPDFDocumentHelper
     // information to be accurate, any changes to field names must be
     // done through setFormFieldName() above.
     QPDF_DLL
-    std::set<QPDFObjGen>
-    getFieldsWithQualifiedName(std::string const& name);
+    std::set<QPDFObjGen> getFieldsWithQualifiedName(std::string const& name);
 
     // Return the annotations associated with a terminal field. Note
     // that in the case of a field having a single annotation, the
@@ -153,17 +149,17 @@ class QPDFAcroFormDocumentHelper: public QPDFDocumentHelper
     // object for the field.
     QPDF_DLL
     std::vector<QPDFAnnotationObjectHelper>
-    getAnnotationsForField(QPDFFormFieldObjectHelper);
+        getAnnotationsForField(QPDFFormFieldObjectHelper);
 
     // Return annotations of subtype /Widget for a page.
     QPDF_DLL
     std::vector<QPDFAnnotationObjectHelper>
-    getWidgetAnnotationsForPage(QPDFPageObjectHelper);
+        getWidgetAnnotationsForPage(QPDFPageObjectHelper);
 
     // Return top-level form fields for a page.
     QPDF_DLL
     std::vector<QPDFFormFieldObjectHelper>
-    getFormFieldsForPage(QPDFPageObjectHelper);
+        getFormFieldsForPage(QPDFPageObjectHelper);
 
     // Return the terminal field that is associated with this
     // annotation. If the annotation dictionary is merged with the
@@ -173,8 +169,7 @@ class QPDFAcroFormDocumentHelper: public QPDFDocumentHelper
     // not be an associated field, and this method will return a
     // helper associated with a null object (isNull() == true).
     QPDF_DLL
-    QPDFFormFieldObjectHelper
-    getFieldForAnnotation(QPDFAnnotationObjectHelper);
+    QPDFFormFieldObjectHelper getFieldForAnnotation(QPDFAnnotationObjectHelper);
 
     // Return the current value of /NeedAppearances. If
     // /NeedAppearances is missing, return false as that is how PDF
@@ -253,37 +248,27 @@ class QPDFAcroFormDocumentHelper: public QPDFDocumentHelper
         QPDFAcroFormDocumentHelper& from_afdh,
         std::set<QPDFObjGen>* new_fields = nullptr);
 
-    // copyFieldsFromForeignPage was added in qpdf 10.2 and made to do
-    // nothing in 10.3. It wasn't actually doing the right thing and
-    // would result in broken files in all but the simplest case of a
-    // single page from one file being added to another file, as
-    // happens with qpdf --split-pages.
-    [[deprecated("Use fixCopiedAnnotations instead")]]
-    // ABI: delete this method
-    QPDF_DLL
-    void copyFieldsFromForeignPage(
-        QPDFPageObjectHelper foreign_page,
-        QPDFAcroFormDocumentHelper& foreign_afdh,
-        std::vector<QPDFObjectHandle>* copied_fields = nullptr);
-
   private:
     void analyze();
-    void traverseField(QPDFObjectHandle field,
-                       QPDFObjectHandle parent,
-                       int depth, std::set<QPDFObjGen>& visited);
+    void traverseField(
+        QPDFObjectHandle field,
+        QPDFObjectHandle parent,
+        int depth,
+        std::set<QPDFObjGen>& visited);
     QPDFObjectHandle getOrCreateAcroForm();
     void adjustInheritedFields(
         QPDFObjectHandle obj,
-        bool override_da, std::string const& from_default_da,
-        bool override_q, int from_default_q);
+        bool override_da,
+        std::string const& from_default_da,
+        bool override_q,
+        int from_default_q);
     void adjustDefaultAppearances(
         QPDFObjectHandle obj,
-        std::map<std::string,
-                 std::map<std::string, std::string>> const& dr_map);
+        std::map<std::string, std::map<std::string, std::string>> const&
+            dr_map);
     void adjustAppearanceStream(
         QPDFObjectHandle stream,
-        std::map<std::string,
-                 std::map<std::string, std::string>> dr_map);
+        std::map<std::string, std::map<std::string, std::string>> dr_map);
 
     class Members
     {
@@ -291,22 +276,21 @@ class QPDFAcroFormDocumentHelper: public QPDFDocumentHelper
 
       public:
         QPDF_DLL
-        ~Members();
+        ~Members() = default;
 
       private:
         Members();
-        Members(Members const&);
+        Members(Members const&) = delete;
 
         bool cache_valid;
-        std::map<QPDFObjGen,
-                 std::vector<QPDFAnnotationObjectHelper>
-                 > field_to_annotations;
+        std::map<QPDFObjGen, std::vector<QPDFAnnotationObjectHelper>>
+            field_to_annotations;
         std::map<QPDFObjGen, QPDFFormFieldObjectHelper> annotation_to_field;
         std::map<QPDFObjGen, std::string> field_to_name;
         std::map<std::string, std::set<QPDFObjGen>> name_to_fields;
     };
 
-    PointerHolder<Members> m;
+    std::shared_ptr<Members> m;
 };
 
 #endif // QPDFACROFORMDOCUMENTHELPER_HH

@@ -24,10 +24,10 @@
 
 #include <qpdf/Pipeline.hh>
 
-#include <qpdf/QPDFTokenizer.hh>
+#include <qpdf/Pl_Buffer.hh>
 #include <qpdf/PointerHolder.hh>
 #include <qpdf/QPDFObjectHandle.hh>
-#include <qpdf/Pl_Buffer.hh>
+#include <qpdf/QPDFTokenizer.hh>
 
 #include <memory>
 
@@ -41,41 +41,42 @@
 // QPDFObjectHandle::addTokenFilter. See QPDFObjectHandle.hh for
 // details.
 
-class Pl_QPDFTokenizer: public Pipeline
+class QPDF_DLL_CLASS Pl_QPDFTokenizer: public Pipeline
 {
   public:
     // Whatever pipeline is provided as "next" will be set as the
     // pipeline that the token filter writes to. If next is not
     // provided, any output written by the filter will be discarded.
     QPDF_DLL
-    Pl_QPDFTokenizer(char const* identifier,
-                     QPDFObjectHandle::TokenFilter* filter,
-                     Pipeline* next = 0);
+    Pl_QPDFTokenizer(
+        char const* identifier,
+        QPDFObjectHandle::TokenFilter* filter,
+        Pipeline* next = 0);
     QPDF_DLL
     virtual ~Pl_QPDFTokenizer();
     QPDF_DLL
-    virtual void write(unsigned char* buf, size_t len);
+    virtual void write(unsigned char const* buf, size_t len);
     QPDF_DLL
     virtual void finish();
 
   private:
-    class Members
+    class QPDF_DLL_PRIVATE Members
     {
         friend class Pl_QPDFTokenizer;
 
       public:
         QPDF_DLL
-        ~Members();
+        ~Members() = default;
 
       private:
         Members();
-        Members(Members const&);
+        Members(Members const&) = delete;
 
         QPDFObjectHandle::TokenFilter* filter;
         QPDFTokenizer tokenizer;
         Pl_Buffer buf;
     };
-    PointerHolder<Members> m;
+    std::shared_ptr<Members> m;
 };
 
 #endif // PL_QPDFTOKENIZER_HH

@@ -1,23 +1,23 @@
 #ifndef QPDF_DICTIONARY_HH
 #define QPDF_DICTIONARY_HH
 
-#include <qpdf/QPDFObject.hh>
+#include <qpdf/QPDFValue.hh>
 
-#include <set>
 #include <map>
+#include <set>
 
 #include <qpdf/QPDFObjectHandle.hh>
 
-class QPDF_Dictionary: public QPDFObject
+class QPDF_Dictionary: public QPDFValue
 {
   public:
-    QPDF_Dictionary(std::map<std::string, QPDFObjectHandle> const& items);
-    virtual ~QPDF_Dictionary();
+    virtual ~QPDF_Dictionary() = default;
+    static std::shared_ptr<QPDFObject>
+    create(std::map<std::string, QPDFObjectHandle> const& items);
+    virtual std::shared_ptr<QPDFObject> shallowCopy();
     virtual std::string unparse();
-    virtual JSON getJSON();
-    virtual QPDFObject::object_type_e getTypeCode() const;
-    virtual char const* getTypeName() const;
-    virtual void setDescription(QPDF*, std::string const&);
+    virtual JSON getJSON(int json_version);
+    virtual void disconnect();
 
     // hasKey() and getKeys() treat keys with null values as if they
     // aren't there.  getKey() returns null for the value of a
@@ -27,17 +27,14 @@ class QPDF_Dictionary: public QPDFObject
     std::set<std::string> getKeys();
     std::map<std::string, QPDFObjectHandle> const& getAsMap() const;
 
-    // Replace value of key, adding it if it does not exist
-    void replaceKey(std::string const& key, QPDFObjectHandle);
+    // If value is null, remove key; otherwise, replace the value of
+    // key, adding it if it does not exist.
+    void replaceKey(std::string const& key, QPDFObjectHandle value);
     // Remove key, doing nothing if key does not exist
     void removeKey(std::string const& key);
-    // If object is null, remove key; otherwise, replace key
-    void replaceOrRemoveKey(std::string const& key, QPDFObjectHandle);
-
-  protected:
-    virtual void releaseResolved();
 
   private:
+    QPDF_Dictionary(std::map<std::string, QPDFObjectHandle> const& items);
     std::map<std::string, QPDFObjectHandle> items;
 };
 

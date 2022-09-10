@@ -46,16 +46,16 @@ class QPDFObjectHelper
     {
     }
     QPDF_DLL
-    virtual ~QPDFObjectHelper()
-    {
-    }
+    virtual ~QPDFObjectHelper() = default;
     QPDF_DLL
-    QPDFObjectHandle getObjectHandle()
+    QPDFObjectHandle
+    getObjectHandle()
     {
         return this->oh;
     }
     QPDF_DLL
-    QPDFObjectHandle const getObjectHandle() const
+    QPDFObjectHandle const
+    getObjectHandle() const
     {
         return this->oh;
     }

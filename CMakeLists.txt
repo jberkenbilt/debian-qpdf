@@ -2,9 +2,10 @@
 cmake_minimum_required(VERSION 3.16)
 
 # make_dist expects the version line to be on a line by itself after
-# the project line.
+# the project line. When updating the version, check make_dist for all
+# the places it has to be updated.
 project(qpdf
-  VERSION 10.6.3
+  VERSION 11.0.0
   LANGUAGES C CXX)
 
 # Enable correct rpath handling for MacOSX
@@ -40,6 +41,9 @@ CMAKE_DEPENDENT_OPTION(
   "NOT MAINTAINER_MODE" ON)
 CMAKE_DEPENDENT_OPTION(
   GENERATE_AUTO_JOB "Automatically regenerate job files" OFF
+  "NOT MAINTAINER_MODE" ON)
+CMAKE_DEPENDENT_OPTION(
+  ENABLE_QTC "Enable QTC test coverage" OFF
   "NOT MAINTAINER_MODE" ON)
 CMAKE_DEPENDENT_OPTION(
   SHOW_FAILED_TEST_OUTPUT "Show qtest output on failure" OFF
@@ -107,10 +111,17 @@ if(NOT (BUILD_STATIC_LIBS OR BUILD_SHARED_LIBS))
     FATAL_ERROR "At least one of static or shared libraries must be built")
 endif()
 
-add_compile_definitions($<$<COMPILE_LANGUAGE:CXX>:POINTERHOLDER_TRANSITION=2>)
+add_compile_definitions($<$<COMPILE_LANGUAGE:CXX>:POINTERHOLDER_TRANSITION=4>)
+
+if(ENABLE_QTC)
+  set(ENABLE_QTC_ARG)
+else()
+  add_compile_definitions(QPDF_DISABLE_QTC=1)
+  set(ENABLE_QTC_ARG --disable-tc)
+endif()
 
 enable_testing()
-set(RUN_QTEST perl ${qpdf_SOURCE_DIR}/run-qtest)
+set(RUN_QTEST perl ${qpdf_SOURCE_DIR}/run-qtest ${ENABLE_QTC_ARG})
 
 if(WIN32)
   find_program(COPY_COMMAND NAMES cp copy)
@@ -154,6 +165,7 @@ if(WIN32 AND NOT SKIP_OS_SECURE_RANDOM)
 endif()
 
 include(CheckCXXSourceCompiles)
+set(ATOMIC_LIBRARY)
 function(check_atomic)
   foreach(I 0 1)
     if(I)
@@ -162,8 +174,8 @@ function(check_atomic)
     check_cxx_source_compiles(
       "#include <atomic>
 int main() {
-    static std::atomic<int> a{0};
-    a = a.fetch_add(1);
+    static std::atomic<unsigned long long> a{0};
+    a = a.fetch_add(1LL);
     return 0;
 }"
       ATOMIC_WORKED${I})
@@ -172,7 +184,7 @@ int main() {
     endif()
   endforeach()
   if(ATOMIC_WORKED1)
-    list(APPEND CMAKE_REQUIRED_LIBRARIES atomic)
+    set(ATOMIC_LIBRARY atomic PARENT_SCOPE)
   endif()
 endfunction()
 check_atomic()
@@ -278,6 +290,35 @@ if(WIN32)
   include(InstallRequiredSystemLibraries)
 endif()
 
+set(auto_job_inputs
+  # Keep in sync with SOURCES in generate_auto_job
+  generate_auto_job
+  manual/_ext/qpdf.py
+  job.yml
+  manual/cli.rst)
+
+set(auto_job_outputs
+  # Keep in sync with DESTS in generate_auto_job
+  libqpdf/qpdf/auto_job_decl.hh
+  libqpdf/qpdf/auto_job_init.hh
+  libqpdf/qpdf/auto_job_help.hh
+  libqpdf/qpdf/auto_job_schema.hh
+  libqpdf/qpdf/auto_job_json_decl.hh
+  libqpdf/qpdf/auto_job_json_init.hh)
+
+if(GENERATE_AUTO_JOB)
+  add_custom_command(
+    OUTPUT ${auto_job_outputs}
+    COMMAND ${qpdf_SOURCE_DIR}/generate_auto_job --generate
+    WORKING_DIRECTORY ${qpdf_SOURCE_DIR}
+    DEPENDS ${auto_job_inputs})
+  add_custom_target(auto_job_files ALL DEPENDS ${auto_job_outputs})
+endif()
+
+add_test(
+  NAME check-assert
+  COMMAND perl ${qpdf_SOURCE_DIR}/check_assert)
+
 # add_subdirectory order affects test order
 add_subdirectory(include)
 add_subdirectory(libqpdf)
@@ -304,6 +345,7 @@ message(STATUS "  build shared libraries: ${BUILD_SHARED_LIBS}")
 message(STATUS "  build static libraries: ${BUILD_STATIC_LIBS}")
 message(STATUS "  build manual: ${BUILD_DOC}")
 message(STATUS "  compiler warnings are errors: ${WERROR}")
+message(STATUS "  QTC test coverage: ${ENABLE_QTC}")
 message(STATUS "  system: ${CPACK_SYSTEM_NAME}")
 message(STATUS "")
 message(STATUS "*** Options Summary ***")

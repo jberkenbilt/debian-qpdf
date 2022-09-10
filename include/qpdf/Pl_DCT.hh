@@ -31,7 +31,7 @@
 // definition of size_t.
 #include <jpeglib.h>
 
-class Pl_DCT: public Pipeline
+class QPDF_DLL_CLASS Pl_DCT: public Pipeline
 {
   public:
     // Constructor for decompressing image data
@@ -41,55 +41,56 @@ class Pl_DCT: public Pipeline
     class QPDF_DLL_CLASS CompressConfig
     {
       public:
-        CompressConfig()
-        {
-        }
-        virtual ~CompressConfig()
-        {
-        }
+        CompressConfig() = default;
+        virtual ~CompressConfig() = default;
         virtual void apply(jpeg_compress_struct*) = 0;
     };
 
     // Constructor for compressing image data
     QPDF_DLL
-    Pl_DCT(char const* identifier, Pipeline* next,
-           JDIMENSION image_width,
-           JDIMENSION image_height,
-           int components,
-           J_COLOR_SPACE color_space,
-           CompressConfig* config_callback = 0);
+    Pl_DCT(
+        char const* identifier,
+        Pipeline* next,
+        JDIMENSION image_width,
+        JDIMENSION image_height,
+        int components,
+        J_COLOR_SPACE color_space,
+        CompressConfig* config_callback = 0);
 
     QPDF_DLL
     virtual ~Pl_DCT();
 
     QPDF_DLL
-    virtual void write(unsigned char* data, size_t len);
+    virtual void write(unsigned char const* data, size_t len);
     QPDF_DLL
     virtual void finish();
 
   private:
+    QPDF_DLL_PRIVATE
     void compress(void* cinfo, Buffer*);
+    QPDF_DLL_PRIVATE
     void decompress(void* cinfo, Buffer*);
 
     enum action_e { a_compress, a_decompress };
 
-    class Members
+    class QPDF_DLL_PRIVATE Members
     {
         friend class Pl_DCT;
 
       public:
         QPDF_DLL
-        ~Members();
+        ~Members() = default;
 
       private:
-        Members(action_e action,
-                char const* buf_description,
-                JDIMENSION image_width = 0,
-                JDIMENSION image_height = 0,
-                int components = 1,
-                J_COLOR_SPACE color_space = JCS_GRAYSCALE,
-                CompressConfig* config_callback = 0);
-        Members(Members const&);
+        Members(
+            action_e action,
+            char const* buf_description,
+            JDIMENSION image_width = 0,
+            JDIMENSION image_height = 0,
+            int components = 1,
+            J_COLOR_SPACE color_space = JCS_GRAYSCALE,
+            CompressConfig* config_callback = 0);
+        Members(Members const&) = delete;
 
         action_e action;
         Pl_Buffer buf;
@@ -103,7 +104,7 @@ class Pl_DCT: public Pipeline
         CompressConfig* config_callback;
     };
 
-    PointerHolder<Members> m;
+    std::shared_ptr<Members> m;
 };
 
 #endif // PL_DCT_HH

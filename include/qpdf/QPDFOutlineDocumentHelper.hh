@@ -23,8 +23,8 @@
 #define QPDFOUTLINEDOCUMENTHELPER_HH
 
 #include <qpdf/QPDFDocumentHelper.hh>
-#include <qpdf/QPDFOutlineObjectHelper.hh>
 #include <qpdf/QPDFNameTreeObjectHelper.hh>
+#include <qpdf/QPDFOutlineObjectHelper.hh>
 
 #include <qpdf/QPDF.hh>
 #include <map>
@@ -45,7 +45,7 @@ class QPDFOutlineDocumentHelper: public QPDFDocumentHelper
     QPDF_DLL
     QPDFOutlineDocumentHelper(QPDF&);
     QPDF_DLL
-    virtual ~QPDFOutlineDocumentHelper();
+    virtual ~QPDFOutlineDocumentHelper() = default;
 
     QPDF_DLL
     bool hasOutlines();
@@ -58,8 +58,7 @@ class QPDFOutlineDocumentHelper: public QPDFDocumentHelper
     // the name tree pointed to by the /Dests key of the names
     // dictionary.
     QPDF_DLL
-    QPDFObjectHandle
-    resolveNamedDest(QPDFObjectHandle name);
+    QPDFObjectHandle resolveNamedDest(QPDFObjectHandle name);
 
     // Return a list outlines that are known to target the specified
     // page
@@ -89,20 +88,20 @@ class QPDFOutlineDocumentHelper: public QPDFDocumentHelper
 
       public:
         QPDF_DLL
-        ~Members();
+        ~Members() = default;
 
       private:
-        Members();
-        Members(Members const&);
+        Members() = default;
+        Members(Members const&) = delete;
 
         std::vector<QPDFOutlineObjectHelper> outlines;
         std::set<QPDFObjGen> seen;
         QPDFObjectHandle dest_dict;
-        PointerHolder<QPDFNameTreeObjectHelper> names_dest;
-        std::map<QPDFObjGen, std::vector<QPDFOutlineObjectHelper> > by_page;
+        std::shared_ptr<QPDFNameTreeObjectHelper> names_dest;
+        std::map<QPDFObjGen, std::vector<QPDFOutlineObjectHelper>> by_page;
     };
 
-    PointerHolder<Members> m;
+    std::shared_ptr<Members> m;
 };
 
 #endif // QPDFOUTLINEDOCUMENTHELPER_HH

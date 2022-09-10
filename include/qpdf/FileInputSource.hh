@@ -24,11 +24,15 @@
 
 #include <qpdf/InputSource.hh>
 
-class FileInputSource: public InputSource
+class QPDF_DLL_CLASS FileInputSource: public InputSource
 {
   public:
     QPDF_DLL
     FileInputSource();
+    QPDF_DLL
+    FileInputSource(char const* filename);
+    QPDF_DLL
+    FileInputSource(char const* description, FILE* filep, bool close_file);
     QPDF_DLL
     void setFilename(char const* filename);
     QPDF_DLL
@@ -54,24 +58,9 @@ class FileInputSource: public InputSource
     FileInputSource(FileInputSource const&) = delete;
     FileInputSource& operator=(FileInputSource const&) = delete;
 
-    class Members
-    {
-        friend class FileInputSource;
-
-      public:
-        QPDF_DLL
-        ~Members();
-
-      private:
-        Members(bool close_file);
-        Members(Members const&);
-
-        bool close_file;
-        std::string filename;
-        FILE* file;
-    };
-
-    PointerHolder<Members> m;
+    bool close_file;
+    std::string filename;
+    FILE* file;
 };
 
 #endif // QPDF_FILEINPUTSOURCE_HH

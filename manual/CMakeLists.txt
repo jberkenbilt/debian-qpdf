@@ -40,6 +40,7 @@ SET(MANUAL_DEPS
   index.rst
   installation.rst
   json.rst
+  contributing.rst
   library.rst
   license.rst
   linearization.rst
@@ -62,15 +63,15 @@ set(DOC_SINGLEHTML_OUTPUT singlehtml/index.html)
 set(DOC_PDF_OUTPUT latex/qpdf.pdf)
 if(BUILD_DOC)
   add_custom_command(OUTPUT ${DOC_HTML_OUTPUT}
-    COMMAND ${SPHINX} -M html ${MANUAL_SRC} ${CMAKE_CURRENT_BINARY_DIR}
+    COMMAND ${SPHINX} -M html ${MANUAL_SRC} ${CMAKE_CURRENT_BINARY_DIR} -W
     COMMAND touch ${DOC_HTML_OUTPUT}
     DEPENDS ${MANUAL_DEPS})
   add_custom_command(OUTPUT ${DOC_SINGLEHTML_OUTPUT}
-    COMMAND ${SPHINX} -M singlehtml ${MANUAL_SRC} ${CMAKE_CURRENT_BINARY_DIR}
+    COMMAND ${SPHINX} -M singlehtml ${MANUAL_SRC} ${CMAKE_CURRENT_BINARY_DIR} -W
     COMMAND touch ${DOC_SINGLEHTML_OUTPUT}
     DEPENDS ${MANUAL_DEPS})
   add_custom_command(OUTPUT ${DOC_PDF_OUTPUT}
-    COMMAND ${SPHINX} -M latexpdf ${MANUAL_SRC} ${CMAKE_CURRENT_BINARY_DIR}
+    COMMAND ${SPHINX} -M latexpdf ${MANUAL_SRC} ${CMAKE_CURRENT_BINARY_DIR} -W
     COMMAND touch ${DOC_PDF_OUTPUT}
     DEPENDS ${MANUAL_DEPS})
   add_custom_target(doc_html DEPENDS ${DOC_HTML_OUTPUT})
@@ -85,6 +86,9 @@ if(BUILD_DOC)
     endif()
   elseif(BUILD_DOC_HTML)
     add_dependencies(doc doc_singlehtml)
+  endif()
+  if(GENERATE_AUTO_JOB)
+    add_dependencies(doc auto_job_files)
   endif()
 
   if(BUILD_DOC_DIST)

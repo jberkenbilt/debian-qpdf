@@ -28,15 +28,12 @@
 class QPDF_DLL_CLASS RandomDataProvider
 {
   public:
-    virtual ~RandomDataProvider()
-    {
-    }
+    virtual ~RandomDataProvider() = default;
     virtual void provideRandomData(unsigned char* data, size_t len) = 0;
 
   protected:
-    RandomDataProvider()
-    {
-    }
+    QPDF_DLL_PRIVATE
+    RandomDataProvider() = default;
 
   private:
     RandomDataProvider(RandomDataProvider const&) = delete;

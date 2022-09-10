@@ -45,16 +45,16 @@ class QPDFDocumentHelper
     {
     }
     QPDF_DLL
-    virtual ~QPDFDocumentHelper()
-    {
-    }
+    virtual ~QPDFDocumentHelper() = default;
     QPDF_DLL
-    QPDF& getQPDF()
+    QPDF&
+    getQPDF()
     {
         return this->qpdf;
     }
     QPDF_DLL
-    QPDF const& getQPDF() const
+    QPDF const&
+    getQPDF() const
     {
         return this->qpdf;
     }

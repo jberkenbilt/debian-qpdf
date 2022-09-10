@@ -22,21 +22,20 @@
 #ifndef QPDFSYSTEMERROR_HH
 #define QPDFSYSTEMERROR_HH
 
+#include <qpdf/Constants.h>
 #include <qpdf/DLL.h>
 #include <qpdf/Types.h>
-#include <qpdf/Constants.h>
 
-#include <string>
 #include <stdexcept>
+#include <string>
 
 class QPDF_DLL_CLASS QPDFSystemError: public std::runtime_error
 {
   public:
     QPDF_DLL
-    QPDFSystemError(std::string const& description,
-                    int system_errno);
+    QPDFSystemError(std::string const& description, int system_errno);
     QPDF_DLL
-    virtual ~QPDFSystemError() noexcept;
+    virtual ~QPDFSystemError() noexcept = default;
 
     // To get a complete error string, call what(), provided by
     // std::exception.  The accessors below return the original values
@@ -48,8 +47,9 @@ class QPDF_DLL_CLASS QPDFSystemError: public std::runtime_error
     int getErrno() const;
 
   private:
-    static std::string createWhat(std::string const& description,
-                                  int system_errno);
+    QPDF_DLL_PRIVATE
+    static std::string
+    createWhat(std::string const& description, int system_errno);
 
     // This class does not use the Members pattern to avoid needless
     // memory allocations during exception handling.

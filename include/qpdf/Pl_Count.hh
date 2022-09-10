@@ -25,10 +25,10 @@
 // This pipeline is reusable; i.e., it is safe to call write() after
 // calling finish().
 
-#include <qpdf/Types.h>
 #include <qpdf/Pipeline.hh>
+#include <qpdf/Types.h>
 
-class Pl_Count: public Pipeline
+class QPDF_DLL_CLASS Pl_Count: public Pipeline
 {
   public:
     QPDF_DLL
@@ -36,7 +36,7 @@ class Pl_Count: public Pipeline
     QPDF_DLL
     virtual ~Pl_Count();
     QPDF_DLL
-    virtual void write(unsigned char*, size_t);
+    virtual void write(unsigned char const*, size_t);
     QPDF_DLL
     virtual void finish();
     // Returns the number of bytes written
@@ -48,17 +48,17 @@ class Pl_Count: public Pipeline
     unsigned char getLastChar() const;
 
   private:
-    class Members
+    class QPDF_DLL_PRIVATE Members
     {
         friend class Pl_Count;
 
       public:
         QPDF_DLL
-        ~Members();
+        ~Members() = default;
 
       private:
         Members();
-        Members(Members const&);
+        Members(Members const&) = delete;
 
         // Must be qpdf_offset_t, not size_t, to handle writing more than
         // size_t can handle.
@@ -66,7 +66,7 @@ class Pl_Count: public Pipeline
         unsigned char last_char;
     };
 
-    PointerHolder<Members> m;
+    std::shared_ptr<Members> m;
 };
 
 #endif // PL_COUNT_HH

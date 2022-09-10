@@ -33,7 +33,7 @@ require TestDriver;
 
 if ((@ARGV == 1) && ($ARGV[0] eq '--version'))
 {
-    print "$whoami version 1.8\n";
+    print "$whoami version 1.9\n";
     exit 0;
 }
 if ((@ARGV == 1) && ($ARGV[0] eq '--print-path'))
@@ -218,6 +218,7 @@ if (defined $tc_log)
 print_xml(">\n");
 print_junit("<?xml version=\"1.0\"?>\n" .
             "<testsuites>\n");
+my @failed_test_suites = ();
 foreach my $test (@tests)
 {
     print_and_log("\nRunning $test\n");
@@ -226,7 +227,8 @@ foreach my $test (@tests)
     my @results = run_test($test);
     if (scalar(@results) != 5)
     {
-	error("test driver $test returned invalid results");
+        print_and_log("test driver $test returned invalid results\n");
+        push(@failed_test_suites, $test);
     }
     else
     {
@@ -261,6 +263,10 @@ foreach my $test (@tests)
 
 	my $passed = (($extra == 0) && ($missing == 0) &&
 		      ($fails == 0) && ($xpasses == 0));
+        if (! $passed)
+        {
+            push(@failed_test_suites, $test);
+        }
 
 	print_xml("  <testsummary\n" .
 		  "   overall-outcome=\"" .($passed ? 'pass' : 'fail') . "\"\n".
@@ -282,7 +288,7 @@ tc_do_final_checks();
 
 my $okay = ((($totpasses + $totxfails) == $tottests) &&
 	    ($errors == 0) && ($totmissing == 0) && ($totextra == 0) &&
-	    ($coverage_okay));
+	    ($coverage_okay) && (scalar(@failed_test_suites) == 0));
 
 print "\n";
 print_and_pad("Overall test suite");
@@ -299,6 +305,15 @@ else
 }
 
 my $summary = "\nTESTS COMPLETE.  Summary:\n\n";
+if (@failed_test_suites)
+{
+    $summary .= "FAILED TEST SUITES:\n";
+    foreach my $t (@failed_test_suites)
+    {
+        $summary .= "  $t\n";
+    }
+    $summary .= "\n";
+}
 $summary .=
     sprintf("Total tests: %d\n" .
 	    "Passes: %d\n" .

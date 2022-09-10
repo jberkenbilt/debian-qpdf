@@ -5,6 +5,8 @@ use strict;
 use File::Basename;
 use Time::HiRes qw(gettimeofday tv_interval);
 use File::Path qw(make_path);
+use IPC::Open3;
+use IO::Pipe;
 
 my $whoami = basename($0);
 $| = 1;
@@ -18,6 +20,8 @@ my @tests = (
     ['shared resource check', ['--split-pages', '--remove-unreferenced-resources=auto']],
     ['linearize', ['--linearize']],
     ['encrypt', ['--encrypt', 'u', 'o', '256', '--']],
+    ['json-output', ['--json-output']],
+    ['json-input', ['--json-input']],
     );
 
 # If arg is not found in help output, look here. If not here, skip test.
@@ -27,6 +31,7 @@ my %arg_compat = (
     '--remove-unreferenced-resources=no' => '--preserve-unreferenced-resources',
     '--remove-unreferenced-resources=yes' => '',
     '--remove-unreferenced-resources=auto' => undef,
+    '--report-memory-usage' => '',
     );
 
 my $executable = undef;
@@ -34,12 +39,14 @@ my $test_dir = undef;
 my $test_file = undef;
 my $workdir = undef;
 my $maxtime = undef;
+my $iterations = undef;
 
 my $default_executable = 'build/qpdf/qpdf';
 my $default_test_dir = '../performance-test-files';
 my $default_test_file = undef;
 my $default_workdir = 'build/perf';
 my $default_maxtime = 20;
+my $default_iterations = 20;
 
 sub usage
 {
@@ -50,6 +57,13 @@ Usage: $whoami [ args ]
   --executable qpdf   use the specified qpdf (default: $default_executable)
   --workdir           where to write output pdfs (default: $default_workdir)
   --maxtime           maximum time for a test; 0 means unlimited (default: $default_maxtime)
+  --iterations        number of iterations (default: $default_iterations)
+
+Populate $test_dir with files you want to use for performance
+benchmarking. PDF files and qpdf JSON files are allowed. The qpdf
+release process uses a clone of
+https://github.com/qpdf/performance-test-files for this purpose.
+
 ";
 }
 
@@ -83,6 +97,11 @@ while (@ARGV)
         usage() unless @ARGV;
         $maxtime = shift(@ARGV);
     }
+    elsif ('--iterations' eq $arg)
+    {
+        usage() unless @ARGV;
+        $iterations = shift(@ARGV);
+    }
     else
     {
         usage();
@@ -105,21 +124,68 @@ if (! defined $maxtime)
 {
     $maxtime = $default_maxtime;
 }
+if (! defined $iterations)
+{
+    $iterations = $default_iterations;
+}
 
 my @test_files = ();
-if (defined $test_file)
-{
-    push(@test_files, $test_file);
-}
-else
-{
-    opendir(D, $test_dir) or
-        die "$whoami: can't open directory $test_dir: $!\n";
-    my @entries = readdir(D);
-    closedir(D);
-    for (sort @entries)
+my @json_test_files = ();
+{ # private scope
+    my @tmp = ();
+    if (defined $test_file)
     {
-        push(@test_files, "$test_dir/$_") unless (('.' eq $_) || ('..' eq $_));
+        push(@tmp, $test_file);
+    }
+    else
+    {
+        opendir(D, $test_dir) or die "
+$whoami: can't open test directory: $!
+
+Configured test directory: $test_dir
+
+Populate $test_dir with a clone of the
+qpdf/performance-test-files github repository.
+Run $whoami --help for details.
+
+Repository URL: https://github.com/qpdf/performance-test-files
+
+";
+        my @entries = readdir(D);
+        closedir(D);
+        for (sort @entries)
+        {
+            my $file = "$test_dir/$_";
+            if (-f $file && $file =~ m/.(pdf|json)$/i)
+            {
+                push(@tmp, $file);
+            }
+        }
+    }
+    foreach my $i (@tmp)
+    {
+        if ($i =~ m/.json$/)
+        {
+            push(@json_test_files, $i);
+        }
+        else
+        {
+            push(@test_files, $i);
+        }
+    }
+}
+
+my $report_mem = filter_args(["--report-memory-usage"]);
+{
+    my ($r, $mem) = run_cmd($executable, @$report_mem,
+                            "--empty", File::Spec->devnull());
+    if ($r != 0)
+    {
+        die "$whoami: $executable doesn't seem to work\n";
+    }
+    if ($mem == 0)
+    {
+        print "** Note: memory information is not available **\n";
     }
 }
 
@@ -162,6 +228,7 @@ sub run_tests
 
     chomp(my $commit = `git describe @`);
     print "commit: $commit\n";
+    print "Format: time-in-seconds  RAM-in-MiB  filename\n";
     make_path($workdir);
     foreach my $test (@tests)
     {
@@ -173,7 +240,16 @@ sub run_tests
             print "  skipping (unknown arguments)\n";
             next;
         }
-        foreach my $file (@test_files)
+        my $test_files = \@test_files;
+        foreach my $arg (@$args)
+        {
+            if ($arg eq '--json-input')
+            {
+                $test_files = \@json_test_files;
+                last;
+            }
+        }
+        foreach my $file (@$test_files)
         {
             my $time = run_test($file, $args);
             if (defined $time)
@@ -192,17 +268,26 @@ sub run_test
 {
     my ($file, $args) = @_;
 
-    my $iterations = 20;
-    my @cmd = ($executable, @$args, $file, "$workdir/out.pdf");
+    my $outfile = "out.pdf";
+    foreach my $arg (@$args)
+    {
+        if ($arg eq '--json-output')
+        {
+            $outfile = "out.json";
+            last;
+        }
+    }
+    my @cmd = ($executable, @$args, @$report_mem, $file, "$workdir/$outfile");
     # Run once and discard to update caches
     system("sync");
-    system(@cmd);
+    run_cmd(@cmd);
     my $i = 0;
     my $total = 0;
+    my $max_mem = 0;
     while ($i < $iterations)
     {
         my $start = [gettimeofday];
-        my $r = system(@cmd);
+        my ($r, $mem) = run_cmd(@cmd);
         if ($r == 2)
         {
             # interrupt
@@ -214,6 +299,7 @@ sub run_test
             print "  command failed; ignoring results\n";
             return undef;
         }
+        $max_mem = $mem > $max_mem ? $mem : $max_mem;
         my $elapsed = tv_interval($start, $end);
         $total += $elapsed;
         ++$i;
@@ -223,5 +309,28 @@ sub run_test
             last;
         }
     }
-    return sprintf("%0.4f", $total / $i);
+    return sprintf("%8.4f  %8.4f", $total / $i, $max_mem / 1048576);
+}
+
+sub run_cmd
+{
+    my @cmd = @_;
+    my $pipe = IO::Pipe->new();
+    my $pid = open3(my $child_in, '>&STDOUT', $pipe->writer(), @cmd);
+    $child_in->close();
+    waitpid($pid, 0);
+    my $r = $?;
+    my $mem = 0;
+    while (<$pipe>)
+    {
+        if (m/qpdf-max-memory-usage (\d+)/)
+        {
+            $mem = $1;
+        }
+        else
+        {
+            warn $_;
+        }
+    }
+    ($r, $mem);
 }

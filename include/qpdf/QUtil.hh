@@ -23,16 +23,17 @@
 #define QUTIL_HH
 
 #include <qpdf/DLL.h>
-#include <qpdf/Types.h>
 #include <qpdf/PointerHolder.hh>
-#include <string>
-#include <list>
-#include <vector>
-#include <stdexcept>
+#include <qpdf/Types.h>
+#include <cstring>
 #include <functional>
+#include <list>
 #include <memory>
+#include <stdexcept>
 #include <stdio.h>
+#include <string>
 #include <time.h>
+#include <vector>
 
 class RandomDataProvider;
 class Pipeline;
@@ -48,16 +49,11 @@ namespace QUtil
     QPDF_DLL
     std::string int_to_string_base(long long, int base, int length = 0);
     QPDF_DLL
-    std::string uint_to_string_base(unsigned long long, int base,
-                                    int length = 0);
+    std::string
+    uint_to_string_base(unsigned long long, int base, int length = 0);
     QPDF_DLL
-    std::string double_to_string(double, int decimal_places = 0);
-    // ABI: combine with other double_to_string by adding
-    // trim_trailing_zeroes above as an optional parameter with a
-    // default of true.
-    QPDF_DLL
-    std::string double_to_string(double, int decimal_places,
-                                 bool trim_trailing_zeroes);
+    std::string double_to_string(
+        double, int decimal_places = 0, bool trim_trailing_zeroes = true);
 
     // These string to number methods throw std::runtime_error on
     // underflow/overflow.
@@ -69,6 +65,13 @@ namespace QUtil
     unsigned long long string_to_ull(char const* str);
     QPDF_DLL
     unsigned int string_to_uint(char const* str);
+
+    // Returns true if this exactly represents a long long. The
+    // determination is made by converting the string to a long long,
+    // then converting the result back to a string, and then comparing
+    // that result with the original string.
+    QPDF_DLL
+    bool is_long_long(char const* str);
 
     // Pipeline's write method wants unsigned char*, but we often have
     // some other type of string.  These methods do combinations of
@@ -111,6 +114,33 @@ namespace QUtil
     // argument.
     QPDF_DLL
     FILE* fopen_wrapper(std::string const&, FILE*);
+
+    // This is a little class to help with automatic closing files.
+    // You can do something like
+    //
+    // QUtil::FileCloser fc(QUtil::safe_fopen(filename, "rb"));
+    //
+    // and then use fc.f to the file. Be sure to actually declare a
+    // variable of type FileCloser. Using it as a temporary won't work
+    // because it will close the file as soon as it goes out of scope.
+    class FileCloser
+    {
+      public:
+        FileCloser(FILE* f) :
+            f(f)
+        {
+        }
+
+        ~FileCloser()
+        {
+            if (f) {
+                fclose(f);
+                f = nullptr;
+            }
+        }
+
+        FILE* f;
+    };
 
     // Attempt to open the file read only and then close again
     QPDF_DLL
@@ -217,8 +247,14 @@ namespace QUtil
         QPDFTime() = default;
         QPDFTime(QPDFTime const&) = default;
         QPDFTime& operator=(QPDFTime const&) = default;
-        QPDFTime(int year, int month, int day, int hour,
-                 int minute, int second, int tz_delta) :
+        QPDFTime(
+            int year,
+            int month,
+            int day,
+            int hour,
+            int minute,
+            int second,
+            int tz_delta) :
             year(year),
             month(month),
             day(day),
@@ -228,13 +264,13 @@ namespace QUtil
             tz_delta(tz_delta)
         {
         }
-        int year;               // actual year, no 1900 stuff
-        int month;              // 1--12
-        int day;                // 1--31
+        int year;  // actual year, no 1900 stuff
+        int month; // 1--12
+        int day;   // 1--31
         int hour;
         int minute;
         int second;
-        int tz_delta;           // minutes before UTC
+        int tz_delta; // minutes before UTC
     };
 
     QPDF_DLL
@@ -249,12 +285,21 @@ namespace QUtil
     QPDF_DLL
     std::string qpdf_time_to_pdf_time(QPDFTime const&);
 
+    // Convert QPDFTime to a second-granularity ISO-8601 timestamp.
+    QPDF_DLL
+    std::string qpdf_time_to_iso8601(QPDFTime const&);
+
     // Convert a PDF timestamp string to a QPDFTime. If syntactically
     // valid, return true and fill in qtm. If not valid, return false,
     // and do not modify qtm. If qtm is null, just check the validity
     // of the string.
     QPDF_DLL
     bool pdf_time_to_qpdf_time(std::string const&, QPDFTime* qtm = nullptr);
+
+    // Convert PDF timestamp to a second-granularity ISO-8601
+    // timestamp. If syntactically valid, return true and initialize
+    // iso8601. Otherwise, return false.
+    bool pdf_time_to_iso8601(std::string const& pdf_time, std::string& iso8601);
 
     // Return a string containing the byte representation of the UTF-8
     // encoding for the unicode value passed in.
@@ -267,13 +312,32 @@ namespace QUtil
     QPDF_DLL
     std::string toUTF16(unsigned long uval);
 
+    // If utf8_val.at(pos) points to the beginning of a valid
+    // UTF-8-encoded character, return the codepoint of the character
+    // and set error to false. Otherwise, return 0xfffd and set error
+    // to true. In all cases, pos is advanced to the next position
+    // that may begin a valid character. When the string has been
+    // consumed, pos will be set to the string length. It is an error
+    // to pass a value of pos that is greater than or equal to the
+    // length of the string.
+    QPDF_DLL
+    unsigned long get_next_utf8_codepoint(
+        std::string const& utf8_val, size_t& pos, bool& error);
+
     // Test whether this is a UTF-16 string. This is indicated by
     // first two bytes being 0xFE 0xFF (big-endian) or 0xFF 0xFE
-    // (little-endian). Starting in qpdf 10.6.2, this detects
+    // (little-endian), each of which is the encoding of U+FEFF, the
+    // Unicode marker. Starting in qpdf 10.6.2, this detects
     // little-endian as well as big-endian. Even though the PDF spec
     // doesn't allow little-endian, most readers seem to accept it.
     QPDF_DLL
     bool is_utf16(std::string const&);
+
+    // Test whether this is an explicit UTF-8 string as allowed by the
+    // PDF 2.0 spec. This is indicated by first three bytes being 0xEF
+    // 0xBB 0xBF, which is the UTF-8 encoding of U+FEFF.
+    QPDF_DLL
+    bool is_explicit_utf8(std::string const&);
 
     // Convert a UTF-8 encoded string to UTF-16 big-endian.
     // Unrepresentable code points are converted to U+FFFD.
@@ -284,17 +348,16 @@ namespace QUtil
     // encoding system by replacing all unsupported characters with
     // the given unknown_char.
     QPDF_DLL
-    std::string utf8_to_ascii(
-        std::string const& utf8, char unknown_char = '?');
+    std::string utf8_to_ascii(std::string const& utf8, char unknown_char = '?');
     QPDF_DLL
-    std::string utf8_to_win_ansi(
-        std::string const& utf8, char unknown_char = '?');
+    std::string
+    utf8_to_win_ansi(std::string const& utf8, char unknown_char = '?');
     QPDF_DLL
-    std::string utf8_to_mac_roman(
-        std::string const& utf8, char unknown_char = '?');
+    std::string
+    utf8_to_mac_roman(std::string const& utf8, char unknown_char = '?');
     QPDF_DLL
-    std::string utf8_to_pdf_doc(
-        std::string const& utf8, char unknown_char = '?');
+    std::string
+    utf8_to_pdf_doc(std::string const& utf8, char unknown_char = '?');
 
     // These versions return true if the conversion was successful and
     // false if any unrepresentable characters were found and had to
@@ -338,10 +401,11 @@ namespace QUtil
     // the PDF spec requires UTF-16 to be UTF-16BE, qpdf (and just
     // about everything else) accepts UTF-16LE (as of 10.6.2).
     QPDF_DLL
-    void analyze_encoding(std::string const& str,
-                          bool& has_8bit_chars,
-                          bool& is_valid_utf8,
-                          bool& is_utf16);
+    void analyze_encoding(
+        std::string const& str,
+        bool& has_8bit_chars,
+        bool& is_valid_utf8,
+        bool& is_utf16);
 
     // Try to compensate for previously incorrectly encoded strings.
     // We want to compensate for the following errors:
@@ -398,14 +462,14 @@ namespace QUtil
     // Filename is UTF-8 encoded, even on Windows, as described in the
     // comments for safe_fopen.
     QPDF_DLL
-    std::list<std::string> read_lines_from_file(
-        char const* filename, bool preserve_eol = false);
+    std::list<std::string>
+    read_lines_from_file(char const* filename, bool preserve_eol = false);
     QPDF_DLL
-    std::list<std::string> read_lines_from_file(
-        std::istream&, bool preserve_eol = false);
+    std::list<std::string>
+    read_lines_from_file(std::istream&, bool preserve_eol = false);
     QPDF_DLL
-    std::list<std::string> read_lines_from_file(
-        FILE*, bool preserve_eol = false);
+    std::list<std::string>
+    read_lines_from_file(FILE*, bool preserve_eol = false);
     QPDF_DLL
     void read_lines_from_file(
         std::function<bool(char&)> next_char,
@@ -414,28 +478,28 @@ namespace QUtil
 
     QPDF_DLL
     void read_file_into_memory(
-        char const* filename, PointerHolder<char>& file_buf, size_t& size);
+        char const* filename, std::shared_ptr<char>& file_buf, size_t& size);
 
     // This used to be called strcasecmp, but that is a macro on some
     // platforms, so we have to give it a name that is not likely to
     // be a macro anywhere.
     QPDF_DLL
-    int str_compare_nocase(char const *, char const *);
+    int str_compare_nocase(char const*, char const*);
 
     // These routines help the tokenizer recognize certain character
     // classes without using ctype, which we avoid because of locale
     // considerations.
     QPDF_DLL
-    bool is_hex_digit(char);
+    inline bool is_hex_digit(char);
 
     QPDF_DLL
-    bool is_space(char);
+    inline bool is_space(char);
 
     QPDF_DLL
-    bool is_digit(char);
+    inline bool is_digit(char);
 
     QPDF_DLL
-    bool is_number(char const*);
+    inline bool is_number(char const*);
 
     // This method parses the numeric range syntax used by the qpdf
     // command-line tool. May throw std::runtime_error.
@@ -454,13 +518,69 @@ namespace QUtil
     // another main.
     QPDF_DLL
     int call_main_from_wmain(
-        int argc, wchar_t* argv[],
-        std::function<int(int, char*[])> realmain);
+        int argc, wchar_t* argv[], std::function<int(int, char*[])> realmain);
     QPDF_DLL
     int call_main_from_wmain(
-        int argc, wchar_t const* const argv[],
+        int argc,
+        wchar_t const* const argv[],
         std::function<int(int, char const* const[])> realmain);
 #endif // QPDF_NO_WCHAR_T
-};
+
+    // Try to return the maximum amount of memory allocated by the
+    // current process and its threads. Return 0 if unable to
+    // determine. This is Linux-specific and not implemented to be
+    // completely reliable. It is used during development for
+    // performance testing to detect changes that may significantly
+    // change memory usage. It is not recommended for use for other
+    // purposes.
+    QPDF_DLL
+    size_t get_max_memory_usage();
+}; // namespace QUtil
+
+inline bool
+QUtil::is_hex_digit(char ch)
+{
+    return (ch && (strchr("0123456789abcdefABCDEF", ch) != nullptr));
+}
+
+inline bool
+QUtil::is_space(char ch)
+{
+    return (ch && (strchr(" \f\n\r\t\v", ch) != nullptr));
+}
+
+inline bool
+QUtil::is_digit(char ch)
+{
+    return ((ch >= '0') && (ch <= '9'));
+}
+
+inline bool
+QUtil::is_number(char const* p)
+{
+    // ^[\+\-]?(\.\d*|\d+(\.\d*)?)$
+    if (!*p) {
+        return false;
+    }
+    if ((*p == '-') || (*p == '+')) {
+        ++p;
+    }
+    bool found_dot = false;
+    bool found_digit = false;
+    for (; *p; ++p) {
+        if (*p == '.') {
+            if (found_dot) {
+                // only one dot
+                return false;
+            }
+            found_dot = true;
+        } else if (QUtil::is_digit(*p)) {
+            found_digit = true;
+        } else {
+            return false;
+        }
+    }
+    return found_digit;
+}
 
 #endif // QUTIL_HH

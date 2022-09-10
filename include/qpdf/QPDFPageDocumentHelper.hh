@@ -22,9 +22,9 @@
 #ifndef QPDFPAGEDOCUMENTHELPER_HH
 #define QPDFPAGEDOCUMENTHELPER_HH
 
+#include <qpdf/Constants.h>
 #include <qpdf/QPDFDocumentHelper.hh>
 #include <qpdf/QPDFPageObjectHelper.hh>
-#include <qpdf/Constants.h>
 
 #include <qpdf/DLL.h>
 
@@ -40,9 +40,7 @@ class QPDFPageDocumentHelper: public QPDFDocumentHelper
     QPDF_DLL
     QPDFPageDocumentHelper(QPDF&);
     QPDF_DLL
-    virtual ~QPDFPageDocumentHelper()
-    {
-    }
+    virtual ~QPDFPageDocumentHelper() = default;
 
     // Traverse page tree, and return all /Page objects wrapped in
     // QPDFPageObjectHelper objects. Unlike with
@@ -106,8 +104,10 @@ class QPDFPageDocumentHelper: public QPDFDocumentHelper
     // Add new page before or after refpage. See comments for addPage
     // for details about what newpage should be.
     QPDF_DLL
-    void addPageAt(QPDFPageObjectHelper newpage, bool before,
-                   QPDFPageObjectHelper refpage);
+    void addPageAt(
+        QPDFPageObjectHelper newpage,
+        bool before,
+        QPDFPageObjectHelper refpage);
 
     // Remove page from the pdf.
     QPDF_DLL
@@ -126,8 +126,7 @@ class QPDFPageDocumentHelper: public QPDFDocumentHelper
     // those flags.
     QPDF_DLL
     void flattenAnnotations(
-        int required_flags = 0,
-        int forbidden_flags = an_invisible | an_hidden);
+        int required_flags = 0, int forbidden_flags = an_invisible | an_hidden);
 
   private:
     void flattenAnnotationsForPage(
@@ -143,14 +142,14 @@ class QPDFPageDocumentHelper: public QPDFDocumentHelper
 
       public:
         QPDF_DLL
-        ~Members();
+        ~Members() = default;
 
       private:
-        Members();
-        Members(Members const&);
+        Members() = default;
+        Members(Members const&) = delete;
     };
 
-    PointerHolder<Members> m;
+    std::shared_ptr<Members> m;
 };
 
 #endif // QPDFPAGEDOCUMENTHELPER_HH

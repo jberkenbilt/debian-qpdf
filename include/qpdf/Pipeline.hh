@@ -47,9 +47,11 @@
 #include <qpdf/DLL.h>
 #include <qpdf/PointerHolder.hh>
 
-#include <string>
 #include <memory>
+#include <string>
 
+// Remember to use QPDF_DLL_CLASS on anything derived from Pipeline so
+// it will work with dynamic_cast across the shared object boundary.
 class QPDF_DLL_CLASS Pipeline
 {
   public:
@@ -57,23 +59,55 @@ class QPDF_DLL_CLASS Pipeline
     Pipeline(char const* identifier, Pipeline* next);
 
     QPDF_DLL
-    virtual ~Pipeline();
+    virtual ~Pipeline() = default;
 
     // Subclasses should implement write and finish to do their jobs
     // and then, if they are not end-of-line pipelines, call
-    // getNext()->write or getNext()->finish.  It would be really nice
-    // if write could take unsigned char const*, but this would make
-    // it much more difficult to write pipelines around legacy
-    // interfaces whose calls don't want pointers to const data.  As a
-    // rule, pipelines should generally not be modifying the data
-    // passed to them.  They should, instead, create new data to pass
-    // downstream.
+    // getNext()->write or getNext()->finish.
     QPDF_DLL
-    virtual void write(unsigned char* data, size_t len) = 0;
+    virtual void write(unsigned char const* data, size_t len) = 0;
     QPDF_DLL
     virtual void finish() = 0;
     QPDF_DLL
     std::string getIdentifier() const;
+
+    // These are convenience methods for making it easier to write
+    // certain other types of data to pipelines without having to
+    // cast. The methods that take char const* expect null-terminated
+    // C strings and do not write the null terminators.
+    QPDF_DLL
+    void writeCStr(char const* cstr);
+    QPDF_DLL
+    void writeString(std::string const&);
+    // This allows *p << "x" << "y" but is not intended to be a
+    // general purpose << compatible with ostream and does not have
+    // local awareness or the ability to be "imbued" with properties.
+    QPDF_DLL
+    Pipeline& operator<<(char const* cstr);
+    QPDF_DLL
+    Pipeline& operator<<(std::string const&);
+    // Calls QUtil::int_to_string
+    QPDF_DLL
+    Pipeline& operator<<(short);
+    QPDF_DLL
+    Pipeline& operator<<(int);
+    QPDF_DLL
+    Pipeline& operator<<(long);
+    QPDF_DLL
+    Pipeline& operator<<(long long);
+    // Calls QUtil::uint_to_string
+    QPDF_DLL
+    Pipeline& operator<<(unsigned short);
+    QPDF_DLL
+    Pipeline& operator<<(unsigned int);
+    QPDF_DLL
+    Pipeline& operator<<(unsigned long);
+    QPDF_DLL
+    Pipeline& operator<<(unsigned long long);
+
+    // Overloaded write to reduce casting
+    QPDF_DLL
+    void write(char const* data, size_t len);
 
   protected:
     QPDF_DLL

@@ -22,8 +22,8 @@
 #ifndef QPDFOUTLINEOBJECTHELPER_HH
 #define QPDFOUTLINEOBJECTHELPER_HH
 
-#include <qpdf/QPDFObjectHelper.hh>
 #include <qpdf/QPDFObjGen.hh>
+#include <qpdf/QPDFObjectHelper.hh>
 #include <vector>
 
 class QPDFOutlineDocumentHelper;
@@ -51,7 +51,7 @@ class QPDFOutlineObjectHelper: public QPDFObjectHelper
     // Return parent pointer. Returns a null pointer if this is a
     // top-level outline.
     QPDF_DLL
-    PointerHolder<QPDFOutlineObjectHelper> getParent();
+    std::shared_ptr<QPDFOutlineObjectHelper> getParent();
 
     // Return children as a list.
     QPDF_DLL
@@ -105,18 +105,18 @@ class QPDFOutlineObjectHelper: public QPDFObjectHelper
 
       public:
         QPDF_DLL
-        ~Members();
+        ~Members() = default;
 
       private:
         Members(QPDFOutlineDocumentHelper& dh);
-        Members(Members const&);
+        Members(Members const&) = delete;
 
         QPDFOutlineDocumentHelper& dh;
-        PointerHolder<QPDFOutlineObjectHelper> parent;
+        std::shared_ptr<QPDFOutlineObjectHelper> parent;
         std::vector<QPDFOutlineObjectHelper> kids;
     };
 
-    PointerHolder<Members> m;
+    std::shared_ptr<Members> m;
 };
 
 #endif // QPDFOUTLINEOBJECTHELPER_HH

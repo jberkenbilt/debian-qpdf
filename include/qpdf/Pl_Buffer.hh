@@ -33,13 +33,13 @@
 // For this pipeline, "next" may be null.  If a next pointer is
 // provided, this pipeline will also pass the data through to it.
 
+#include <qpdf/Buffer.hh>
 #include <qpdf/Pipeline.hh>
 #include <qpdf/PointerHolder.hh>
-#include <qpdf/Buffer.hh>
 
 #include <memory>
 
-class Pl_Buffer: public Pipeline
+class QPDF_DLL_CLASS Pl_Buffer: public Pipeline
 {
   public:
     QPDF_DLL
@@ -47,7 +47,7 @@ class Pl_Buffer: public Pipeline
     QPDF_DLL
     virtual ~Pl_Buffer();
     QPDF_DLL
-    virtual void write(unsigned char*, size_t);
+    virtual void write(unsigned char const*, size_t);
     QPDF_DLL
     virtual void finish();
 
@@ -59,7 +59,7 @@ class Pl_Buffer: public Pipeline
 
     // Same as getBuffer but wraps the result in a shared pointer.
     QPDF_DLL
-    PointerHolder<Buffer> getBufferSharedPointer();
+    std::shared_ptr<Buffer> getBufferSharedPointer();
 
     // getMallocBuffer behaves in the same was as getBuffer except the
     // buffer is allocated with malloc(), making it suitable for use
@@ -68,27 +68,27 @@ class Pl_Buffer: public Pipeline
     // a buffer of size *len allocated with malloc(). It is the
     // caller's responsibility to call free() on the buffer.
     QPDF_DLL
-    void getMallocBuffer(unsigned char **buf, size_t* len);
+    void getMallocBuffer(unsigned char** buf, size_t* len);
 
   private:
-    class Members
+    class QPDF_DLL_PRIVATE Members
     {
         friend class Pl_Buffer;
 
       public:
         QPDF_DLL
-        ~Members();
+        ~Members() = default;
 
       private:
         Members();
-        Members(Members const&);
+        Members(Members const&) = delete;
 
         bool ready;
-        PointerHolder<Buffer> data;
+        std::shared_ptr<Buffer> data;
         size_t total_size;
     };
 
-    PointerHolder<Members> m;
+    std::shared_ptr<Members> m;
 };
 
 #endif // PL_BUFFER_HH

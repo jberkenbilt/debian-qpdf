@@ -36,9 +36,6 @@ choices:
     - all
     - print
     - screen
-  json_version:
-    - 1
-    - latest
   json_key:
     # The list of selectable top-level keys id duplicated in the
     # following places: job.yml, QPDFJob::json_schema, and
@@ -46,11 +43,23 @@ choices:
     - acroform
     - attachments
     - encrypt
-    - objectinfo
-    - objects
+    - objectinfo   # only v1
+    - objects      # only v1
     - outlines
     - pagelabels
     - pages
+    - qpdf         # only v2
+  json_output:
+    - 2
+    - latest
+  json_stream_data:
+    - none
+    - inline
+    - file
+  json_version:
+    - 1
+    - 2
+    - latest
   print128:
     - full
     - low
@@ -66,9 +75,10 @@ options:
     bare:
       - version
       - copyright
-      - json-help
       - show-crypto
       - job-json-help
+    optional_choices:
+      json-help: json_version
   - table: main
     config: c_main
     manual:
@@ -98,6 +108,7 @@ options:
       - generate-appearances
       - ignore-xref-streams
       - is-encrypted
+      - json-input
       - keep-inline-images
       - linearize
       - list-attachments
@@ -116,6 +127,7 @@ options:
       - recompress-flate
       - remove-page-labels
       - replace-input
+      - report-memory-usage
       - requires-password
       - show-encryption
       - show-encryption-key
@@ -127,6 +139,7 @@ options:
       - static-id
       - suppress-password-recovery
       - suppress-recovery
+      - test-json-schema
       - underlay
       - verbose
       - warning-exit-0
@@ -154,11 +167,14 @@ options:
       rotate: "[+|-]angle"
       show-attachment: attachment
       show-object: trailer
+      json-stream-prefix: stream-file-prefix
+      update-from-json: qpdf-json file
     required_choices:
       compress-streams: yn
       decode-level: decode_level
       flatten-annotations: flatten
       json-key: json_key
+      json-stream-data: json_stream_data
       keep-files-open: yn
       normalize-content: yn
       object-streams: object_streams
@@ -167,6 +183,7 @@ options:
       stream-data: stream_data
     optional_choices:
       json: json_version
+      json-output: json_output
   - table: pages
     config: c_pages
     prefix: Pages
@@ -268,6 +285,7 @@ json:
   main.password:
   password-file:
   empty:
+  json-input:
   # output
   _outputFile: "output filename"
   replace-input:
@@ -294,6 +312,7 @@ json:
   force-version:
   progress:
   split-pages:
+  json-output:
   encrypt:
     _user-password: "user password"
     _owner-password: "owner password"
@@ -346,12 +365,16 @@ json:
     - null
   json-object:
     - null
+  json-stream-data:
+  json-stream-prefix:
   # other options
+  update-from-json:
   allow-weak-crypto:
   keep-files-open:
   keep-files-open-threshold:
   no-warn:
   verbose:
+  test-json-schema:
   ignore-xref-streams:
   password-is-hex-key:
   password-mode:
@@ -372,6 +395,7 @@ json:
       moddate:
       replace:
   remove-attachment:
+    - null
   copy-attachments-from:
     - _file: "file to copy attachments from"
       CopyAtt.password:
@@ -390,6 +414,7 @@ json:
       Pages.password:
       _range: "page range"
   remove-page-labels:
+  report-memory-usage:
   rotate:
   overlay:
     _file: "source file for overlay"

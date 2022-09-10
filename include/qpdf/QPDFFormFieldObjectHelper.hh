@@ -41,9 +41,7 @@ class QPDFFormFieldObjectHelper: public QPDFObjectHelper
     QPDF_DLL
     QPDFFormFieldObjectHelper(QPDFObjectHandle);
     QPDF_DLL
-    virtual ~QPDFFormFieldObjectHelper()
-    {
-    }
+    virtual ~QPDFFormFieldObjectHelper() = default;
 
     QPDF_DLL
     bool isNull();
@@ -185,8 +183,8 @@ class QPDFFormFieldObjectHelper: public QPDFObjectHelper
     // of a field, use QPDFAcroFormDocumentHelper::setFormFieldName
     // instead.
     QPDF_DLL
-    void setFieldAttribute(std::string const& key,
-                           std::string const& utf8_value);
+    void
+    setFieldAttribute(std::string const& key, std::string const& utf8_value);
 
     // Set /V (field value) to the given value. If need_appearances is
     // true and the field type is either /Tx (text) or /Ch (choice),
@@ -229,14 +227,14 @@ class QPDFFormFieldObjectHelper: public QPDFObjectHelper
 
       public:
         QPDF_DLL
-        ~Members();
+        ~Members() = default;
 
       private:
-        Members();
-        Members(Members const&);
+        Members() = default;
+        Members(Members const&) = delete;
     };
 
-    PointerHolder<Members> m;
+    std::shared_ptr<Members> m;
 };
 
 #endif // QPDFFORMFIELDOBJECTHELPER_HH
