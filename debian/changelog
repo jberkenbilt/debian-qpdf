@@ -1,3 +1,11 @@
+qpdf (11.0.0-1) experimental; urgency=medium
+
+  * New upstream release.
+  * Standards version updated to 4.6.1; no changes needed.
+  * Release to experimental for soname bump.
+
+ -- Jay Berkenbilt <qjb@debian.org>  Sat, 10 Sep 2022 16:19:11 -0400
+
 qpdf (10.6.3.0cmake1-3) experimental; urgency=medium
 
   * Fix typo in previous fix.
