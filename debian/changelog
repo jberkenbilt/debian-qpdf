@@ -1,6 +1,13 @@
+qpdf (11.0.0-3) unstable; urgency=medium
+
+  * Add CMAKE_BUILD_RPATH_USE_ORIGIN to rules for debian reproducible
+    build tests.
+
+ -- Jay Berkenbilt <qjb@debian.org>  Sun, 11 Sep 2022 10:33:35 -0400
+
 qpdf (11.0.0-2) unstable; urgency=medium
 
-  * Upload to untable
+  * Upload to unstable
 
  -- Jay Berkenbilt <qjb@debian.org>  Sun, 11 Sep 2022 10:16:46 -0400
 
