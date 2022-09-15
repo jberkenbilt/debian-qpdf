@@ -5,7 +5,7 @@ cmake_minimum_required(VERSION 3.16)
 # the project line. When updating the version, check make_dist for all
 # the places it has to be updated.
 project(qpdf
-  VERSION 11.0.0
+  VERSION 11.1.0
   LANGUAGES C CXX)
 
 # Enable correct rpath handling for MacOSX
@@ -111,6 +111,7 @@ if(NOT (BUILD_STATIC_LIBS OR BUILD_SHARED_LIBS))
     FATAL_ERROR "At least one of static or shared libraries must be built")
 endif()
 
+set(CMAKE_INCLUDE_DIRECTORIES_PROJECT_BEFORE ON)
 add_compile_definitions($<$<COMPILE_LANGUAGE:CXX>:POINTERHOLDER_TRANSITION=4>)
 
 if(ENABLE_QTC)
