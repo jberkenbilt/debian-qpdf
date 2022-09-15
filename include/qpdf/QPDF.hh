@@ -875,8 +875,8 @@ class QPDF
     };
     friend class Resolver;
 
-    // ParseGuard class allows QPDFObjectHandle to detect re-entrant
-    // resolution
+    // The ParseGuard class allows QPDFObjectHandle to detect
+    // re-entrant parsing.
     class ParseGuard
     {
         friend class QPDFParser;
@@ -1063,18 +1063,17 @@ class QPDF
       public:
         ResolveRecorder(QPDF* qpdf, QPDFObjGen const& og) :
             qpdf(qpdf),
-            og(og)
+            iter(qpdf->m->resolving.insert(og).first)
         {
-            qpdf->m->resolving.insert(og);
         }
         virtual ~ResolveRecorder()
         {
-            this->qpdf->m->resolving.erase(og);
+            this->qpdf->m->resolving.erase(iter);
         }
 
       private:
         QPDF* qpdf;
-        QPDFObjGen og;
+        std::set<QPDFObjGen>::const_iterator iter;
     };
     friend class ResolveRecorder;
 

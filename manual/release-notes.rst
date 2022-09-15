@@ -8,6 +8,25 @@ For a detailed list of changes, please see the file
 
 .. x.y.z: not yet released
 
+11.1.0: September 14, 2022
+  - Build fixes
+
+    - Remove ``LL_FMT`` tests, which were broken for cross
+      compilation. The code just uses ``%lld`` now.
+
+    - Some symbols were not properly exported for the Windows DLL
+      build.
+
+    - Force project-specific header files to precede all others in the
+      build so that a previous qpdf installation won't break building
+      qpdf from source.
+
+  - Packaging note omitted from 11.0.0 release notes:
+
+    - On GitHub, the release tags are now ``vX.Y.Z`` instead of
+      ``release-qpdf-X.Y.Z`` to be more consistent with current
+      practice.
+
 11.0.0: September 10, 2022
   - Replacement of ``PointerHolder`` with ``std::shared_ptr``
 
@@ -300,6 +319,9 @@ For a detailed list of changes, please see the file
     - Add a move constructor to the ``Buffer`` class.
 
   - Other changes
+
+    - On GitHub, the release tags are now `vX.Y.Z` instead of
+      `release-qpdf-X.Y.Z` to be more consistent with current practice.
 
     - In JSON v1 mode, the ``"objects"`` key now reflects the repaired
       pages tree if ``"pages"`` (or any other key that has the side

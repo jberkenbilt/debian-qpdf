@@ -1458,7 +1458,7 @@ QPDF::getObjectCount()
     // fixDanglingReferences is called, all objects in the xref table
     // will also be in obj_cache.
     fixDanglingReferences();
-    QPDFObjGen og(0, 0);
+    QPDFObjGen og;
     if (!this->m->obj_cache.empty()) {
         og = (*(this->m->obj_cache.rbegin())).first;
     }
@@ -1781,9 +1781,8 @@ QPDF::readObjectAtOffset(
         // not triggered by an xref lookup.
         check_og = false;
         try_recovery = false;
-    } else {
-        setLastObjectDescription(description, exp_og);
     }
+    setLastObjectDescription(description, exp_og);
 
     if (!this->m->attempt_recovery) {
         try_recovery = false;
@@ -1942,14 +1941,10 @@ QPDF::readObjectAtOffset(
 void
 QPDF::resolve(QPDFObjGen const& og)
 {
-    if (isCached(og) && !isUnresolved(og)) {
-        // We only need to resolve unresolved objects
+    if (!isUnresolved(og)) {
         return;
     }
 
-    // Check object cache before checking xref table.  This allows us
-    // to insert things into the object cache that don't actually
-    // exist in the file.
     if (this->m->resolving.count(og)) {
         // This can happen if an object references itself directly or
         // indirectly in some key that has to be resolved during
@@ -2176,9 +2171,8 @@ QPDF::makeIndirectObject(QPDFObjectHandle oh)
 QPDFObjectHandle
 QPDF::reserveObjectIfNotExists(QPDFObjGen const& og)
 {
-    if (!isCached(og) && !m->xref_table.count(og)) {
-        resolve(og);
-        m->obj_cache[og].object = QPDF_Reserved::create();
+    if (!isCached(og) && m->xref_table.count(og) == 0) {
+        updateCache(og, QPDF_Reserved::create(), -1, -1);
         return newIndirect(og, m->obj_cache[og].object);
     } else {
         return getObject(og);
@@ -2195,9 +2189,6 @@ QPDF::reserveStream(QPDFObjGen const& og)
 QPDFObjectHandle
 QPDF::getObject(QPDFObjGen const& og)
 {
-    if (!og.isIndirect()) {
-        return QPDFObjectHandle::newNull();
-    }
     if (!isCached(og)) {
         m->obj_cache[og] = ObjCache(QPDF_Unresolved::create(this, og), -1, -1);
     }
@@ -2236,10 +2227,6 @@ QPDF::replaceObject(QPDFObjGen const& og, QPDFObjectHandle oh)
         throw std::logic_error(
             "QPDF::replaceObject called with indirect object handle");
     }
-    // Force new object to appear in the cache
-    resolve(og);
-
-    // Replace the object in the object cache
     updateCache(og, QPDFObjectHandle::ObjAccessor::getObject(oh), -1, -1);
 }
 
@@ -2558,8 +2545,8 @@ QPDF::swapObjects(int objid1, int generation1, int objid2, int generation2)
 void
 QPDF::swapObjects(QPDFObjGen const& og1, QPDFObjGen const& og2)
 {
-    // Force objects to be loaded into cache; then swap them in the
-    // cache.
+    // Force objects to be read from the input source if needed, then
+    // swap them in the cache.
     resolve(og1);
     resolve(og2);
     m->obj_cache[og1].object->swapWith(m->obj_cache[og2].object);
