@@ -121,7 +121,7 @@ QPDF::getAllPagesInternal(
             if (!kid.isIndirect()) {
                 QTC::TC("qpdf", "QPDF handle direct page object");
                 cur_node.warnIfPossible(
-                    "kid " + QUtil::int_to_string(i) +
+                    "kid " + std::to_string(i) +
                     " (from 0) is direct; converting to indirect");
                 kid = makeIndirectObject(kid);
                 kids.setArrayItem(i, kid);
@@ -130,7 +130,7 @@ QPDF::getAllPagesInternal(
                 // shallowCopyPage in QPDFPageObjectHelper.
                 QTC::TC("qpdf", "QPDF resolve duplicated page object");
                 cur_node.warnIfPossible(
-                    "kid " + QUtil::int_to_string(i) +
+                    "kid " + std::to_string(i) +
                     " (from 0) appears more than once in the pages tree;"
                     " creating a new page object as a copy");
                 kid = makeIndirectObject(QPDFObjectHandle(kid).shallowCopy());
@@ -205,8 +205,7 @@ QPDF::insertPageobjToPage(
             // The library never calls insertPageobjToPage in a way
             // that causes this to happen.
             setLastObjectDescription(
-                "page " + QUtil::int_to_string(pos) + " (numbered from zero)",
-                og);
+                "page " + std::to_string(pos) + " (numbered from zero)", og);
             throw QPDFExc(
                 qpdf_e_pages,
                 this->m->file->getName(),
@@ -239,7 +238,7 @@ QPDF::insertPage(QPDFObjectHandle newpage, int pos)
         QTC::TC("qpdf", "QPDF insert indirect page");
     }
 
-    if ((pos < 0) || (QIntC::to_size(pos) > this->m->all_pages.size())) {
+    if ((pos < 0) || (toS(pos) > m->all_pages.size())) {
         throw std::runtime_error(
             "QPDF::insertPage called with pos out of range");
     }
@@ -248,9 +247,9 @@ QPDF::insertPage(QPDFObjectHandle newpage, int pos)
         "qpdf",
         "QPDF insert page",
         (pos == 0) ? 0 : // insert at beginning
-            (pos == QIntC::to_int(this->m->all_pages.size())) ? 1
-                                                              : // at end
-            2); // insert in middle
+            (pos == toI(m->all_pages.size())) ? 1
+                                              : // at end
+            2);                                 // insert in middle
 
     auto og = newpage.getObjGen();
     if (this->m->pageobj_to_pages_pos.count(og)) {
@@ -280,9 +279,9 @@ QPDF::removePage(QPDFObjectHandle page)
         "qpdf",
         "QPDF remove page",
         (pos == 0) ? 0 : // remove at beginning
-            (pos == QIntC::to_int(this->m->all_pages.size() - 1)) ? 1
-                                                                  : // end
-            2); // remove in middle
+            (pos == toI(m->all_pages.size() - 1)) ? 1
+                                                  : // end
+            2);                                     // remove in middle
 
     QPDFObjectHandle pages = getRoot().getKey("/Pages");
     QPDFObjectHandle kids = pages.getKey("/Kids");
