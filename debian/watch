@@ -3,4 +3,4 @@ version=4
 # rather than the automatically created source releases.
 opts=pgpsigurlmangle=s/$/.asc/,\
   uversionmangle=s/(\d)\.([a-z].+)$/$1~$2/ \
-  https://github.com/qpdf/qpdf/releases .*/qpdf-(\d\S+)\.tar\.gz
+  https://github.com/qpdf/qpdf/releases .*/v(\d\S+)\.tar\.gz
