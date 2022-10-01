@@ -36,7 +36,7 @@
 #include <qpdf/Buffer.hh>
 #include <qpdf/InputSource.hh>
 #include <qpdf/JSON.hh>
-#include <qpdf/PointerHolder.hh>
+#include <qpdf/PointerHolder.hh> // unused -- remove in qpdf 12 (see #785)
 #include <qpdf/QPDFObjGen.hh>
 #include <qpdf/QPDFTokenizer.hh>
 
@@ -455,7 +455,7 @@ class QPDFObjectHandle
     // Construct an object as above by reading from the given
     // InputSource at its current position and using the tokenizer you
     // supply.  Indirect objects and encrypted strings are permitted.
-    // This method is intended to be called by QPDF for parsing
+    // This method was intended to be called by QPDF for parsing
     // objects that are ready from the object's input stream.
     QPDF_DLL
     static QPDFObjectHandle parse(
