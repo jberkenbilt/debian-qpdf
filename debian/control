@@ -4,7 +4,7 @@ Priority: optional
 Build-Depends: cmake (>= 3.16~), debhelper (>> 10.3~), libjpeg-dev, zlib1g-dev, libgnutls28-dev
 Maintainer: Jay Berkenbilt <qjb@debian.org>
 Standards-Version: 4.6.1
-Homepage: http://qpdf.sourceforge.net
+Homepage: https://qpdf.sourceforge.io
 
 Package: libqpdf29
 Section: libs

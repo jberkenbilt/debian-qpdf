@@ -1,3 +1,10 @@
+qpdf (11.2.0-1) unstable; urgency=medium
+
+  * New upstream release.
+  * Fix homepage URL in debian/control (Closes: #1023027)
+
+ -- Jay Berkenbilt <qjb@debian.org>  Sun, 20 Nov 2022 17:52:45 -0500
+
 qpdf (11.1.1-1) unstable; urgency=medium
 
   * New upstream release.
