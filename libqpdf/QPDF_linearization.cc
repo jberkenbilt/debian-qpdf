@@ -121,13 +121,9 @@ QPDF::isLinearized()
         }
 
         QPDFTokenizer::Token t1 = readToken(this->m->file);
-        QPDFTokenizer::Token t2 = readToken(this->m->file);
-        QPDFTokenizer::Token t3 = readToken(this->m->file);
-        QPDFTokenizer::Token t4 = readToken(this->m->file);
-        if ((t1.getType() == QPDFTokenizer::tt_integer) &&
-            (t2.getType() == QPDFTokenizer::tt_integer) &&
-            (t3 == QPDFTokenizer::Token(QPDFTokenizer::tt_word, "obj")) &&
-            (t4.getType() == QPDFTokenizer::tt_dict_open)) {
+        if (t1.isInteger() && readToken(m->file).isInteger() &&
+            readToken(m->file).isWord("obj") &&
+            (readToken(m->file).getType() == QPDFTokenizer::tt_dict_open)) {
             lindict_obj = toI(QUtil::string_to_ll(t1.getValue().c_str()));
         }
     }
@@ -303,7 +299,12 @@ QPDF::readHintStream(Pipeline& pl, qpdf_offset_t offset, size_t length)
 {
     QPDFObjGen og;
     QPDFObjectHandle H = readObjectAtOffset(
-        false, offset, "linearization hint stream", QPDFObjGen(0, 0), og);
+        false,
+        offset,
+        "linearization hint stream",
+        QPDFObjGen(0, 0),
+        og,
+        false);
     ObjCache& oc = this->m->obj_cache[og];
     qpdf_offset_t min_end_offset = oc.end_before_space;
     qpdf_offset_t max_end_offset = oc.end_after_space;

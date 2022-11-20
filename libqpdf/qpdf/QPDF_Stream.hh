@@ -23,7 +23,7 @@ class QPDF_Stream: public QPDFValue
         QPDFObjectHandle stream_dict,
         qpdf_offset_t offset,
         size_t length);
-    virtual std::shared_ptr<QPDFObject> shallowCopy();
+    virtual std::shared_ptr<QPDFObject> copy(bool shallow = false);
     virtual std::string unparse();
     virtual JSON getJSON(int json_version);
     virtual void setDescription(QPDF*, std::string const&);
@@ -34,7 +34,6 @@ class QPDF_Stream: public QPDFValue
     bool getFilterOnWrite() const;
 
     // Methods to help QPDF copy foreign streams
-    qpdf_offset_t getOffset() const;
     size_t getLength() const;
     std::shared_ptr<Buffer> getStreamDataBuffer() const;
     std::shared_ptr<QPDFObjectHandle::StreamDataProvider>
@@ -73,11 +72,6 @@ class QPDF_Stream: public QPDFValue
         std::string const& filter_name,
         std::function<std::shared_ptr<QPDFStreamFilter>()> factory);
 
-    // Replace object ID and generation.  This may only be called if
-    // object ID and generation are 0.  It is used by QPDFObjectHandle
-    // when adding streams to files.
-    void setObjGen(QPDFObjGen const& og);
-
   private:
     QPDF_Stream(
         QPDF*,
@@ -98,17 +92,11 @@ class QPDF_Stream: public QPDFValue
         std::vector<std::shared_ptr<QPDFStreamFilter>>& filters,
         bool& specialized_compression,
         bool& lossy_compression);
-    void warn(
-        qpdf_error_code_e error_code,
-        qpdf_offset_t offset,
-        std::string const& message);
+    void warn(std::string const& message);
     void setDictDescription();
 
-    QPDF* qpdf;
-    QPDFObjGen og;
     bool filter_on_write;
     QPDFObjectHandle stream_dict;
-    qpdf_offset_t offset;
     size_t length;
     std::shared_ptr<Buffer> stream_data;
     std::shared_ptr<QPDFObjectHandle::StreamDataProvider> stream_provider;

@@ -1,3 +1,36 @@
+2022-11-20  Jay Berkenbilt  <ejb@ql.org>
+
+        * 11.2.0: release
+
+        * Add a few convenience methods to QPDFTokenizer::Token for
+        checking token types. thanks to M. Holger for the contribution.
+
+        * Add stream creation methods to the QPDF class as a better
+        alternative to the ones in the QPDFObjectHandle class. Thanks to
+        M. Holger for the contribution.
+
+2022-11-19  Jay Berkenbilt  <ejb@ql.org>
+
+        * Bug fix: handle special case of an earlier xref stream object's
+        object number being reused by an update made by appending the
+        file. Fixes #809.
+
+2022-10-08  Jay Berkenbilt  <ejb@ql.org>
+
+        * Fix major performance bug with the openssl crypto provider when
+        using OpenSSL 3. The legacy loader and rc4 algorithm was being
+        loaded with every call to the crypto provider instead of once in
+        the life of the program. Fixes #798.
+
+        * performance_check: add --test option to limit which tests are
+        run.
+
+2022-10-06  Jay Berkenbilt  <ejb@ql.org>
+
+        * Change minimum required C++ version from C++-14 to C++-17.
+
+        * Fix another symbol export issue with the MinGW build.
+
 2022-10-01  Jay Berkenbilt  <ejb@ql.org>
 
         * 11.1.1: release

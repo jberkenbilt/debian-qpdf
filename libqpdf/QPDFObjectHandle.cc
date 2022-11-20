@@ -2142,22 +2142,6 @@ QPDFObjectHandle::newDictionary(
 }
 
 QPDFObjectHandle
-QPDFObjectHandle::newStream(
-    QPDF* qpdf,
-    QPDFObjGen const& og,
-    QPDFObjectHandle stream_dict,
-    qpdf_offset_t offset,
-    size_t length)
-{
-    QPDFObjectHandle result = QPDFObjectHandle(
-        QPDF_Stream::create(qpdf, og, stream_dict, offset, length));
-    if (offset) {
-        result.setParsedOffset(offset);
-    }
-    return result;
-}
-
-QPDFObjectHandle
 QPDFObjectHandle::newStream(QPDF* qpdf)
 {
     if (qpdf == nullptr) {
@@ -2165,30 +2149,29 @@ QPDFObjectHandle::newStream(QPDF* qpdf)
             "attempt to create stream in null qpdf object");
     }
     QTC::TC("qpdf", "QPDFObjectHandle newStream");
-    QPDFObjectHandle stream_dict = newDictionary();
-    QPDFObjectHandle result = qpdf->makeIndirectObject(QPDFObjectHandle(
-        QPDF_Stream::create(qpdf, QPDFObjGen(), stream_dict, 0, 0)));
-    auto stream = result.asStream();
-    stream->setObjGen(result.getObjGen());
-    return result;
+    return qpdf->newStream();
 }
 
 QPDFObjectHandle
 QPDFObjectHandle::newStream(QPDF* qpdf, std::shared_ptr<Buffer> data)
 {
+    if (qpdf == nullptr) {
+        throw std::runtime_error(
+            "attempt to create stream in null qpdf object");
+    }
     QTC::TC("qpdf", "QPDFObjectHandle newStream with data");
-    QPDFObjectHandle result = newStream(qpdf);
-    result.replaceStreamData(data, newNull(), newNull());
-    return result;
+    return qpdf->newStream(data);
 }
 
 QPDFObjectHandle
 QPDFObjectHandle::newStream(QPDF* qpdf, std::string const& data)
 {
+    if (qpdf == nullptr) {
+        throw std::runtime_error(
+            "attempt to create stream in null qpdf object");
+    }
     QTC::TC("qpdf", "QPDFObjectHandle newStream with string");
-    QPDFObjectHandle result = newStream(qpdf);
-    result.replaceStreamData(data, newNull(), newNull());
-    return result;
+    return qpdf->newStream(data);
 }
 
 QPDFObjectHandle
@@ -2217,53 +2200,28 @@ QPDFObjectHandle::hasObjectDescription()
 QPDFObjectHandle
 QPDFObjectHandle::shallowCopy()
 {
-    QPDFObjectHandle result;
-    shallowCopyInternal(result, false);
-    return result;
+    if (!dereference()) {
+        throw std::logic_error("operation attempted on uninitialized "
+                               "QPDFObjectHandle");
+    }
+    return QPDFObjectHandle(obj->copy());
 }
 
 QPDFObjectHandle
 QPDFObjectHandle::unsafeShallowCopy()
 {
-    QPDFObjectHandle result;
-    shallowCopyInternal(result, true);
-    return result;
+    if (!dereference()) {
+        throw std::logic_error("operation attempted on uninitialized "
+                               "QPDFObjectHandle");
+    }
+    return QPDFObjectHandle(obj->copy(true));
 }
 
 void
-QPDFObjectHandle::shallowCopyInternal(
-    QPDFObjectHandle& new_obj, bool first_level_only)
+QPDFObjectHandle::makeDirect(
+    std::set<QPDFObjGen>& visited, bool stop_at_streams)
 {
     assertInitialized();
-
-    if (isStream()) {
-        QTC::TC("qpdf", "QPDFObjectHandle ERR shallow copy stream");
-        throw std::runtime_error("attempt to make a shallow copy of a stream");
-    }
-    new_obj = QPDFObjectHandle(obj->shallowCopy());
-
-    std::set<QPDFObjGen> visited;
-    new_obj.copyObject(visited, false, first_level_only, false);
-}
-
-void
-QPDFObjectHandle::copyObject(
-    std::set<QPDFObjGen>& visited,
-    bool cross_indirect,
-    bool first_level_only,
-    bool stop_at_streams)
-{
-    assertInitialized();
-
-    if (isStream()) {
-        QTC::TC(
-            "qpdf", "QPDFObjectHandle copy stream", stop_at_streams ? 0 : 1);
-        if (stop_at_streams) {
-            return;
-        }
-        throw std::runtime_error(
-            "attempt to make a stream into a direct object");
-    }
 
     auto cur_og = getObjGen();
     if (cur_og.getObj() != 0) {
@@ -2276,47 +2234,40 @@ QPDFObjectHandle::copyObject(
         visited.insert(cur_og);
     }
 
-    if (isReserved()) {
-        throw std::logic_error("QPDFObjectHandle: attempting to make a"
-                               " reserved object handle direct");
-    }
-
-    std::shared_ptr<QPDFObject> new_obj;
-
     if (isBool() || isInteger() || isName() || isNull() || isReal() ||
         isString()) {
-        new_obj = obj->shallowCopy();
+        this->obj = obj->copy(true);
     } else if (isArray()) {
         std::vector<QPDFObjectHandle> items;
         auto array = asArray();
         int n = array->getNItems();
         for (int i = 0; i < n; ++i) {
             items.push_back(array->getItem(i));
-            if ((!first_level_only) &&
-                (cross_indirect || (!items.back().isIndirect()))) {
-                items.back().copyObject(
-                    visited, cross_indirect, first_level_only, stop_at_streams);
-            }
+            items.back().makeDirect(visited, stop_at_streams);
         }
-        new_obj = QPDF_Array::create(items);
+        this->obj = QPDF_Array::create(items);
     } else if (isDictionary()) {
         std::map<std::string, QPDFObjectHandle> items;
         auto dict = asDictionary();
         for (auto const& key: getKeys()) {
             items[key] = dict->getKey(key);
-            if ((!first_level_only) &&
-                (cross_indirect || (!items[key].isIndirect()))) {
-                items[key].copyObject(
-                    visited, cross_indirect, first_level_only, stop_at_streams);
-            }
+            items[key].makeDirect(visited, stop_at_streams);
         }
-        new_obj = QPDF_Dictionary::create(items);
+        this->obj = QPDF_Dictionary::create(items);
+    } else if (isStream()) {
+        QTC::TC(
+            "qpdf", "QPDFObjectHandle copy stream", stop_at_streams ? 0 : 1);
+        if (!stop_at_streams) {
+            throw std::runtime_error(
+                "attempt to make a stream into a direct object");
+        }
+    } else if (isReserved()) {
+        throw std::logic_error("QPDFObjectHandle: attempting to make a"
+                               " reserved object handle direct");
     } else {
         throw std::logic_error("QPDFObjectHandle::makeDirectInternal: "
                                "unknown object type");
     }
-
-    this->obj = new_obj;
 
     if (cur_og.getObj()) {
         visited.erase(cur_og);
@@ -2345,7 +2296,7 @@ void
 QPDFObjectHandle::makeDirect(bool allow_streams)
 {
     std::set<QPDFObjGen> visited;
-    copyObject(visited, true, false, allow_streams);
+    makeDirect(visited, allow_streams);
 }
 
 void
@@ -2813,7 +2764,8 @@ QPDFObjectHandle::setParsedOffset(qpdf_offset_t offset)
     }
 }
 
-QPDFObjectHandle operator""_qpdf(char const* v, size_t len)
+QPDFObjectHandle
+operator""_qpdf(char const* v, size_t len)
 {
     return QPDFObjectHandle::parse(
         std::string(v, len), "QPDFObjectHandle literal");

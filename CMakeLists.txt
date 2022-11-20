@@ -5,7 +5,7 @@ cmake_minimum_required(VERSION 3.16)
 # the project line. When updating the version, check make_dist for all
 # the places it has to be updated.
 project(qpdf
-  VERSION 11.1.1
+  VERSION 11.2.0
   LANGUAGES C CXX)
 
 # Enable correct rpath handling for MacOSX
@@ -153,7 +153,7 @@ Please build with cmake in a subdirectory, e.g.
 Please remove CMakeCache.txt and the CMakeFiles directories.")
 endif()
 
-set(CMAKE_CXX_STANDARD 14)
+set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_C_VISIBILITY_PRESET hidden)
