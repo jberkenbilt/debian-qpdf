@@ -459,14 +459,11 @@ QPDF::findHeader()
 bool
 QPDF::findStartxref()
 {
-    QPDFTokenizer::Token t = readToken(this->m->file);
-    if (t == QPDFTokenizer::Token(QPDFTokenizer::tt_word, "startxref")) {
-        t = readToken(this->m->file);
-        if (t.getType() == QPDFTokenizer::tt_integer) {
-            // Position in front of offset token
-            this->m->file->seek(this->m->file->getLastOffset(), SEEK_SET);
-            return true;
-        }
+    if (readToken(m->file).isWord("startxref") &&
+        readToken(m->file).isInteger()) {
+        // Position in front of offset token
+        this->m->file->seek(this->m->file->getLastOffset(), SEEK_SET);
+        return true;
     }
     return false;
 }
@@ -612,18 +609,15 @@ QPDF::reconstruct_xref(QPDFExc& e)
         if (token_start >= next_line_start) {
             // don't process yet -- wait until we get to the line
             // containing this token
-        } else if (t1.getType() == QPDFTokenizer::tt_integer) {
+        } else if (t1.isInteger()) {
             QPDFTokenizer::Token t2 = readToken(this->m->file, MAX_LEN);
-            QPDFTokenizer::Token t3 = readToken(this->m->file, MAX_LEN);
-            if ((t2.getType() == QPDFTokenizer::tt_integer) &&
-                (t3 == QPDFTokenizer::Token(QPDFTokenizer::tt_word, "obj"))) {
+            if ((t2.isInteger()) &&
+                (readToken(m->file, MAX_LEN).isWord("obj"))) {
                 int obj = QUtil::string_to_int(t1.getValue().c_str());
                 int gen = QUtil::string_to_int(t2.getValue().c_str());
                 insertXrefEntry(obj, 1, token_start, gen, true);
             }
-        } else if (
-            (!this->m->trailer.isInitialized()) &&
-            (t1 == QPDFTokenizer::Token(QPDFTokenizer::tt_word, "trailer"))) {
+        } else if (!this->m->trailer.isInitialized() && t1.isWord("trailer")) {
             QPDFObjectHandle t =
                 readObject(this->m->file, "trailer", QPDFObjGen(), false);
             if (!t.isDictionary()) {
@@ -923,8 +917,7 @@ QPDF::read_xrefTable(qpdf_offset_t xref_offset)
             }
         }
         qpdf_offset_t pos = this->m->file->tell();
-        QPDFTokenizer::Token t = readToken(this->m->file);
-        if (t == QPDFTokenizer::Token(QPDFTokenizer::tt_word, "trailer")) {
+        if (readToken(m->file).isWord("trailer")) {
             done = true;
         } else {
             this->m->file->seek(pos, SEEK_SET);
@@ -999,7 +992,12 @@ QPDF::read_xrefStream(qpdf_offset_t xref_offset)
         QPDFObjectHandle xref_obj;
         try {
             xref_obj = readObjectAtOffset(
-                false, xref_offset, "xref stream", QPDFObjGen(0, 0), x_og);
+                false,
+                xref_offset,
+                "xref stream",
+                QPDFObjGen(0, 0),
+                x_og,
+                true);
         } catch (QPDFExc&) {
             // ignore -- report error below
         }
@@ -1427,8 +1425,7 @@ QPDF::readObject(
     } else if (object.isDictionary() && (!in_object_stream)) {
         // check for stream
         qpdf_offset_t cur_offset = input->tell();
-        if (readToken(input) ==
-            QPDFTokenizer::Token(QPDFTokenizer::tt_word, "stream")) {
+        if (readToken(input).isWord("stream")) {
             // The PDF specification states that the word "stream"
             // should be followed by either a carriage return and
             // a newline or by a newline alone.  It specifically
@@ -1519,9 +1516,7 @@ QPDF::readObject(
                 // Seek in two steps to avoid potential integer overflow
                 input->seek(stream_offset, SEEK_SET);
                 input->seek(toO(length), SEEK_CUR);
-                if (!(readToken(input) ==
-                      QPDFTokenizer::Token(
-                          QPDFTokenizer::tt_word, "endstream"))) {
+                if (!readToken(input).isWord("endstream")) {
                     QTC::TC("qpdf", "QPDF missing endstream");
                     throw damagedPDF(
                         input, input->getLastOffset(), "expected endstream");
@@ -1534,8 +1529,9 @@ QPDF::readObject(
                     throw e;
                 }
             }
-            object = QPDFObjectHandle::Factory::newStream(
-                this, og, object, stream_offset, length);
+            object = newIndirect(
+                og,
+                QPDF_Stream::create(this, og, object, stream_offset, length));
         } else {
             input->seek(cur_offset, SEEK_SET);
         }
@@ -1551,9 +1547,8 @@ bool
 QPDF::findEndstream()
 {
     // Find endstream or endobj. Position the input at that token.
-    QPDFTokenizer::Token t = readToken(this->m->file, 20);
-    if ((t.getType() == QPDFTokenizer::tt_word) &&
-        ((t.getValue() == "endobj") || (t.getValue() == "endstream"))) {
+    auto t = readToken(m->file, 20);
+    if (t.isWord("endobj") || t.isWord("endstream")) {
         this->m->file->seek(this->m->file->getLastOffset(), SEEK_SET);
         return true;
     }
@@ -1637,7 +1632,8 @@ QPDF::readObjectAtOffset(
     qpdf_offset_t offset,
     std::string const& description,
     QPDFObjGen const& exp_og,
-    QPDFObjGen& og)
+    QPDFObjGen& og,
+    bool skip_cache_if_in_xref)
 {
     bool check_og = true;
     if (exp_og.getObj() == 0) {
@@ -1675,9 +1671,9 @@ QPDF::readObjectAtOffset(
     QPDFTokenizer::Token tgen = readToken(this->m->file);
     QPDFTokenizer::Token tobj = readToken(this->m->file);
 
-    bool objidok = (tobjid.getType() == QPDFTokenizer::tt_integer);
-    int genok = (tgen.getType() == QPDFTokenizer::tt_integer);
-    int objok = (tobj == QPDFTokenizer::Token(QPDFTokenizer::tt_word, "obj"));
+    bool objidok = tobjid.isInteger();
+    bool genok = tgen.isInteger();
+    bool objok = tobj.isWord("obj");
 
     QTC::TC("qpdf", "QPDF check objid", objidok ? 1 : 0);
     QTC::TC("qpdf", "QPDF check generation", genok ? 1 : 0);
@@ -1717,7 +1713,7 @@ QPDF::readObjectAtOffset(
                 qpdf_offset_t new_offset =
                     this->m->xref_table[exp_og].getOffset();
                 QPDFObjectHandle result = readObjectAtOffset(
-                    false, new_offset, description, exp_og, og);
+                    false, new_offset, description, exp_og, og, false);
                 QTC::TC("qpdf", "QPDF recovered in readObjectAtOffset");
                 return result;
             } else {
@@ -1737,8 +1733,7 @@ QPDF::readObjectAtOffset(
 
     QPDFObjectHandle oh = readObject(this->m->file, description, og, false);
 
-    if (!(readToken(this->m->file) ==
-          QPDFTokenizer::Token(QPDFTokenizer::tt_word, "endobj"))) {
+    if (!readToken(this->m->file).isWord("endobj")) {
         QTC::TC("qpdf", "QPDF err expected endobj");
         warn(damagedPDF("expected endobj"));
     }
@@ -1769,11 +1764,50 @@ QPDF::readObjectAtOffset(
             }
         }
         qpdf_offset_t end_after_space = this->m->file->tell();
-        updateCache(
-            og,
-            QPDFObjectHandle::ObjAccessor::getObject(oh),
-            end_before_space,
-            end_after_space);
+        if (skip_cache_if_in_xref && this->m->xref_table.count(og)) {
+            // Ordinarily, an object gets read here when resolved
+            // through xref table or stream. In the special case of
+            // the xref stream and linearization hint tables, the
+            // offset comes from another source. For the specific case
+            // of xref streams, the xref stream is read and loaded
+            // into the object cache very early in parsing.
+            // Ordinarily, when a file is updated by appending, items
+            // inserted into the xref table in later updates take
+            // precedence over earlier items. In the special case of
+            // reusing the object number previously used as the xref
+            // stream, we have the following order of events:
+            //
+            // * reused object gets loaded into the xref table
+            // * old object is read here while reading xref streams
+            // * original xref entry is ignored (since already in xref table)
+            //
+            // It is the second step that causes a problem. Even
+            // though the xref table is correct in this case, the old
+            // object is already in the cache and so effectively
+            // prevails over the reused object. To work around this
+            // issue, we have a special case for the xref stream (via
+            // the skip_cache_if_in_xref): if the object is already in
+            // the xref stream, don't cache what we read here.
+            //
+            // It is likely that the same bug may exist for
+            // linearization hint tables, but the existing code uses
+            // end_before_space and end_after_space from the cache, so
+            // fixing that would require more significant rework. The
+            // chances of a linearization hint stream being reused
+            // seems smaller because the xref stream is probably the
+            // highest object in the file and the linearization hint
+            // stream would be some random place in the middle, so I'm
+            // leaving that bug unfixed for now. If the bug were to be
+            // fixed, we could use !check_og in place of
+            // skip_cache_if_in_xref.
+            QTC::TC("qpdf", "QPDF skipping cache for known unchecked object");
+        } else {
+            updateCache(
+                og,
+                QPDFObjectHandle::ObjAccessor::getObject(oh),
+                end_before_space,
+                end_after_space);
+        }
     }
 
     return oh;
@@ -1808,7 +1842,7 @@ QPDF::resolve(QPDFObjGen const& og)
                     // Object stored in cache by readObjectAtOffset
                     QPDFObjGen a_og;
                     QPDFObjectHandle oh =
-                        readObjectAtOffset(true, offset, "", og, a_og);
+                        readObjectAtOffset(true, offset, "", og, a_og, false);
                 }
                 break;
 
@@ -1899,10 +1933,10 @@ QPDF::resolveObjectsInStream(int obj_stream_number)
     for (int i = 0; i < n; ++i) {
         QPDFTokenizer::Token tnum = readToken(input);
         QPDFTokenizer::Token toffset = readToken(input);
-        if (!((tnum.getType() == QPDFTokenizer::tt_integer) &&
-              (toffset.getType() == QPDFTokenizer::tt_integer))) {
+        if (!(tnum.isInteger() && toffset.isInteger())) {
             throw damagedPDF(
                 input,
+                this->m->last_object_description,
                 input->getLastOffset(),
                 "expected integer in object stream header");
         }
@@ -1976,18 +2010,55 @@ QPDF::isUnresolved(QPDFObjGen const& og)
     return !isCached(og) || m->obj_cache[og].object->isUnresolved();
 }
 
-QPDFObjectHandle
-QPDF::makeIndirectObject(QPDFObjectHandle oh)
+QPDFObjGen
+QPDF::nextObjGen()
 {
     int max_objid = toI(getObjectCount());
     if (max_objid == std::numeric_limits<int>::max()) {
         throw std::range_error(
             "max object id is too high to create new objects");
     }
-    QPDFObjGen next(max_objid + 1, 0);
-    m->obj_cache[next] =
-        ObjCache(QPDFObjectHandle::ObjAccessor::getObject(oh), -1, -1);
+    return QPDFObjGen(max_objid + 1, 0);
+}
+
+QPDFObjectHandle
+QPDF::makeIndirectFromQPDFObject(std::shared_ptr<QPDFObject> const& obj)
+{
+    QPDFObjGen next{nextObjGen()};
+    m->obj_cache[next] = ObjCache(obj, -1, -1);
     return newIndirect(next, m->obj_cache[next].object);
+}
+
+QPDFObjectHandle
+QPDF::makeIndirectObject(QPDFObjectHandle oh)
+{
+    return makeIndirectFromQPDFObject(
+        QPDFObjectHandle::ObjAccessor::getObject(oh));
+}
+
+QPDFObjectHandle
+QPDF::newStream()
+{
+    return makeIndirectFromQPDFObject(QPDF_Stream::create(
+        this, nextObjGen(), QPDFObjectHandle::newDictionary(), 0, 0));
+}
+
+QPDFObjectHandle
+QPDF::newStream(std::shared_ptr<Buffer> data)
+{
+    auto result = newStream();
+    result.replaceStreamData(
+        data, QPDFObjectHandle::newNull(), QPDFObjectHandle::newNull());
+    return result;
+}
+
+QPDFObjectHandle
+QPDF::newStream(std::string const& data)
+{
+    auto result = newStream();
+    result.replaceStreamData(
+        data, QPDFObjectHandle::newNull(), QPDFObjectHandle::newNull());
+    return result;
 }
 
 QPDFObjectHandle
@@ -2004,8 +2075,8 @@ QPDF::reserveObjectIfNotExists(QPDFObjGen const& og)
 QPDFObjectHandle
 QPDF::reserveStream(QPDFObjGen const& og)
 {
-    return QPDFObjectHandle::Factory::newStream(
-        this, og, QPDFObjectHandle::newDictionary(), 0, 0);
+    return QPDFObjectHandle::Factory::newIndirect(
+        QPDF_Stream::create(this, og, QPDFObjectHandle::newDictionary(), 0, 0));
 }
 
 QPDFObjectHandle
@@ -2188,7 +2259,7 @@ QPDF::reserveObjects(QPDFObjectHandle foreign, ObjCopier& obj_copier, bool top)
             obj_copier.to_copy.push_back(foreign);
             QPDFObjectHandle reservation;
             if (foreign.isStream()) {
-                reservation = QPDFObjectHandle::newStream(this);
+                reservation = newStream();
             } else {
                 reservation = QPDFObjectHandle::newReserved(this);
             }
@@ -2345,7 +2416,7 @@ QPDF::copyStreamData(QPDFObjectHandle result, QPDFObjectHandle foreign)
             foreign_stream_qpdf.m->encp,
             foreign_stream_qpdf.m->file,
             foreign.getObjGen(),
-            stream->getOffset(),
+            stream->getParsedOffset(),
             stream->getLength(),
             dict);
         this->m->copied_stream_data_provider->registerForeignStream(

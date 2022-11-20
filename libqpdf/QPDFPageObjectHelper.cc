@@ -210,18 +210,16 @@ InlineImageTracker::handleToken(QPDFTokenizer::Token const& token)
                 writeToken(token);
                 state = st_top;
             }
-        } else if (
-            token == QPDFTokenizer::Token(QPDFTokenizer::tt_word, "ID")) {
+        } else if (token.isWord("ID")) {
             bi_str += token.getValue();
             dict_str += " >>";
-        } else if (
-            token == QPDFTokenizer::Token(QPDFTokenizer::tt_word, "EI")) {
+        } else if (token.isWord("EI")) {
             state = st_top;
         } else {
             bi_str += token.getRawValue();
             dict_str += token.getRawValue();
         }
-    } else if (token == QPDFTokenizer::Token(QPDFTokenizer::tt_word, "BI")) {
+    } else if (token.isWord("BI")) {
         bi_str = token.getValue();
         dict_str = "<< ";
         state = st_bi;
@@ -785,10 +783,10 @@ QPDFPageObjectHelper::getMatrixForTransformations(bool invert)
 QPDFObjectHandle
 QPDFPageObjectHelper::getFormXObjectForPage(bool handle_transformations)
 {
-    QPDF& qpdf = this->oh.getQPDF(
-        "QPDFPageObjectHelper::getFormXObjectForPage called with a direct "
-        "object");
-    QPDFObjectHandle result = QPDFObjectHandle::newStream(&qpdf);
+    auto result = this->oh
+                      .getQPDF("QPDFPageObjectHelper::getFormXObjectForPage "
+                               "called with a direct object")
+                      .newStream();
     QPDFObjectHandle newdict = result.getDict();
     newdict.replaceKey("/Type", QPDFObjectHandle::newName("/XObject"));
     newdict.replaceKey("/Subtype", QPDFObjectHandle::newName("/Form"));
@@ -1062,8 +1060,7 @@ QPDFPageObjectHelper::flattenRotation(QPDFAcroFormDocumentHelper* afdh)
     }
     std::string cm_str = std::string("q\n") + cm.unparse() + " cm\n";
     this->oh.addPageContents(QPDFObjectHandle::newStream(&qpdf, cm_str), true);
-    this->oh.addPageContents(
-        QPDFObjectHandle::newStream(&qpdf, "\nQ\n"), false);
+    this->oh.addPageContents(qpdf.newStream("\nQ\n"), false);
     this->oh.removeKey("/Rotate");
     QPDFObjectHandle rotate_obj = getAttribute("/Rotate", false);
     if (!rotate_obj.isNull()) {
