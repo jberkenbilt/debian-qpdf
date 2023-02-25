@@ -1,4 +1,4 @@
-// Copyright (c) 2005-2022 Jay Berkenbilt
+// Copyright (c) 2005-2023 Jay Berkenbilt
 //
 // This file is part of qpdf.
 //
@@ -93,7 +93,6 @@ class QPDFOutlineObjectHelper: public QPDFObjectHelper
             return QPDFOutlineObjectHelper(oh, dh, depth);
         }
     };
-    friend class Accessor;
 
   private:
     QPDF_DLL

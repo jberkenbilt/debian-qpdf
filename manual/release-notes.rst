@@ -8,6 +8,33 @@ For a detailed list of changes, please see the file
 
 .. x.y.z: not yet released
 
+11.3.0: February 25, 2023
+  - CLI Enhancements
+
+    - New option :qpdf:ref:`--remove-restrictions` removes security
+      restrictions from digitally signed files.
+
+    - Improve overlay/underlay so that the content a page with
+      unbalanced graphics state operators (``q``/``Q``) doesn't affect
+      the way subsequent pages are displayed. This changes the output
+      of all overlay/underlay operations.
+
+  - Library enhancements
+
+    - New method ``QPDF::removeSecurityRestrictions`` removes security
+      restrictions from digitally signed files.
+
+  - Bug fixes
+
+    - Linearization warnings are now treated like normal warnings in
+      that they include the file name and are suppressed with the
+      :qpdf:ref:`--no-warn` option.
+
+  - Performance enhancements
+
+    - Include more code tidying and performance improvements from M.
+      Holger.
+
 11.2.0: November 20, 2022
   - Build changes
 

@@ -2,6 +2,7 @@
 #define QPDFPARSER_HH
 
 #include <qpdf/QPDFObjectHandle.hh>
+#include <qpdf/QPDFValue.hh>
 
 #include <memory>
 #include <string>
@@ -20,7 +21,9 @@ class QPDFParser
         object_description(object_description),
         tokenizer(tokenizer),
         decrypter(decrypter),
-        context(context)
+        context(context),
+        description(std::make_shared<QPDFValue::Description>(std::string(
+            input->getName() + ", " + object_description + " at offset $PO")))
     {
     }
     virtual ~QPDFParser() = default;
@@ -39,15 +42,15 @@ class QPDFParser
 
     void warn(qpdf_offset_t offset, std::string const& msg) const;
     void warn(std::string const& msg) const;
-    static void warn(QPDF*, QPDFExc const&);
-    void setParsedOffset(qpdf_offset_t offset);
-    void
-    setDescriptionFromInput(QPDFObjectHandle oh, qpdf_offset_t offset) const;
+    void warn(QPDFExc const&) const;
+    void setDescription(
+        std::shared_ptr<QPDFObject>& obj, qpdf_offset_t parsed_offset);
     std::shared_ptr<InputSource> input;
     std::string const& object_description;
     QPDFTokenizer& tokenizer;
     QPDFObjectHandle::StringDecrypter* decrypter;
     QPDF* context;
+    std::shared_ptr<QPDFValue::Description> description;
 };
 
 #endif // QPDFPARSER_HH

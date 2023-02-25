@@ -37,8 +37,11 @@ QPDF_Name::normalizeName(std::string const& name)
             // QPDFTokenizer embeds a null character to encode an
             // invalid #.
             result += "#";
-        } else if (strchr("#()<>[]{}/%", ch) || (ch < 33) || (ch > 126)) {
-            result += "#" + QUtil::hex_encode(std::string(&ch, 1));
+        } else if (
+            ch < 33 || ch == '/' || ch == '(' || ch == ')' || ch == '{' ||
+            ch == '}' || ch == '<' || ch == '>' || ch == '[' || ch == ']' ||
+            ch == '%' || ch > 126) {
+            result += QUtil::hex_encode_char(ch);
         } else {
             result += ch;
         }
@@ -60,10 +63,4 @@ QPDF_Name::getJSON(int json_version)
     } else {
         return JSON::makeString(this->name);
     }
-}
-
-std::string
-QPDF_Name::getName() const
-{
-    return this->name;
 }

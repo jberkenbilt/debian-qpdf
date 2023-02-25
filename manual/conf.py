@@ -13,10 +13,10 @@ import sys
 sys.path.append(os.path.abspath("./_ext"))
 
 project = 'QPDF'
-copyright = '2005-2022, Jay Berkenbilt'
+copyright = '2005-2023, Jay Berkenbilt'
 author = 'Jay Berkenbilt'
 # make_dist and the CI build lexically find the release version from this file.
-release = '11.2.0'
+release = '11.3.0'
 version = release
 extensions = [
     'sphinx_rtd_theme',

@@ -210,24 +210,8 @@ QPDF::EncryptionParameters::EncryptionParameters() :
 
 QPDF::Members::Members() :
     log(QPDFLogger::defaultLogger()),
-    unique_id(0),
     file(new InvalidInputSource()),
-    provided_password_is_hex_key(false),
-    ignore_xref_streams(false),
-    suppress_warnings(false),
-    attempt_recovery(true),
-    encp(new EncryptionParameters),
-    pushed_inherited_attributes_to_pages(false),
-    ever_pushed_inherited_attributes_to_pages(false),
-    ever_called_get_all_pages(false),
-    copied_stream_data_provider(nullptr),
-    reconstructed_xref(false),
-    fixed_dangling_refs(false),
-    immediate_copy_from(false),
-    in_parse(false),
-    parsed(false),
-    first_xref_item_offset(0),
-    uncompressed_after_compressed(false)
+    encp(new EncryptionParameters)
 {
 }
 
@@ -577,6 +561,8 @@ QPDF::reconstruct_xref(QPDFExc& e)
     }
 
     this->m->reconstructed_xref = true;
+    // We may find more objects, which may contain dangling references.
+    this->m->fixed_dangling_refs = false;
 
     warn(damagedPDF("", 0, "file is damaged"));
     warn(e);
@@ -1247,11 +1233,11 @@ QPDF::insertXrefEntry(int obj, int f0, qpdf_offset_t f1, int f2, bool overwrite)
     case 1:
         // f2 is generation
         QTC::TC("qpdf", "QPDF xref gen > 0", ((f2 > 0) ? 1 : 0));
-        this->m->xref_table[QPDFObjGen(obj, f2)] = QPDFXRefEntry(f0, f1, f2);
+        this->m->xref_table[QPDFObjGen(obj, f2)] = QPDFXRefEntry(f1);
         break;
 
     case 2:
-        this->m->xref_table[QPDFObjGen(obj, 0)] = QPDFXRefEntry(f0, f1, f2);
+        this->m->xref_table[QPDFObjGen(obj, 0)] = QPDFXRefEntry(toI(f1), f2);
         break;
 
     default:
@@ -1290,65 +1276,36 @@ QPDF::showXRefTable()
     }
 }
 
+// Resolve all objects in the xref table. If this triggers a xref table
+// reconstruction abort and return false. Otherwise return true.
+bool
+QPDF::resolveXRefTable()
+{
+    bool may_change = !this->m->reconstructed_xref;
+    for (auto& iter: this->m->xref_table) {
+        if (isUnresolved(iter.first)) {
+            resolve(iter.first);
+            if (may_change && this->m->reconstructed_xref) {
+                return false;
+            }
+        }
+    }
+    return true;
+}
+
+// Ensure all objects in the pdf file, including those in indirect
+// references, appear in the object cache.
 void
 QPDF::fixDanglingReferences(bool force)
 {
-    if (this->m->fixed_dangling_refs && (!force)) {
+    if (this->m->fixed_dangling_refs) {
         return;
     }
+    if (!resolveXRefTable()) {
+        QTC::TC("qpdf", "QPDF fix dangling triggered xref reconstruction");
+        resolveXRefTable();
+    }
     this->m->fixed_dangling_refs = true;
-
-    // Create a set of all known indirect objects including those
-    // we've previously resolved and those that we have created.
-    std::set<QPDFObjGen> to_process;
-    for (auto const& iter: this->m->obj_cache) {
-        to_process.insert(iter.first);
-    }
-    for (auto const& iter: this->m->xref_table) {
-        to_process.insert(iter.first);
-    }
-
-    // For each non-scalar item to process, put it in the queue.
-    std::list<QPDFObjectHandle> queue;
-    queue.push_back(this->m->trailer);
-    for (auto const& og: to_process) {
-        auto obj = getObject(og);
-        if (obj.isDictionary() || obj.isArray()) {
-            queue.push_back(obj);
-        } else if (obj.isStream()) {
-            queue.push_back(obj.getDict());
-        }
-    }
-
-    // Process the queue by recursively resolving all object
-    // references. We don't need to do loop detection because we don't
-    // traverse known indirect objects when processing the queue.
-    while (!queue.empty()) {
-        QPDFObjectHandle obj = queue.front();
-        queue.pop_front();
-        std::list<QPDFObjectHandle> to_check;
-        if (obj.isDictionary()) {
-            std::map<std::string, QPDFObjectHandle> members =
-                obj.getDictAsMap();
-            for (auto const& iter: members) {
-                to_check.push_back(iter.second);
-            }
-        } else if (obj.isArray()) {
-            auto arr = QPDFObjectHandle::ObjAccessor::asArray(obj);
-            arr->addExplicitElementsToList(to_check);
-        }
-        for (auto sub: to_check) {
-            if (sub.isIndirect()) {
-                if ((sub.getOwningQPDF() == this) &&
-                    isUnresolved(sub.getObjGen())) {
-                    QTC::TC("qpdf", "QPDF detected dangling ref");
-                    queue.push_back(sub);
-                }
-            } else {
-                queue.push_back(sub);
-            }
-        }
-    }
 }
 
 size_t
@@ -1371,7 +1328,7 @@ QPDF::getAllObjects()
 {
     // After fixDanglingReferences is called, all objects are in the
     // object cache.
-    fixDanglingReferences(true);
+    fixDanglingReferences();
     std::vector<QPDFObjectHandle> result;
     for (auto const& iter: this->m->obj_cache) {
         result.push_back(newIndirect(iter.first, iter.second.object));
@@ -1631,7 +1588,7 @@ QPDF::readObjectAtOffset(
     bool try_recovery,
     qpdf_offset_t offset,
     std::string const& description,
-    QPDFObjGen const& exp_og,
+    QPDFObjGen exp_og,
     QPDFObjGen& og,
     bool skip_cache_if_in_xref)
 {
@@ -1802,11 +1759,7 @@ QPDF::readObjectAtOffset(
             // skip_cache_if_in_xref.
             QTC::TC("qpdf", "QPDF skipping cache for known unchecked object");
         } else {
-            updateCache(
-                og,
-                QPDFObjectHandle::ObjAccessor::getObject(oh),
-                end_before_space,
-                end_after_space);
+            updateCache(og, oh.getObj(), end_before_space, end_after_space);
         }
     }
 
@@ -1814,7 +1767,7 @@ QPDF::readObjectAtOffset(
 }
 
 void
-QPDF::resolve(QPDFObjGen const& og)
+QPDF::resolve(QPDFObjGen og)
 {
     if (!isUnresolved(og)) {
         return;
@@ -1875,9 +1828,7 @@ QPDF::resolve(QPDFObjGen const& og)
     }
 
     auto result(this->m->obj_cache[og].object);
-    if (!result->hasDescription()) {
-        result->setDescription(this, ("object " + og.unparse(' ')));
-    }
+    result->setDefaultDescription(this, og);
 }
 
 void
@@ -1959,11 +1910,7 @@ QPDF::resolveObjectsInStream(int obj_stream_number)
             int offset = iter.second;
             input->seek(offset, SEEK_SET);
             QPDFObjectHandle oh = readObject(input, "", og, true);
-            updateCache(
-                og,
-                QPDFObjectHandle::ObjAccessor::getObject(oh),
-                end_before_space,
-                end_after_space);
+            updateCache(og, oh.getObj(), end_before_space, end_after_space);
         } else {
             QTC::TC("qpdf", "QPDF not caching overridden objstm object");
         }
@@ -1973,11 +1920,8 @@ QPDF::resolveObjectsInStream(int obj_stream_number)
 QPDFObjectHandle
 QPDF::newIndirect(QPDFObjGen const& og, std::shared_ptr<QPDFObject> const& obj)
 {
-    obj->setObjGen(this, og);
-    if (!obj->hasDescription()) {
-        obj->setDescription(this, "object " + og.unparse(' '));
-    }
-    return QPDFObjectHandle::Factory::newIndirect(obj);
+    obj->setDefaultDescription(this, og);
+    return {obj};
 }
 
 void
@@ -2032,8 +1976,11 @@ QPDF::makeIndirectFromQPDFObject(std::shared_ptr<QPDFObject> const& obj)
 QPDFObjectHandle
 QPDF::makeIndirectObject(QPDFObjectHandle oh)
 {
-    return makeIndirectFromQPDFObject(
-        QPDFObjectHandle::ObjAccessor::getObject(oh));
+    if (!oh.isInitialized()) {
+        throw std::logic_error(
+            "attempted to make an uninitialized QPDFObjectHandle indirect");
+    }
+    return makeIndirectFromQPDFObject(oh.getObj());
 }
 
 QPDFObjectHandle
@@ -2075,13 +2022,15 @@ QPDF::reserveObjectIfNotExists(QPDFObjGen const& og)
 QPDFObjectHandle
 QPDF::reserveStream(QPDFObjGen const& og)
 {
-    return QPDFObjectHandle::Factory::newIndirect(
-        QPDF_Stream::create(this, og, QPDFObjectHandle::newDictionary(), 0, 0));
+    return {
+        QPDF_Stream::create(this, og, QPDFObjectHandle::newDictionary(), 0, 0)};
 }
 
 QPDFObjectHandle
 QPDF::getObject(QPDFObjGen const& og)
 {
+    // This method is called by the parser and therefore must not
+    // resolve any objects.
     if (!isCached(og)) {
         m->obj_cache[og] = ObjCache(QPDF_Unresolved::create(this, og), -1, -1);
     }
@@ -2115,12 +2064,12 @@ QPDF::replaceObject(int objid, int generation, QPDFObjectHandle oh)
 void
 QPDF::replaceObject(QPDFObjGen const& og, QPDFObjectHandle oh)
 {
-    if (oh.isIndirect()) {
+    if (oh.isIndirect() || !oh.isInitialized()) {
         QTC::TC("qpdf", "QPDF replaceObject called with indirect object");
         throw std::logic_error(
             "QPDF::replaceObject called with indirect object handle");
     }
-    updateCache(og, QPDFObjectHandle::ObjAccessor::getObject(oh), -1, -1);
+    updateCache(og, oh.getObj(), -1, -1);
 }
 
 void
@@ -2377,7 +2326,7 @@ QPDF::copyStreamData(QPDFObjectHandle result, QPDFObjectHandle foreign)
     QPDF& foreign_stream_qpdf =
         foreign.getQPDF("unable to retrieve owning qpdf from foreign stream");
 
-    auto stream = QPDFObjectHandle::ObjAccessor::asStream(foreign);
+    auto stream = foreign.getObjectPtr()->as<QPDF_Stream>();
     if (stream == nullptr) {
         throw std::logic_error("unable to retrieve underlying"
                                " stream object from foreign stream");
@@ -2811,4 +2760,15 @@ bool
 QPDF::everPushedInheritedAttributesToPages() const
 {
     return this->m->ever_pushed_inherited_attributes_to_pages;
+}
+
+void
+QPDF::removeSecurityRestrictions()
+{
+    auto root = getRoot();
+    root.removeKey("/Perms");
+    auto acroform = root.getKey("/AcroForm");
+    if (acroform.isDictionary() && acroform.hasKey("/SigFlags")) {
+        acroform.replaceKey("/SigFlags", QPDFObjectHandle::newInteger(0));
+    }
 }

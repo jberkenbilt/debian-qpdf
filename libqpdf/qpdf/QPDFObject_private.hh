@@ -12,6 +12,7 @@
 #include <qpdf/Types.h>
 
 #include <string>
+#include <string_view>
 
 class QPDF;
 class QPDFObjectHandle;
@@ -38,7 +39,11 @@ class QPDFObject
     {
         return value->getJSON(json_version);
     }
-
+    std::string
+    getStringValue() const
+    {
+        return value->getStringValue();
+    }
     // Return a unique type code for the object
     qpdf_object_type_e
     getTypeCode() const
@@ -64,16 +69,39 @@ class QPDFObject
     {
         return value->og;
     }
-
     void
-    setDescription(QPDF* qpdf, std::string const& description)
+    setDescription(
+        QPDF* qpdf,
+        std::shared_ptr<QPDFValue::Description>& description,
+        qpdf_offset_t offset = -1)
     {
-        return value->setDescription(qpdf, description);
+        return value->setDescription(qpdf, description, offset);
+    }
+    void
+    setChildDescription(
+        std::shared_ptr<QPDFObject> parent,
+        std::string_view const& static_descr,
+        std::string var_descr)
+    {
+        auto qpdf = parent ? parent->value->qpdf : nullptr;
+        value->setChildDescription(
+            qpdf, parent->value, static_descr, var_descr);
+    }
+    void
+    setChildDescription(
+        std::shared_ptr<QPDFValue> parent,
+        std::string_view const& static_descr,
+        std::string var_descr)
+    {
+        auto qpdf = parent ? parent->qpdf : nullptr;
+        value->setChildDescription(qpdf, parent, static_descr, var_descr);
     }
     bool
     getDescription(QPDF*& qpdf, std::string& description)
     {
-        return value->getDescription(qpdf, description);
+        qpdf = value->qpdf;
+        description = value->getDescription();
+        return qpdf != nullptr;
     }
     bool
     hasDescription()
@@ -107,9 +135,14 @@ class QPDFObject
     }
 
     void
-    setObjGen(QPDF* qpdf, QPDFObjGen const& og)
+    setDefaultDescription(QPDF* qpdf, QPDFObjGen const& og)
     {
         // Intended for use by the QPDF class
+        value->setDefaultDescription(qpdf, og);
+    }
+    void
+    setObjGen(QPDF* qpdf, QPDFObjGen const& og)
+    {
         value->qpdf = qpdf;
         value->og = og;
     }
