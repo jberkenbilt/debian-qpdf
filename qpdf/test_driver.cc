@@ -194,7 +194,7 @@ print_rect(std::ostream& out, QPDFObjectHandle::Rectangle const& r)
 }
 
 #define assert_compare_numbers(expected, expr) \
- compare_numbers(#expr, expected, expr)
+    compare_numbers(#expr, expected, expr)
 
 template <typename T1, typename T2>
 static void
@@ -1228,8 +1228,6 @@ test_30(QPDF& pdf, char const* arg2)
 static void
 test_31(QPDF& pdf, char const* arg2)
 {
-    // Test object parsing from a string.  The input file is not used.
-
     auto o1 = "[/name 16059 3.14159 false\n"
               " << /key true /other [ (string1) (string2) ] >> null]"_qpdf;
     std::cout << o1.unparse() << std::endl;
@@ -1247,6 +1245,13 @@ test_31(QPDF& pdf, char const* arg2)
     } catch (std::runtime_error const& e) {
         std::cout << "trailing data: " << e.what() << std::endl;
     }
+    assert(
+        QPDFObjectHandle::parse(&pdf, "[5 0 R]").getArrayItem(0).isInteger());
+    // Make sure an indirect integer followed by "0 R" is not
+    // mistakenly parsed as an indirect object.
+    assert(
+        QPDFObjectHandle::parse(&pdf, "[5 0 R 0 R /X]").unparse() ==
+        "[ 5 0 R 0 (R) /X ]");
     assert(
         QPDFObjectHandle::parse(&pdf, "[1 0 R]", "indirect test").unparse() ==
         "[ 1 0 R ]");
@@ -1559,6 +1564,7 @@ test_42(QPDF& pdf, char const* arg2)
     assert(!uninitialized.isInitialized());
     assert(!uninitialized.isInteger());
     assert(!uninitialized.isDictionary());
+    assert(!uninitialized.isScalar());
 }
 
 static void
@@ -2062,8 +2068,10 @@ test_53(QPDF& pdf, char const* arg2)
 {
     // Test get all objects and dangling ref handling
     QPDFObjectHandle root = pdf.getRoot();
-    root.replaceKey(
-        "/Q1", pdf.makeIndirectObject(QPDFObjectHandle::newString("potato")));
+    auto new_obj =
+        pdf.makeIndirectObject(QPDFObjectHandle::newString("potato"));
+    root.replaceKey("/Q1", new_obj);
+    std::cout << "new object: " << new_obj.unparse() << std::endl;
     std::cout << "all objects" << std::endl;
     for (auto& obj: pdf.getAllObjects()) {
         std::cout << obj.unparse() << std::endl;
@@ -2071,6 +2079,7 @@ test_53(QPDF& pdf, char const* arg2)
 
     QPDFWriter w(pdf, "a.pdf");
     w.setStaticID(true);
+    w.setPreserveUnreferencedObjects(true);
     w.write();
 }
 
@@ -3328,6 +3337,7 @@ test_92(QPDF& pdf, char const* arg2)
     assert(resources.isDictionary());
     assert(!resources.isIndirect());
     auto contents = page1.getKey("/Contents");
+    assert(!contents.isScalar());
     auto contents_dict = contents.getDict();
     qpdf = nullptr;
     auto check = [](QPDFObjectHandle& oh) {
@@ -3344,6 +3354,7 @@ test_92(QPDF& pdf, char const* arg2)
     // Otherwise, they should have retained their old values but just
     // lost their connection to the owning QPDF.
     assert(root.isDestroyed());
+    assert(!root.isScalar());
     assert(page1.isDestroyed());
     assert(contents.isDestroyed());
     assert(resources.isDictionary());
@@ -3485,6 +3496,32 @@ test_94(QPDF& pdf, char const* arg2)
     assert(p5_new_bleed.unparse() == root_media_unparse);
 }
 
+static void
+test_95(QPDF& pdf, char const* arg2)
+{
+    // Test QPDFObjectHandle::isScalar
+
+    auto oh_b = QPDFObjectHandle::newBool(false);
+    auto oh_i = QPDFObjectHandle::newInteger(1);
+    auto oh_r = QPDFObjectHandle::newReal("42.0");
+    auto oh_n = QPDFObjectHandle::newName("/Test");
+    auto oh_s = QPDFObjectHandle::newString("/Test");
+    auto oh_o = QPDFObjectHandle::newOperator("/Test");
+    auto oh_ii = QPDFObjectHandle::newInlineImage("/Test");
+    auto oh_a = QPDFObjectHandle::newArray();
+    auto oh_d = QPDFObjectHandle::newDictionary();
+
+    assert(oh_b.isScalar());
+    assert(oh_i.isScalar());
+    assert(oh_r.isScalar());
+    assert(oh_n.isScalar());
+    assert(oh_s.isScalar());
+    assert(!oh_o.isScalar());
+    assert(!oh_ii.isScalar());
+    assert(!oh_a.isScalar());
+    assert(!oh_d.isScalar());
+}
+
 void
 runtest(int n, char const* filename1, char const* arg2)
 {
@@ -3492,7 +3529,7 @@ runtest(int n, char const* filename1, char const* arg2)
     // the test suite to see how the test is invoked to find the file
     // that the test is supposed to operate on.
 
-    std::set<int> ignore_filename = {61, 81, 83, 84, 85, 86, 87, 92};
+    std::set<int> ignore_filename = {61, 81, 83, 84, 85, 86, 87, 92, 95};
 
     if (n == 0) {
         // Throw in some random test cases that don't fit anywhere
@@ -3594,7 +3631,7 @@ runtest(int n, char const* filename1, char const* arg2)
         {80, test_80}, {81, test_81}, {82, test_82}, {83, test_83},
         {84, test_84}, {85, test_85}, {86, test_86}, {87, test_87},
         {88, test_88}, {89, test_89}, {90, test_90}, {91, test_91},
-        {92, test_92}, {93, test_93}, {94, test_94}};
+        {92, test_92}, {93, test_93}, {94, test_94}, {95, test_95}};
 
     auto fn = test_functions.find(n);
     if (fn == test_functions.end()) {

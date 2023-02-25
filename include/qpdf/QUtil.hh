@@ -1,4 +1,4 @@
-// Copyright (c) 2005-2022 Jay Berkenbilt
+// Copyright (c) 2005-2023 Jay Berkenbilt
 //
 // This file is part of qpdf.
 //
@@ -209,6 +209,11 @@ namespace QUtil
     // string will be twice as long as the input string.
     QPDF_DLL
     std::string hex_encode(std::string const&);
+
+    // Returns lower-case hex-encoded version of the char including a leading
+    // "#".
+    QPDF_DLL
+    inline std::string hex_encode_char(char);
 
     // Returns a string that is the result of decoding the input
     // string. The input string may consist of mixed case hexadecimal
@@ -540,13 +545,15 @@ namespace QUtil
 inline bool
 QUtil::is_hex_digit(char ch)
 {
-    return (ch && (strchr("0123456789abcdefABCDEF", ch) != nullptr));
+    return ('0' <= ch && ch <= '9') || ('a' <= ch && ch <= 'f') ||
+        ('A' <= ch && ch <= 'F');
 }
 
 inline bool
 QUtil::is_space(char ch)
 {
-    return (ch && (strchr(" \f\n\r\t\v", ch) != nullptr));
+    return ch == ' ' || ch == '\n' || ch == '\r' || ch == '\t' || ch == '\f' ||
+        ch == '\v';
 }
 
 inline bool
@@ -581,6 +588,14 @@ QUtil::is_number(char const* p)
         }
     }
     return found_digit;
+}
+
+inline std::string
+QUtil::hex_encode_char(char c)
+{
+    static auto constexpr hexchars = "0123456789abcdef";
+    return {
+        '#', hexchars[static_cast<unsigned char>(c) >> 4], hexchars[c & 0x0f]};
 }
 
 #endif // QUTIL_HH

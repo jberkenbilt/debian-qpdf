@@ -304,121 +304,8 @@ ProgressReporter::reportProgress(int percentage)
             << "%\n";
 }
 
-// These default values are duplicated in help and docs.
-static int constexpr DEFAULT_KEEP_FILES_OPEN_THRESHOLD = 200;
-static int constexpr DEFAULT_OI_MIN_WIDTH = 128;
-static int constexpr DEFAULT_OI_MIN_HEIGHT = 128;
-static int constexpr DEFAULT_OI_MIN_AREA = 16384;
-static int constexpr DEFAULT_II_MIN_BYTES = 1024;
-
 QPDFJob::Members::Members() :
-    log(QPDFLogger::defaultLogger()),
-    message_prefix("qpdf"),
-    warnings(false),
-    encryption_status(0),
-    verbose(false),
-    password(nullptr),
-    linearize(false),
-    decrypt(false),
-    split_pages(0),
-    progress(false),
-    progress_handler(nullptr),
-    suppress_warnings(false),
-    warnings_exit_zero(false),
-    copy_encryption(false),
-    encryption_file_password(nullptr),
-    encrypt(false),
-    password_is_hex_key(false),
-    suppress_password_recovery(false),
-    password_mode(pm_auto),
-    allow_insecure(false),
-    allow_weak_crypto(false),
-    keylen(0),
-    r2_print(true),
-    r2_modify(true),
-    r2_extract(true),
-    r2_annotate(true),
-    r3_accessibility(true),
-    r3_extract(true),
-    r3_assemble(true),
-    r3_annotate_and_form(true),
-    r3_form_filling(true),
-    r3_modify_other(true),
-    r3_print(qpdf_r3p_full),
-    force_V4(false),
-    force_R5(false),
-    cleartext_metadata(false),
-    use_aes(false),
-    stream_data_set(false),
-    stream_data_mode(qpdf_s_compress),
-    compress_streams(true),
-    compress_streams_set(false),
-    recompress_flate(false),
-    recompress_flate_set(false),
-    compression_level(-1),
-    decode_level(qpdf_dl_generalized),
-    decode_level_set(false),
-    normalize_set(false),
-    normalize(false),
-    suppress_recovery(false),
-    object_stream_set(false),
-    object_stream_mode(qpdf_o_preserve),
-    ignore_xref_streams(false),
-    qdf_mode(false),
-    preserve_unreferenced_objects(false),
-    remove_unreferenced_page_resources(re_auto),
-    keep_files_open(true),
-    keep_files_open_set(false),
-    keep_files_open_threshold(DEFAULT_KEEP_FILES_OPEN_THRESHOLD),
-    newline_before_endstream(false),
-    coalesce_contents(false),
-    flatten_annotations(false),
-    flatten_annotations_required(0),
-    flatten_annotations_forbidden(an_invisible | an_hidden),
-    generate_appearances(false),
-    show_npages(false),
-    deterministic_id(false),
-    static_id(false),
-    static_aes_iv(false),
-    suppress_original_object_id(false),
-    show_encryption(false),
-    show_encryption_key(false),
-    check_linearization(false),
-    show_linearization(false),
-    show_xref(false),
-    show_trailer(false),
-    show_obj(0),
-    show_gen(0),
-    show_raw_stream_data(false),
-    show_filtered_stream_data(false),
-    show_pages(false),
-    show_page_images(false),
-    collate(0),
-    flatten_rotation(false),
-    list_attachments(false),
-    json_version(0),
-    json_stream_data(qpdf_sj_none),
-    json_stream_data_set(false),
-    test_json_schema(false),
-    check(false),
-    optimize_images(false),
-    externalize_inline_images(false),
-    keep_inline_images(false),
-    remove_page_labels(false),
-    oi_min_width(DEFAULT_OI_MIN_WIDTH),
-    oi_min_height(DEFAULT_OI_MIN_HEIGHT),
-    oi_min_area(DEFAULT_OI_MIN_AREA),
-    ii_min_bytes(DEFAULT_II_MIN_BYTES),
-    underlay("underlay"),
-    overlay("overlay"),
-    under_overlay(nullptr),
-    require_outfile(true),
-    replace_input(false),
-    check_is_encrypted(false),
-    check_requires_password(false),
-    json_input(false),
-    json_output(false),
-    report_mem_usage(false)
+    log(QPDFLogger::defaultLogger())
 {
 }
 
@@ -896,7 +783,6 @@ QPDFJob::doCheck(QPDF& pdf)
     // continue to perform additional checks after finding
     // errors.
     bool okay = true;
-    bool warnings = false;
     auto& cout = *this->m->log->getInfo();
     cout << "checking " << m->infilename.get() << "\n";
     try {
@@ -909,12 +795,7 @@ QPDFJob::doCheck(QPDF& pdf)
         showEncryption(pdf);
         if (pdf.isLinearized()) {
             cout << "File is linearized\n";
-            // any errors or warnings are reported by
-            // checkLinearization(). We treat all issues reported here
-            // as warnings.
-            if (!pdf.checkLinearization()) {
-                warnings = true;
-            }
+            pdf.checkLinearization();
         } else {
             cout << "File is not linearized\n";
         }
@@ -949,7 +830,7 @@ QPDFJob::doCheck(QPDF& pdf)
         throw std::runtime_error("errors detected");
     }
 
-    if ((!pdf.getWarnings().empty()) || warnings) {
+    if (!pdf.getWarnings().empty()) {
         this->m->warnings = true;
     } else {
         *this->m->log->getInfo() << "No syntax or stream encoding errors"
@@ -2175,7 +2056,7 @@ get_afdh_for_qpdf(
     return afdh_map[uid].get();
 }
 
-void
+std::string
 QPDFJob::doUnderOverlayForPage(
     QPDF& pdf,
     UnderOverlay& uo,
@@ -2183,12 +2064,11 @@ QPDFJob::doUnderOverlayForPage(
     size_t page_idx,
     std::map<int, QPDFObjectHandle>& fo,
     std::vector<QPDFPageObjectHelper>& pages,
-    QPDFPageObjectHelper& dest_page,
-    bool before)
+    QPDFPageObjectHelper& dest_page)
 {
     int pageno = 1 + QIntC::to_int(page_idx);
     if (!pagenos.count(pageno)) {
-        return;
+        return "";
     }
 
     std::map<unsigned long long, std::shared_ptr<QPDFAcroFormDocumentHelper>>
@@ -2202,11 +2082,6 @@ QPDFJob::doUnderOverlayForPage(
     std::string content;
     int min_suffix = 1;
     QPDFObjectHandle resources = dest_page.getAttribute("/Resources", true);
-    if (!resources.isDictionary()) {
-        QTC::TC("qpdf", "QPDFJob overlay page with no resources");
-        resources = dest_page.getObjectHandle().replaceKeyAndGetNew(
-            "/Resources", QPDFObjectHandle::newDictionary());
-    }
     for (int from_pageno: pagenos[pageno]) {
         doIfVerbose([&](Pipeline& v, std::string const& prefix) {
             v << "    " << uo.which << " " << from_pageno << "\n";
@@ -2240,14 +2115,7 @@ QPDFJob::doUnderOverlayForPage(
             content += new_content;
         }
     }
-    if (!content.empty()) {
-        if (before) {
-            dest_page.addPageContents(pdf.newStream(content), true);
-        } else {
-            dest_page.addPageContents(pdf.newStream("q\n"), true);
-            dest_page.addPageContents(pdf.newStream("\nQ\n" + content), false);
-        }
-    }
+    return content;
 }
 
 void
@@ -2301,24 +2169,47 @@ QPDFJob::handleUnderOverlay(QPDF& pdf)
         doIfVerbose([&](Pipeline& v, std::string const& prefix) {
             v << "  page " << 1 + i << "\n";
         });
-        doUnderOverlayForPage(
+        auto pageno = QIntC::to_int(i) + 1;
+        if (!(underlay_pagenos.count(pageno) ||
+              overlay_pagenos.count(pageno))) {
+            continue;
+        }
+        // This code converts the original page, any underlays, and
+        // any overlays to form XObjects. Then it concatenates display
+        // of all underlays, the original page, and all overlays.
+        // Prior to 11.3.0, the original page contents were wrapped in
+        // q/Q, but this didn't work if the original page had
+        // unbalanced q/Q operators. See github issue #904.
+        auto& dest_page = main_pages.at(i);
+        auto dest_page_oh = dest_page.getObjectHandle();
+        auto this_page_fo = dest_page.getFormXObjectForPage();
+        // The resulting form xobject lazily reads the content from
+        // the original page, which we are going to replace. Therefore
+        // we have to explicitly copy it.
+        auto content_data = this_page_fo.getRawStreamData();
+        this_page_fo.replaceStreamData(
+            content_data, QPDFObjectHandle(), QPDFObjectHandle());
+        auto resources = dest_page_oh.replaceKeyAndGetNew(
+            "/Resources", "<< /XObject << >> >>"_qpdf);
+        resources.getKey("/XObject").replaceKeyAndGetNew("/Fx0", this_page_fo);
+        auto content = doUnderOverlayForPage(
             pdf,
             m->underlay,
             underlay_pagenos,
             i,
             underlay_fo,
             upages,
-            main_pages.at(i),
-            true);
-        doUnderOverlayForPage(
-            pdf,
-            m->overlay,
-            overlay_pagenos,
-            i,
-            overlay_fo,
-            opages,
-            main_pages.at(i),
+            dest_page);
+        content += dest_page.placeFormXObject(
+            this_page_fo,
+            "/Fx0",
+            dest_page.getMediaBox().getArrayAsRectangle(),
+            true,
+            false,
             false);
+        content += doUnderOverlayForPage(
+            pdf, m->overlay, overlay_pagenos, i, overlay_fo, opages, dest_page);
+        dest_page_oh.replaceKey("/Contents", pdf.newStream(content));
     }
 }
 
@@ -2446,6 +2337,9 @@ QPDFJob::handleTransformations(QPDF& pdf)
             afdh = std::make_shared<QPDFAcroFormDocumentHelper>(pdf);
         }
     };
+    if (m->remove_restrictions) {
+        pdf.removeSecurityRestrictions();
+    }
     if (m->externalize_inline_images ||
         (m->optimize_images && (!m->keep_inline_images))) {
         for (auto& ph: dh.getAllPages()) {

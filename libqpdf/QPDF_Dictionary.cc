@@ -1,6 +1,10 @@
 #include <qpdf/QPDF_Dictionary.hh>
 
+#include <qpdf/QPDFObject_private.hh>
 #include <qpdf/QPDF_Name.hh>
+#include <qpdf/QPDF_Null.hh>
+
+using namespace std::literals;
 
 QPDF_Dictionary::QPDF_Dictionary(
     std::map<std::string, QPDFObjectHandle> const& items) :
@@ -9,8 +13,21 @@ QPDF_Dictionary::QPDF_Dictionary(
 {
 }
 
+QPDF_Dictionary::QPDF_Dictionary(
+    std::map<std::string, QPDFObjectHandle>&& items) :
+    QPDFValue(::ot_dictionary, "dictionary"),
+    items(items)
+{
+}
+
 std::shared_ptr<QPDFObject>
 QPDF_Dictionary::create(std::map<std::string, QPDFObjectHandle> const& items)
+{
+    return do_create(new QPDF_Dictionary(items));
+}
+
+std::shared_ptr<QPDFObject>
+QPDF_Dictionary::create(std::map<std::string, QPDFObjectHandle>&& items)
 {
     return do_create(new QPDF_Dictionary(items));
 }
@@ -84,14 +101,8 @@ QPDF_Dictionary::getKey(std::string const& key)
         // May be a null object
         return item->second;
     } else {
-        QPDFObjectHandle null = QPDFObjectHandle::newNull();
-        QPDF* qpdf = nullptr;
-        std::string description;
-        if (getDescription(qpdf, description)) {
-            null.setObjectDescription(
-                qpdf, description + " -> dictionary key " + key);
-        }
-        return null;
+        static auto constexpr msg = " -> dictionary key $VD"sv;
+        return QPDF_Null::create(shared_from_this(), msg, key);
     }
 }
 

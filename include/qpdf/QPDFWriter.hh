@@ -1,4 +1,4 @@
-// Copyright (c) 2005-2022 Jay Berkenbilt
+// Copyright (c) 2005-2023 Jay Berkenbilt
 //
 // This file is part of qpdf.
 //
@@ -36,6 +36,7 @@
 #include <set>
 #include <stdio.h>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include <qpdf/Constants.h>
@@ -550,15 +551,14 @@ class QPDFWriter
         std::shared_ptr<Buffer>* bp;
         std::string stack_id;
     };
-    friend class PipelinePopper;
 
     unsigned int bytesNeeded(long long n);
     void writeBinary(unsigned long long val, unsigned int bytes);
-    void writeString(std::string const& str);
+    void writeString(std::string_view str);
     void writeBuffer(std::shared_ptr<Buffer>&);
-    void writeStringQDF(std::string const& str);
-    void writeStringNoQDF(std::string const& str);
-    void writePad(int nspaces);
+    void writeStringQDF(std::string_view str);
+    void writeStringNoQDF(std::string_view str);
+    void writePad(size_t nspaces);
     void assignCompressedObjectNumbers(QPDFObjGen const& og);
     void enqueueObject(QPDFObjectHandle object);
     void writeObjectStreamOffsets(
@@ -677,7 +677,7 @@ class QPDFWriter
         qpdf_offset_t hint_length,
         bool skip_compression,
         int linearization_pass);
-    int calculateXrefStreamPadding(qpdf_offset_t xref_bytes);
+    size_t calculateXrefStreamPadding(qpdf_offset_t xref_bytes);
 
     // When filtering subsections, push additional pipelines to the
     // stack. When ready to switch, activate the pipeline stack. When
@@ -752,7 +752,8 @@ class QPDFWriter
         std::string cur_data_key;
         std::list<std::shared_ptr<Pipeline>> to_delete;
         Pl_Count* pipeline;
-        std::list<QPDFObjectHandle> object_queue;
+        std::vector<QPDFObjectHandle> object_queue;
+        size_t object_queue_front{0};
         std::map<QPDFObjGen, int> obj_renumber;
         std::map<int, QPDFXRefEntry> xref;
         std::map<int, qpdf_offset_t> lengths;

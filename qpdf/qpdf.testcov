@@ -381,7 +381,6 @@ QPDFFormFieldObjectHelper list not found 0
 QPDFFormFieldObjectHelper list found 0
 QPDFFormFieldObjectHelper list first too low 0
 QPDFFormFieldObjectHelper list last too high 0
-QPDF detected dangling ref 0
 QPDFJob image optimize no pipeline 0
 QPDFJob image optimize no shrink 0
 QPDFJob image optimize too small 0
@@ -594,7 +593,6 @@ QPDF resolve duplicated page in insert 0
 QPDFWriter preserve object streams 1
 QPDFWriter exclude from object stream 0
 QPDF_pages findPage not found 0
-QPDFJob overlay page with no resources 0
 QPDFObjectHandle check ownership 0
 QPDFJob weak crypto error 0
 qpdf-c called qpdf_oh_is_initialized 0
@@ -679,3 +677,5 @@ QPDF_json bad pushedinheritedpageresources 0
 QPDFPageObjectHelper copied fallback 0
 QPDFPageObjectHelper used fallback without copying 0
 QPDF skipping cache for known unchecked object 0
+QPDF fix dangling triggered xref reconstruction 0
+QPDFPageDocumentHelper flatten resources missing or invalid 0

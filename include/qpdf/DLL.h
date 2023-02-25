@@ -1,4 +1,4 @@
-/* Copyright (c) 2005-2022 Jay Berkenbilt
+/* Copyright (c) 2005-2023 Jay Berkenbilt
  *
  * This file is part of qpdf.
  *
@@ -25,9 +25,9 @@
 
 /* The first version of qpdf to include the version constants is 10.6.0. */
 #define QPDF_MAJOR_VERSION 11
-#define QPDF_MINOR_VERSION 2
+#define QPDF_MINOR_VERSION 3
 #define QPDF_PATCH_VERSION 0
-#define QPDF_VERSION "11.2.0"
+#define QPDF_VERSION "11.3.0"
 
 /*
  * This file defines symbols that control the which functions,

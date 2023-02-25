@@ -26,7 +26,10 @@ class QPDF_Stream: public QPDFValue
     virtual std::shared_ptr<QPDFObject> copy(bool shallow = false);
     virtual std::string unparse();
     virtual JSON getJSON(int json_version);
-    virtual void setDescription(QPDF*, std::string const&);
+    virtual void setDescription(
+        QPDF*,
+        std::shared_ptr<QPDFValue::Description>& description,
+        qpdf_offset_t offset);
     virtual void disconnect();
     QPDFObjectHandle getDict() const;
     bool isDataModified() const;

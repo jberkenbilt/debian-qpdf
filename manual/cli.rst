@@ -736,7 +736,22 @@ Related Options
    whatever encryption was present on the input file. This
    functionality is not intended to be used for bypassing copyright
    restrictions or other restrictions placed on files by their
-   producers. See also :qpdf:ref:`--copy-encryption`.
+   producers. See also :qpdf:ref:`--copy-encryption` and
+   :qpdf:ref:`--remove-restrictions`.
+
+.. qpdf:option:: --remove-restrictions
+
+   .. help: remove security restrictions from input file
+
+      Remove restrictions associated with digitally signed PDF files.
+      This may be combined with --decrypt to allow free editing of
+      previously signed/encrypted files. This option invalidates the
+      signature but leaves its visual appearance intact.
+
+   Remove security restrictions associated with digitally signed PDF
+   files. This may be combined with :qpdf:option:--decrypt: to allow
+   free editing of previously signed/encrypted files. This option
+   invalidates the signature but leaves its visual appearance intact.
 
 .. qpdf:option:: --copy-encryption=file
 
@@ -855,7 +870,7 @@ Related Options
    and gzip) unless those streams are compressed in some other way.
    This analysis is made after qpdf attempts to uncompress streams and
    is therefore closely related to :qpdf:ref:`--decode-level`. To
-   suppress this behavior and leave streams streams uncompressed, use
+   suppress this behavior and leave streams uncompressed, use
    :samp:`--compress-streams=n`. In QDF mode (see :ref:`qdf` and
    :qpdf:ref:`--qdf`), the default is to leave streams uncompressed.
 
@@ -2917,7 +2932,7 @@ Related Options
 
    .. code-block:: bash
 
-      if [ qpdf --requires-password file.pdf ]; then
+      if qpdf --requires-password file.pdf; then
           # prompt for password
       fi
 
@@ -3382,20 +3397,21 @@ random element, as well as the interaction of stream length encoding
 with dictionary key sorting.
 
 It is possible to get idempotent behavior by using the
-:qpdf:ref:`--static-id` or :qpdf:ref:`--deterministic-id` option with
-qpdf and running it *three* times so that you are processing the
-output of qpdf on its own previous output. For example, in this
-sequence of commands:
+:qpdf:ref:`--deterministic-id` (or, for testing only,
+:qpdf:ref:`--static-id`) option with qpdf and running it *three* times
+so that you are processing the output of qpdf on its own previous
+output. For example, in this sequence of commands:
 
 ::
 
    qpdf any-file.pdf 1.pdf
-   qpdf --static-id 1.pdf 2.pdf
-   qpdf --static-id 2.pdf 3.pdf
+   qpdf --deterministic-id 1.pdf 2.pdf
+   qpdf --deterministic-id 2.pdf 3.pdf
 
 the files :file:`2.pdf` and :file:`3.pdf` should be *byte-for-byte*
 identical. The qpdf test suite relies on this behavior. See also
-:qpdf:ref:`--static-aes-iv`.
+:qpdf:ref:`--static-aes-iv`, which should also be used only for
+testing.
 
 Related Options
 ~~~~~~~~~~~~~~~

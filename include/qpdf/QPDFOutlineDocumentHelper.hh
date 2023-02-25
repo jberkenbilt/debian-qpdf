@@ -1,4 +1,4 @@
-// Copyright (c) 2005-2022 Jay Berkenbilt
+// Copyright (c) 2005-2023 Jay Berkenbilt
 //
 // This file is part of qpdf.
 //
@@ -76,7 +76,6 @@ class QPDFOutlineDocumentHelper: public QPDFDocumentHelper
             return dh.checkSeen(og);
         }
     };
-    friend class Accessor;
 
   private:
     bool checkSeen(QPDFObjGen const& og);

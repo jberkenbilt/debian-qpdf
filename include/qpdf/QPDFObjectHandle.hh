@@ -1,4 +1,4 @@
-// Copyright (c) 2005-2022 Jay Berkenbilt
+// Copyright (c) 2005-2023 Jay Berkenbilt
 //
 // This file is part of qpdf.
 //
@@ -1490,51 +1490,6 @@ class QPDFObjectHandle
     QPDF_DLL
     void warnIfPossible(std::string const& warning);
 
-    // Initializers for objects.  This Factory class gives the QPDF
-    // class specific permission to call factory methods without
-    // making it a friend of the whole QPDFObjectHandle class.
-    class Factory
-    {
-        friend class QPDF;
-
-      private:
-        static QPDFObjectHandle
-        newIndirect(std::shared_ptr<QPDFObject> const& obj)
-        {
-            return QPDFObjectHandle(obj);
-        }
-    };
-    friend class Factory;
-
-    // Accessor for raw underlying object -- only QPDF is allowed to
-    // call this.
-    class ObjAccessor
-    {
-        friend class QPDF;
-
-      private:
-        static std::shared_ptr<QPDFObject>
-        getObject(QPDFObjectHandle& o)
-        {
-            if (!o.dereference()) {
-                throw std::logic_error("attempted to dereference an"
-                                       " uninitialized QPDFObjectHandle");
-            };
-            return o.obj;
-        }
-        static QPDF_Array*
-        asArray(QPDFObjectHandle& oh)
-        {
-            return oh.asArray();
-        }
-        static QPDF_Stream*
-        asStream(QPDFObjectHandle& oh)
-        {
-            return oh.asStream();
-        }
-    };
-    friend class ObjAccessor;
-
     // Provide access to specific classes for recursive
     // disconnected().
     class DisconnectAccess
@@ -1550,7 +1505,6 @@ class QPDFObjectHandle
             o.disconnect();
         }
     };
-    friend class Resetter;
 
     // Convenience routine: Throws if the assumption is violated. Your
     // code will be better if you call one of the isType methods and
@@ -1611,12 +1565,30 @@ class QPDFObjectHandle
     QPDF_DLL
     bool isImage(bool exclude_imagemask = true);
 
-  private:
+    // The following methods do not form part of the public API and are for
+    // internal use only.
+
     QPDFObjectHandle(std::shared_ptr<QPDFObject> const& obj) :
         obj(obj)
     {
     }
+    std::shared_ptr<QPDFObject>
+    getObj()
+    {
+        return obj;
+    }
+    QPDFObject*
+    getObjectPtr()
+    {
+        return obj.get();
+    }
+    QPDFObject* const
+    getObjectPtr() const
+    {
+        return obj.get();
+    }
 
+  private:
     QPDF_Array* asArray();
     QPDF_Bool* asBool();
     QPDF_Dictionary* asDictionary();
@@ -1634,7 +1606,7 @@ class QPDFObjectHandle
     void typeWarning(char const* expected_type, std::string const& warning);
     void objectWarning(std::string const& warning);
     void assertType(char const* type_name, bool istype);
-    bool dereference();
+    inline bool dereference();
     void makeDirect(std::set<QPDFObjGen>& visited, bool stop_at_streams);
     void disconnect();
     void setParsedOffset(qpdf_offset_t offset);
