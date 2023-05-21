@@ -27,8 +27,8 @@
 #include <qpdf/InputSource.hh>
 #include <qpdf/PointerHolder.hh> // unused -- remove in qpdf 12 (see #785)
 
+#include <cstdio>
 #include <memory>
-#include <stdio.h>
 #include <string>
 
 class QPDFTokenizer
@@ -104,8 +104,7 @@ class QPDFTokenizer
         {
             // Ignore fields other than type and value
             return (
-                (this->type != tt_bad) && (this->type == rhs.type) &&
-                (this->value == rhs.value));
+                (this->type != tt_bad) && (this->type == rhs.type) && (this->value == rhs.value));
         }
         bool
         isInteger() const
@@ -216,8 +215,7 @@ class QPDFTokenizer
     // beginning of the token. Returns false if the token is bad
     // or if scanning produced an error message for any reason.
 
-    bool nextToken(
-        InputSource& input, std::string const& context, size_t max_len = 0);
+    bool nextToken(InputSource& input, std::string const& context, size_t max_len = 0);
 
     // The following methods are only valid after nextToken has been called
     // and until another QPDFTokenizer method is called. They allow the results
@@ -317,8 +315,7 @@ QPDFTokenizer::getType() const noexcept
 inline std::string const&
 QPDFTokenizer::getValue() const noexcept
 {
-    return (this->type == tt_name || this->type == tt_string) ? this->val
-                                                              : this->raw_val;
+    return (this->type == tt_name || this->type == tt_string) ? this->val : this->raw_val;
 }
 inline std::string const&
 QPDFTokenizer::getRawValue() const noexcept

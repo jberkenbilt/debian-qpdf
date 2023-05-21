@@ -10,18 +10,17 @@
 #include <qpdf/QTC.hh>
 #include <qpdf/QUtil.hh>
 
+#include <cstdlib>
+#include <cstring>
 #include <stdexcept>
-#include <stdlib.h>
-#include <string.h>
 
 static inline bool
 is_delimiter(char ch)
 {
     return (
-        ch == ' ' || ch == '\n' || ch == '/' || ch == '(' || ch == ')' ||
-        ch == '{' || ch == '}' || ch == '<' || ch == '>' || ch == '[' ||
-        ch == ']' || ch == '%' || ch == '\t' || ch == '\r' || ch == '\v' ||
-        ch == '\f' || ch == 0);
+        ch == ' ' || ch == '\n' || ch == '/' || ch == '(' || ch == ')' || ch == '{' || ch == '}' ||
+        ch == '<' || ch == '>' || ch == '[' || ch == ']' || ch == '%' || ch == '\t' || ch == '\r' ||
+        ch == '\v' || ch == '\f' || ch == 0);
 }
 
 namespace
@@ -29,14 +28,13 @@ namespace
     class QPDFWordTokenFinder: public InputSource::Finder
     {
       public:
-        QPDFWordTokenFinder(
-            std::shared_ptr<InputSource> is, std::string const& str) :
+        QPDFWordTokenFinder(std::shared_ptr<InputSource> is, std::string const& str) :
             is(is),
             str(str)
         {
         }
-        virtual ~QPDFWordTokenFinder() = default;
-        virtual bool check();
+        ~QPDFWordTokenFinder() override = default;
+        bool check() override;
 
       private:
         std::shared_ptr<InputSource> is;
@@ -243,8 +241,7 @@ QPDFTokenizer::handleCharacter(char ch)
         return;
 
     default:
-        throw std::logic_error(
-            "INTERNAL ERROR: invalid state while reading token");
+        throw std::logic_error("INTERNAL ERROR: invalid state while reading token");
     }
 }
 
@@ -449,18 +446,9 @@ QPDFTokenizer::inNameHex1(char ch)
 {
     this->hex_char = ch;
 
-    if ('0' <= ch && ch <= '9') {
-        this->char_code = 16 * (int(ch) - int('0'));
+    if (char hval = QUtil::hex_decode_char(ch); hval < '\20') {
+        this->char_code = int(hval) << 4;
         this->state = st_name_hex2;
-
-    } else if ('A' <= ch && ch <= 'F') {
-        this->char_code = 16 * (10 + int(ch) - int('A'));
-        this->state = st_name_hex2;
-
-    } else if ('a' <= ch && ch <= 'f') {
-        this->char_code = 16 * (10 + int(ch) - int('a'));
-        this->state = st_name_hex2;
-
     } else {
         QTC::TC("qpdf", "QPDFTokenizer bad name 1");
         this->error_message = "name with stray # will not work with PDF >= 1.2";
@@ -475,15 +463,8 @@ QPDFTokenizer::inNameHex1(char ch)
 void
 QPDFTokenizer::inNameHex2(char ch)
 {
-    if ('0' <= ch && ch <= '9') {
-        this->char_code += int(ch) - int('0');
-
-    } else if ('A' <= ch && ch <= 'F') {
-        this->char_code += 10 + int(ch) - int('A');
-
-    } else if ('a' <= ch && ch <= 'f') {
-        this->char_code += 10 + int(ch) - int('a');
-
+    if (char hval = QUtil::hex_decode_char(ch); hval < '\20') {
+        this->char_code |= int(hval);
     } else {
         QTC::TC("qpdf", "QPDFTokenizer bad name 2");
         this->error_message = "name with stray # will not work with PDF >= 1.2";
@@ -675,16 +656,8 @@ QPDFTokenizer::inLiteral(char ch)
 void
 QPDFTokenizer::inHexstring(char ch)
 {
-    if ('0' <= ch && ch <= '9') {
-        this->char_code = 16 * (int(ch) - int('0'));
-        this->state = st_in_hexstring_2nd;
-
-    } else if ('A' <= ch && ch <= 'F') {
-        this->char_code = 16 * (10 + int(ch) - int('A'));
-        this->state = st_in_hexstring_2nd;
-
-    } else if ('a' <= ch && ch <= 'f') {
-        this->char_code = 16 * (10 + int(ch) - int('a'));
+    if (char hval = QUtil::hex_decode_char(ch); hval < '\20') {
+        this->char_code = int(hval) << 4;
         this->state = st_in_hexstring_2nd;
 
     } else if (ch == '>') {
@@ -697,8 +670,7 @@ QPDFTokenizer::inHexstring(char ch)
     } else {
         this->type = tt_bad;
         QTC::TC("qpdf", "QPDFTokenizer bad hexstring character");
-        this->error_message =
-            std::string("invalid character (") + ch + ") in hexstring";
+        this->error_message = std::string("invalid character (") + ch + ") in hexstring";
         this->state = st_token_ready;
     }
 }
@@ -706,16 +678,8 @@ QPDFTokenizer::inHexstring(char ch)
 void
 QPDFTokenizer::inHexstring2nd(char ch)
 {
-    if ('0' <= ch && ch <= '9') {
-        this->val += char(this->char_code + int(ch) - int('0'));
-        this->state = st_in_hexstring;
-
-    } else if ('A' <= ch && ch <= 'F') {
-        this->val += char(this->char_code + 10 + int(ch) - int('A'));
-        this->state = st_in_hexstring;
-
-    } else if ('a' <= ch && ch <= 'f') {
-        this->val += char(this->char_code + 10 + int(ch) - int('a'));
+    if (char hval = QUtil::hex_decode_char(ch); hval < '\20') {
+        this->val += char(this->char_code) | hval;
         this->state = st_in_hexstring;
 
     } else if (ch == '>') {
@@ -730,8 +694,7 @@ QPDFTokenizer::inHexstring2nd(char ch)
     } else {
         this->type = tt_bad;
         QTC::TC("qpdf", "QPDFTokenizer bad hexstring 2nd character");
-        this->error_message =
-            std::string("invalid character (") + ch + ") in hexstring";
+        this->error_message = std::string("invalid character (") + ch + ") in hexstring";
         this->state = st_token_ready;
     }
 }
@@ -878,14 +841,13 @@ QPDFTokenizer::findEI(std::shared_ptr<InputSource> input)
                 bool found_non_printable = false;
                 bool found_other = false;
                 for (char ch: t.getValue()) {
-                    if (((ch >= 'a') && (ch <= 'z')) ||
-                        ((ch >= 'A') && (ch <= 'Z')) || (ch == '*')) {
+                    if (((ch >= 'a') && (ch <= 'z')) || ((ch >= 'A') && (ch <= 'Z')) ||
+                        (ch == '*')) {
                         // Treat '*' as alpha since there are valid
                         // PDF operators that contain * along with
                         // alphabetic characters.
                         found_alpha = true;
-                    } else if (
-                        (static_cast<signed char>(ch) < 32) && (!isSpace(ch))) {
+                    } else if ((static_cast<signed char>(ch) < 32) && (!isSpace(ch))) {
                         // Compare ch as a signed char so characters
                         // outside of 7-bit will be < 0.
                         found_non_printable = true;
@@ -925,8 +887,7 @@ QPDFTokenizer::getToken(Token& token, bool& unread_char, char& ch)
     ch = this->char_to_unread;
     if (ready) {
         token = (!(this->type == tt_name || this->type == tt_string))
-            ? Token(
-                  this->type, this->raw_val, this->raw_val, this->error_message)
+            ? Token(this->type, this->raw_val, this->raw_val, this->error_message)
             : Token(this->type, this->val, this->raw_val, this->error_message);
 
         this->reset();
@@ -942,10 +903,7 @@ QPDFTokenizer::betweenTokens()
 
 QPDFTokenizer::Token
 QPDFTokenizer::readToken(
-    std::shared_ptr<InputSource> input,
-    std::string const& context,
-    bool allow_bad,
-    size_t max_len)
+    std::shared_ptr<InputSource> input, std::string const& context, bool allow_bad, size_t max_len)
 {
     nextToken(*input, context, max_len);
 
@@ -970,8 +928,7 @@ QPDFTokenizer::readToken(
 }
 
 bool
-QPDFTokenizer::nextToken(
-    InputSource& input, std::string const& context, size_t max_len)
+QPDFTokenizer::nextToken(InputSource& input, std::string const& context, size_t max_len)
 {
     if (this->state != st_inline_image) {
         reset();
@@ -999,14 +956,12 @@ QPDFTokenizer::nextToken(
             if (this->in_token) {
                 this->raw_val += ch;
             }
-            if (max_len && (this->raw_val.length() >= max_len) &&
-                (this->state != st_token_ready)) {
+            if (max_len && (this->raw_val.length() >= max_len) && (this->state != st_token_ready)) {
                 // terminate this token now
                 QTC::TC("qpdf", "QPDFTokenizer block long token");
                 this->type = tt_bad;
                 this->state = st_token_ready;
-                this->error_message =
-                    "exceeded allowable length while reading token";
+                this->error_message = "exceeded allowable length while reading token";
             }
         }
     }

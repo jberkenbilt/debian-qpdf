@@ -1,9 +1,9 @@
 #include <qpdf/QTC.hh>
 
 #include <qpdf/QUtil.hh>
+#include <cstdio>
 #include <map>
 #include <set>
-#include <stdio.h>
 
 static bool
 tc_active(char const* const scope)

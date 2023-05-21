@@ -14,13 +14,13 @@
 class DiscardContents: public QPDFObjectHandle::ParserCallbacks
 {
   public:
-    virtual ~DiscardContents() = default;
-    virtual void
-    handleObject(QPDFObjectHandle)
+    ~DiscardContents() override = default;
+    void
+    handleObject(QPDFObjectHandle) override
     {
     }
-    virtual void
-    handleEOF()
+    void
+    handleEOF() override
     {
     }
 };
@@ -53,8 +53,8 @@ FuzzHelper::FuzzHelper(unsigned char const* data, size_t size) :
 std::shared_ptr<QPDF>
 FuzzHelper::getQpdf()
 {
-    auto is = std::shared_ptr<InputSource>(
-        new BufferInputSource("fuzz input", &this->input_buffer));
+    auto is =
+        std::shared_ptr<InputSource>(new BufferInputSource("fuzz input", &this->input_buffer));
     auto qpdf = QPDF::create();
     qpdf->processInputSource(is);
     return qpdf;
@@ -99,8 +99,7 @@ FuzzHelper::testWrite()
     w = getWriter(q);
     w->setStaticID(true);
     w->setLinearization(true);
-    w->setR6EncryptionParameters(
-        "u", "o", true, true, true, true, true, true, qpdf_r3p_full, true);
+    w->setR6EncryptionParameters("u", "o", true, true, true, true, true, true, qpdf_r3p_full, true);
     doWrite(w);
 
     q = getQpdf();

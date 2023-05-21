@@ -4,10 +4,9 @@
 
 #include <cstdio>
 #include <cstdlib>
-#include <cstring>
 #include <iostream>
 
-static char const* whoami = 0;
+static char const* whoami = nullptr;
 
 static void
 usageExit(std::string const& msg)
@@ -16,15 +15,10 @@ usageExit(std::string const& msg)
               << whoami << ": " << msg << std::endl
               << std::endl
               << "For help:" << std::endl
-              << "  " << whoami << " --help=usage       usage information"
-              << std::endl
-              << "  " << whoami << " --help=topic       help on a topic"
-              << std::endl
-              << "  " << whoami << " --help=--option    help on an option"
-              << std::endl
-              << "  " << whoami
-              << " --help             general help and a topic list"
-              << std::endl
+              << "  " << whoami << " --help=usage       usage information" << std::endl
+              << "  " << whoami << " --help=topic       help on a topic" << std::endl
+              << "  " << whoami << " --help=--option    help on an option" << std::endl
+              << "  " << whoami << " --help             general help and a topic list" << std::endl
               << std::endl;
     exit(QPDFJob::EXIT_ERROR);
 }

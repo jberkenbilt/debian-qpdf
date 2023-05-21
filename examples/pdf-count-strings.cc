@@ -4,15 +4,13 @@
 // that uses QPDFObjectHandle::TokenFilter with addContentTokenFilter.
 //
 
+#include <cstdlib>
 #include <iostream>
-#include <stdlib.h>
-#include <string.h>
 
 #include <qpdf/Pl_StdioFile.hh>
 #include <qpdf/QPDF.hh>
 #include <qpdf/QPDFObjectHandle.hh>
 #include <qpdf/QPDFPageDocumentHelper.hh>
-#include <qpdf/QPDFPageObjectHelper.hh>
 #include <qpdf/QUtil.hh>
 
 static char const* whoami = nullptr;
@@ -32,9 +30,9 @@ class StringCounter: public QPDFObjectHandle::TokenFilter
         count(0)
     {
     }
-    virtual ~StringCounter() = default;
-    virtual void handleToken(QPDFTokenizer::Token const&);
-    virtual void handleEOF();
+    ~StringCounter() override = default;
+    void handleToken(QPDFTokenizer::Token const&) override;
+    void handleEOF() override;
     int getCount() const;
 
   private:
@@ -99,8 +97,7 @@ main(int argc, char* argv[])
                 page.filterContents(&counter, &out);
                 std::cout << "\n% end " << pageno << std::endl;
             }
-            std::cout << "Page " << pageno
-                      << ": strings = " << counter.getCount() << std::endl;
+            std::cout << "Page " << pageno << ": strings = " << counter.getCount() << std::endl;
         }
     } catch (std::exception& e) {
         std::cerr << whoami << ": " << e.what() << std::endl;

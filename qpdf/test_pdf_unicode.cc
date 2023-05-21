@@ -1,10 +1,10 @@
 #include <qpdf/QPDFObjectHandle.hh>
 #include <qpdf/QUtil.hh>
+#include <cstdlib>
+#include <cstring>
 #include <iostream>
-#include <stdlib.h>
-#include <string.h>
 
-static char const* whoami = 0;
+static char const* whoami = nullptr;
 
 void
 usage()
@@ -16,7 +16,7 @@ usage()
 int
 main(int argc, char* argv[])
 {
-    if ((whoami = strrchr(argv[0], '/')) == NULL) {
+    if ((whoami = strrchr(argv[0], '/')) == nullptr) {
         whoami = argv[0];
     } else {
         ++whoami;
@@ -28,8 +28,7 @@ main(int argc, char* argv[])
     char const* infilename = argv[1];
     for (auto const& line: QUtil::read_lines_from_file(infilename)) {
         QPDFObjectHandle str = QPDFObjectHandle::newUnicodeString(line);
-        std::cout << str.getUTF8Value() << " // " << str.unparseBinary()
-                  << std::endl;
+        std::cout << str.getUTF8Value() << " // " << str.unparseBinary() << std::endl;
     }
     return 0;
 }

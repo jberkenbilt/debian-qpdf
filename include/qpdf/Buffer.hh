@@ -25,8 +25,8 @@
 #include <qpdf/DLL.h>
 #include <qpdf/PointerHolder.hh> // unused -- remove in qpdf 12 (see #785)
 
+#include <cstddef>
 #include <memory>
-#include <stddef.h>
 
 class Buffer
 {

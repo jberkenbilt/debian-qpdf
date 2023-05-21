@@ -6,7 +6,7 @@
 #include <qpdf/QPDFAnnotationObjectHelper.hh>
 #include <qpdf/QTC.hh>
 #include <qpdf/QUtil.hh>
-#include <stdlib.h>
+#include <cstdlib>
 
 QPDFFormFieldObjectHelper::QPDFFormFieldObjectHelper(QPDFObjectHandle oh) :
     QPDFObjectHelper(oh),
@@ -36,20 +36,14 @@ QPDFFormFieldObjectHelper
 QPDFFormFieldObjectHelper::getTopLevelField(bool* is_different)
 {
     auto top_field = this->oh;
-    std::set<QPDFObjGen> seen;
-    while (top_field.isDictionary() &&
-           (!top_field.getKey("/Parent").isNull())) {
+    QPDFObjGen::set seen;
+    while (seen.add(top_field) && !top_field.getKeyIfDict("/Parent").isNull()) {
         top_field = top_field.getKey("/Parent");
         if (is_different) {
             *is_different = true;
         }
-        auto og = top_field.getObjGen();
-        if (seen.count(og)) {
-            break;
-        }
-        seen.insert(og);
     }
-    return QPDFFormFieldObjectHelper(top_field);
+    return {top_field};
 }
 
 QPDFObjectHandle
@@ -76,25 +70,22 @@ QPDFFormFieldObjectHelper::getInheritableFieldValue(std::string const& name)
         return QPDFObjectHandle::newNull();
     }
     QPDFObjectHandle result(node.getKey(name));
-    std::set<QPDFObjGen> seen;
-    while (result.isNull() && node.hasKey("/Parent")) {
-        seen.insert(node.getObjGen());
-        node = node.getKey("/Parent");
-        if (seen.count(node.getObjGen())) {
-            break;
-        }
-        result = node.getKey(name);
-        if (!result.isNull()) {
-            QTC::TC(
-                "qpdf", "QPDFFormFieldObjectHelper non-trivial inheritance");
+    if (result.isNull()) {
+        QPDFObjGen::set seen;
+        while (seen.add(node) && node.hasKey("/Parent")) {
+            node = node.getKey("/Parent");
+            result = node.getKey(name);
+            if (!result.isNull()) {
+                QTC::TC("qpdf", "QPDFFormFieldObjectHelper non-trivial inheritance");
+                return result;
+            }
         }
     }
     return result;
 }
 
 std::string
-QPDFFormFieldObjectHelper::getInheritableFieldValueAsString(
-    std::string const& name)
+QPDFFormFieldObjectHelper::getInheritableFieldValueAsString(std::string const& name)
 {
     QPDFObjectHandle fv = getInheritableFieldValue(name);
     std::string result;
@@ -105,8 +96,7 @@ QPDFFormFieldObjectHelper::getInheritableFieldValueAsString(
 }
 
 std::string
-QPDFFormFieldObjectHelper::getInheritableFieldValueAsName(
-    std::string const& name)
+QPDFFormFieldObjectHelper::getInheritableFieldValueAsName(std::string const& name)
 {
     QPDFObjectHandle fv = getInheritableFieldValue(name);
     std::string result;
@@ -127,18 +117,15 @@ QPDFFormFieldObjectHelper::getFullyQualifiedName()
 {
     std::string result;
     QPDFObjectHandle node = this->oh;
-    std::set<QPDFObjGen> seen;
-    while ((!node.isNull()) && (seen.count(node.getObjGen()) == 0)) {
+    QPDFObjGen::set seen;
+    while (!node.isNull() && seen.add(node)) {
         if (node.getKey("/T").isString()) {
             if (!result.empty()) {
-                QTC::TC(
-                    "qpdf",
-                    "QPDFFormFieldObjectHelper non-trivial qualified name");
+                QTC::TC("qpdf", "QPDFFormFieldObjectHelper non-trivial qualified name");
                 result = "." + result;
             }
             result = node.getKey("/T").getUTF8Value() + result;
         }
-        seen.insert(node.getObjGen());
         node = node.getKey("/Parent");
     }
     return result;
@@ -217,10 +204,7 @@ QPDFFormFieldObjectHelper::getDefaultAppearance()
     }
     std::string result;
     if (value.isString()) {
-        QTC::TC(
-            "qpdf",
-            "QPDFFormFieldObjectHelper DA present",
-            looked_in_acroform ? 0 : 1);
+        QTC::TC("qpdf", "QPDFFormFieldObjectHelper DA present", looked_in_acroform ? 0 : 1);
         result = value.getUTF8Value();
     }
     return result;
@@ -237,10 +221,7 @@ QPDFFormFieldObjectHelper::getQuadding()
     }
     int result = 0;
     if (fv.isInteger()) {
-        QTC::TC(
-            "qpdf",
-            "QPDFFormFieldObjectHelper Q present",
-            looked_in_acroform ? 0 : 1);
+        QTC::TC("qpdf", "QPDFFormFieldObjectHelper Q present", looked_in_acroform ? 0 : 1);
         result = QIntC::to_int(fv.getIntValue());
     }
     return result;
@@ -262,25 +243,19 @@ QPDFFormFieldObjectHelper::isText()
 bool
 QPDFFormFieldObjectHelper::isCheckbox()
 {
-    return (
-        (getFieldType() == "/Btn") &&
-        ((getFlags() & (ff_btn_radio | ff_btn_pushbutton)) == 0));
+    return ((getFieldType() == "/Btn") && ((getFlags() & (ff_btn_radio | ff_btn_pushbutton)) == 0));
 }
 
 bool
 QPDFFormFieldObjectHelper::isRadioButton()
 {
-    return (
-        (getFieldType() == "/Btn") &&
-        ((getFlags() & ff_btn_radio) == ff_btn_radio));
+    return ((getFieldType() == "/Btn") && ((getFlags() & ff_btn_radio) == ff_btn_radio));
 }
 
 bool
 QPDFFormFieldObjectHelper::isPushbutton()
 {
-    return (
-        (getFieldType() == "/Btn") &&
-        ((getFlags() & ff_btn_pushbutton) == ff_btn_pushbutton));
+    return ((getFieldType() == "/Btn") && ((getFlags() & ff_btn_pushbutton) == ff_btn_pushbutton));
 }
 
 bool
@@ -310,15 +285,13 @@ QPDFFormFieldObjectHelper::getChoices()
 }
 
 void
-QPDFFormFieldObjectHelper::setFieldAttribute(
-    std::string const& key, QPDFObjectHandle value)
+QPDFFormFieldObjectHelper::setFieldAttribute(std::string const& key, QPDFObjectHandle value)
 {
     this->oh.replaceKey(key, value);
 }
 
 void
-QPDFFormFieldObjectHelper::setFieldAttribute(
-    std::string const& key, std::string const& utf8_value)
+QPDFFormFieldObjectHelper::setFieldAttribute(std::string const& key, std::string const& utf8_value)
 {
     this->oh.replaceKey(key, QPDFObjectHandle::newUnicodeString(utf8_value));
 }
@@ -337,41 +310,36 @@ QPDFFormFieldObjectHelper::setV(QPDFObjectHandle value, bool need_appearances)
                 }
             }
             if (!okay) {
-                this->oh.warnIfPossible(
-                    "ignoring attempt to set a checkbox field to a"
-                    " value of other than /Yes or /Off");
+                this->oh.warnIfPossible("ignoring attempt to set a checkbox field to a"
+                                        " value of other than /Yes or /Off");
             }
         } else if (isRadioButton()) {
             if (value.isName()) {
                 setRadioButtonValue(value);
             } else {
-                this->oh.warnIfPossible(
-                    "ignoring attempt to set a radio button field to"
-                    " an object that is not a name");
+                this->oh.warnIfPossible("ignoring attempt to set a radio button field to"
+                                        " an object that is not a name");
             }
         } else if (isPushbutton()) {
-            this->oh.warnIfPossible(
-                "ignoring attempt set the value of a pushbutton field");
+            this->oh.warnIfPossible("ignoring attempt set the value of a pushbutton field");
         }
         return;
     }
     if (value.isString()) {
-        setFieldAttribute(
-            "/V", QPDFObjectHandle::newUnicodeString(value.getUTF8Value()));
+        setFieldAttribute("/V", QPDFObjectHandle::newUnicodeString(value.getUTF8Value()));
     } else {
         setFieldAttribute("/V", value);
     }
     if (need_appearances) {
-        QPDF& qpdf = this->oh.getQPDF(
-            "QPDFFormFieldObjectHelper::setV called with need_appearances = "
-            "true on an object that is not associated with an owning QPDF");
+        QPDF& qpdf =
+            this->oh.getQPDF("QPDFFormFieldObjectHelper::setV called with need_appearances = "
+                             "true on an object that is not associated with an owning QPDF");
         QPDFAcroFormDocumentHelper(qpdf).setNeedAppearances(true);
     }
 }
 
 void
-QPDFFormFieldObjectHelper::setV(
-    std::string const& utf8_value, bool need_appearances)
+QPDFFormFieldObjectHelper::setV(std::string const& utf8_value, bool need_appearances)
 {
     setV(QPDFObjectHandle::newUnicodeString(utf8_value), need_appearances);
 }
@@ -397,8 +365,7 @@ QPDFFormFieldObjectHelper::setRadioButtonValue(QPDFObjectHandle name)
         if (ph.isRadioButton()) {
             // This is most likely one of the individual buttons. Try
             // calling on the parent.
-            QTC::TC(
-                "qpdf", "QPDFFormFieldObjectHelper set parent radio button");
+            QTC::TC("qpdf", "QPDFFormFieldObjectHelper set parent radio button");
             ph.setRadioButtonValue(name);
             return;
         }
@@ -426,9 +393,7 @@ QPDFFormFieldObjectHelper::setRadioButtonValue(QPDFObjectHandle name)
                     QPDFObjectHandle grandkid = grandkids.getArrayItem(j);
                     AP = grandkid.getKey("/AP");
                     if (!AP.isNull()) {
-                        QTC::TC(
-                            "qpdf",
-                            "QPDFFormFieldObjectHelper radio button grandkid");
+                        QTC::TC("qpdf", "QPDFFormFieldObjectHelper radio button grandkid");
                         annot = grandkid;
                         break;
                     }
@@ -439,8 +404,7 @@ QPDFFormFieldObjectHelper::setRadioButtonValue(QPDFObjectHandle name)
         }
         if (!annot.isInitialized()) {
             QTC::TC("qpdf", "QPDFObjectHandle broken radio button");
-            this->oh.warnIfPossible(
-                "unable to set the value of this radio button");
+            this->oh.warnIfPossible("unable to set the value of this radio button");
             continue;
         }
         if (AP.isDictionary() && AP.getKey("/N").isDictionary() &&
@@ -472,9 +436,7 @@ QPDFFormFieldObjectHelper::setCheckBoxValue(bool value)
                 QPDFObjectHandle kid = kids.getArrayItem(i);
                 AP = kid.getKey("/AP");
                 if (!AP.isNull()) {
-                    QTC::TC(
-                        "qpdf",
-                        "QPDFFormFieldObjectHelper checkbox kid widget");
+                    QTC::TC("qpdf", "QPDFFormFieldObjectHelper checkbox kid widget");
                     annot = kid;
                     break;
                 }
@@ -515,9 +477,9 @@ namespace
             std::vector<std::string> const& opt,
             double tf,
             QPDFObjectHandle::Rectangle const& bbox);
-        virtual ~ValueSetter() = default;
-        virtual void handleToken(QPDFTokenizer::Token const&);
-        virtual void handleEOF();
+        ~ValueSetter() override = default;
+        void handleToken(QPDFTokenizer::Token const&) override;
+        void handleEOF() override;
         void writeAppearance();
 
       private:
@@ -562,8 +524,7 @@ ValueSetter::handleToken(QPDFTokenizer::Token const& token)
         break;
 
     case st_bmc:
-        if ((ttype == QPDFTokenizer::tt_space) ||
-            (ttype == QPDFTokenizer::tt_comment)) {
+        if ((ttype == QPDFTokenizer::tt_space) || (ttype == QPDFTokenizer::tt_comment)) {
             writeToken(token);
         } else {
             state = st_emc;
@@ -611,7 +572,7 @@ ValueSetter::writeAppearance()
     // Write one or more lines, centered vertically, possibly with
     // one row highlighted.
 
-    size_t max_rows = static_cast<size_t>((bbox.ury - bbox.lly) / tfh);
+    auto max_rows = static_cast<size_t>((bbox.ury - bbox.lly) / tfh);
     bool highlight = false;
     size_t highlight_idx = 0;
 
@@ -649,9 +610,7 @@ ValueSetter::writeAppearance()
             }
             highlight = true;
             highlight_idx = found_idx - QIntC::to_size(wanted_first);
-            for (size_t i = QIntC::to_size(wanted_first);
-                 i <= QIntC::to_size(wanted_last);
-                 ++i) {
+            for (size_t i = QIntC::to_size(wanted_first); i <= QIntC::to_size(wanted_last); ++i) {
                 lines.push_back(opt.at(i));
             }
         } else {
@@ -668,14 +627,12 @@ ValueSetter::writeAppearance()
 
     // Write the lines centered vertically, highlighting if needed
     size_t nlines = lines.size();
-    double dy = bbox.ury -
-        ((bbox.ury - bbox.lly - (static_cast<double>(nlines) * tfh)) / 2.0);
+    double dy = bbox.ury - ((bbox.ury - bbox.lly - (static_cast<double>(nlines) * tfh)) / 2.0);
     if (highlight) {
         write(
             "q\n0.85 0.85 0.85 rg\n" + QUtil::double_to_string(bbox.llx) + " " +
             QUtil::double_to_string(
-                bbox.lly + dy -
-                (tfh * (static_cast<double>(highlight_idx + 1)))) +
+                bbox.lly + dy - (tfh * (static_cast<double>(highlight_idx + 1)))) +
             " " + QUtil::double_to_string(bbox.urx - bbox.llx) + " " +
             QUtil::double_to_string(tfh) + " re f\nQ\n");
     }
@@ -688,10 +645,8 @@ ValueSetter::writeAppearance()
         // which doesn't seem really worth the effort.
         if (i == 0) {
             write(
-                QUtil::double_to_string(bbox.llx + static_cast<double>(dx)) +
-                " " +
-                QUtil::double_to_string(bbox.lly + static_cast<double>(dy)) +
-                " Td\n");
+                QUtil::double_to_string(bbox.llx + static_cast<double>(dx)) + " " +
+                QUtil::double_to_string(bbox.lly + static_cast<double>(dy)) + " Td\n");
         } else {
             write("0 " + QUtil::double_to_string(-tfh) + " Td\n");
         }
@@ -706,10 +661,10 @@ namespace
     {
       public:
         TfFinder();
-        virtual ~TfFinder()
+        ~TfFinder() override
         {
         }
-        virtual void handleToken(QPDFTokenizer::Token const&);
+        void handleToken(QPDFTokenizer::Token const&) override;
         double getTf();
         std::string getFontName();
         std::string getDA();
@@ -801,8 +756,7 @@ TfFinder::getFontName()
 }
 
 QPDFObjectHandle
-QPDFFormFieldObjectHelper::getFontFromResource(
-    QPDFObjectHandle resources, std::string const& name)
+QPDFFormFieldObjectHelper::getFontFromResource(QPDFObjectHandle resources, std::string const& name)
 {
     QPDFObjectHandle result;
     if (resources.isDictionary() && resources.getKey("/Font").isDictionary() &&
@@ -813,40 +767,34 @@ QPDFFormFieldObjectHelper::getFontFromResource(
 }
 
 void
-QPDFFormFieldObjectHelper::generateTextAppearance(
-    QPDFAnnotationObjectHelper& aoh)
+QPDFFormFieldObjectHelper::generateTextAppearance(QPDFAnnotationObjectHelper& aoh)
 {
     QPDFObjectHandle AS = aoh.getAppearanceStream("/N");
     if (AS.isNull()) {
         QTC::TC("qpdf", "QPDFFormFieldObjectHelper create AS from scratch");
         QPDFObjectHandle::Rectangle rect = aoh.getRect();
-        QPDFObjectHandle::Rectangle bbox(
-            0, 0, rect.urx - rect.llx, rect.ury - rect.lly);
-        QPDFObjectHandle dict = QPDFObjectHandle::parse(
-            "<< /Resources << /ProcSet [ /PDF /Text ] >>"
-            " /Type /XObject /Subtype /Form >>");
+        QPDFObjectHandle::Rectangle bbox(0, 0, rect.urx - rect.llx, rect.ury - rect.lly);
+        QPDFObjectHandle dict =
+            QPDFObjectHandle::parse("<< /Resources << /ProcSet [ /PDF /Text ] >>"
+                                    " /Type /XObject /Subtype /Form >>");
         dict.replaceKey("/BBox", QPDFObjectHandle::newFromRectangle(bbox));
-        AS = QPDFObjectHandle::newStream(
-            this->oh.getOwningQPDF(), "/Tx BMC\nEMC\n");
+        AS = QPDFObjectHandle::newStream(this->oh.getOwningQPDF(), "/Tx BMC\nEMC\n");
         AS.replaceDict(dict);
         QPDFObjectHandle AP = aoh.getAppearanceDictionary();
         if (AP.isNull()) {
             QTC::TC("qpdf", "QPDFFormFieldObjectHelper create AP from scratch");
-            aoh.getObjectHandle().replaceKey(
-                "/AP", QPDFObjectHandle::newDictionary());
+            aoh.getObjectHandle().replaceKey("/AP", QPDFObjectHandle::newDictionary());
             AP = aoh.getAppearanceDictionary();
         }
         AP.replaceKey("/N", AS);
     }
     if (!AS.isStream()) {
-        aoh.getObjectHandle().warnIfPossible(
-            "unable to get normal appearance stream for update");
+        aoh.getObjectHandle().warnIfPossible("unable to get normal appearance stream for update");
         return;
     }
     QPDFObjectHandle bbox_obj = AS.getDict().getKey("/BBox");
     if (!bbox_obj.isRectangle()) {
-        aoh.getObjectHandle().warnIfPossible(
-            "unable to get appearance stream bounding box");
+        aoh.getObjectHandle().warnIfPossible("unable to get appearance stream bounding box");
         return;
     }
     QPDFObjectHandle::Rectangle bbox = bbox_obj.getArrayAsRectangle();
@@ -879,8 +827,7 @@ QPDFFormFieldObjectHelper::generateTextAppearance(
         if (found_font_in_dr && resources.isDictionary()) {
             QTC::TC("qpdf", "QPDFFormFieldObjectHelper get font from /DR");
             if (resources.isIndirect()) {
-                resources = resources.getQPDF().makeIndirectObject(
-                    resources.shallowCopy());
+                resources = resources.getQPDF().makeIndirectObject(resources.shallowCopy());
                 AS.getDict().replaceKey("/Resources", resources);
             }
             // Use mergeResources to force /Font to be local
@@ -906,6 +853,5 @@ QPDFFormFieldObjectHelper::generateTextAppearance(
 
     AS.addTokenFilter(
         // line-break
-        std::shared_ptr<QPDFObjectHandle::TokenFilter>(
-            new ValueSetter(DA, V, opt, tf, bbox)));
+        std::shared_ptr<QPDFObjectHandle::TokenFilter>(new ValueSetter(DA, V, opt, tf, bbox)));
 }

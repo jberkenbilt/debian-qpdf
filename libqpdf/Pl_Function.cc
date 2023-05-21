@@ -1,7 +1,5 @@
 #include <qpdf/Pl_Function.hh>
 
-#include <qpdf/QUtil.hh>
-#include <errno.h>
 #include <stdexcept>
 
 Pl_Function::Members::Members(writer_t fn) :
@@ -15,8 +13,7 @@ Pl_Function::Pl_Function(char const* identifier, Pipeline* next, writer_t fn) :
 {
 }
 
-Pl_Function::Pl_Function(
-    char const* identifier, Pipeline* next, writer_c_t fn, void* udata) :
+Pl_Function::Pl_Function(char const* identifier, Pipeline* next, writer_c_t fn, void* udata) :
     Pipeline(identifier, next),
     m(new Members(nullptr))
 {
@@ -24,14 +21,12 @@ Pl_Function::Pl_Function(
         int code = fn(data, len, udata);
         if (code != 0) {
             throw std::runtime_error(
-                std::string(identifier) + " function returned code " +
-                std::to_string(code));
+                std::string(identifier) + " function returned code " + std::to_string(code));
         }
     };
 }
 
-Pl_Function::Pl_Function(
-    char const* identifier, Pipeline* next, writer_c_char_t fn, void* udata) :
+Pl_Function::Pl_Function(char const* identifier, Pipeline* next, writer_c_char_t fn, void* udata) :
     Pipeline(identifier, next),
     m(new Members(nullptr))
 {
@@ -39,8 +34,7 @@ Pl_Function::Pl_Function(
         int code = fn(reinterpret_cast<char const*>(data), len, udata);
         if (code != 0) {
             throw std::runtime_error(
-                std::string(identifier) + " function returned code " +
-                std::to_string(code));
+                std::string(identifier) + " function returned code " + std::to_string(code));
         }
     };
 }
@@ -54,7 +48,7 @@ Pl_Function::~Pl_Function()
 void
 Pl_Function::write(unsigned char const* buf, size_t len)
 {
-    this->m->fn(buf, len);
+    m->fn(buf, len);
     if (getNext(true)) {
         getNext()->write(buf, len);
     }

@@ -15,9 +15,7 @@ QPDF_Null::create()
 
 std::shared_ptr<QPDFObject>
 QPDF_Null::create(
-    std::shared_ptr<QPDFObject> parent,
-    std::string_view const& static_descr,
-    std::string var_descr)
+    std::shared_ptr<QPDFObject> parent, std::string_view const& static_descr, std::string var_descr)
 {
     auto n = do_create(new QPDF_Null());
     n->setChildDescription(parent, static_descr, var_descr);
@@ -26,9 +24,7 @@ QPDF_Null::create(
 
 std::shared_ptr<QPDFObject>
 QPDF_Null::create(
-    std::shared_ptr<QPDFValue> parent,
-    std::string_view const& static_descr,
-    std::string var_descr)
+    std::shared_ptr<QPDFValue> parent, std::string_view const& static_descr, std::string var_descr)
 {
     auto n = do_create(new QPDF_Null());
     n->setChildDescription(parent, static_descr, var_descr);
@@ -50,5 +46,6 @@ QPDF_Null::unparse()
 JSON
 QPDF_Null::getJSON(int json_version)
 {
+    // If this is updated, QPDF_Array::getJSON must also be updated.
     return JSON::makeNull();
 }

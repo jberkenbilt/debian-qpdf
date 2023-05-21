@@ -1,7 +1,5 @@
 #include <qpdf/Pl_OStream.hh>
 
-#include <qpdf/QUtil.hh>
-#include <errno.h>
 #include <stdexcept>
 
 Pl_OStream::Members::Members(std::ostream& os) :
@@ -24,12 +22,11 @@ Pl_OStream::~Pl_OStream()
 void
 Pl_OStream::write(unsigned char const* buf, size_t len)
 {
-    this->m->os.write(
-        reinterpret_cast<char const*>(buf), static_cast<std::streamsize>(len));
+    m->os.write(reinterpret_cast<char const*>(buf), static_cast<std::streamsize>(len));
 }
 
 void
 Pl_OStream::finish()
 {
-    this->m->os.flush();
+    m->os.flush();
 }

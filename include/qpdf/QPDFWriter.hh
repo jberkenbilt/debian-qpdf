@@ -29,12 +29,12 @@
 #include <qpdf/DLL.h>
 #include <qpdf/Types.h>
 
+#include <cstdio>
 #include <functional>
 #include <list>
 #include <map>
 #include <memory>
 #include <set>
-#include <stdio.h>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -102,7 +102,7 @@ class QPDFWriter
         QPDF_DLL
         virtual ~FunctionProgressReporter();
         QPDF_DLL
-        virtual void reportProgress(int) override;
+        void reportProgress(int) override;
 
       private:
         std::function<void(int)> handler;
@@ -539,7 +539,7 @@ class QPDFWriter
         friend class QPDFWriter;
 
       public:
-        PipelinePopper(QPDFWriter* qw, std::shared_ptr<Buffer>* bp = 0) :
+        PipelinePopper(QPDFWriter* qw, std::shared_ptr<Buffer>* bp = nullptr) :
             qw(qw),
             bp(bp)
         {
@@ -561,16 +561,11 @@ class QPDFWriter
     void writePad(size_t nspaces);
     void assignCompressedObjectNumbers(QPDFObjGen const& og);
     void enqueueObject(QPDFObjectHandle object);
-    void writeObjectStreamOffsets(
-        std::vector<qpdf_offset_t>& offsets, int first_obj);
+    void writeObjectStreamOffsets(std::vector<qpdf_offset_t>& offsets, int first_obj);
     void writeObjectStream(QPDFObjectHandle object);
     void writeObject(QPDFObjectHandle object, int object_stream_index = -1);
     void writeTrailer(
-        trailer_e which,
-        int size,
-        bool xref_stream,
-        qpdf_offset_t prev,
-        int linearization_pass);
+        trailer_e which, int size, bool xref_stream, qpdf_offset_t prev, int linearization_pass);
     bool willFilterStream(
         QPDFObjectHandle stream,
         bool& compress_stream,
@@ -601,8 +596,7 @@ class QPDFWriter
         bool allow_modify_other,
         qpdf_r3_print_e print,
         qpdf_r3_modify_e modify);
-    void
-    disableIncompatibleEncryption(int major, int minor, int extension_level);
+    void disableIncompatibleEncryption(int major, int minor, int extension_level);
     void parseVersion(std::string const& version, int& major, int& minor) const;
     int compareVersions(int major1, int minor1, int major2, int minor2) const;
     void setEncryptionParameters(
@@ -640,8 +634,7 @@ class QPDFWriter
     void doWriteSetup();
     void writeHeader();
     void writeHintStream(int hint_id);
-    qpdf_offset_t
-    writeXRefTable(trailer_e which, int first, int last, int size);
+    qpdf_offset_t writeXRefTable(trailer_e which, int first, int last, int size);
     qpdf_offset_t writeXRefTable(
         trailer_e which,
         int first,
@@ -693,8 +686,7 @@ class QPDFWriter
     void pushMD5Pipeline(PipelinePopper&);
     void computeDeterministicIDData();
 
-    void discardGeneration(
-        std::map<QPDFObjGen, int> const& in, std::map<int, int>& out);
+    void discardGeneration(std::map<QPDFObjGen, int> const& in, std::map<int, int>& out);
 
     class Members
     {
@@ -709,70 +701,71 @@ class QPDFWriter
         Members(Members const&) = delete;
 
         QPDF& pdf;
-        char const* filename;
-        FILE* file;
-        bool close_file;
-        Pl_Buffer* buffer_pipeline;
-        Buffer* output_buffer;
-        bool normalize_content_set;
-        bool normalize_content;
-        bool compress_streams;
-        bool compress_streams_set;
-        qpdf_stream_decode_level_e stream_decode_level;
-        bool stream_decode_level_set;
-        bool recompress_flate;
-        bool qdf_mode;
-        bool preserve_unreferenced_objects;
-        bool newline_before_endstream;
-        bool static_id;
-        bool suppress_original_object_ids;
-        bool direct_stream_lengths;
-        bool encrypted;
-        bool preserve_encryption;
-        bool linearized;
-        bool pclm;
-        qpdf_object_stream_e object_stream_mode;
+        QPDFObjGen root_og{-1, 0};
+        char const* filename{"unspecified"};
+        FILE* file{nullptr};
+        bool close_file{false};
+        Pl_Buffer* buffer_pipeline{nullptr};
+        Buffer* output_buffer{nullptr};
+        bool normalize_content_set{false};
+        bool normalize_content{false};
+        bool compress_streams{true};
+        bool compress_streams_set{false};
+        qpdf_stream_decode_level_e stream_decode_level{qpdf_dl_none};
+        bool stream_decode_level_set{false};
+        bool recompress_flate{false};
+        bool qdf_mode{false};
+        bool preserve_unreferenced_objects{false};
+        bool newline_before_endstream{false};
+        bool static_id{false};
+        bool suppress_original_object_ids{false};
+        bool direct_stream_lengths{true};
+        bool encrypted{false};
+        bool preserve_encryption{true};
+        bool linearized{false};
+        bool pclm{false};
+        qpdf_object_stream_e object_stream_mode{qpdf_o_preserve};
         std::string encryption_key;
-        bool encrypt_metadata;
-        bool encrypt_use_aes;
+        bool encrypt_metadata{true};
+        bool encrypt_use_aes{false};
         std::map<std::string, std::string> encryption_dictionary;
-        int encryption_V;
-        int encryption_R;
+        int encryption_V{0};
+        int encryption_R{0};
 
         std::string id1; // for /ID key of
         std::string id2; // trailer dictionary
         std::string final_pdf_version;
-        int final_extension_level;
+        int final_extension_level{0};
         std::string min_pdf_version;
-        int min_extension_level;
+        int min_extension_level{0};
         std::string forced_pdf_version;
-        int forced_extension_level;
+        int forced_extension_level{0};
         std::string extra_header_text;
-        int encryption_dict_objid;
+        int encryption_dict_objid{0};
         std::string cur_data_key;
         std::list<std::shared_ptr<Pipeline>> to_delete;
-        Pl_Count* pipeline;
+        Pl_Count* pipeline{nullptr};
         std::vector<QPDFObjectHandle> object_queue;
         size_t object_queue_front{0};
         std::map<QPDFObjGen, int> obj_renumber;
         std::map<int, QPDFXRefEntry> xref;
         std::map<int, qpdf_offset_t> lengths;
-        int next_objid;
-        int cur_stream_length_id;
-        size_t cur_stream_length;
-        bool added_newline;
-        int max_ostream_index;
+        int next_objid{1};
+        int cur_stream_length_id{0};
+        size_t cur_stream_length{0};
+        bool added_newline{false};
+        int max_ostream_index{0};
         std::set<QPDFObjGen> normalized_streams;
         std::map<QPDFObjGen, int> page_object_to_seq;
         std::map<QPDFObjGen, int> contents_to_page_seq;
         std::map<QPDFObjGen, int> object_to_object_stream;
         std::map<int, std::set<QPDFObjGen>> object_stream_to_objects;
         std::list<Pipeline*> pipeline_stack;
-        unsigned long long next_stack_id;
-        bool deterministic_id;
-        Pl_MD5* md5_pipeline;
+        unsigned long long next_stack_id{0};
+        bool deterministic_id{false};
+        Pl_MD5* md5_pipeline{nullptr};
         std::string deterministic_id_data;
-        bool did_write_setup;
+        bool did_write_setup{false};
 
         // For linearization only
         std::string lin_pass1_filename;
@@ -781,9 +774,9 @@ class QPDFWriter
 
         // For progress reporting
         std::shared_ptr<ProgressReporter> progress_reporter;
-        int events_expected;
-        int events_seen;
-        int next_progress_report;
+        int events_expected{0};
+        int events_seen{0};
+        int next_progress_report{0};
     };
 
     // Keep all member variables inside the Members object, which we

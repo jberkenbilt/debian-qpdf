@@ -11,11 +11,10 @@ class SF_ASCII85Decode: public QPDFStreamFilter
     SF_ASCII85Decode() = default;
     virtual ~SF_ASCII85Decode() = default;
 
-    virtual Pipeline*
+    Pipeline*
     getDecodePipeline(Pipeline* next) override
     {
-        this->pipeline =
-            std::make_shared<Pl_ASCII85Decoder>("ascii85 decode", next);
+        this->pipeline = std::make_shared<Pl_ASCII85Decoder>("ascii85 decode", next);
         return this->pipeline.get();
     }
 

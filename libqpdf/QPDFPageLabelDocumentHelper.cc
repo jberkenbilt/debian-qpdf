@@ -8,15 +8,15 @@ QPDFPageLabelDocumentHelper::QPDFPageLabelDocumentHelper(QPDF& qpdf) :
 {
     QPDFObjectHandle root = qpdf.getRoot();
     if (root.hasKey("/PageLabels")) {
-        this->m->labels = std::make_shared<QPDFNumberTreeObjectHelper>(
-            root.getKey("/PageLabels"), this->qpdf);
+        m->labels =
+            std::make_shared<QPDFNumberTreeObjectHelper>(root.getKey("/PageLabels"), this->qpdf);
     }
 }
 
 bool
 QPDFPageLabelDocumentHelper::hasPageLabels()
 {
-    return nullptr != this->m->labels;
+    return nullptr != m->labels;
 }
 
 QPDFObjectHandle
@@ -28,7 +28,7 @@ QPDFPageLabelDocumentHelper::getLabelForPage(long long page_idx)
     }
     QPDFNumberTreeObjectHelper::numtree_number offset = 0;
     QPDFObjectHandle label;
-    if (!this->m->labels->findObjectAtOrBelow(page_idx, label, offset)) {
+    if (!m->labels->findObjectAtOrBelow(page_idx, label, offset)) {
         return result;
     }
     if (!label.isDictionary()) {
@@ -66,8 +66,7 @@ QPDFPageLabelDocumentHelper::getLabelsForPageRange(
     QPDFObjectHandle label = getLabelForPage(start_idx);
     if (label.isNull()) {
         label = QPDFObjectHandle::newDictionary();
-        label.replaceKey(
-            "/St", QPDFObjectHandle::newInteger(1 + new_start_idx));
+        label.replaceKey("/St", QPDFObjectHandle::newInteger(1 + new_start_idx));
     }
     // See if the new label is redundant based on the previous entry
     // in the vector. If so, don't add it.
@@ -80,8 +79,8 @@ QPDFPageLabelDocumentHelper::getLabelsForPageRange(
             (label.getKey("/S").unparse() == last.getKey("/S").unparse()) &&
             (label.getKey("/P").unparse() == last.getKey("/P").unparse()) &&
             label.getKey("/St").isInteger() && last.getKey("/St").isInteger()) {
-            long long int st_delta = label.getKey("/St").getIntValue() -
-                last.getKey("/St").getIntValue();
+            long long int st_delta =
+                label.getKey("/St").getIntValue() - last.getKey("/St").getIntValue();
             long long int idx_delta = new_start_idx - last_idx.getIntValue();
             if (st_delta == idx_delta) {
                 QTC::TC("qpdf", "QPDFPageLabelDocumentHelper skip first");
@@ -96,8 +95,7 @@ QPDFPageLabelDocumentHelper::getLabelsForPageRange(
 
     long long int idx_offset = new_start_idx - start_idx;
     for (long long i = start_idx + 1; i <= end_idx; ++i) {
-        if (this->m->labels->hasIndex(i) &&
-            (label = getLabelForPage(i)).isDictionary()) {
+        if (m->labels->hasIndex(i) && (label = getLabelForPage(i)).isDictionary()) {
             new_labels.push_back(QPDFObjectHandle::newInteger(i + idx_offset));
             new_labels.push_back(label);
         }

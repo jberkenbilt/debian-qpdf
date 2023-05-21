@@ -1,9 +1,9 @@
 #include <qpdf/QPDFJob.hh>
 
+#include <cctype>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
-#include <ctype.h>
 #include <fcntl.h>
 #include <iostream>
 #include <memory>
@@ -48,10 +48,9 @@ namespace
             size_t oi_min_height,
             size_t oi_min_area,
             QPDFObjectHandle& image);
-        virtual ~ImageOptimizer() = default;
-        virtual void provideStreamData(QPDFObjGen const&, Pipeline* pipeline);
-        std::shared_ptr<Pipeline>
-        makePipeline(std::string const& description, Pipeline* next);
+        ~ImageOptimizer() override = default;
+        void provideStreamData(QPDFObjGen const&, Pipeline* pipeline) override;
+        std::shared_ptr<Pipeline> makePipeline(std::string const& description, Pipeline* next);
         bool evaluate(std::string const& description);
 
       private:
@@ -65,21 +64,20 @@ namespace
     class DiscardContents: public QPDFObjectHandle::ParserCallbacks
     {
       public:
-        virtual ~DiscardContents() = default;
-        virtual void
-        handleObject(QPDFObjectHandle)
+        ~DiscardContents() override = default;
+        void
+        handleObject(QPDFObjectHandle) override
         {
         }
-        virtual void
-        handleEOF()
+        void
+        handleEOF() override
         {
         }
     };
 
     struct QPDFPageData
     {
-        QPDFPageData(
-            std::string const& filename, QPDF* qpdf, std::string const& range);
+        QPDFPageData(std::string const& filename, QPDF* qpdf, std::string const& range);
         QPDFPageData(QPDFPageData const& other, int page);
 
         std::string filename;
@@ -91,15 +89,14 @@ namespace
     class ProgressReporter: public QPDFWriter::ProgressReporter
     {
       public:
-        ProgressReporter(
-            Pipeline& p, std::string const& prefix, char const* filename) :
+        ProgressReporter(Pipeline& p, std::string const& prefix, char const* filename) :
             p(p),
             prefix(prefix),
             filename(filename)
         {
         }
-        virtual ~ProgressReporter() = default;
-        virtual void reportProgress(int);
+        ~ProgressReporter() override = default;
+        void reportProgress(int) override;
 
       private:
         Pipeline& p;
@@ -133,8 +130,7 @@ ImageOptimizer::makePipeline(std::string const& description, Pipeline* next)
     if (!(w_obj.isNumber() && h_obj.isNumber())) {
         if (!description.empty()) {
             o.doIfVerbose([&](Pipeline& v, std::string const& prefix) {
-                v << prefix << ": " << description
-                  << ": not optimizing because image dictionary"
+                v << prefix << ": " << description << ": not optimizing because image dictionary"
                   << " is missing required keys\n";
             });
         }
@@ -166,8 +162,7 @@ ImageOptimizer::makePipeline(std::string const& description, Pipeline* next)
     } else {
         h = static_cast<JDIMENSION>(h_obj.getNumericValue());
     }
-    std::string colorspace =
-        (colorspace_obj.isName() ? colorspace_obj.getName() : std::string());
+    std::string colorspace = (colorspace_obj.isName() ? colorspace_obj.getName() : std::string());
     int components = 0;
     J_COLOR_SPACE cs = JCS_UNKNOWN;
     if (colorspace == "/DeviceRGB") {
@@ -183,8 +178,7 @@ ImageOptimizer::makePipeline(std::string const& description, Pipeline* next)
         QTC::TC("qpdf", "QPDFJob image optimize colorspace");
         if (!description.empty()) {
             o.doIfVerbose([&](Pipeline& v, std::string const& prefix) {
-                v << prefix << ": " << description
-                  << ": not optimizing because qpdf can't optimize"
+                v << prefix << ": " << description << ": not optimizing because qpdf can't optimize"
                   << " images with this colorspace\n";
             });
         }
@@ -196,8 +190,7 @@ ImageOptimizer::makePipeline(std::string const& description, Pipeline* next)
         QTC::TC("qpdf", "QPDFJob image optimize too small");
         if (!description.empty()) {
             o.doIfVerbose([&](Pipeline& v, std::string const& prefix) {
-                v << prefix << ": " << description
-                  << ": not optimizing because image"
+                v << prefix << ": " << description << ": not optimizing because image"
                   << " is smaller than requested minimum dimensions\n";
             });
         }
@@ -214,8 +207,7 @@ ImageOptimizer::evaluate(std::string const& description)
     if (!image.pipeStreamData(nullptr, 0, qpdf_dl_specialized, true)) {
         QTC::TC("qpdf", "QPDFJob image optimize no pipeline");
         o.doIfVerbose([&](Pipeline& v, std::string const& prefix) {
-            v << prefix << ": " << description
-              << ": not optimizing because unable to decode data"
+            v << prefix << ": " << description << ": not optimizing because unable to decode data"
               << " or data already uses DCT\n";
         });
         return false;
@@ -241,9 +233,8 @@ ImageOptimizer::evaluate(std::string const& description)
         return false;
     }
     o.doIfVerbose([&](Pipeline& v, std::string const& prefix) {
-        v << prefix << ": " << description
-          << ": optimizing image reduces size from " << orig_length << " to "
-          << c.getCount() << "\n";
+        v << prefix << ": " << description << ": optimizing image reduces size from " << orig_length
+          << " to " << c.getCount() << "\n";
     });
     return true;
 }
@@ -263,9 +254,7 @@ ImageOptimizer::provideStreamData(QPDFObjGen const&, Pipeline* pipeline)
 }
 
 QPDFJob::PageSpec::PageSpec(
-    std::string const& filename,
-    char const* password,
-    std::string const& range) :
+    std::string const& filename, char const* password, std::string const& range) :
     filename(filename),
     range(range)
 {
@@ -274,18 +263,16 @@ QPDFJob::PageSpec::PageSpec(
     }
 }
 
-QPDFPageData::QPDFPageData(
-    std::string const& filename, QPDF* qpdf, std::string const& range) :
+QPDFPageData::QPDFPageData(std::string const& filename, QPDF* qpdf, std::string const& range) :
     filename(filename),
     qpdf(qpdf),
     orig_pages(qpdf->getAllPages())
 {
     try {
-        this->selected_pages = QUtil::parse_numrange(
-            range.c_str(), QIntC::to_int(this->orig_pages.size()));
+        this->selected_pages =
+            QUtil::parse_numrange(range.c_str(), QIntC::to_int(this->orig_pages.size()));
     } catch (std::runtime_error& e) {
-        throw std::runtime_error(
-            "parsing numeric range for " + filename + ": " + e.what());
+        throw std::runtime_error("parsing numeric range for " + filename + ": " + e.what());
     }
 }
 
@@ -300,8 +287,7 @@ QPDFPageData::QPDFPageData(QPDFPageData const& other, int page) :
 void
 ProgressReporter::reportProgress(int percentage)
 {
-    this->p << prefix << ": " << filename << ": write progress: " << percentage
-            << "%\n";
+    this->p << prefix << ": " << filename << ": write progress: " << percentage << "%\n";
 }
 
 QPDFJob::Members::Members() :
@@ -323,46 +309,45 @@ QPDFJob::usage(std::string const& msg)
 void
 QPDFJob::setMessagePrefix(std::string const& message_prefix)
 {
-    this->m->message_prefix = message_prefix;
+    m->message_prefix = message_prefix;
 }
 
 std::string
 QPDFJob::getMessagePrefix() const
 {
-    return this->m->message_prefix;
+    return m->message_prefix;
 }
 
 std::shared_ptr<QPDFLogger>
 QPDFJob::getLogger()
 {
-    return this->m->log;
+    return m->log;
 }
 
 void
 QPDFJob::setLogger(std::shared_ptr<QPDFLogger> l)
 {
-    this->m->log = l;
+    m->log = l;
 }
 
 void
 QPDFJob::setOutputStreams(std::ostream* out, std::ostream* err)
 {
     setLogger(QPDFLogger::create());
-    this->m->log->setOutputStreams(out, err);
+    m->log->setOutputStreams(out, err);
 }
 
 void
 QPDFJob::registerProgressReporter(std::function<void(int)> handler)
 {
-    this->m->progress_handler = handler;
+    m->progress_handler = handler;
 }
 
 void
-QPDFJob::doIfVerbose(
-    std::function<void(Pipeline&, std::string const& prefix)> fn)
+QPDFJob::doIfVerbose(std::function<void(Pipeline&, std::string const& prefix)> fn)
 {
-    if (this->m->verbose) {
-        fn(*this->m->log->getInfo(), this->m->message_prefix);
+    if (m->verbose) {
+        fn(*m->log->getInfo(), m->message_prefix);
     }
 }
 
@@ -447,11 +432,11 @@ QPDFJob::parseNumrange(char const* range, int max)
     return std::vector<int>();
 }
 
-void
-QPDFJob::run()
+std::unique_ptr<QPDF>
+QPDFJob::createQPDF()
 {
     checkConfiguration();
-    std::shared_ptr<QPDF> pdf_sp;
+    std::unique_ptr<QPDF> pdf_sp;
     try {
         processFile(pdf_sp, m->infilename.get(), m->password.get(), true, true);
     } catch (QPDFExc& e) {
@@ -459,63 +444,63 @@ QPDFJob::run()
             // Allow certain operations to work when an incorrect
             // password is supplied.
             if (m->check_is_encrypted || m->check_requires_password) {
-                this->m->encryption_status =
-                    qpdf_es_encrypted | qpdf_es_password_incorrect;
-                return;
+                m->encryption_status = qpdf_es_encrypted | qpdf_es_password_incorrect;
+                return nullptr;
             }
             if (m->show_encryption && pdf_sp) {
-                this->m->log->info("Incorrect password supplied\n");
+                m->log->info("Incorrect password supplied\n");
                 showEncryption(*pdf_sp);
-                return;
+                return nullptr;
             }
         }
-        throw e;
+        throw;
     }
     QPDF& pdf = *pdf_sp;
     if (pdf.isEncrypted()) {
-        this->m->encryption_status = qpdf_es_encrypted;
+        m->encryption_status = qpdf_es_encrypted;
     }
 
     if (m->check_is_encrypted || m->check_requires_password) {
-        return;
+        return nullptr;
     }
 
     // If we are updating from JSON, this has to be done first before
     // other options may cause transformations to the input.
-    if (!this->m->update_from_json.empty()) {
-        pdf.updateFromJSON(this->m->update_from_json);
+    if (!m->update_from_json.empty()) {
+        pdf.updateFromJSON(m->update_from_json);
     }
 
-    bool other_warnings = false;
-    std::vector<std::shared_ptr<QPDF>> page_heap;
+    std::vector<std::unique_ptr<QPDF>> page_heap;
     if (!m->page_specs.empty()) {
-        handlePageSpecs(pdf, other_warnings, page_heap);
+        handlePageSpecs(pdf, page_heap);
     }
     if (!m->rotations.empty()) {
         handleRotations(pdf);
     }
     handleUnderOverlay(pdf);
     handleTransformations(pdf);
+    return pdf_sp;
+}
 
+void
+QPDFJob::writeQPDF(QPDF& pdf)
+{
     if (!createsOutput()) {
         doInspection(pdf);
     } else if (m->split_pages) {
-        doSplitPages(pdf, other_warnings);
+        doSplitPages(pdf);
     } else {
         writeOutfile(pdf);
     }
     if (!pdf.getWarnings().empty()) {
-        this->m->warnings = true;
+        m->warnings = true;
     }
-    if (this->m->warnings && (!this->m->suppress_warnings)) {
+    if (m->warnings && (!m->suppress_warnings)) {
         if (createsOutput()) {
-            *this->m->log->getWarn()
-                << this->m->message_prefix
-                << ": operation succeeded with warnings;"
-                << " resulting file may have some problems\n";
+            *m->log->getWarn() << m->message_prefix << ": operation succeeded with warnings;"
+                               << " resulting file may have some problems\n";
         } else {
-            *this->m->log->getWarn() << this->m->message_prefix
-                                     << ": operation succeeded with warnings\n";
+            *m->log->getWarn() << m->message_prefix << ": operation succeeded with warnings\n";
         }
     }
     if (m->report_mem_usage) {
@@ -523,15 +508,23 @@ QPDFJob::run()
         // debugging, it's easier if print statements from
         // get_max_memory_usage are not interleaved with the output.
         auto mem_usage = QUtil::get_max_memory_usage();
-        *this->m->log->getWarn()
-            << "qpdf-max-memory-usage " << mem_usage << "\n";
+        *m->log->getWarn() << "qpdf-max-memory-usage " << mem_usage << "\n";
+    }
+}
+
+void
+QPDFJob::run()
+{
+    auto pdf = createQPDF();
+    if (pdf) {
+        writeQPDF(*pdf);
     }
 }
 
 bool
 QPDFJob::hasWarnings() const
 {
-    return this->m->warnings;
+    return m->warnings;
 }
 
 bool
@@ -543,17 +536,17 @@ QPDFJob::createsOutput() const
 int
 QPDFJob::getExitCode() const
 {
-    if (this->m->check_is_encrypted) {
-        if (this->m->encryption_status & qpdf_es_encrypted) {
+    if (m->check_is_encrypted) {
+        if (m->encryption_status & qpdf_es_encrypted) {
             QTC::TC("qpdf", "QPDFJob check encrypted encrypted");
             return 0;
         } else {
             QTC::TC("qpdf", "QPDFJob check encrypted not encrypted");
             return EXIT_IS_NOT_ENCRYPTED;
         }
-    } else if (this->m->check_requires_password) {
-        if (this->m->encryption_status & qpdf_es_encrypted) {
-            if (this->m->encryption_status & qpdf_es_password_incorrect) {
+    } else if (m->check_requires_password) {
+        if (m->encryption_status & qpdf_es_encrypted) {
+            if (m->encryption_status & qpdf_es_password_incorrect) {
                 QTC::TC("qpdf", "QPDFJob check password password incorrect");
                 return 0;
             } else {
@@ -566,7 +559,7 @@ QPDFJob::getExitCode() const
         }
     }
 
-    if (this->m->warnings && (!this->m->warnings_exit_zero)) {
+    if (m->warnings && (!m->warnings_exit_zero)) {
         return EXIT_WARNING;
     }
     return 0;
@@ -600,13 +593,9 @@ QPDFJob::checkConfiguration()
         usage("an input file name is required");
     } else if (m->replace_input && (strlen(m->infilename.get()) == 0)) {
         usage("--replace-input may not be used with --empty");
-    } else if (
-        m->require_outfile && (m->outfilename == nullptr) &&
-        (!m->replace_input)) {
+    } else if (m->require_outfile && (m->outfilename == nullptr) && (!m->replace_input)) {
         usage("an output file name is required; use - for standard output");
-    } else if (
-        (!m->require_outfile) &&
-        ((m->outfilename != nullptr) || m->replace_input)) {
+    } else if ((!m->require_outfile) && ((m->outfilename != nullptr) || m->replace_input)) {
         usage("no output file may be given for this option");
     }
     if (m->check_requires_password && m->check_is_encrypted) {
@@ -615,8 +604,7 @@ QPDFJob::checkConfiguration()
     }
 
     if (m->encrypt && (!m->allow_insecure) &&
-        (m->owner_password.empty() && (!m->user_password.empty()) &&
-         (m->keylen == 256))) {
+        (m->owner_password.empty() && (!m->user_password.empty()) && (m->keylen == 256))) {
         // Note that empty owner passwords for R < 5 are copied from
         // the user password, so this lack of security is not an issue
         // for those files. Also we are consider only the ability to
@@ -631,8 +619,7 @@ QPDFJob::checkConfiguration()
     }
 
     bool save_to_stdout = false;
-    if (m->require_outfile && m->outfilename &&
-        (strcmp(m->outfilename.get(), "-") == 0)) {
+    if (m->require_outfile && m->outfilename && (strcmp(m->outfilename.get(), "-") == 0)) {
         if (m->split_pages) {
             usage("--split-pages may not be used when"
                   " writing to standard output");
@@ -643,10 +630,9 @@ QPDFJob::checkConfiguration()
         save_to_stdout = true;
     }
     if (save_to_stdout) {
-        this->m->log->saveToStandardOutput(true);
+        m->log->saveToStandardOutput(true);
     }
-    if ((!m->split_pages) &&
-        QUtil::same_file(m->infilename.get(), m->outfilename.get())) {
+    if ((!m->split_pages) && QUtil::same_file(m->infilename.get(), m->outfilename.get())) {
         QTC::TC("qpdf", "QPDFJob same file error");
         usage("input file and output file are the same;"
               " use --replace-input to intentionally"
@@ -668,13 +654,13 @@ QPDFJob::checkConfiguration()
 unsigned long
 QPDFJob::getEncryptionStatus()
 {
-    return this->m->encryption_status;
+    return m->encryption_status;
 }
 
 void
 QPDFJob::setQPDFOptions(QPDF& pdf)
 {
-    pdf.setLogger(this->m->log);
+    pdf.setLogger(m->log);
     if (m->ignore_xref_streams) {
         pdf.setIgnoreXRefStreams(true);
     }
@@ -730,7 +716,7 @@ QPDFJob::showEncryption(QPDF& pdf)
     QPDF::encryption_method_e stream_method = QPDF::e_unknown;
     QPDF::encryption_method_e string_method = QPDF::e_unknown;
     QPDF::encryption_method_e file_method = QPDF::e_unknown;
-    auto& cout = *this->m->log->getInfo();
+    auto& cout = *m->log->getInfo();
     if (!pdf.isEncrypted(R, P, V, stream_method, string_method, file_method)) {
         cout << "File is not encrypted\n";
     } else {
@@ -740,8 +726,7 @@ QPDFJob::showEncryption(QPDF& pdf)
         std::string encryption_key = pdf.getEncryptionKey();
         cout << "User password = " << user_password << "\n";
         if (m->show_encryption_key) {
-            cout << "Encryption key = " << QUtil::hex_encode(encryption_key)
-                 << "\n";
+            cout << "Encryption key = " << QUtil::hex_encode(encryption_key) << "\n";
         }
         if (pdf.ownerPasswordMatched()) {
             cout << "Supplied password is owner password\n";
@@ -749,28 +734,19 @@ QPDFJob::showEncryption(QPDF& pdf)
         if (pdf.userPasswordMatched()) {
             cout << "Supplied password is user password\n";
         }
-        cout << "extract for accessibility: "
-             << show_bool(pdf.allowAccessibility()) << "\n"
-             << "extract for any purpose: " << show_bool(pdf.allowExtractAll())
-             << "\n"
-             << "print low resolution: " << show_bool(pdf.allowPrintLowRes())
-             << "\n"
-             << "print high resolution: " << show_bool(pdf.allowPrintHighRes())
-             << "\n"
-             << "modify document assembly: "
-             << show_bool(pdf.allowModifyAssembly()) << "\n"
+        cout << "extract for accessibility: " << show_bool(pdf.allowAccessibility()) << "\n"
+             << "extract for any purpose: " << show_bool(pdf.allowExtractAll()) << "\n"
+             << "print low resolution: " << show_bool(pdf.allowPrintLowRes()) << "\n"
+             << "print high resolution: " << show_bool(pdf.allowPrintHighRes()) << "\n"
+             << "modify document assembly: " << show_bool(pdf.allowModifyAssembly()) << "\n"
              << "modify forms: " << show_bool(pdf.allowModifyForm()) << "\n"
-             << "modify annotations: " << show_bool(pdf.allowModifyAnnotation())
-             << "\n"
+             << "modify annotations: " << show_bool(pdf.allowModifyAnnotation()) << "\n"
              << "modify other: " << show_bool(pdf.allowModifyOther()) << "\n"
              << "modify anything: " << show_bool(pdf.allowModifyAll()) << "\n";
         if (V >= 4) {
-            cout << "stream encryption method: "
-                 << show_encryption_method(stream_method) << "\n"
-                 << "string encryption method: "
-                 << show_encryption_method(string_method) << "\n"
-                 << "file encryption method: "
-                 << show_encryption_method(file_method) << "\n";
+            cout << "stream encryption method: " << show_encryption_method(stream_method) << "\n"
+                 << "string encryption method: " << show_encryption_method(string_method) << "\n"
+                 << "file encryption method: " << show_encryption_method(file_method) << "\n";
         }
     }
 }
@@ -783,8 +759,9 @@ QPDFJob::doCheck(QPDF& pdf)
     // continue to perform additional checks after finding
     // errors.
     bool okay = true;
-    auto& cout = *this->m->log->getInfo();
+    auto& cout = *m->log->getInfo();
     cout << "checking " << m->infilename.get() << "\n";
+    QPDF::JobSetter::setCheckMode(pdf, true);
     try {
         int extension_level = pdf.getExtensionLevel();
         cout << "PDF Version: " << pdf.getPDFVersion();
@@ -818,12 +795,11 @@ QPDFJob::doCheck(QPDF& pdf)
                 page.parseContents(&discard_contents);
             } catch (QPDFExc& e) {
                 okay = false;
-                *this->m->log->getError()
-                    << "ERROR: page " << pageno << ": " << e.what() << "\n";
+                *m->log->getError() << "ERROR: page " << pageno << ": " << e.what() << "\n";
             }
         }
     } catch (std::exception& e) {
-        *this->m->log->getError() << "ERROR: " << e.what() << "\n";
+        *m->log->getError() << "ERROR: " << e.what() << "\n";
         okay = false;
     }
     if (!okay) {
@@ -831,11 +807,11 @@ QPDFJob::doCheck(QPDF& pdf)
     }
 
     if (!pdf.getWarnings().empty()) {
-        this->m->warnings = true;
+        m->warnings = true;
     } else {
-        *this->m->log->getInfo() << "No syntax or stream encoding errors"
-                                 << " found; the file may still contain\n"
-                                 << "errors that qpdf cannot detect\n";
+        *m->log->getInfo() << "No syntax or stream encoding errors"
+                           << " found; the file may still contain\n"
+                           << "errors that qpdf cannot detect\n";
     }
 }
 
@@ -859,22 +835,21 @@ QPDFJob::doShowObj(QPDF& pdf)
             } else {
                 // If anything has been written to standard output,
                 // this will fail.
-                this->m->log->saveToStandardOutput(true);
+                m->log->saveToStandardOutput(true);
                 obj.pipeStreamData(
-                    this->m->log->getSave().get(),
+                    m->log->getSave().get(),
                     (filter && m->normalize) ? qpdf_ef_normalize : 0,
                     filter ? qpdf_dl_all : qpdf_dl_none);
             }
         } else {
-            *this->m->log->getInfo() << "Object is stream.  Dictionary:\n"
-                                     << obj.getDict().unparseResolved() << "\n";
+            *m->log->getInfo() << "Object is stream.  Dictionary:\n"
+                               << obj.getDict().unparseResolved() << "\n";
         }
     } else {
-        *this->m->log->getInfo() << obj.unparseResolved() << "\n";
+        *m->log->getInfo() << obj.unparseResolved() << "\n";
     }
     if (error) {
-        throw std::runtime_error(
-            "unable to get object " + obj.getObjGen().unparse(','));
+        throw std::runtime_error("unable to get object " + obj.getObjGen().unparse(','));
     }
 }
 
@@ -882,13 +857,13 @@ void
 QPDFJob::doShowPages(QPDF& pdf)
 {
     int pageno = 0;
-    auto& cout = *this->m->log->getInfo();
+    auto& cout = *m->log->getInfo();
     for (auto& ph: QPDFPageDocumentHelper(pdf).getAllPages()) {
         QPDFObjectHandle page = ph.getObjectHandle();
         ++pageno;
 
-        cout << "page " << pageno << ": " << page.getObjectID() << " "
-             << page.getGeneration() << " R\n";
+        cout << "page " << pageno << ": " << page.getObjectID() << " " << page.getGeneration()
+             << " R\n";
         if (m->show_page_images) {
             std::map<std::string, QPDFObjectHandle> images = ph.getImages();
             if (!images.empty()) {
@@ -899,8 +874,8 @@ QPDFJob::doShowPages(QPDF& pdf)
                     QPDFObjectHandle dict = image.getDict();
                     int width = dict.getKey("/Width").getIntValueAsInt();
                     int height = dict.getKey("/Height").getIntValueAsInt();
-                    cout << "    " << name << ": " << image.unparse() << ", "
-                         << width << " x " << height << "\n";
+                    cout << "    " << name << ": " << image.unparse() << ", " << width << " x "
+                         << height << "\n";
                 }
             }
         }
@@ -920,10 +895,8 @@ QPDFJob::doListAttachments(QPDF& pdf)
         for (auto const& i: efdh.getEmbeddedFiles()) {
             std::string const& key = i.first;
             auto efoh = i.second;
-            *this->m->log->getInfo()
-                << key << " -> "
-                << efoh->getEmbeddedFileStream().getObjGen().unparse(',')
-                << "\n";
+            *m->log->getInfo() << key << " -> "
+                               << efoh->getEmbeddedFileStream().getObjGen().unparse(',') << "\n";
             doIfVerbose([&](Pipeline& v, std::string const& prefix) {
                 auto desc = efoh->getDescription();
                 if (!desc.empty()) {
@@ -939,18 +912,15 @@ QPDFJob::doListAttachments(QPDF& pdf)
                     auto efs = QPDFEFStreamObjectHelper(i2.second);
                     v << "    " << i2.first << " -> "
                       << efs.getObjectHandle().getObjGen().unparse(',') << "\n";
-                    v << "      creation date: " << efs.getCreationDate()
-                      << "\n"
+                    v << "      creation date: " << efs.getCreationDate() << "\n"
                       << "      modification date: " << efs.getModDate() << "\n"
                       << "      mime type: " << efs.getSubtype() << "\n"
-                      << "      checksum: "
-                      << QUtil::hex_encode(efs.getChecksum()) << "\n";
+                      << "      checksum: " << QUtil::hex_encode(efs.getChecksum()) << "\n";
                 }
             });
         }
     } else {
-        *this->m->log->getInfo()
-            << m->infilename.get() << " has no embedded files\n";
+        *m->log->getInfo() << m->infilename.get() << " has no embedded files\n";
     }
 }
 
@@ -960,19 +930,17 @@ QPDFJob::doShowAttachment(QPDF& pdf)
     QPDFEmbeddedFileDocumentHelper efdh(pdf);
     auto fs = efdh.getEmbeddedFile(m->attachment_to_show);
     if (!fs) {
-        throw std::runtime_error(
-            "attachment " + m->attachment_to_show + " not found");
+        throw std::runtime_error("attachment " + m->attachment_to_show + " not found");
     }
     auto efs = fs->getEmbeddedFileStream();
     // saveToStandardOutput has already been called, but it's harmless
     // to call it again, so do as defensive coding.
-    this->m->log->saveToStandardOutput(true);
-    efs.pipeStreamData(this->m->log->getSave().get(), 0, qpdf_dl_all);
+    m->log->saveToStandardOutput(true);
+    efs.pipeStreamData(m->log->getSave().get(), 0, qpdf_dl_all);
 }
 
 void
-QPDFJob::parse_object_id(
-    std::string const& objspec, bool& trailer, int& obj, int& gen)
+QPDFJob::parse_object_id(std::string const& objspec, bool& trailer, int& obj, int& gen)
 {
     if (objspec == "trailer") {
         trailer = true;
@@ -981,43 +949,37 @@ QPDFJob::parse_object_id(
         obj = QUtil::string_to_int(objspec.c_str());
         size_t comma = objspec.find(',');
         if ((comma != std::string::npos) && (comma + 1 < objspec.length())) {
-            gen = QUtil::string_to_int(
-                objspec.substr(1 + comma, std::string::npos).c_str());
+            gen = QUtil::string_to_int(objspec.substr(1 + comma, std::string::npos).c_str());
         }
     }
 }
 
-std::set<QPDFObjGen>
+QPDFObjGen::set
 QPDFJob::getWantedJSONObjects()
 {
-    std::set<QPDFObjGen> wanted_og;
+    QPDFObjGen::set wanted_og;
     for (auto const& iter: m->json_objects) {
         bool trailer;
         int obj = 0;
         int gen = 0;
         parse_object_id(iter, trailer, obj, gen);
-        if (obj) {
-            wanted_og.insert(QPDFObjGen(obj, gen));
-        }
+        wanted_og.add(QPDFObjGen(obj, gen));
     }
     return wanted_og;
 }
 
 void
-QPDFJob::doJSONObject(
-    Pipeline* p, bool& first, std::string const& key, QPDFObjectHandle& obj)
+QPDFJob::doJSONObject(Pipeline* p, bool& first, std::string const& key, QPDFObjectHandle& obj)
 {
-    if (this->m->json_version == 1) {
+    if (m->json_version == 1) {
         JSON::writeDictionaryItem(p, first, key, obj.getJSON(1, true), 2);
     } else {
         auto j = JSON::makeDictionary();
         if (obj.isStream()) {
             j.addDictionaryMember("stream", JSON::makeDictionary())
-                .addDictionaryMember(
-                    "dict", obj.getDict().getJSON(this->m->json_version, true));
+                .addDictionaryMember("dict", obj.getDict().getJSON(m->json_version, true));
         } else {
-            j.addDictionaryMember(
-                "value", obj.getJSON(this->m->json_version, true));
+            j.addDictionaryMember("value", obj.getJSON(m->json_version, true));
         }
         JSON::writeDictionaryItem(p, first, key, j, 2);
     }
@@ -1031,10 +993,10 @@ QPDFJob::doJSONObjects(Pipeline* p, bool& first, QPDF& pdf)
         bool first_object = true;
         JSON::writeDictionaryOpen(p, first_object, 1);
         bool all_objects = m->json_objects.empty();
-        std::set<QPDFObjGen> wanted_og = getWantedJSONObjects();
+        auto wanted_og = getWantedJSONObjects();
         for (auto& obj: pdf.getAllObjects()) {
             std::string key = obj.unparse();
-            if (this->m->json_version > 1) {
+            if (m->json_version > 1) {
                 key = "obj:" + key;
             }
             if (all_objects || wanted_og.count(obj.getObjGen())) {
@@ -1048,23 +1010,20 @@ QPDFJob::doJSONObjects(Pipeline* p, bool& first, QPDF& pdf)
         JSON::writeDictionaryClose(p, first_object, 1);
     } else {
         std::set<std::string> json_objects;
-        if (this->m->json_objects.count("trailer")) {
+        if (m->json_objects.count("trailer")) {
             json_objects.insert("trailer");
         }
-        auto wanted = getWantedJSONObjects();
-        for (auto const& og: wanted) {
-            std::ostringstream s;
-            s << "obj:" << og.unparse(' ') << " R";
-            json_objects.insert(s.str());
+        for (auto og: getWantedJSONObjects()) {
+            json_objects.emplace("obj:" + og.unparse(' ') + " R");
         }
         pdf.writeJSON(
-            this->m->json_version,
+            m->json_version,
             p,
             false,
             first,
-            this->m->decode_level,
-            this->m->json_stream_data,
-            this->m->json_stream_prefix,
+            m->decode_level,
+            m->json_stream_data,
+            m->json_stream_prefix,
             json_objects);
     }
 }
@@ -1076,26 +1035,22 @@ QPDFJob::doJSONObjectinfo(Pipeline* p, bool& first, QPDF& pdf)
     bool first_object = true;
     JSON::writeDictionaryOpen(p, first_object, 1);
     bool all_objects = m->json_objects.empty();
-    std::set<QPDFObjGen> wanted_og = getWantedJSONObjects();
+    auto wanted_og = getWantedJSONObjects();
     for (auto& obj: pdf.getAllObjects()) {
         if (all_objects || wanted_og.count(obj.getObjGen())) {
             auto j_details = JSON::makeDictionary();
-            auto j_stream =
-                j_details.addDictionaryMember("stream", JSON::makeDictionary());
+            auto j_stream = j_details.addDictionaryMember("stream", JSON::makeDictionary());
             bool is_stream = obj.isStream();
             j_stream.addDictionaryMember("is", JSON::makeBool(is_stream));
             j_stream.addDictionaryMember(
                 "length",
-                (is_stream ? obj.getDict().getKey("/Length").getJSON(
-                                 this->m->json_version, true)
+                (is_stream ? obj.getDict().getKey("/Length").getJSON(m->json_version, true)
                            : JSON::makeNull()));
             j_stream.addDictionaryMember(
                 "filter",
-                (is_stream ? obj.getDict().getKey("/Filter").getJSON(
-                                 this->m->json_version, true)
+                (is_stream ? obj.getDict().getKey("/Filter").getJSON(m->json_version, true)
                            : JSON::makeNull()));
-            JSON::writeDictionaryItem(
-                p, first_object, obj.unparse(), j_details, 2);
+            JSON::writeDictionaryItem(p, first_object, obj.unparse(), j_details, 2);
         }
     }
     JSON::writeDictionaryClose(p, first_object, 1);
@@ -1114,31 +1069,22 @@ QPDFJob::doJSONPages(Pipeline* p, bool& first, QPDF& pdf)
         ++pageno;
         JSON j_page = JSON::makeDictionary();
         QPDFObjectHandle page = ph.getObjectHandle();
-        j_page.addDictionaryMember(
-            "object", page.getJSON(this->m->json_version));
+        j_page.addDictionaryMember("object", page.getJSON(m->json_version));
         JSON j_images = j_page.addDictionaryMember("images", JSON::makeArray());
         for (auto const& iter2: ph.getImages()) {
             JSON j_image = j_images.addArrayElement(JSON::makeDictionary());
             j_image.addDictionaryMember("name", JSON::makeString(iter2.first));
             QPDFObjectHandle image = iter2.second;
             QPDFObjectHandle dict = image.getDict();
+            j_image.addDictionaryMember("object", image.getJSON(m->json_version));
+            j_image.addDictionaryMember("width", dict.getKey("/Width").getJSON(m->json_version));
+            j_image.addDictionaryMember("height", dict.getKey("/Height").getJSON(m->json_version));
             j_image.addDictionaryMember(
-                "object", image.getJSON(this->m->json_version));
+                "colorspace", dict.getKey("/ColorSpace").getJSON(m->json_version));
             j_image.addDictionaryMember(
-                "width", dict.getKey("/Width").getJSON(this->m->json_version));
-            j_image.addDictionaryMember(
-                "height",
-                dict.getKey("/Height").getJSON(this->m->json_version));
-            j_image.addDictionaryMember(
-                "colorspace",
-                dict.getKey("/ColorSpace").getJSON(this->m->json_version));
-            j_image.addDictionaryMember(
-                "bitspercomponent",
-                dict.getKey("/BitsPerComponent")
-                    .getJSON(this->m->json_version));
+                "bitspercomponent", dict.getKey("/BitsPerComponent").getJSON(m->json_version));
             QPDFObjectHandle filters = dict.getKey("/Filter").wrapInArray();
-            j_image.addDictionaryMember(
-                "filter", filters.getJSON(this->m->json_version));
+            j_image.addDictionaryMember("filter", filters.getJSON(m->json_version));
             QPDFObjectHandle decode_parms = dict.getKey("/DecodeParms");
             QPDFObjectHandle dp_array;
             if (decode_parms.isArray()) {
@@ -1149,35 +1095,25 @@ QPDFJob::doJSONPages(Pipeline* p, bool& first, QPDF& pdf)
                     dp_array.appendItem(decode_parms);
                 }
             }
-            j_image.addDictionaryMember(
-                "decodeparms", dp_array.getJSON(this->m->json_version));
+            j_image.addDictionaryMember("decodeparms", dp_array.getJSON(m->json_version));
             j_image.addDictionaryMember(
                 "filterable",
-                JSON::makeBool(
-                    image.pipeStreamData(nullptr, 0, m->decode_level, true)));
+                JSON::makeBool(image.pipeStreamData(nullptr, 0, m->decode_level, true)));
         }
         j_page.addDictionaryMember("images", j_images);
-        JSON j_contents =
-            j_page.addDictionaryMember("contents", JSON::makeArray());
+        JSON j_contents = j_page.addDictionaryMember("contents", JSON::makeArray());
         for (auto& iter2: ph.getPageContents()) {
-            j_contents.addArrayElement(iter2.getJSON(this->m->json_version));
+            j_contents.addArrayElement(iter2.getJSON(m->json_version));
         }
-        j_page.addDictionaryMember(
-            "label",
-            pldh.getLabelForPage(pageno).getJSON(this->m->json_version));
-        JSON j_outlines =
-            j_page.addDictionaryMember("outlines", JSON::makeArray());
-        std::vector<QPDFOutlineObjectHelper> outlines =
-            odh.getOutlinesForPage(page.getObjGen());
+        j_page.addDictionaryMember("label", pldh.getLabelForPage(pageno).getJSON(m->json_version));
+        JSON j_outlines = j_page.addDictionaryMember("outlines", JSON::makeArray());
+        std::vector<QPDFOutlineObjectHelper> outlines = odh.getOutlinesForPage(page.getObjGen());
         for (auto& oiter: outlines) {
             JSON j_outline = j_outlines.addArrayElement(JSON::makeDictionary());
             j_outline.addDictionaryMember(
-                "object",
-                oiter.getObjectHandle().getJSON(this->m->json_version));
-            j_outline.addDictionaryMember(
-                "title", JSON::makeString(oiter.getTitle()));
-            j_outline.addDictionaryMember(
-                "dest", oiter.getDest().getJSON(this->m->json_version, true));
+                "object", oiter.getObjectHandle().getJSON(m->json_version));
+            j_outline.addDictionaryMember("title", JSON::makeString(oiter.getTitle()));
+            j_outline.addDictionaryMember("dest", oiter.getDest().getJSON(m->json_version, true));
         }
         j_page.addDictionaryMember("pageposfrom1", JSON::makeInt(1 + pageno));
         JSON::writeArrayItem(p, first_page, j_page, 2);
@@ -1190,8 +1126,7 @@ QPDFJob::doJSONPageLabels(Pipeline* p, bool& first, QPDF& pdf)
 {
     JSON j_labels = JSON::makeArray();
     QPDFPageLabelDocumentHelper pldh(pdf);
-    long long npages =
-        QIntC::to_longlong(QPDFPageDocumentHelper(pdf).getAllPages().size());
+    long long npages = QIntC::to_longlong(QPDFPageDocumentHelper(pdf).getAllPages().size());
     if (pldh.hasPageLabels()) {
         std::vector<QPDFObjectHandle> labels;
         pldh.getLabelsForPageRange(0, npages - 1, 0, labels);
@@ -1203,11 +1138,9 @@ QPDFJob::doJSONPageLabels(Pipeline* p, bool& first, QPDF& pdf)
                 break;
             }
             JSON j_label = j_labels.addArrayElement(JSON::makeDictionary());
-            j_label.addDictionaryMember(
-                "index", (*iter).getJSON(this->m->json_version));
+            j_label.addDictionaryMember("index", (*iter).getJSON(m->json_version));
             ++iter;
-            j_label.addDictionaryMember(
-                "label", (*iter).getJSON(this->m->json_version));
+            j_label.addDictionaryMember("label", (*iter).getJSON(m->json_version));
         }
     }
     JSON::writeDictionaryItem(p, first, "pagelabels", j_labels, 1);
@@ -1215,17 +1148,13 @@ QPDFJob::doJSONPageLabels(Pipeline* p, bool& first, QPDF& pdf)
 
 void
 QPDFJob::addOutlinesToJson(
-    std::vector<QPDFOutlineObjectHelper> outlines,
-    JSON& j,
-    std::map<QPDFObjGen, int>& page_numbers)
+    std::vector<QPDFOutlineObjectHelper> outlines, JSON& j, std::map<QPDFObjGen, int>& page_numbers)
 {
     for (auto& ol: outlines) {
         JSON jo = j.addArrayElement(JSON::makeDictionary());
-        jo.addDictionaryMember(
-            "object", ol.getObjectHandle().getJSON(this->m->json_version));
+        jo.addDictionaryMember("object", ol.getObjectHandle().getJSON(m->json_version));
         jo.addDictionaryMember("title", JSON::makeString(ol.getTitle()));
-        jo.addDictionaryMember(
-            "dest", ol.getDest().getJSON(this->m->json_version, true));
+        jo.addDictionaryMember("dest", ol.getDest().getJSON(m->json_version, true));
         jo.addDictionaryMember("open", JSON::makeBool(ol.getCount() >= 0));
         QPDFObjectHandle page = ol.getDestPage();
         JSON j_destpage = JSON::makeNull();
@@ -1262,10 +1191,8 @@ QPDFJob::doJSONAcroform(Pipeline* p, bool& first, QPDF& pdf)
 {
     JSON j_acroform = JSON::makeDictionary();
     QPDFAcroFormDocumentHelper afdh(pdf);
-    j_acroform.addDictionaryMember(
-        "hasacroform", JSON::makeBool(afdh.hasAcroForm()));
-    j_acroform.addDictionaryMember(
-        "needappearances", JSON::makeBool(afdh.getNeedAppearances()));
+    j_acroform.addDictionaryMember("hasacroform", JSON::makeBool(afdh.hasAcroForm()));
+    j_acroform.addDictionaryMember("needappearances", JSON::makeBool(afdh.getNeedAppearances()));
     JSON j_fields = j_acroform.addDictionaryMember("fields", JSON::makeArray());
     int pagepos1 = 0;
     for (auto const& page: QPDFPageDocumentHelper(pdf).getAllPages()) {
@@ -1273,53 +1200,34 @@ QPDFJob::doJSONAcroform(Pipeline* p, bool& first, QPDF& pdf)
         for (auto& aoh: afdh.getWidgetAnnotationsForPage(page)) {
             QPDFFormFieldObjectHelper ffh = afdh.getFieldForAnnotation(aoh);
             JSON j_field = j_fields.addArrayElement(JSON::makeDictionary());
+            j_field.addDictionaryMember("object", ffh.getObjectHandle().getJSON(m->json_version));
             j_field.addDictionaryMember(
-                "object", ffh.getObjectHandle().getJSON(this->m->json_version));
-            j_field.addDictionaryMember(
-                "parent",
-                ffh.getObjectHandle().getKey("/Parent").getJSON(
-                    this->m->json_version));
-            j_field.addDictionaryMember(
-                "pageposfrom1", JSON::makeInt(pagepos1));
-            j_field.addDictionaryMember(
-                "fieldtype", JSON::makeString(ffh.getFieldType()));
-            j_field.addDictionaryMember(
-                "fieldflags", JSON::makeInt(ffh.getFlags()));
-            j_field.addDictionaryMember(
-                "fullname", JSON::makeString(ffh.getFullyQualifiedName()));
-            j_field.addDictionaryMember(
-                "partialname", JSON::makeString(ffh.getPartialName()));
+                "parent", ffh.getObjectHandle().getKey("/Parent").getJSON(m->json_version));
+            j_field.addDictionaryMember("pageposfrom1", JSON::makeInt(pagepos1));
+            j_field.addDictionaryMember("fieldtype", JSON::makeString(ffh.getFieldType()));
+            j_field.addDictionaryMember("fieldflags", JSON::makeInt(ffh.getFlags()));
+            j_field.addDictionaryMember("fullname", JSON::makeString(ffh.getFullyQualifiedName()));
+            j_field.addDictionaryMember("partialname", JSON::makeString(ffh.getPartialName()));
             j_field.addDictionaryMember(
                 "alternativename", JSON::makeString(ffh.getAlternativeName()));
+            j_field.addDictionaryMember("mappingname", JSON::makeString(ffh.getMappingName()));
+            j_field.addDictionaryMember("value", ffh.getValue().getJSON(m->json_version));
             j_field.addDictionaryMember(
-                "mappingname", JSON::makeString(ffh.getMappingName()));
-            j_field.addDictionaryMember(
-                "value", ffh.getValue().getJSON(this->m->json_version));
-            j_field.addDictionaryMember(
-                "defaultvalue",
-                ffh.getDefaultValue().getJSON(this->m->json_version));
-            j_field.addDictionaryMember(
-                "quadding", JSON::makeInt(ffh.getQuadding()));
-            j_field.addDictionaryMember(
-                "ischeckbox", JSON::makeBool(ffh.isCheckbox()));
-            j_field.addDictionaryMember(
-                "isradiobutton", JSON::makeBool(ffh.isRadioButton()));
-            j_field.addDictionaryMember(
-                "ischoice", JSON::makeBool(ffh.isChoice()));
+                "defaultvalue", ffh.getDefaultValue().getJSON(m->json_version));
+            j_field.addDictionaryMember("quadding", JSON::makeInt(ffh.getQuadding()));
+            j_field.addDictionaryMember("ischeckbox", JSON::makeBool(ffh.isCheckbox()));
+            j_field.addDictionaryMember("isradiobutton", JSON::makeBool(ffh.isRadioButton()));
+            j_field.addDictionaryMember("ischoice", JSON::makeBool(ffh.isChoice()));
             j_field.addDictionaryMember("istext", JSON::makeBool(ffh.isText()));
-            JSON j_choices =
-                j_field.addDictionaryMember("choices", JSON::makeArray());
+            JSON j_choices = j_field.addDictionaryMember("choices", JSON::makeArray());
             for (auto const& choice: ffh.getChoices()) {
                 j_choices.addArrayElement(JSON::makeString(choice));
             }
-            JSON j_annot = j_field.addDictionaryMember(
-                "annotation", JSON::makeDictionary());
-            j_annot.addDictionaryMember(
-                "object", aoh.getObjectHandle().getJSON(this->m->json_version));
+            JSON j_annot = j_field.addDictionaryMember("annotation", JSON::makeDictionary());
+            j_annot.addDictionaryMember("object", aoh.getObjectHandle().getJSON(m->json_version));
             j_annot.addDictionaryMember(
                 "appearancestate", JSON::makeString(aoh.getAppearanceState()));
-            j_annot.addDictionaryMember(
-                "annotationflags", JSON::makeInt(aoh.getFlags()));
+            j_annot.addDictionaryMember("annotationflags", JSON::makeInt(aoh.getFlags()));
         }
     }
     JSON::writeDictionaryItem(p, first, "acroform", j_acroform, 1);
@@ -1334,51 +1242,34 @@ QPDFJob::doJSONEncrypt(Pipeline* p, bool& first, QPDF& pdf)
     QPDF::encryption_method_e stream_method = QPDF::e_none;
     QPDF::encryption_method_e string_method = QPDF::e_none;
     QPDF::encryption_method_e file_method = QPDF::e_none;
-    bool is_encrypted =
-        pdf.isEncrypted(R, P, V, stream_method, string_method, file_method);
+    bool is_encrypted = pdf.isEncrypted(R, P, V, stream_method, string_method, file_method);
     JSON j_encrypt = JSON::makeDictionary();
     j_encrypt.addDictionaryMember("encrypted", JSON::makeBool(is_encrypted));
     j_encrypt.addDictionaryMember(
-        "userpasswordmatched",
-        JSON::makeBool(is_encrypted && pdf.userPasswordMatched()));
+        "userpasswordmatched", JSON::makeBool(is_encrypted && pdf.userPasswordMatched()));
     j_encrypt.addDictionaryMember(
-        "ownerpasswordmatched",
-        JSON::makeBool(is_encrypted && pdf.ownerPasswordMatched()));
-    if (is_encrypted && (V < 5) && pdf.ownerPasswordMatched() &&
-        (!pdf.userPasswordMatched())) {
+        "ownerpasswordmatched", JSON::makeBool(is_encrypted && pdf.ownerPasswordMatched()));
+    if (is_encrypted && (V < 5) && pdf.ownerPasswordMatched() && (!pdf.userPasswordMatched())) {
         std::string user_password = pdf.getTrimmedUserPassword();
-        j_encrypt.addDictionaryMember(
-            "recovereduserpassword", JSON::makeString(user_password));
+        j_encrypt.addDictionaryMember("recovereduserpassword", JSON::makeString(user_password));
     } else {
-        j_encrypt.addDictionaryMember(
-            "recovereduserpassword", JSON::makeNull());
+        j_encrypt.addDictionaryMember("recovereduserpassword", JSON::makeNull());
     }
-    JSON j_capabilities =
-        j_encrypt.addDictionaryMember("capabilities", JSON::makeDictionary());
-    j_capabilities.addDictionaryMember(
-        "accessibility", JSON::makeBool(pdf.allowAccessibility()));
-    j_capabilities.addDictionaryMember(
-        "extract", JSON::makeBool(pdf.allowExtractAll()));
-    j_capabilities.addDictionaryMember(
-        "printlow", JSON::makeBool(pdf.allowPrintLowRes()));
-    j_capabilities.addDictionaryMember(
-        "printhigh", JSON::makeBool(pdf.allowPrintHighRes()));
-    j_capabilities.addDictionaryMember(
-        "modifyassembly", JSON::makeBool(pdf.allowModifyAssembly()));
-    j_capabilities.addDictionaryMember(
-        "modifyforms", JSON::makeBool(pdf.allowModifyForm()));
+    JSON j_capabilities = j_encrypt.addDictionaryMember("capabilities", JSON::makeDictionary());
+    j_capabilities.addDictionaryMember("accessibility", JSON::makeBool(pdf.allowAccessibility()));
+    j_capabilities.addDictionaryMember("extract", JSON::makeBool(pdf.allowExtractAll()));
+    j_capabilities.addDictionaryMember("printlow", JSON::makeBool(pdf.allowPrintLowRes()));
+    j_capabilities.addDictionaryMember("printhigh", JSON::makeBool(pdf.allowPrintHighRes()));
+    j_capabilities.addDictionaryMember("modifyassembly", JSON::makeBool(pdf.allowModifyAssembly()));
+    j_capabilities.addDictionaryMember("modifyforms", JSON::makeBool(pdf.allowModifyForm()));
     /* cSpell:ignore moddifyannotations */
     std::string MODIFY_ANNOTATIONS =
-        (this->m->json_version == 1 ? "moddifyannotations"
-                                    : "modifyannotations");
+        (m->json_version == 1 ? "moddifyannotations" : "modifyannotations");
     j_capabilities.addDictionaryMember(
         MODIFY_ANNOTATIONS, JSON::makeBool(pdf.allowModifyAnnotation()));
-    j_capabilities.addDictionaryMember(
-        "modifyother", JSON::makeBool(pdf.allowModifyOther()));
-    j_capabilities.addDictionaryMember(
-        "modify", JSON::makeBool(pdf.allowModifyAll()));
-    JSON j_parameters =
-        j_encrypt.addDictionaryMember("parameters", JSON::makeDictionary());
+    j_capabilities.addDictionaryMember("modifyother", JSON::makeBool(pdf.allowModifyOther()));
+    j_capabilities.addDictionaryMember("modify", JSON::makeBool(pdf.allowModifyAll()));
+    JSON j_parameters = j_encrypt.addDictionaryMember("parameters", JSON::makeDictionary());
     j_parameters.addDictionaryMember("R", JSON::makeInt(R));
     j_parameters.addDictionaryMember("V", JSON::makeInt(V));
     j_parameters.addDictionaryMember("P", JSON::makeInt(P));
@@ -1410,14 +1301,10 @@ QPDFJob::doJSONEncrypt(Pipeline* p, bool& first, QPDF& pdf)
     } else {
         s_overall_method = "mixed";
     }
-    j_parameters.addDictionaryMember(
-        "method", JSON::makeString(s_overall_method));
-    j_parameters.addDictionaryMember(
-        "streammethod", JSON::makeString(s_stream_method));
-    j_parameters.addDictionaryMember(
-        "stringmethod", JSON::makeString(s_string_method));
-    j_parameters.addDictionaryMember(
-        "filemethod", JSON::makeString(s_file_method));
+    j_parameters.addDictionaryMember("method", JSON::makeString(s_overall_method));
+    j_parameters.addDictionaryMember("streammethod", JSON::makeString(s_stream_method));
+    j_parameters.addDictionaryMember("stringmethod", JSON::makeString(s_string_method));
+    j_parameters.addDictionaryMember("filemethod", JSON::makeString(s_file_method));
     JSON::writeDictionaryItem(p, first, "encrypt", j_encrypt, 1);
 }
 
@@ -1445,39 +1332,28 @@ QPDFJob::doJSONAttachments(Pipeline* p, bool& first, QPDF& pdf)
     for (auto const& iter: efdh.getEmbeddedFiles()) {
         std::string const& key = iter.first;
         auto fsoh = iter.second;
-        auto j_details =
-            j_attachments.addDictionaryMember(key, JSON::makeDictionary());
+        auto j_details = j_attachments.addDictionaryMember(key, JSON::makeDictionary());
         j_details.addDictionaryMember(
             "filespec", JSON::makeString(fsoh->getObjectHandle().unparse()));
+        j_details.addDictionaryMember("preferredname", JSON::makeString(fsoh->getFilename()));
         j_details.addDictionaryMember(
-            "preferredname", JSON::makeString(fsoh->getFilename()));
-        j_details.addDictionaryMember(
-            "preferredcontents",
-            JSON::makeString(fsoh->getEmbeddedFileStream().unparse()));
-        j_details.addDictionaryMember(
-            "description", null_or_string(fsoh->getDescription()));
-        auto j_names =
-            j_details.addDictionaryMember("names", JSON::makeDictionary());
+            "preferredcontents", JSON::makeString(fsoh->getEmbeddedFileStream().unparse()));
+        j_details.addDictionaryMember("description", null_or_string(fsoh->getDescription()));
+        auto j_names = j_details.addDictionaryMember("names", JSON::makeDictionary());
         for (auto const& i2: fsoh->getFilenames()) {
             j_names.addDictionaryMember(i2.first, JSON::makeString(i2.second));
         }
-        auto j_streams =
-            j_details.addDictionaryMember("streams", JSON::makeDictionary());
+        auto j_streams = j_details.addDictionaryMember("streams", JSON::makeDictionary());
         for (auto i2: fsoh->getEmbeddedFileStreams().ditems()) {
             auto efs = QPDFEFStreamObjectHelper(i2.second);
-            auto j_stream =
-                j_streams.addDictionaryMember(i2.first, JSON::makeDictionary());
+            auto j_stream = j_streams.addDictionaryMember(i2.first, JSON::makeDictionary());
             j_stream.addDictionaryMember(
-                "creationdate",
-                null_or_string(to_iso8601(efs.getCreationDate())));
+                "creationdate", null_or_string(to_iso8601(efs.getCreationDate())));
             j_stream.addDictionaryMember(
-                "modificationdate",
-                null_or_string(to_iso8601(efs.getCreationDate())));
+                "modificationdate", null_or_string(to_iso8601(efs.getCreationDate())));
+            j_stream.addDictionaryMember("mimetype", null_or_string(efs.getSubtype()));
             j_stream.addDictionaryMember(
-                "mimetype", null_or_string(efs.getSubtype()));
-            j_stream.addDictionaryMember(
-                "checksum",
-                null_or_string(QUtil::hex_encode(efs.getChecksum())));
+                "checksum", null_or_string(QUtil::hex_encode(efs.getChecksum())));
         }
     }
     JSON::writeDictionaryItem(p, first, "attachments", j_attachments, 1);
@@ -1505,8 +1381,7 @@ QPDFJob::json_schema(int json_version, std::set<std::string>* keys)
     JSON schema = JSON::makeDictionary();
     schema.addDictionaryMember(
         "version",
-        JSON::makeString(
-            "JSON format serial number; increased for non-compatible changes"));
+        JSON::makeString("JSON format serial number; increased for non-compatible changes"));
     JSON j_params = schema.addDictionaryMember("parameters", JSON::parse(R"({
   "decodelevel": "decode level used to determine stream filterability"
 })"));
@@ -1523,8 +1398,7 @@ QPDFJob::json_schema(int json_version, std::set<std::string>* keys)
 })"));
         }
         if (all_keys || keys->count("objectinfo")) {
-            JSON objectinfo =
-                schema.addDictionaryMember("objectinfo", JSON::parse(R"({
+            JSON objectinfo = schema.addDictionaryMember("objectinfo", JSON::parse(R"({
   "<object-id>": {
     "stream": {
       "filter": "if stream, its filters, otherwise null",
@@ -1669,8 +1543,7 @@ QPDFJob::json_schema(int json_version, std::set<std::string>* keys)
 })"));
     }
     if (all_keys || keys->count("attachments")) {
-        JSON attachments =
-            schema.addDictionaryMember("attachments", JSON::parse(R"({
+        JSON attachments = schema.addDictionaryMember("attachments", JSON::parse(R"({
   "<attachment-key>": {
     "filespec": "object containing the file spec",
     "preferredcontents": "most preferred embedded file stream",
@@ -1713,7 +1586,7 @@ QPDFJob::doJSON(QPDF& pdf, Pipeline* p)
 
     std::string captured_json;
     std::shared_ptr<Pl_String> pl_str;
-    if (this->m->test_json_schema) {
+    if (m->test_json_schema) {
         pl_str = std::make_shared<Pl_String>("capture json", p, captured_json);
         p = pl_str.get();
     }
@@ -1730,8 +1603,7 @@ QPDFJob::doJSON(QPDF& pdf, Pipeline* p)
         // change is made to the JSON format. Clients of the JSON are to
         // ignore unrecognized keys, so we only update the version of a
         // key disappears or if its value changes meaning.
-        JSON::writeDictionaryItem(
-            p, first, "version", JSON::makeInt(this->m->json_version), 1);
+        JSON::writeDictionaryItem(p, first, "version", JSON::makeInt(m->json_version), 1);
         JSON j_params = JSON::makeDictionary();
         std::string decode_level_str;
         switch (m->decode_level) {
@@ -1748,8 +1620,7 @@ QPDFJob::doJSON(QPDF& pdf, Pipeline* p)
             decode_level_str = "all";
             break;
         }
-        j_params.addDictionaryMember(
-            "decodelevel", JSON::makeString(decode_level_str));
+        j_params.addDictionaryMember("decodelevel", JSON::makeString(decode_level_str));
         JSON::writeDictionaryItem(p, first, "parameters", j_params, 1);
     }
     bool all_keys = m->json_keys.empty();
@@ -1786,11 +1657,10 @@ QPDFJob::doJSON(QPDF& pdf, Pipeline* p)
     // repairing the page tree. To see the original file with any page
     // tree problems and the page tree not flattened, select
     // qpdf/objects/objectinfo without other keys.
-    if (all_keys || m->json_keys.count("objects") ||
-        m->json_keys.count("qpdf")) {
+    if (all_keys || m->json_keys.count("objects") || m->json_keys.count("qpdf")) {
         doJSONObjects(p, first, pdf);
     }
-    if (this->m->json_version == 1) {
+    if (m->json_version == 1) {
         // "objectinfo" is not needed for version >1 since you can
         // tell streams from other objects in "objects".
         if (all_keys || m->json_keys.count("objectinfo")) {
@@ -1801,16 +1671,16 @@ QPDFJob::doJSON(QPDF& pdf, Pipeline* p)
     JSON::writeDictionaryClose(p, first, 0);
     *p << "\n";
 
-    if (this->m->test_json_schema) {
+    if (m->test_json_schema) {
         // Check against schema
-        JSON schema = json_schema(this->m->json_version, &m->json_keys);
+        JSON schema = json_schema(m->json_version, &m->json_keys);
         std::list<std::string> errors;
         JSON captured = JSON::parse(captured_json);
         if (!captured.checkSchema(schema, errors)) {
-            this->m->log->error("QPDFJob didn't create JSON that complies with "
-                                "its own rules.\n");
+            m->log->error("QPDFJob didn't create JSON that complies with "
+                          "its own rules.\n");
             for (auto const& error: errors) {
-                *this->m->log->getError() << error << "\n";
+                *m->log->getError() << error << "\n";
             }
         }
     }
@@ -1819,14 +1689,13 @@ QPDFJob::doJSON(QPDF& pdf, Pipeline* p)
 void
 QPDFJob::doInspection(QPDF& pdf)
 {
-    auto& cout = *this->m->log->getInfo();
+    auto& cout = *m->log->getInfo();
     if (m->check) {
         doCheck(pdf);
     }
     if (m->show_npages) {
         QTC::TC("qpdf", "QPDFJob npages");
-        cout << pdf.getRoot().getKey("/Pages").getKey("/Count").getIntValue()
-             << "\n";
+        cout << pdf.getRoot().getKey("/Pages").getKey("/Count").getIntValue() << "\n";
     }
     if (m->show_encryption) {
         showEncryption(pdf);
@@ -1837,7 +1706,7 @@ QPDFJob::doInspection(QPDF& pdf)
         } else if (pdf.checkLinearization()) {
             cout << m->infilename.get() << ": no linearization errors\n";
         } else {
-            this->m->warnings = true;
+            m->warnings = true;
         }
     }
     if (m->show_linearization) {
@@ -1863,37 +1732,36 @@ QPDFJob::doInspection(QPDF& pdf)
         doShowAttachment(pdf);
     }
     if (!pdf.getWarnings().empty()) {
-        this->m->warnings = true;
+        m->warnings = true;
     }
 }
 
 void
 QPDFJob::doProcessOnce(
-    std::shared_ptr<QPDF>& pdf,
+    std::unique_ptr<QPDF>& pdf,
     std::function<void(QPDF*, char const*)> fn,
     char const* password,
     bool empty,
     bool used_for_input,
     bool main_input)
 {
-    pdf = QPDF::create();
+    pdf = std::make_unique<QPDF>();
     setQPDFOptions(*pdf);
     if (empty) {
         pdf->emptyPDF();
-    } else if (main_input && this->m->json_input) {
-        pdf->createFromJSON(this->m->infilename.get());
+    } else if (main_input && m->json_input) {
+        pdf->createFromJSON(m->infilename.get());
     } else {
         fn(pdf.get(), password);
     }
     if (used_for_input) {
-        this->m->max_input_version.updateIfGreater(
-            pdf->getVersionAsPDFVersion());
+        m->max_input_version.updateIfGreater(pdf->getVersionAsPDFVersion());
     }
 }
 
 void
 QPDFJob::doProcess(
-    std::shared_ptr<QPDF>& pdf,
+    std::unique_ptr<QPDF>& pdf,
     std::function<void(QPDF*, char const*)> fn,
     char const* password,
     bool empty,
@@ -1920,8 +1788,7 @@ QPDFJob::doProcess(
             password = ptemp.c_str();
         }
     }
-    if ((password == nullptr) || empty || m->password_is_hex_key ||
-        m->suppress_password_recovery) {
+    if ((password == nullptr) || empty || m->password_is_hex_key || m->suppress_password_recovery) {
         // There is no password, or we're not doing recovery, so just
         // do the normal processing with the supplied password.
         doProcessOnce(pdf, fn, password, empty, used_for_input, main_input);
@@ -1930,8 +1797,7 @@ QPDFJob::doProcess(
 
     // Get a list of otherwise encoded strings. Keep in scope for this
     // method.
-    std::vector<std::string> passwords_str =
-        QUtil::possible_repaired_encodings(password);
+    std::vector<std::string> passwords_str = QUtil::possible_repaired_encodings(password);
     // Represent to char const*, as required by the QPDF class.
     std::vector<char const*> passwords;
     for (auto const& iter: passwords_str) {
@@ -1955,11 +1821,11 @@ QPDFJob::doProcess(
         try {
             doProcessOnce(pdf, fn, *iter, empty, used_for_input, main_input);
             return;
-        } catch (QPDFExc& e) {
+        } catch (QPDFExc&) {
             auto next = iter;
             ++next;
             if (next == passwords.end()) {
-                throw e;
+                throw;
             }
         }
         if (!warned) {
@@ -1977,27 +1843,20 @@ QPDFJob::doProcess(
 
 void
 QPDFJob::processFile(
-    std::shared_ptr<QPDF>& pdf,
+    std::unique_ptr<QPDF>& pdf,
     char const* filename,
     char const* password,
     bool used_for_input,
     bool main_input)
 {
     auto f1 = std::mem_fn<void(char const*, char const*)>(&QPDF::processFile);
-    auto fn =
-        std::bind(f1, std::placeholders::_1, filename, std::placeholders::_2);
-    doProcess(
-        pdf,
-        fn,
-        password,
-        strcmp(filename, "") == 0,
-        used_for_input,
-        main_input);
+    auto fn = std::bind(f1, std::placeholders::_1, filename, std::placeholders::_2);
+    doProcess(pdf, fn, password, strcmp(filename, "") == 0, used_for_input, main_input);
 }
 
 void
 QPDFJob::processInputSource(
-    std::shared_ptr<QPDF>& pdf,
+    std::unique_ptr<QPDF>& pdf,
     std::shared_ptr<InputSource> is,
     char const* password,
     bool used_for_input)
@@ -2022,32 +1881,26 @@ QPDFJob::validateUnderOverlay(QPDF& pdf, UnderOverlay* uo)
         uo->to_pagenos = QUtil::parse_numrange(uo->to_nr.c_str(), main_npages);
     } catch (std::runtime_error& e) {
         throw std::runtime_error(
-            "parsing numeric range for " + uo->which +
-            " \"to\" pages: " + e.what());
+            "parsing numeric range for " + uo->which + " \"to\" pages: " + e.what());
     }
     try {
         if (uo->from_nr.empty()) {
             QTC::TC("qpdf", "QPDFJob from_nr from repeat_nr");
             uo->from_nr = uo->repeat_nr;
         }
-        uo->from_pagenos =
-            QUtil::parse_numrange(uo->from_nr.c_str(), uo_npages);
+        uo->from_pagenos = QUtil::parse_numrange(uo->from_nr.c_str(), uo_npages);
         if (!uo->repeat_nr.empty()) {
-            uo->repeat_pagenos =
-                QUtil::parse_numrange(uo->repeat_nr.c_str(), uo_npages);
+            uo->repeat_pagenos = QUtil::parse_numrange(uo->repeat_nr.c_str(), uo_npages);
         }
     } catch (std::runtime_error& e) {
         throw std::runtime_error(
-            "parsing numeric range for " + uo->which + " file " + uo->filename +
-            ": " + e.what());
+            "parsing numeric range for " + uo->which + " file " + uo->filename + ": " + e.what());
     }
 }
 
 static QPDFAcroFormDocumentHelper*
 get_afdh_for_qpdf(
-    std::map<unsigned long long, std::shared_ptr<QPDFAcroFormDocumentHelper>>&
-        afdh_map,
-    QPDF* q)
+    std::map<unsigned long long, std::shared_ptr<QPDFAcroFormDocumentHelper>>& afdh_map, QPDF* q)
 {
     auto uid = q->getUniqueId();
     if (!afdh_map.count(uid)) {
@@ -2071,8 +1924,7 @@ QPDFJob::doUnderOverlayForPage(
         return "";
     }
 
-    std::map<unsigned long long, std::shared_ptr<QPDFAcroFormDocumentHelper>>
-        afdh;
+    std::map<unsigned long long, std::shared_ptr<QPDFAcroFormDocumentHelper>> afdh;
     auto make_afdh = [&](QPDFPageObjectHelper& ph) {
         QPDF& q = ph.getObjectHandle().getQPDF();
         return get_afdh_for_qpdf(afdh, &q);
@@ -2088,8 +1940,7 @@ QPDFJob::doUnderOverlayForPage(
         });
         auto from_page = pages.at(QIntC::to_size(from_pageno - 1));
         if (0 == fo.count(from_pageno)) {
-            fo[from_pageno] =
-                pdf.copyForeignObject(from_page.getFormXObjectForPage());
+            fo[from_pageno] = pdf.copyForeignObject(from_page.getFormXObjectForPage());
         }
 
         // If the same page is overlaid or underlaid multiple times,
@@ -2099,12 +1950,8 @@ QPDFJob::doUnderOverlayForPage(
         std::string name = resources.getUniqueResourceName("/Fx", min_suffix);
         QPDFMatrix cm;
         std::string new_content = dest_page.placeFormXObject(
-            fo[from_pageno],
-            name,
-            dest_page.getTrimBox().getArrayAsRectangle(),
-            cm);
-        dest_page.copyAnnotations(
-            from_page, cm, dest_afdh, make_afdh(from_page));
+            fo[from_pageno], name, dest_page.getTrimBox().getArrayAsRectangle(), cm);
+        dest_page.copyAnnotations(from_page, cm, dest_afdh, make_afdh(from_page));
         if (!new_content.empty()) {
             resources.mergeResources("<< /XObject << >> >>"_qpdf);
             auto xobject = resources.getKey("/XObject");
@@ -2119,8 +1966,7 @@ QPDFJob::doUnderOverlayForPage(
 }
 
 void
-QPDFJob::getUOPagenos(
-    QPDFJob::UnderOverlay& uo, std::map<int, std::vector<int>>& pagenos)
+QPDFJob::getUOPagenos(QPDFJob::UnderOverlay& uo, std::map<int, std::vector<int>>& pagenos)
 {
     size_t idx = 0;
     size_t from_size = uo.from_pagenos.size();
@@ -2129,8 +1975,7 @@ QPDFJob::getUOPagenos(
         if (idx < from_size) {
             pagenos[to_pageno].push_back(uo.from_pagenos.at(idx));
         } else if (repeat_size) {
-            pagenos[to_pageno].push_back(
-                uo.repeat_pagenos.at((idx - from_size) % repeat_size));
+            pagenos[to_pageno].push_back(uo.repeat_pagenos.at((idx - from_size) % repeat_size));
         }
         ++idx;
     }
@@ -2166,12 +2011,10 @@ QPDFJob::handleUnderOverlay(QPDF& pdf)
         v << prefix << ": processing underlay/overlay\n";
     });
     for (size_t i = 0; i < main_npages; ++i) {
-        doIfVerbose([&](Pipeline& v, std::string const& prefix) {
-            v << "  page " << 1 + i << "\n";
-        });
+        doIfVerbose(
+            [&](Pipeline& v, std::string const& prefix) { v << "  page " << 1 + i << "\n"; });
         auto pageno = QIntC::to_int(i) + 1;
-        if (!(underlay_pagenos.count(pageno) ||
-              overlay_pagenos.count(pageno))) {
+        if (!(underlay_pagenos.count(pageno) || overlay_pagenos.count(pageno))) {
             continue;
         }
         // This code converts the original page, any underlays, and
@@ -2187,19 +2030,12 @@ QPDFJob::handleUnderOverlay(QPDF& pdf)
         // the original page, which we are going to replace. Therefore
         // we have to explicitly copy it.
         auto content_data = this_page_fo.getRawStreamData();
-        this_page_fo.replaceStreamData(
-            content_data, QPDFObjectHandle(), QPDFObjectHandle());
-        auto resources = dest_page_oh.replaceKeyAndGetNew(
-            "/Resources", "<< /XObject << >> >>"_qpdf);
+        this_page_fo.replaceStreamData(content_data, QPDFObjectHandle(), QPDFObjectHandle());
+        auto resources =
+            dest_page_oh.replaceKeyAndGetNew("/Resources", "<< /XObject << >> >>"_qpdf);
         resources.getKey("/XObject").replaceKeyAndGetNew("/Fx0", this_page_fo);
         auto content = doUnderOverlayForPage(
-            pdf,
-            m->underlay,
-            underlay_pagenos,
-            i,
-            underlay_fo,
-            upages,
-            dest_page);
+            pdf, m->underlay, underlay_pagenos, i, underlay_fo, upages, dest_page);
         content += dest_page.placeFormXObject(
             this_page_fo,
             "/Fx0",
@@ -2234,8 +2070,7 @@ QPDFJob::addAttachments(QPDF& pdf)
             continue;
         }
 
-        auto fs = QPDFFileSpecObjectHelper::createFileSpec(
-            pdf, to_add.filename, to_add.path);
+        auto fs = QPDFFileSpecObjectHelper::createFileSpec(pdf, to_add.filename, to_add.path);
         if (!to_add.description.empty()) {
             fs.setDescription(to_add.description);
         }
@@ -2247,8 +2082,8 @@ QPDFJob::addAttachments(QPDF& pdf)
 
         efdh.replaceEmbeddedFile(to_add.key, fs);
         doIfVerbose([&](Pipeline& v, std::string const& prefix) {
-            v << prefix << ": attached " << to_add.path << " as "
-              << to_add.filename << " with key " << to_add.key << "\n";
+            v << prefix << ": attached " << to_add.path << " as " << to_add.filename << " with key "
+              << to_add.key << "\n";
         });
     }
 
@@ -2276,28 +2111,19 @@ QPDFJob::copyAttachments(QPDF& pdf)
     std::vector<std::string> duplicates;
     for (auto const& to_copy: m->attachments_to_copy) {
         doIfVerbose([&](Pipeline& v, std::string const& prefix) {
-            v << prefix << ": copying attachments from " << to_copy.path
-              << "\n";
+            v << prefix << ": copying attachments from " << to_copy.path << "\n";
         });
-        std::shared_ptr<QPDF> other;
-        processFile(
-            other,
-            to_copy.path.c_str(),
-            to_copy.password.c_str(),
-            false,
-            false);
+        std::unique_ptr<QPDF> other;
+        processFile(other, to_copy.path.c_str(), to_copy.password.c_str(), false, false);
         QPDFEmbeddedFileDocumentHelper other_efdh(*other);
         auto other_attachments = other_efdh.getEmbeddedFiles();
         for (auto const& iter: other_attachments) {
             std::string new_key = to_copy.prefix + iter.first;
             if (efdh.getEmbeddedFile(new_key)) {
-                duplicates.push_back(
-                    "file: " + to_copy.path + ", key: " + new_key);
+                duplicates.push_back("file: " + to_copy.path + ", key: " + new_key);
             } else {
-                auto new_fs_oh =
-                    pdf.copyForeignObject(iter.second->getObjectHandle());
-                efdh.replaceEmbeddedFile(
-                    new_key, QPDFFileSpecObjectHelper(new_fs_oh));
+                auto new_fs_oh = pdf.copyForeignObject(iter.second->getObjectHandle());
+                efdh.replaceEmbeddedFile(new_key, QPDFFileSpecObjectHelper(new_fs_oh));
                 doIfVerbose([&](Pipeline& v, std::string const& prefix) {
                     v << "  " << iter.first << " -> " << new_key << "\n";
                 });
@@ -2305,7 +2131,7 @@ QPDFJob::copyAttachments(QPDF& pdf)
         }
 
         if (other->anyWarnings()) {
-            this->m->warnings = true;
+            m->warnings = true;
         }
     }
 
@@ -2340,8 +2166,7 @@ QPDFJob::handleTransformations(QPDF& pdf)
     if (m->remove_restrictions) {
         pdf.removeSecurityRestrictions();
     }
-    if (m->externalize_inline_images ||
-        (m->optimize_images && (!m->keep_inline_images))) {
+    if (m->externalize_inline_images || (m->optimize_images && (!m->keep_inline_images))) {
         for (auto& ph: dh.getAllPages()) {
             ph.externalizeInlineImages(m->ii_min_bytes);
         }
@@ -2350,31 +2175,22 @@ QPDFJob::handleTransformations(QPDF& pdf)
         int pageno = 0;
         for (auto& ph: dh.getAllPages()) {
             ++pageno;
-            QPDFObjectHandle page = ph.getObjectHandle();
-            for (auto& iter2: ph.getImages()) {
-                std::string name = iter2.first;
-                QPDFObjectHandle& image = iter2.second;
-                ImageOptimizer* io = new ImageOptimizer(
-                    *this,
-                    m->oi_min_width,
-                    m->oi_min_height,
-                    m->oi_min_area,
-                    image);
-                std::shared_ptr<QPDFObjectHandle::StreamDataProvider> sdp(io);
-                if (io->evaluate(
-                        "image " + name + " on page " +
-                        std::to_string(pageno))) {
-                    QPDFObjectHandle new_image = pdf.newStream();
-                    new_image.replaceDict(image.getDict().shallowCopy());
-                    new_image.replaceStreamData(
-                        sdp,
-                        QPDFObjectHandle::newName("/DCTDecode"),
-                        QPDFObjectHandle::newNull());
-                    ph.getAttribute("/Resources", true)
-                        .getKey("/XObject")
-                        .replaceKey(name, new_image);
-                }
-            }
+            ph.forEachImage(
+                true,
+                [this, pageno, &pdf](
+                    QPDFObjectHandle& obj, QPDFObjectHandle& xobj_dict, std::string const& key) {
+                    auto io = std::make_unique<ImageOptimizer>(
+                        *this, m->oi_min_width, m->oi_min_height, m->oi_min_area, obj);
+                    if (io->evaluate("image " + key + " on page " + std::to_string(pageno))) {
+                        QPDFObjectHandle new_image = pdf.newStream();
+                        new_image.replaceDict(obj.getDict().shallowCopy());
+                        new_image.replaceStreamData(
+                            std::move(io),
+                            QPDFObjectHandle::newName("/DCTDecode"),
+                            QPDFObjectHandle::newNull());
+                        xobj_dict.replaceKey(key, new_image);
+                    }
+                });
         }
     }
     if (m->generate_appearances) {
@@ -2382,8 +2198,7 @@ QPDFJob::handleTransformations(QPDF& pdf)
         afdh->generateAppearancesIfNeeded();
     }
     if (m->flatten_annotations) {
-        dh.flattenAnnotations(
-            m->flatten_annotations_required, m->flatten_annotations_forbidden);
+        dh.flattenAnnotations(m->flatten_annotations_required, m->flatten_annotations_forbidden);
     }
     if (m->coalesce_contents) {
         for (auto& page: dh.getAllPages()) {
@@ -2438,12 +2253,11 @@ QPDFJob::shouldRemoveUnreferencedResources(QPDF& pdf)
 
     // Return true as soon as we find any shared resources.
 
-    std::set<QPDFObjGen> resources_seen; // shared resources detection
-    std::set<QPDFObjGen> nodes_seen;     // loop detection
+    QPDFObjGen::set resources_seen; // shared resources detection
+    QPDFObjGen::set nodes_seen;     // loop detection
 
     doIfVerbose([&](Pipeline& v, std::string const& prefix) {
-        v << prefix << ": " << pdf.getFilename()
-          << ": checking for shared resources\n";
+        v << prefix << ": " << pdf.getFilename() << ": checking for shared resources\n";
     });
 
     std::list<QPDFObjectHandle> queue;
@@ -2452,10 +2266,9 @@ QPDFJob::shouldRemoveUnreferencedResources(QPDF& pdf)
         QPDFObjectHandle node = *queue.begin();
         queue.pop_front();
         QPDFObjGen og = node.getObjGen();
-        if (nodes_seen.count(og)) {
+        if (!nodes_seen.add(og)) {
             continue;
         }
-        nodes_seen.insert(og);
         QPDFObjectHandle dict = node.isStream() ? node.getDict() : node;
         QPDFObjectHandle kids = dict.getKey("/Kids");
         if (kids.isArray()) {
@@ -2463,8 +2276,7 @@ QPDFJob::shouldRemoveUnreferencedResources(QPDF& pdf)
             if (dict.hasKey("/Resources")) {
                 QTC::TC("qpdf", "QPDFJob found resources in non-leaf");
                 doIfVerbose([&](Pipeline& v, std::string const& prefix) {
-                    v << "  found resources in non-leaf page node "
-                      << og.unparse(' ') << "\n";
+                    v << "  found resources in non-leaf page node " << og.unparse(' ') << "\n";
                 });
                 return true;
             }
@@ -2476,33 +2288,27 @@ QPDFJob::shouldRemoveUnreferencedResources(QPDF& pdf)
             // This is a leaf node or a form XObject.
             QPDFObjectHandle resources = dict.getKey("/Resources");
             if (resources.isIndirect()) {
-                QPDFObjGen resources_og = resources.getObjGen();
-                if (resources_seen.count(resources_og)) {
+                if (!resources_seen.add(resources)) {
                     QTC::TC("qpdf", "QPDFJob found shared resources in leaf");
                     doIfVerbose([&](Pipeline& v, std::string const& prefix) {
-                        v << "  found shared resources in leaf node "
-                          << og.unparse(' ') << ": "
-                          << resources_og.unparse(' ') << "\n";
+                        v << "  found shared resources in leaf node " << og.unparse(' ') << ": "
+                          << resources.getObjGen().unparse(' ') << "\n";
                     });
                     return true;
                 }
-                resources_seen.insert(resources_og);
             }
             QPDFObjectHandle xobject =
                 (resources.isDictionary() ? resources.getKey("/XObject")
                                           : QPDFObjectHandle::newNull());
             if (xobject.isIndirect()) {
-                QPDFObjGen xobject_og = xobject.getObjGen();
-                if (resources_seen.count(xobject_og)) {
+                if (!resources_seen.add(xobject)) {
                     QTC::TC("qpdf", "QPDFJob found shared xobject in leaf");
                     doIfVerbose([&](Pipeline& v, std::string const& prefix) {
-                        v << "  found shared xobject in leaf node "
-                          << og.unparse(' ') << ": " << xobject_og.unparse(' ')
-                          << "\n";
+                        v << "  found shared xobject in leaf node " << og.unparse(' ') << ": "
+                          << xobject.getObjGen().unparse(' ') << "\n";
                     });
                     return true;
                 }
-                resources_seen.insert(xobject_og);
             }
             if (xobject.isDictionary()) {
                 for (auto const& k: xobject.getKeys()) {
@@ -2540,8 +2346,7 @@ added_page(QPDF& pdf, QPDFPageObjectHelper page)
 }
 
 void
-QPDFJob::handlePageSpecs(
-    QPDF& pdf, bool& warnings, std::vector<std::shared_ptr<QPDF>>& page_heap)
+QPDFJob::handlePageSpecs(QPDF& pdf, std::vector<std::unique_ptr<QPDF>>& page_heap)
 {
     // Parse all page specifications and translate them into lists of
     // actual pages.
@@ -2563,13 +2368,10 @@ QPDFJob::handlePageSpecs(
             filenames.insert(page_spec.filename);
         }
         m->keep_files_open = (filenames.size() <= m->keep_files_open_threshold);
-        QTC::TC(
-            "qpdf",
-            "QPDFJob automatically set keep files open",
-            m->keep_files_open ? 0 : 1);
+        QTC::TC("qpdf", "QPDFJob automatically set keep files open", m->keep_files_open ? 0 : 1);
         doIfVerbose([&](Pipeline& v, std::string const& prefix) {
-            v << prefix << ": selecting --keep-open-files="
-              << (m->keep_files_open ? "y" : "n") << "\n";
+            v << prefix << ": selecting --keep-open-files=" << (m->keep_files_open ? "y" : "n")
+              << "\n";
         });
     }
 
@@ -2609,14 +2411,13 @@ QPDFJob::handlePageSpecs(
                 cis->stayOpen(true);
             } else {
                 QTC::TC("qpdf", "QPDFJob keep files open y");
-                FileInputSource* fis =
-                    new FileInputSource(page_spec.filename.c_str());
+                FileInputSource* fis = new FileInputSource(page_spec.filename.c_str());
                 is = std::shared_ptr<InputSource>(fis);
             }
-            std::shared_ptr<QPDF> qpdf_sp;
+            std::unique_ptr<QPDF> qpdf_sp;
             processInputSource(qpdf_sp, is, password, true);
-            page_heap.push_back(qpdf_sp);
             page_spec_qpdfs[page_spec.filename] = qpdf_sp.get();
+            page_heap.push_back(std::move(qpdf_sp));
             if (cis) {
                 cis->stayOpen(false);
                 page_spec_cfis[page_spec.filename] = cis;
@@ -2627,10 +2428,7 @@ QPDFJob::handlePageSpecs(
         // associated with this occurrence of the file.
         parsed_specs.push_back(
             // line-break
-            QPDFPageData(
-                page_spec.filename,
-                page_spec_qpdfs[page_spec.filename],
-                page_spec.range));
+            QPDFPageData(page_spec.filename, page_spec_qpdfs[page_spec.filename], page_spec.range));
     }
 
     std::map<unsigned long long, bool> remove_unreferenced;
@@ -2645,8 +2443,7 @@ QPDFJob::handlePageSpecs(
             QPDF& other(*(iter.second));
             auto other_uuid = other.getUniqueId();
             if (remove_unreferenced.count(other_uuid) == 0) {
-                remove_unreferenced[other_uuid] =
-                    shouldRemoveUnreferencedResources(other);
+                remove_unreferenced[other_uuid] = shouldRemoveUnreferencedResources(other);
             }
             if (cis) {
                 cis->stayOpen(false);
@@ -2685,9 +2482,7 @@ QPDFJob::handlePageSpecs(
                         got_pages = true;
                         new_parsed_specs.push_back(
                             // line-break
-                            QPDFPageData(
-                                page_data,
-                                page_data.selected_pages.at(cur_page + j)));
+                            QPDFPageData(page_data, page_data.selected_pages.at(cur_page + j)));
                     }
                 }
             }
@@ -2703,8 +2498,7 @@ QPDFJob::handlePageSpecs(
     std::vector<QPDFObjectHandle> new_labels;
     bool any_page_labels = false;
     int out_pageno = 0;
-    std::map<unsigned long long, std::shared_ptr<QPDFAcroFormDocumentHelper>>
-        afdh_map;
+    std::map<unsigned long long, std::shared_ptr<QPDFAcroFormDocumentHelper>> afdh_map;
     auto this_afdh = get_afdh_for_qpdf(afdh_map, &pdf);
     std::set<QPDFObjGen> referenced_fields;
     for (auto& page_data: parsed_specs) {
@@ -2725,10 +2519,8 @@ QPDFJob::handlePageSpecs(
             // Pages are specified from 1 but numbered from 0 in the
             // vector
             int pageno = pageno_iter - 1;
-            pldh.getLabelsForPageRange(
-                pageno, pageno, out_pageno++, new_labels);
-            QPDFPageObjectHelper to_copy =
-                page_data.orig_pages.at(QIntC::to_size(pageno));
+            pldh.getLabelsForPageRange(pageno, pageno, out_pageno++, new_labels);
+            QPDFPageObjectHelper to_copy = page_data.orig_pages.at(QIntC::to_size(pageno));
             QPDFObjGen to_copy_og = to_copy.getObjectHandle().getObjGen();
             unsigned long long from_uuid = page_data.qpdf->getUniqueId();
             if (copied_pages[from_uuid].count(to_copy_og)) {
@@ -2763,8 +2555,7 @@ QPDFJob::handlePageSpecs(
             // adjusted. If we copy any page from the original file
             // more than once, that page would be in conflict with the
             // previous copy of itself.
-            if (other_afdh->hasAcroForm() &&
-                ((!this_file) || (!first_copy_from_orig))) {
+            if (other_afdh->hasAcroForm() && ((!this_file) || (!first_copy_from_orig))) {
                 if (!this_file) {
                     QTC::TC("qpdf", "QPDFJob copy fields not this file");
                 } else if (!first_copy_from_orig) {
@@ -2772,10 +2563,7 @@ QPDFJob::handlePageSpecs(
                 }
                 try {
                     this_afdh->fixCopiedAnnotations(
-                        new_page,
-                        to_copy.getObjectHandle(),
-                        *other_afdh,
-                        &referenced_fields);
+                        new_page, to_copy.getObjectHandle(), *other_afdh, &referenced_fields);
                 } catch (std::exception& e) {
                     pdf.warn(
                         qpdf_e_damaged_pdf,
@@ -2786,9 +2574,6 @@ QPDFJob::handlePageSpecs(
                          std::string("Exception: ") + e.what()));
                 }
             }
-        }
-        if (page_data.qpdf->anyWarnings()) {
-            warnings = true;
         }
         if (cis) {
             cis->stayOpen(false);
@@ -2812,9 +2597,7 @@ QPDFJob::handlePageSpecs(
                 referenced_fields.insert(field.getObjectHandle().getObjGen());
             }
         } else {
-            pdf.replaceObject(
-                page.getObjectHandle().getObjGen(),
-                QPDFObjectHandle::newNull());
+            pdf.replaceObject(page.getObjectHandle().getObjGen(), QPDFObjectHandle::newNull());
         }
     }
     // Remove unreferenced form fields
@@ -2855,8 +2638,7 @@ QPDFJob::handleRotations(QPDF& pdf)
         for (int pageno_iter: QUtil::parse_numrange(range.c_str(), npages)) {
             int pageno = pageno_iter - 1;
             if ((pageno >= 0) && (pageno < npages)) {
-                pages.at(QIntC::to_size(pageno))
-                    .rotatePage(rspec.angle, rspec.relative);
+                pages.at(QIntC::to_size(pageno)).rotatePage(rspec.angle, rspec.relative);
             }
         }
     }
@@ -2881,24 +2663,21 @@ QPDFJob::maybeFixWritePassword(int R, std::string& password)
             bool has_8bit_chars;
             bool is_valid_utf8;
             bool is_utf16;
-            QUtil::analyze_encoding(
-                password, has_8bit_chars, is_valid_utf8, is_utf16);
+            QUtil::analyze_encoding(password, has_8bit_chars, is_valid_utf8, is_utf16);
             if (!has_8bit_chars) {
                 return;
             }
             if (m->password_mode == QPDFJob::pm_unicode) {
                 if (!is_valid_utf8) {
                     QTC::TC("qpdf", "QPDFJob password not unicode");
-                    throw std::runtime_error(
-                        "supplied password is not valid UTF-8");
+                    throw std::runtime_error("supplied password is not valid UTF-8");
                 }
                 if (R < 5) {
                     std::string encoded;
                     if (!QUtil::utf8_to_pdf_doc(password, encoded)) {
                         QTC::TC("qpdf", "QPDFJob password not encodable");
-                        throw std::runtime_error(
-                            "supplied password cannot be encoded for"
-                            " 40-bit or 128-bit encryption formats");
+                        throw std::runtime_error("supplied password cannot be encoded for"
+                                                 " 40-bit or 128-bit encryption formats");
                     }
                     password = encoded;
                 }
@@ -2907,8 +2686,7 @@ QPDFJob::maybeFixWritePassword(int R, std::string& password)
                     std::string encoded;
                     if (QUtil::utf8_to_pdf_doc(password, encoded)) {
                         QTC::TC("qpdf", "QPDFJob auto-encode password");
-                        doIfVerbose([&](Pipeline& v,
-                                        std::string const& prefix) {
+                        doIfVerbose([&](Pipeline& v, std::string const& prefix) {
                             v << prefix << ": automatically converting Unicode"
                               << " password to single-byte encoding as"
                               << " required for 40-bit or 128-bit"
@@ -2917,25 +2695,23 @@ QPDFJob::maybeFixWritePassword(int R, std::string& password)
                         password = encoded;
                     } else {
                         QTC::TC("qpdf", "QPDFJob bytes fallback warning");
-                        *this->m->log->getError()
-                            << this->m->message_prefix << ": WARNING: "
-                            << "supplied password looks like a Unicode"
-                            << " password with characters not allowed in"
-                            << " passwords for 40-bit and 128-bit "
-                               "encryption;"
-                            << " most readers will not be able to open this"
-                            << " file with the supplied password."
-                            << " (Use --password-mode=bytes to suppress "
-                               "this"
-                            << " warning and use the password anyway.)\n";
+                        *m->log->getError() << m->message_prefix << ": WARNING: "
+                                            << "supplied password looks like a Unicode"
+                                            << " password with characters not allowed in"
+                                            << " passwords for 40-bit and 128-bit "
+                                               "encryption;"
+                                            << " most readers will not be able to open this"
+                                            << " file with the supplied password."
+                                            << " (Use --password-mode=bytes to suppress "
+                                               "this"
+                                            << " warning and use the password anyway.)\n";
                     }
                 } else if ((R >= 5) && (!is_valid_utf8)) {
                     QTC::TC("qpdf", "QPDFJob invalid utf-8 in auto");
-                    throw std::runtime_error(
-                        "supplied password is not a valid Unicode password,"
-                        " which is required for 256-bit encryption; to"
-                        " really use this password, rerun with the"
-                        " --password-mode=bytes option");
+                    throw std::runtime_error("supplied password is not a valid Unicode password,"
+                                             " which is required for 256-bit encryption; to"
+                                             " really use this password, rerun with the"
+                                             " --password-mode=bytes option");
                 }
             }
         }
@@ -2965,28 +2741,25 @@ QPDFJob::setEncryptionOptions(QPDF& pdf, QPDFWriter& w)
         throw std::logic_error("bad encryption keylen");
     }
     if ((R > 3) && (m->r3_accessibility == false)) {
-        *this->m->log->getError() << this->m->message_prefix
-                                  << ": -accessibility=n is ignored for modern"
-                                  << " encryption formats\n";
+        *m->log->getError() << m->message_prefix << ": -accessibility=n is ignored for modern"
+                            << " encryption formats\n";
     }
     maybeFixWritePassword(R, m->user_password);
     maybeFixWritePassword(R, m->owner_password);
     if ((R < 4) || ((R == 4) && (!m->use_aes))) {
         if (!m->allow_weak_crypto) {
             QTC::TC("qpdf", "QPDFJob weak crypto error");
-            *this->m->log->getError()
-                << this->m->message_prefix
-                << ": refusing to write a file with RC4, a weak "
-                   "cryptographic "
-                   "algorithm\n"
-                << "Please use 256-bit keys for better security.\n"
-                << "Pass --allow-weak-crypto to enable writing insecure "
-                   "files.\n"
-                << "See also "
-                   "https://qpdf.readthedocs.io/en/stable/"
-                   "weak-crypto.html\n";
-            throw std::runtime_error(
-                "refusing to write a file with weak crypto");
+            *m->log->getError() << m->message_prefix
+                                << ": refusing to write a file with RC4, a weak "
+                                   "cryptographic "
+                                   "algorithm\n"
+                                << "Please use 256-bit keys for better security.\n"
+                                << "Pass --allow-weak-crypto to enable writing insecure "
+                                   "files.\n"
+                                << "See also "
+                                   "https://qpdf.readthedocs.io/en/stable/"
+                                   "weak-crypto.html\n";
+            throw std::runtime_error("refusing to write a file with weak crypto");
         }
     }
     switch (R) {
@@ -3058,10 +2831,7 @@ QPDFJob::setEncryptionOptions(QPDF& pdf, QPDFWriter& w)
 }
 
 static void
-parse_version(
-    std::string const& full_version_string,
-    std::string& version,
-    int& extension_level)
+parse_version(std::string const& full_version_string, std::string& version, int& extension_level)
 {
     auto vp = QUtil::make_unique_cstr(full_version_string);
     char* v = vp.get();
@@ -3120,7 +2890,7 @@ QPDFJob::setWriterOptions(QPDF& pdf, QPDFWriter& w)
         w.setSuppressOriginalObjectIDs(true);
     }
     if (m->copy_encryption) {
-        std::shared_ptr<QPDF> encryption_pdf;
+        std::unique_ptr<QPDF> encryption_pdf;
         processFile(
             encryption_pdf,
             m->encryption_file.c_str(),
@@ -3141,7 +2911,7 @@ QPDFJob::setWriterOptions(QPDF& pdf, QPDFWriter& w)
     if (m->object_stream_set) {
         w.setObjectStreamMode(m->object_stream_mode);
     }
-    w.setMinimumPDFVersion(this->m->max_input_version);
+    w.setMinimumPDFVersion(m->max_input_version);
     if (!m->min_version.empty()) {
         std::string version;
         int extension_level = 0;
@@ -3155,28 +2925,20 @@ QPDFJob::setWriterOptions(QPDF& pdf, QPDFWriter& w)
         w.forcePDFVersion(version, extension_level);
     }
     if (m->progress) {
-        if (this->m->progress_handler) {
-            w.registerProgressReporter(
-                std::shared_ptr<QPDFWriter::ProgressReporter>(
-                    new QPDFWriter::FunctionProgressReporter(
-                        this->m->progress_handler)));
+        if (m->progress_handler) {
+            w.registerProgressReporter(std::shared_ptr<QPDFWriter::ProgressReporter>(
+                new QPDFWriter::FunctionProgressReporter(m->progress_handler)));
         } else {
-            char const* outfilename = this->m->outfilename
-                ? this->m->outfilename.get()
-                : "standard output";
-            w.registerProgressReporter(
-                std::shared_ptr<QPDFWriter::ProgressReporter>(
-                    // line-break
-                    new ProgressReporter(
-                        *this->m->log->getInfo(),
-                        this->m->message_prefix,
-                        outfilename)));
+            char const* outfilename = m->outfilename ? m->outfilename.get() : "standard output";
+            w.registerProgressReporter(std::shared_ptr<QPDFWriter::ProgressReporter>(
+                // line-break
+                new ProgressReporter(*m->log->getInfo(), m->message_prefix, outfilename)));
         }
     }
 }
 
 void
-QPDFJob::doSplitPages(QPDF& pdf, bool& warnings)
+QPDFJob::doSplitPages(QPDF& pdf)
 {
     // Generate output file pattern
     std::string before;
@@ -3185,14 +2947,10 @@ QPDFJob::doSplitPages(QPDF& pdf, bool& warnings)
     char* num_spot = strstr(const_cast<char*>(m->outfilename.get()), "%d");
     if (num_spot != nullptr) {
         QTC::TC("qpdf", "QPDFJob split-pages %d");
-        before = std::string(
-            m->outfilename.get(),
-            QIntC::to_size(num_spot - m->outfilename.get()));
+        before = std::string(m->outfilename.get(), QIntC::to_size(num_spot - m->outfilename.get()));
         after = num_spot + 2;
     } else if (
-        (len >= 4) &&
-        (QUtil::str_compare_nocase(m->outfilename.get() + len - 4, ".pdf") ==
-         0)) {
+        (len >= 4) && (QUtil::str_compare_nocase(m->outfilename.get() + len - 4, ".pdf") == 0)) {
         QTC::TC("qpdf", "QPDFJob split-pages .pdf");
         before = std::string(m->outfilename.get(), len - 4) + "-";
         after = m->outfilename.get() + len - 4;
@@ -3247,24 +3005,18 @@ QPDFJob::doSplitPages(QPDF& pdf, bool& warnings)
         if (pldh.hasPageLabels()) {
             std::vector<QPDFObjectHandle> labels;
             pldh.getLabelsForPageRange(
-                QIntC::to_longlong(first - 1),
-                QIntC::to_longlong(last - 1),
-                0,
-                labels);
+                QIntC::to_longlong(first - 1), QIntC::to_longlong(last - 1), 0, labels);
             QPDFObjectHandle page_labels = QPDFObjectHandle::newDictionary();
             page_labels.replaceKey("/Nums", QPDFObjectHandle::newArray(labels));
             outpdf.getRoot().replaceKey("/PageLabels", page_labels);
         }
-        std::string page_range =
-            QUtil::uint_to_string(first, QIntC::to_int(pageno_len));
+        std::string page_range = QUtil::uint_to_string(first, QIntC::to_int(pageno_len));
         if (m->split_pages > 1) {
-            page_range +=
-                "-" + QUtil::uint_to_string(last, QIntC::to_int(pageno_len));
+            page_range += "-" + QUtil::uint_to_string(last, QIntC::to_int(pageno_len));
         }
         std::string outfile = before + page_range + after;
         if (QUtil::same_file(m->infilename.get(), outfile.c_str())) {
-            throw std::runtime_error(
-                "split pages would overwrite input file with " + outfile);
+            throw std::runtime_error("split pages would overwrite input file with " + outfile);
         }
         QPDFWriter w(outpdf, outfile.c_str());
         setWriterOptions(outpdf, w);
@@ -3272,9 +3024,6 @@ QPDFJob::doSplitPages(QPDF& pdf, bool& warnings)
         doIfVerbose([&](Pipeline& v, std::string const& prefix) {
             v << prefix << ": wrote file " << outfile << "\n";
         });
-        if (outpdf.anyWarnings()) {
-            warnings = true;
-        }
     }
 }
 
@@ -3286,27 +3035,26 @@ QPDFJob::writeOutfile(QPDF& pdf)
         // Append but don't prepend to the path to generate a
         // temporary name. This saves us from having to split the path
         // by directory and non-directory.
-        temp_out = QUtil::make_shared_cstr(
-            std::string(m->infilename.get()) + ".~qpdf-temp#");
+        temp_out = QUtil::make_shared_cstr(std::string(m->infilename.get()) + ".~qpdf-temp#");
         // m->outfilename will be restored to 0 before temp_out
         // goes out of scope.
         m->outfilename = temp_out;
     } else if (strcmp(m->outfilename.get(), "-") == 0) {
         m->outfilename = nullptr;
     }
-    if (this->m->json_version) {
+    if (m->json_version) {
         writeJSON(pdf);
     } else {
         // QPDFWriter must have block scope so the output file will be
         // closed after write() finishes.
         QPDFWriter w(pdf);
-        if (this->m->outfilename) {
+        if (m->outfilename) {
             w.setOutputFilename(m->outfilename.get());
         } else {
             // saveToStandardOutput has already been called, but
             // calling it again is defensive and harmless.
-            this->m->log->saveToStandardOutput(true);
-            w.setOutputPipeline(this->m->log->getSave().get());
+            m->log->saveToStandardOutput(true);
+            w.setOutputPipeline(m->log->getSave().get());
         }
         setWriterOptions(pdf, w);
         w.write();
@@ -3330,17 +3078,14 @@ QPDFJob::writeOutfile(QPDF& pdf)
         QUtil::rename_file(m->infilename.get(), backup.c_str());
         QUtil::rename_file(temp_out.get(), m->infilename.get());
         if (warnings) {
-            *this->m->log->getError()
-                << this->m->message_prefix
-                << ": there are warnings; original file kept in " << backup
-                << "\n";
+            *m->log->getError() << m->message_prefix
+                                << ": there are warnings; original file kept in " << backup << "\n";
         } else {
             try {
                 QUtil::remove_file(backup.c_str());
             } catch (QPDFSystemError& e) {
-                *this->m->log->getError()
-                    << this->m->message_prefix
-                    << ": unable to delete original file (" << e.what() << ");"
+                *m->log->getError()
+                    << m->message_prefix << ": unable to delete original file (" << e.what() << ");"
                     << " original file left in " << backup
                     << ", but the input was successfully replaced\n";
             }
@@ -3357,22 +3102,19 @@ QPDFJob::writeJSON(QPDF& pdf)
     std::shared_ptr<Pipeline> fp;
     if (m->outfilename.get()) {
         QTC::TC("qpdf", "QPDFJob write json to file");
-        if (this->m->json_stream_prefix.empty()) {
-            this->m->json_stream_prefix = this->m->outfilename.get();
+        if (m->json_stream_prefix.empty()) {
+            m->json_stream_prefix = m->outfilename.get();
         }
-        fc = std::make_shared<QUtil::FileCloser>(
-            QUtil::safe_fopen(this->m->outfilename.get(), "w"));
+        fc = std::make_shared<QUtil::FileCloser>(QUtil::safe_fopen(m->outfilename.get(), "w"));
         fp = std::make_shared<Pl_StdioFile>("json output", fc->f);
-    } else if (
-        (this->m->json_stream_data == qpdf_sj_file) &&
-        this->m->json_stream_prefix.empty()) {
+    } else if ((m->json_stream_data == qpdf_sj_file) && m->json_stream_prefix.empty()) {
         QTC::TC("qpdf", "QPDFJob need json-stream-prefix for stdout");
         usage("please specify --json-stream-prefix since the input file "
               "name is unknown");
     } else {
         QTC::TC("qpdf", "QPDFJob write json to stdout");
-        this->m->log->saveToStandardOutput(true);
-        fp = this->m->log->getSave();
+        m->log->saveToStandardOutput(true);
+        fp = m->log->getSave();
     }
     doJSON(pdf, fp.get());
 }

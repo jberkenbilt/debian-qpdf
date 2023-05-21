@@ -6,8 +6,9 @@
 #include <cstring>
 #include <iostream>
 #include <regex>
+#include <string_view>
 
-static char const* whoami = 0;
+static char const* whoami = nullptr;
 
 static void
 usage()
@@ -20,7 +21,7 @@ class QdfFixer
 {
   public:
     QdfFixer(std::string const& filename);
-    void processLines(std::list<std::string>& lines);
+    void processLines(std::string const& input);
 
   private:
     void fatal(std::string const&);
@@ -58,9 +59,9 @@ class QdfFixer
     size_t xref_f1_nbytes;
     size_t xref_f2_nbytes;
     size_t xref_size;
-    std::vector<std::string> ostream;
+    std::vector<std::string_view> ostream;
     std::vector<qpdf_offset_t> ostream_offsets;
-    std::vector<std::string> ostream_discarded;
+    std::vector<std::string_view> ostream_discarded;
     size_t ostream_idx;
     int ostream_id;
     std::string ostream_extends;
@@ -92,54 +93,69 @@ QdfFixer::fatal(std::string const& msg)
 }
 
 void
-QdfFixer::processLines(std::list<std::string>& lines)
+QdfFixer::processLines(std::string const& input)
 {
-    static std::regex re_n_0_obj("^(\\d+) 0 obj\n$");
-    static std::regex re_xref("^xref\n$");
-    static std::regex re_stream("^stream\n$");
-    static std::regex re_endobj("^endobj\n$");
-    static std::regex re_type_objstm("/Type /ObjStm");
-    static std::regex re_type_xref("/Type /XRef");
-    static std::regex re_extends("/Extends (\\d+ 0 R)");
-    static std::regex re_ostream_obj("^%% Object stream: object (\\d+)");
-    static std::regex re_endstream("^endstream\n$");
-    static std::regex re_length_or_w("/(Length|W) ");
-    static std::regex re_size("/Size ");
-    static std::regex re_ignore_newline("^%QDF: ignore_newline\n$");
-    static std::regex re_num("^\\d+\n$");
-    static std::regex re_trailer("^trailer <<");
-    static std::regex re_size_n("^  /Size \\d+\n$");
-    static std::regex re_dict_end("^>>\n$");
+    using namespace std::literals;
+
+    static const std::regex re_n_0_obj("^(\\d+) 0 obj\n$");
+    static const std::regex re_extends("/Extends (\\d+ 0 R)");
+    static const std::regex re_ostream_obj("^%% Object stream: object (\\d+)");
+    static const std::regex re_num("^\\d+\n$");
+    static const std::regex re_size_n("^  /Size \\d+\n$");
+
+    auto sv_diff = [](size_t i) { return static_cast<std::string_view::difference_type>(i); };
 
     lineno = 0;
-    for (auto const& line: lines) {
+    bool more = true;
+    auto len_line = sv_diff(0);
+
+    std::string_view line;
+    std::string_view input_view{input.data(), input.size()};
+    size_t offs = 0;
+
+    auto b_line = input.cbegin();
+    std::smatch m;
+    auto const matches = [&m, &b_line, &len_line](std::regex const& r) {
+        return std::regex_search(b_line, b_line + len_line, m, r);
+    };
+
+    while (more) {
         ++lineno;
         last_offset = offset;
-        offset += QIntC::to_offset(line.length());
-        std::smatch m;
-        auto matches = [&m, &line](std::regex& r) {
-            return std::regex_search(line, m, r);
-        };
+        b_line += len_line;
+
+        offs = input_view.find('\n');
+        if (offs == std::string::npos) {
+            more = false;
+            line = input_view;
+        } else {
+            offs++;
+            line = input_view.substr(0, offs);
+            input_view.remove_prefix(offs);
+        }
+        len_line = sv_diff(line.size());
+        offset += len_line;
+
         if (state == st_top) {
             if (matches(re_n_0_obj)) {
                 checkObjId(m[1].str());
                 state = st_in_obj;
-            } else if (matches(re_xref)) {
+            } else if (line.compare("xref\n"sv) == 0) {
                 xref_offset = last_offset;
                 state = st_at_xref;
             }
             std::cout << line;
         } else if (state == st_in_obj) {
             std::cout << line;
-            if (matches(re_stream)) {
+            if (line.compare("stream\n"sv) == 0) {
                 state = st_in_stream;
                 stream_start = offset;
-            } else if (matches(re_endobj)) {
+            } else if (line.compare("endobj\n"sv) == 0) {
                 state = st_top;
-            } else if (matches(re_type_objstm)) {
+            } else if (line.find("/Type /ObjStm"sv) != line.npos) {
                 state = st_in_ostream_dict;
                 ostream_id = last_obj;
-            } else if (matches(re_type_xref)) {
+            } else if (line.find("/Type /XRef"sv) != line.npos) {
                 xref_offset = xref.back().getOffset();
                 xref_f1_nbytes = 0;
                 auto t = xref_offset;
@@ -152,8 +168,7 @@ QdfFixer::processLines(std::list<std::string>& lines)
                 // there are no object streams.
                 int max_objects = 1;
                 for (auto const& e: xref) {
-                    if ((e.getType() == 2) &&
-                        (e.getObjStreamIndex() > max_objects)) {
+                    if ((e.getType() == 2) && (e.getObjStreamIndex() > max_objects)) {
                         max_objects = e.getObjStreamIndex();
                     }
                 }
@@ -165,13 +180,12 @@ QdfFixer::processLines(std::list<std::string>& lines)
                 xref_size = 1 + xref.size();
                 auto length = xref_size * esize;
                 std::cout << "  /Length " << length << "\n"
-                          << "  /W [ 1 " << xref_f1_nbytes << " "
-                          << xref_f2_nbytes << " ]"
+                          << "  /W [ 1 " << xref_f1_nbytes << " " << xref_f2_nbytes << " ]"
                           << "\n";
                 state = st_in_xref_stream_dict;
             }
         } else if (state == st_in_ostream_dict) {
-            if (matches(re_stream)) {
+            if (line.compare("stream\n"sv) == 0) {
                 state = st_in_ostream_offsets;
             } else {
                 ostream_discarded.push_back(line);
@@ -200,21 +214,21 @@ QdfFixer::processLines(std::list<std::string>& lines)
             if (matches(re_ostream_obj)) {
                 checkObjId(m[1].str());
                 state = st_in_ostream_outer;
-            } else if (matches(re_endstream)) {
+            } else if (line.compare("endstream\n"sv) == 0) {
                 stream_length = QIntC::to_size(last_offset - stream_start);
                 writeOstream();
                 state = st_in_obj;
             }
         } else if (state == st_in_xref_stream_dict) {
-            if (matches(re_length_or_w)) {
+            if ((line.find("/Length"sv) != line.npos) || (line.find("/W"sv) != line.npos)) {
                 // already printed
-            } else if (matches(re_size)) {
+            } else if (line.find("/Size"sv) != line.npos) {
                 auto xref_size = 1 + xref.size();
                 std::cout << "  /Size " << xref_size << "\n";
             } else {
                 std::cout << line;
             }
-            if (matches(re_stream)) {
+            if (line.compare("stream\n"sv) == 0) {
                 writeBinary(0, 1);
                 writeBinary(0, xref_f1_nbytes);
                 writeBinary(0, xref_f2_nbytes);
@@ -238,13 +252,13 @@ QdfFixer::processLines(std::list<std::string>& lines)
                 state = st_done;
             }
         } else if (state == st_in_stream) {
-            if (matches(re_endstream)) {
+            if (line.compare("endstream\n"sv) == 0) {
                 stream_length = QIntC::to_size(last_offset - stream_start);
                 state = st_after_stream;
             }
             std::cout << line;
         } else if (state == st_after_stream) {
-            if (matches(re_ignore_newline)) {
+            if (line.compare("%QDF: ignore_newline\n"sv) == 0) {
                 if (stream_length > 0) {
                     --stream_length;
                 }
@@ -255,9 +269,7 @@ QdfFixer::processLines(std::list<std::string>& lines)
             std::cout << line;
         } else if (state == st_in_length) {
             if (!matches(re_num)) {
-                fatal(
-                    filename + ":" + std::to_string(lineno) +
-                    ": expected integer");
+                fatal(filename + ":" + std::to_string(lineno) + ": expected integer");
             }
             std::string new_length = std::to_string(stream_length) + "\n";
             offset -= QIntC::to_offset(line.length());
@@ -268,12 +280,11 @@ QdfFixer::processLines(std::list<std::string>& lines)
             auto n = xref.size();
             std::cout << "0 " << 1 + n << "\n0000000000 65535 f \n";
             for (auto const& e: xref) {
-                std::cout << QUtil::int_to_string(e.getOffset(), 10)
-                          << " 00000 n \n";
+                std::cout << QUtil::int_to_string(e.getOffset(), 10) << " 00000 n \n";
             }
             state = st_before_trailer;
         } else if (state == st_before_trailer) {
-            if (matches(re_trailer)) {
+            if (line.compare("trailer <<\n"sv) == 0) {
                 std::cout << line;
                 state = st_in_trailer;
             }
@@ -284,7 +295,7 @@ QdfFixer::processLines(std::list<std::string>& lines)
             } else {
                 std::cout << line;
             }
-            if (matches(re_dict_end)) {
+            if (line.compare(">>\n"sv) == 0) {
                 std::cout << "startxref\n" << xref_offset << "\n%%EOF\n";
                 state = st_done;
             }
@@ -297,21 +308,18 @@ QdfFixer::processLines(std::list<std::string>& lines)
 void
 QdfFixer::checkObjId(std::string const& cur_obj_str)
 {
-    int cur_obj = QUtil::string_to_int(cur_obj_str.c_str());
-    if (cur_obj != last_obj + 1) {
+    if (std::stoi(cur_obj_str) != ++last_obj) {
         fatal(
             filename + ":" + std::to_string(lineno) + ": expected object " +
-            std::to_string(last_obj + 1));
+            std::to_string(last_obj));
     }
-    last_obj = cur_obj;
-    xref.push_back(QPDFXRefEntry(1, QIntC::to_offset(last_offset), 0));
+    xref.push_back(QPDFXRefEntry(1, last_offset, 0));
 }
 
 void
 QdfFixer::adjustOstreamXref()
 {
-    xref.pop_back();
-    xref.push_back(QPDFXRefEntry(2, ostream_id, QIntC::to_int(ostream_idx++)));
+    xref.back() = QPDFXRefEntry(2, ostream_id, QIntC::to_int(ostream_idx++));
 }
 
 void
@@ -360,17 +368,12 @@ void
 QdfFixer::writeBinary(unsigned long long val, size_t bytes)
 {
     if (bytes > sizeof(unsigned long long)) {
-        throw std::logic_error(
-            "fix-qdf::writeBinary called with too many bytes");
+        throw std::logic_error("fix-qdf::writeBinary called with too many bytes");
     }
-    std::string data;
-    data.reserve(bytes);
-    for (size_t i = 0; i < bytes; ++i) {
-        data.append(1, '\0');
-    }
-    for (size_t i = 0; i < bytes; ++i) {
-        data.at(bytes - i - 1) = static_cast<char>(QIntC::to_uchar(val & 0xff));
-        val >>= 8;
+    std::string data(bytes, '\0');
+    for (auto i = bytes; i > 0; --i) {
+        data[i - 1] = static_cast<char>(val & 0xff); // i.e. val % 256
+        val >>= 8;                                   // i.e. val = val / 256
     }
     std::cout << data;
 }
@@ -380,29 +383,28 @@ realmain(int argc, char* argv[])
 {
     whoami = QUtil::getWhoami(argv[0]);
     QUtil::setLineBuf(stdout);
-    char const* filename = 0;
+    char const* filename = nullptr;
     if (argc > 2) {
         usage();
     } else if ((argc > 1) && (strcmp(argv[1], "--version") == 0)) {
-        std::cout << whoami << " from qpdf version " << QPDF::QPDFVersion()
-                  << std::endl;
+        std::cout << whoami << " from qpdf version " << QPDF::QPDFVersion() << std::endl;
         return 0;
     } else if ((argc > 1) && (strcmp(argv[1], "--help") == 0)) {
         usage();
     } else if (argc == 2) {
         filename = argv[1];
     }
-    std::list<std::string> lines;
-    if (filename == 0) {
+    std::string input;
+    if (filename == nullptr) {
         filename = "standard input";
         QUtil::binary_stdin();
-        lines = QUtil::read_lines_from_file(stdin, true);
+        input = QUtil::read_file_into_string(stdin);
     } else {
-        lines = QUtil::read_lines_from_file(filename, true);
+        input = QUtil::read_file_into_string(filename);
     }
     QUtil::binary_stdout();
     QdfFixer qf(filename);
-    qf.processLines(lines);
+    qf.processLines(input);
     return 0;
 }
 
