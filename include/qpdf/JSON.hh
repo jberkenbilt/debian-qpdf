@@ -104,19 +104,14 @@ class JSON
     // the first item and always set it to false.
     QPDF_DLL
     static void writeDictionaryItem(
-        Pipeline*,
-        bool& first,
-        std::string const& key,
-        JSON const& value,
-        size_t depth = 0);
+        Pipeline*, bool& first, std::string const& key, JSON const& value, size_t depth = 0);
     // Write just the key of a new dictionary item, useful if writing
     // nested structures. Calls writeNext.
     QPDF_DLL
-    static void writeDictionaryKey(
-        Pipeline* p, bool& first, std::string const& key, size_t depth = 0);
+    static void
+    writeDictionaryKey(Pipeline* p, bool& first, std::string const& key, size_t depth = 0);
     QPDF_DLL
-    static void writeArrayItem(
-        Pipeline*, bool& first, JSON const& element, size_t depth = 0);
+    static void writeArrayItem(Pipeline*, bool& first, JSON const& element, size_t depth = 0);
     // If writing nested structures incrementally, call writeNext
     // before opening a new array or container in the midst of an
     // existing one. The `first` you pass to writeNext should be the
@@ -188,8 +183,7 @@ class JSON
     QPDF_DLL
     bool isNull() const;
     QPDF_DLL
-    bool forEachDictItem(
-        std::function<void(std::string const& key, JSON value)> fn) const;
+    bool forEachDictItem(std::function<void(std::string const& key, JSON value)> fn) const;
     QPDF_DLL
     bool forEachArrayItem(std::function<void(JSON value)> fn) const;
 
@@ -239,8 +233,7 @@ class JSON
         f_optional = 1 << 0,
     };
     QPDF_DLL
-    bool checkSchema(
-        JSON schema, unsigned long flags, std::list<std::string>& errors);
+    bool checkSchema(JSON schema, unsigned long flags, std::list<std::string>& errors);
 
     // Same as passing 0 for flags
     QPDF_DLL
@@ -311,8 +304,7 @@ class JSON
         // methods and decrementing on end methods.
 
         QPDF_DLL
-        virtual bool
-        dictionaryItem(std::string const& key, JSON const& value) = 0;
+        virtual bool dictionaryItem(std::string const& key, JSON const& value) = 0;
         QPDF_DLL
         virtual bool arrayItem(JSON const& value) = 0;
     };
@@ -339,8 +331,7 @@ class JSON
 
   private:
     static std::string encode_string(std::string const& utf8);
-    static void
-    writeClose(Pipeline* p, bool first, size_t depth, char const* delimeter);
+    static void writeClose(Pipeline* p, bool first, size_t depth, char const* delimeter);
 
     enum value_type_e {
         vt_none,
@@ -369,26 +360,17 @@ class JSON
             JSON_value(vt_dictionary)
         {
         }
-        virtual ~JSON_dictionary() = default;
-        virtual void write(Pipeline*, size_t depth) const;
+        ~JSON_dictionary() override = default;
+        void write(Pipeline*, size_t depth) const override;
         std::map<std::string, JSON> members;
         std::set<std::string> parsed_keys;
     };
-    struct JSON_array: public JSON_value
-    {
-        JSON_array() :
-            JSON_value(vt_array)
-        {
-        }
-        virtual ~JSON_array() = default;
-        virtual void write(Pipeline*, size_t depth) const;
-        std::vector<JSON> elements;
-    };
+    struct JSON_array;
     struct JSON_string: public JSON_value
     {
         JSON_string(std::string const& utf8);
-        virtual ~JSON_string() = default;
-        virtual void write(Pipeline*, size_t depth) const;
+        ~JSON_string() override = default;
+        void write(Pipeline*, size_t depth) const override;
         std::string utf8;
         std::string encoded;
     };
@@ -397,15 +379,15 @@ class JSON
         JSON_number(long long val);
         JSON_number(double val);
         JSON_number(std::string const& val);
-        virtual ~JSON_number() = default;
-        virtual void write(Pipeline*, size_t depth) const;
+        ~JSON_number() override = default;
+        void write(Pipeline*, size_t depth) const override;
         std::string encoded;
     };
     struct JSON_bool: public JSON_value
     {
         JSON_bool(bool val);
-        virtual ~JSON_bool() = default;
-        virtual void write(Pipeline*, size_t depth) const;
+        ~JSON_bool() override = default;
+        void write(Pipeline*, size_t depth) const override;
         bool value;
     };
     struct JSON_null: public JSON_value
@@ -414,14 +396,14 @@ class JSON
             JSON_value(vt_null)
         {
         }
-        virtual ~JSON_null() = default;
-        virtual void write(Pipeline*, size_t depth) const;
+        ~JSON_null() override = default;
+        void write(Pipeline*, size_t depth) const override;
     };
     struct JSON_blob: public JSON_value
     {
         JSON_blob(std::function<void(Pipeline*)> fn);
-        virtual ~JSON_blob() = default;
-        virtual void write(Pipeline*, size_t depth) const;
+        ~JSON_blob() override = default;
+        void write(Pipeline*, size_t depth) const override;
         std::function<void(Pipeline*)> fn;
     };
 
@@ -453,6 +435,17 @@ class JSON
     };
 
     std::shared_ptr<Members> m;
+};
+
+struct JSON::JSON_array: public JSON_value
+{
+    JSON_array() :
+        JSON_value(vt_array)
+    {
+    }
+    ~JSON_array() override = default;
+    void write(Pipeline*, size_t depth) const override;
+    std::vector<JSON> elements;
 };
 
 #endif // JSON_HH

@@ -2,7 +2,6 @@
 
 #include <qpdf/QPDFArgParser.hh>
 #include <qpdf/QPDFUsage.hh>
-#include <qpdf/QUtil.hh>
 #include <cstring>
 #include <iostream>
 
@@ -42,9 +41,7 @@ ArgParser::ArgParser(int argc, char* argv[]) :
 void
 ArgParser::initOptions()
 {
-    auto b = [this](void (ArgParser::*f)()) {
-        return QPDFArgParser::bindBare(f, this);
-    };
+    auto b = [this](void (ArgParser::*f)()) { return QPDFArgParser::bindBare(f, this); };
     auto p = [this](void (ArgParser::*f)(std::string const&)) {
         return QPDFArgParser::bindParam(f, this);
     };
@@ -52,7 +49,7 @@ ArgParser::initOptions()
     ap.addBare("potato", b(&ArgParser::handlePotato));
     ap.addRequiredParameter("salad", p(&ArgParser::handleSalad), "tossed");
     ap.addOptionalParameter("moo", p(&ArgParser::handleMoo));
-    char const* choices[] = {"pig", "boar", "sow", 0};
+    char const* choices[] = {"pig", "boar", "sow", nullptr};
     ap.addChoices("oink", p(&ArgParser::handleOink), true, choices);
     ap.selectHelpOptionTable();
     ap.addBare("version", [this]() { output("3.14159"); });
@@ -72,9 +69,7 @@ ArgParser::initOptions()
 
     ap.addHelpFooter("For more help, read the manual.\n");
     ap.addHelpTopic(
-        "quack",
-        "Quack Options",
-        "Just put stuff after quack to get a count at the end.\n");
+        "quack", "Quack Options", "Just put stuff after quack to get a count at the end.\n");
     ap.addHelpTopic(
         "baaa",
         "Baaa Options",
@@ -140,8 +135,7 @@ ArgParser::getQuack(std::string const& p)
 {
     ++this->quacks;
     if (this->ap.isCompleting() && (this->ap.argsLeft() == 0)) {
-        this->ap.insertCompletion(
-            std::string("thing-") + std::to_string(this->quacks));
+        this->ap.insertCompletion(std::string("thing-") + std::to_string(this->quacks));
         return;
     }
     output(std::string("got quack: ") + p);
@@ -179,24 +173,17 @@ ArgParser::test_exceptions()
         ap.selectOptionTable("baaa");
         ap.addBare("ram", []() {});
     });
-    err("duplicate table",
-        [this]() { ap.registerOptionTable("baaa", nullptr); });
+    err("duplicate table", [this]() { ap.registerOptionTable("baaa", nullptr); });
     err("unknown table", [this]() { ap.selectOptionTable("aardvark"); });
-    err("add existing help topic",
-        [this]() { ap.addHelpTopic("baaa", "potato", "salad"); });
-    err("add reserved help topic",
-        [this]() { ap.addHelpTopic("all", "potato", "salad"); });
-    err("add to unknown topic",
-        [this]() { ap.addOptionHelp("--new", "oops", "potato", "salad"); });
-    err("bad option for help",
-        [this]() { ap.addOptionHelp("nodash", "baaa", "potato", "salad"); });
-    err("bad topic for help",
-        [this]() { ap.addHelpTopic("--dashes", "potato", "salad"); });
+    err("add existing help topic", [this]() { ap.addHelpTopic("baaa", "potato", "salad"); });
+    err("add reserved help topic", [this]() { ap.addHelpTopic("all", "potato", "salad"); });
+    err("add to unknown topic", [this]() { ap.addOptionHelp("--new", "oops", "potato", "salad"); });
+    err("bad option for help", [this]() { ap.addOptionHelp("nodash", "baaa", "potato", "salad"); });
+    err("bad topic for help", [this]() { ap.addHelpTopic("--dashes", "potato", "salad"); });
     err("duplicate option help",
         [this]() { ap.addOptionHelp("--ewe", "baaa", "potato", "salad"); });
-    err("invalid choice handler to unknown", [this]() {
-        ap.addInvalidChoiceHandler("elephant", [](std::string const&) {});
-    });
+    err("invalid choice handler to unknown",
+        [this]() { ap.addInvalidChoiceHandler("elephant", [](std::string const&) {}); });
 }
 
 int

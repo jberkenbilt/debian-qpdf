@@ -25,14 +25,14 @@
 #include <qpdf/DLL.h>
 #include <qpdf/PointerHolder.hh> // unused -- remove in qpdf 12 (see #785)
 #include <qpdf/Types.h>
+#include <cstdio>
 #include <cstring>
+#include <ctime>
 #include <functional>
 #include <list>
 #include <memory>
 #include <stdexcept>
-#include <stdio.h>
 #include <string>
-#include <time.h>
 #include <vector>
 
 class RandomDataProvider;
@@ -49,11 +49,9 @@ namespace QUtil
     QPDF_DLL
     std::string int_to_string_base(long long, int base, int length = 0);
     QPDF_DLL
-    std::string
-    uint_to_string_base(unsigned long long, int base, int length = 0);
+    std::string uint_to_string_base(unsigned long long, int base, int length = 0);
     QPDF_DLL
-    std::string double_to_string(
-        double, int decimal_places = 0, bool trim_trailing_zeroes = true);
+    std::string double_to_string(double, int decimal_places = 0, bool trim_trailing_zeroes = true);
 
     // These string to number methods throw std::runtime_error on
     // underflow/overflow.
@@ -223,6 +221,11 @@ namespace QUtil
     QPDF_DLL
     std::string hex_decode(std::string const&);
 
+    // Decode a single hex digit into a char in the range 0 <= char < 16. Return
+    // a char >= 16 if digit is not a valid hex digit.
+    QPDF_DLL
+    inline constexpr char hex_decode_char(char digit) noexcept;
+
     // Set stdin, stdout to binary mode
     QPDF_DLL
     void binary_stdout();
@@ -240,7 +243,7 @@ namespace QUtil
     // Returns true iff the variable is defined.  If `value' is
     // non-null, initializes it with the value of the variable.
     QPDF_DLL
-    bool get_env(std::string const& var, std::string* value = 0);
+    bool get_env(std::string const& var, std::string* value = nullptr);
 
     QPDF_DLL
     time_t get_current_time();
@@ -252,14 +255,7 @@ namespace QUtil
         QPDFTime() = default;
         QPDFTime(QPDFTime const&) = default;
         QPDFTime& operator=(QPDFTime const&) = default;
-        QPDFTime(
-            int year,
-            int month,
-            int day,
-            int hour,
-            int minute,
-            int second,
-            int tz_delta) :
+        QPDFTime(int year, int month, int day, int hour, int minute, int second, int tz_delta) :
             year(year),
             month(month),
             day(day),
@@ -326,8 +322,7 @@ namespace QUtil
     // to pass a value of pos that is greater than or equal to the
     // length of the string.
     QPDF_DLL
-    unsigned long get_next_utf8_codepoint(
-        std::string const& utf8_val, size_t& pos, bool& error);
+    unsigned long get_next_utf8_codepoint(std::string const& utf8_val, size_t& pos, bool& error);
 
     // Test whether this is a UTF-16 string. This is indicated by
     // first two bytes being 0xFE 0xFF (big-endian) or 0xFF 0xFE
@@ -355,30 +350,23 @@ namespace QUtil
     QPDF_DLL
     std::string utf8_to_ascii(std::string const& utf8, char unknown_char = '?');
     QPDF_DLL
-    std::string
-    utf8_to_win_ansi(std::string const& utf8, char unknown_char = '?');
+    std::string utf8_to_win_ansi(std::string const& utf8, char unknown_char = '?');
     QPDF_DLL
-    std::string
-    utf8_to_mac_roman(std::string const& utf8, char unknown_char = '?');
+    std::string utf8_to_mac_roman(std::string const& utf8, char unknown_char = '?');
     QPDF_DLL
-    std::string
-    utf8_to_pdf_doc(std::string const& utf8, char unknown_char = '?');
+    std::string utf8_to_pdf_doc(std::string const& utf8, char unknown_char = '?');
 
     // These versions return true if the conversion was successful and
     // false if any unrepresentable characters were found and had to
     // be substituted with the unknown character.
     QPDF_DLL
-    bool utf8_to_ascii(
-        std::string const& utf8, std::string& ascii, char unknown_char = '?');
+    bool utf8_to_ascii(std::string const& utf8, std::string& ascii, char unknown_char = '?');
     QPDF_DLL
-    bool utf8_to_win_ansi(
-        std::string const& utf8, std::string& win, char unknown_char = '?');
+    bool utf8_to_win_ansi(std::string const& utf8, std::string& win, char unknown_char = '?');
     QPDF_DLL
-    bool utf8_to_mac_roman(
-        std::string const& utf8, std::string& mac, char unknown_char = '?');
+    bool utf8_to_mac_roman(std::string const& utf8, std::string& mac, char unknown_char = '?');
     QPDF_DLL
-    bool utf8_to_pdf_doc(
-        std::string const& utf8, std::string& pdfdoc, char unknown_char = '?');
+    bool utf8_to_pdf_doc(std::string const& utf8, std::string& pdfdoc, char unknown_char = '?');
 
     // Convert a UTF-16 encoded string to UTF-8. Unrepresentable code
     // points are converted to U+FFFD.
@@ -407,10 +395,7 @@ namespace QUtil
     // about everything else) accepts UTF-16LE (as of 10.6.2).
     QPDF_DLL
     void analyze_encoding(
-        std::string const& str,
-        bool& has_8bit_chars,
-        bool& is_valid_utf8,
-        bool& is_utf16);
+        std::string const& str, bool& has_8bit_chars, bool& is_valid_utf8, bool& is_utf16);
 
     // Try to compensate for previously incorrectly encoded strings.
     // We want to compensate for the following errors:
@@ -467,14 +452,11 @@ namespace QUtil
     // Filename is UTF-8 encoded, even on Windows, as described in the
     // comments for safe_fopen.
     QPDF_DLL
-    std::list<std::string>
-    read_lines_from_file(char const* filename, bool preserve_eol = false);
+    std::list<std::string> read_lines_from_file(char const* filename, bool preserve_eol = false);
     QPDF_DLL
-    std::list<std::string>
-    read_lines_from_file(std::istream&, bool preserve_eol = false);
+    std::list<std::string> read_lines_from_file(std::istream&, bool preserve_eol = false);
     QPDF_DLL
-    std::list<std::string>
-    read_lines_from_file(FILE*, bool preserve_eol = false);
+    std::list<std::string> read_lines_from_file(FILE*, bool preserve_eol = false);
     QPDF_DLL
     void read_lines_from_file(
         std::function<bool(char&)> next_char,
@@ -482,8 +464,12 @@ namespace QUtil
         bool preserve_eol = false);
 
     QPDF_DLL
-    void read_file_into_memory(
-        char const* filename, std::shared_ptr<char>& file_buf, size_t& size);
+    void read_file_into_memory(char const* filename, std::shared_ptr<char>& file_buf, size_t& size);
+
+    QPDF_DLL
+    std::string read_file_into_string(char const* filename);
+    QPDF_DLL
+    std::string read_file_into_string(FILE* f, std::string_view filename = "");
 
     // This used to be called strcasecmp, but that is a macro on some
     // platforms, so we have to give it a name that is not likely to
@@ -522,8 +508,7 @@ namespace QUtil
     // invoked, convert all UTF-16 encoded strings to UTF-8, and call
     // another main.
     QPDF_DLL
-    int call_main_from_wmain(
-        int argc, wchar_t* argv[], std::function<int(int, char*[])> realmain);
+    int call_main_from_wmain(int argc, wchar_t* argv[], std::function<int(int, char*[])> realmain);
     QPDF_DLL
     int call_main_from_wmain(
         int argc,
@@ -545,15 +530,13 @@ namespace QUtil
 inline bool
 QUtil::is_hex_digit(char ch)
 {
-    return ('0' <= ch && ch <= '9') || ('a' <= ch && ch <= 'f') ||
-        ('A' <= ch && ch <= 'F');
+    return hex_decode_char(ch) < '\20';
 }
 
 inline bool
 QUtil::is_space(char ch)
 {
-    return ch == ' ' || ch == '\n' || ch == '\r' || ch == '\t' || ch == '\f' ||
-        ch == '\v';
+    return ch == ' ' || ch == '\n' || ch == '\r' || ch == '\t' || ch == '\f' || ch == '\v';
 }
 
 inline bool
@@ -594,8 +577,15 @@ inline std::string
 QUtil::hex_encode_char(char c)
 {
     static auto constexpr hexchars = "0123456789abcdef";
-    return {
-        '#', hexchars[static_cast<unsigned char>(c) >> 4], hexchars[c & 0x0f]};
+    return {'#', hexchars[static_cast<unsigned char>(c) >> 4], hexchars[c & 0x0f]};
+}
+
+inline constexpr char
+QUtil::hex_decode_char(char digit) noexcept
+{
+    return digit <= '9' && digit >= '0'
+        ? char(digit - '0')
+        : (digit >= 'a' ? char(digit - 'a' + 10) : (digit >= 'A' ? char(digit - 'A' + 10) : '\20'));
 }
 
 #endif // QUTIL_HH

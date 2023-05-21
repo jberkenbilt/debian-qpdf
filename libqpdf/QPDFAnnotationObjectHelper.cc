@@ -2,7 +2,6 @@
 
 #include <qpdf/QPDF.hh>
 #include <qpdf/QPDFMatrix.hh>
-#include <qpdf/QPDFNameTreeObjectHelper.hh>
 #include <qpdf/QTC.hh>
 #include <qpdf/QUtil.hh>
 
@@ -48,14 +47,20 @@ QPDFAnnotationObjectHelper::getFlags()
 }
 
 QPDFObjectHandle
-QPDFAnnotationObjectHelper::getAppearanceStream(
-    std::string const& which, std::string const& state)
+QPDFAnnotationObjectHelper::getAppearanceStream(std::string const& which, std::string const& state)
 {
     QPDFObjectHandle ap = getAppearanceDictionary();
     std::string desired_state = state.empty() ? getAppearanceState() : state;
     if (ap.isDictionary()) {
         QPDFObjectHandle ap_sub = ap.getKey(which);
-        if (ap_sub.isStream() && desired_state.empty()) {
+        if (ap_sub.isStream()) {
+            // According to the spec, Appearance State is supposed to
+            // refer to a subkey of the appearance stream when /AP is
+            // a dictionary, but files have been seen in the wild
+            // where Appearance State is `/N` and `/AP` is a stream.
+            // Therefore, if `which` points to a stream, disregard
+            // state and just use the stream. See qpdf issue #949 for
+            // details.
             QTC::TC("qpdf", "QPDFAnnotationObjectHelper AP stream");
             return ap_sub;
         }
@@ -74,10 +79,7 @@ QPDFAnnotationObjectHelper::getAppearanceStream(
 
 std::string
 QPDFAnnotationObjectHelper::getPageContentForAppearance(
-    std::string const& name,
-    int rotate,
-    int required_flags,
-    int forbidden_flags)
+    std::string const& name, int rotate, int required_flags, int forbidden_flags)
 {
     if (!getAppearanceStream("/N").isStream()) {
         return "";
@@ -236,9 +238,7 @@ QPDFAnnotationObjectHelper::getPageContentForAppearance(
     // Compute a matrix to transform the appearance box to the rectangle
     QPDFMatrix AA;
     AA.translate(rect.llx, rect.lly);
-    AA.scale(
-        (rect.urx - rect.llx) / (T.urx - T.llx),
-        (rect.ury - rect.lly) / (T.ury - T.lly));
+    AA.scale((rect.urx - rect.llx) / (T.urx - T.llx), (rect.ury - rect.lly) / (T.ury - T.lly));
     AA.translate(-T.llx, -T.lly);
     if (do_rotate) {
         AA.rotatex90(rotate);

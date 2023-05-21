@@ -1,7 +1,5 @@
 #include <qpdf/Pl_String.hh>
 
-#include <qpdf/QUtil.hh>
-#include <errno.h>
 #include <stdexcept>
 
 Pl_String::Members::Members(std::string& s) :
@@ -24,7 +22,7 @@ Pl_String::~Pl_String()
 void
 Pl_String::write(unsigned char const* buf, size_t len)
 {
-    this->m->s.append(reinterpret_cast<char const*>(buf), len);
+    m->s.append(reinterpret_cast<char const*>(buf), len);
     if (getNext(true)) {
         getNext()->write(buf, len);
     }

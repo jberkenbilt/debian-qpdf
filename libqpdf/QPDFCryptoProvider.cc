@@ -19,8 +19,7 @@ QPDFCryptoProvider::getImpl()
 {
     QPDFCryptoProvider& p = getInstance();
     if (p.m->default_provider.empty()) {
-        throw std::logic_error(
-            "QPDFCryptoProvider::getImpl called with no default provider.");
+        throw std::logic_error("QPDFCryptoProvider::getImpl called with no default provider.");
     }
     return p.getImpl_internal(p.m->default_provider);
 }
@@ -73,32 +72,31 @@ QPDFCryptoProvider::getInstance()
 std::shared_ptr<QPDFCryptoImpl>
 QPDFCryptoProvider::getImpl_internal(std::string const& name) const
 {
-    auto iter = this->m->providers.find(name);
-    if (iter == this->m->providers.end()) {
+    auto iter = m->providers.find(name);
+    if (iter == m->providers.end()) {
         throw std::logic_error(
-            "QPDFCryptoProvider requested unknown implementation \"" + name +
-            "\"");
+            "QPDFCryptoProvider requested unknown implementation \"" + name + "\"");
     }
-    return this->m->providers[name]();
+    return m->providers[name]();
 }
 
 template <typename T>
 void
 QPDFCryptoProvider::registerImpl_internal(std::string const& name)
 {
-    this->m->providers[name] = std::make_shared<T>;
+    m->providers[name] = std::make_shared<T>;
 }
 
 void
 QPDFCryptoProvider::setDefaultProvider_internal(std::string const& name)
 {
-    if (!this->m->providers.count(name)) {
+    if (!m->providers.count(name)) {
         throw std::logic_error(
             "QPDFCryptoProvider: request to set default"
             " provider to unknown implementation \"" +
             name + "\"");
     }
-    this->m->default_provider = name;
+    m->default_provider = name;
 }
 
 std::set<std::string>

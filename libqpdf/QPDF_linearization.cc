@@ -13,18 +13,13 @@
 #include <qpdf/QUtil.hh>
 
 #include <algorithm>
-#include <iostream>
-#include <math.h>
-#include <string.h>
+#include <cmath>
+#include <cstring>
 
 template <class T, class int_type>
 static void
 load_vector_int(
-    BitStream& bit_stream,
-    int nitems,
-    std::vector<T>& vec,
-    int bits_wanted,
-    int_type T::*field)
+    BitStream& bit_stream, int nitems, std::vector<T>& vec, int bits_wanted, int_type T::*field)
 {
     bool append = vec.empty();
     // nitems times, read bits_wanted from the given bit stream,
@@ -58,8 +53,7 @@ load_vector_vector(
     // into the vec2 vector field of the ith item of vec1.
     for (size_t i1 = 0; i1 < QIntC::to_size(nitems1); ++i1) {
         for (int i2 = 0; i2 < vec1.at(i1).*nitems2; ++i2) {
-            (vec1.at(i1).*vec2)
-                .push_back(bit_stream.getBitsInt(QIntC::to_size(bits_wanted)));
+            (vec1.at(i1).*vec2).push_back(bit_stream.getBitsInt(QIntC::to_size(bits_wanted)));
         }
     }
     bit_stream.skipToNextByte();
@@ -68,7 +62,7 @@ load_vector_vector(
 void
 QPDF::linearizationWarning(std::string_view msg)
 {
-    this->m->linearization_warnings = true;
+    m->linearization_warnings = true;
     warn(qpdf_e_linearization, "", 0, std::string(msg));
 }
 
@@ -81,8 +75,7 @@ QPDF::checkLinearization()
         result = checkLinearizationInternal();
     } catch (std::runtime_error& e) {
         linearizationWarning(
-            "error encountered while checking linearization data: " +
-            std::string(e.what()));
+            "error encountered while checking linearization data: " + std::string(e.what()));
     }
     return result;
 }
@@ -92,7 +85,7 @@ QPDF::isLinearized()
 {
     // If the first object in the file is a dictionary with a suitable
     // /Linearized key and has an /L key that accurately indicates the
-    // file size, initialize this->m->lindict and return true.
+    // file size, initialize m->lindict and return true.
 
     // A linearized PDF spec's first object will be contained within
     // the first 1024 bytes of the file and will be a dictionary with
@@ -106,9 +99,9 @@ QPDF::isLinearized()
 
     auto b = std::make_unique<char[]>(tbuf_size);
     char* buf = b.get();
-    this->m->file->seek(0, SEEK_SET);
+    m->file->seek(0, SEEK_SET);
     memset(buf, '\0', tbuf_size);
-    this->m->file->read(buf, tbuf_size - 1);
+    m->file->read(buf, tbuf_size - 1);
 
     int lindict_obj = -1;
     char* p = buf;
@@ -122,14 +115,13 @@ QPDF::isLinearized()
         }
         // Seek to the digit. Then skip over digits for a potential
         // next iteration.
-        this->m->file->seek(p - buf, SEEK_SET);
+        m->file->seek(p - buf, SEEK_SET);
         while (((p - buf) < tbuf_size) && QUtil::is_digit(*p)) {
             ++p;
         }
 
-        QPDFTokenizer::Token t1 = readToken(this->m->file);
-        if (t1.isInteger() && readToken(m->file).isInteger() &&
-            readToken(m->file).isWord("obj") &&
+        QPDFTokenizer::Token t1 = readToken(m->file);
+        if (t1.isInteger() && readToken(m->file).isInteger() && readToken(m->file).isWord("obj") &&
             (readToken(m->file).getType() == QPDFTokenizer::tt_dict_open)) {
             lindict_obj = toI(QUtil::string_to_ll(t1.getValue().c_str()));
         }
@@ -152,16 +144,16 @@ QPDF::isLinearized()
     QPDFObjectHandle L = candidate.getKey("/L");
     if (L.isInteger()) {
         qpdf_offset_t Li = L.getIntValue();
-        this->m->file->seek(0, SEEK_END);
-        if (Li != this->m->file->tell()) {
+        m->file->seek(0, SEEK_END);
+        if (Li != m->file->tell()) {
             QTC::TC("qpdf", "QPDF /L mismatch");
             return false;
         } else {
-            this->m->linp.file_size = Li;
+            m->linp.file_size = Li;
         }
     }
 
-    this->m->lindict = candidate;
+    m->lindict = candidate;
 
     return true;
 }
@@ -178,15 +170,15 @@ QPDF::readLinearizationData()
     }
 
     // /L is read and stored in linp by isLinearized()
-    QPDFObjectHandle H = this->m->lindict.getKey("/H");
-    QPDFObjectHandle O = this->m->lindict.getKey("/O");
-    QPDFObjectHandle E = this->m->lindict.getKey("/E");
-    QPDFObjectHandle N = this->m->lindict.getKey("/N");
-    QPDFObjectHandle T = this->m->lindict.getKey("/T");
-    QPDFObjectHandle P = this->m->lindict.getKey("/P");
+    QPDFObjectHandle H = m->lindict.getKey("/H");
+    QPDFObjectHandle O = m->lindict.getKey("/O");
+    QPDFObjectHandle E = m->lindict.getKey("/E");
+    QPDFObjectHandle N = m->lindict.getKey("/N");
+    QPDFObjectHandle T = m->lindict.getKey("/T");
+    QPDFObjectHandle P = m->lindict.getKey("/P");
 
-    if (!(H.isArray() && O.isInteger() && E.isInteger() && N.isInteger() &&
-          T.isInteger() && (P.isInteger() || P.isNull()))) {
+    if (!(H.isArray() && O.isInteger() && E.isInteger() && N.isInteger() && T.isInteger() &&
+          (P.isInteger() || P.isNull()))) {
         throw damagedPDF(
             "linearization dictionary",
             "some keys in linearization dictionary are of the wrong type");
@@ -195,8 +187,7 @@ QPDF::readLinearizationData()
     // Hint table array: offset length [ offset length ]
     size_t n_H_items = toS(H.getArrayNItems());
     if (!((n_H_items == 2) || (n_H_items == 4))) {
-        throw damagedPDF(
-            "linearization dictionary", "H has the wrong number of items");
+        throw damagedPDF("linearization dictionary", "H has the wrong number of items");
     }
 
     std::vector<int> H_items;
@@ -205,9 +196,7 @@ QPDF::readLinearizationData()
         if (oh.isInteger()) {
             H_items.push_back(oh.getIntValueAsInt());
         } else {
-            throw damagedPDF(
-                "linearization dictionary",
-                "some H items are of the wrong type");
+            throw damagedPDF("linearization dictionary", "some H items are of the wrong type");
         }
     }
 
@@ -239,18 +228,17 @@ QPDF::readLinearizationData()
     // initialized from N, to pre-allocate memory, so make sure it's
     // accurate and bail right now if it's not.
     if (N.getIntValue() != static_cast<long long>(getAllPages().size())) {
-        throw damagedPDF(
-            "linearization hint table", "/N does not match number of pages");
+        throw damagedPDF("linearization hint table", "/N does not match number of pages");
     }
 
     // file_size initialized by isLinearized()
-    this->m->linp.first_page_object = O.getIntValueAsInt();
-    this->m->linp.first_page_end = E.getIntValue();
-    this->m->linp.npages = N.getIntValueAsInt();
-    this->m->linp.xref_zero_offset = T.getIntValue();
-    this->m->linp.first_page = first_page;
-    this->m->linp.H_offset = H0_offset;
-    this->m->linp.H_length = H0_length;
+    m->linp.first_page_object = O.getIntValueAsInt();
+    m->linp.first_page_end = E.getIntValue();
+    m->linp.npages = N.getIntValueAsInt();
+    m->linp.xref_zero_offset = T.getIntValue();
+    m->linp.first_page = first_page;
+    m->linp.H_offset = H0_offset;
+    m->linp.H_length = H0_length;
 
     // Read hint streams
 
@@ -283,21 +271,16 @@ QPDF::readLinearizationData()
 
     int HSi = HS.getIntValueAsInt();
     if ((HSi < 0) || (toS(HSi) >= h_size)) {
-        throw damagedPDF(
-            "linearization hint table",
-            "/S (shared object) offset is out of bounds");
+        throw damagedPDF("linearization hint table", "/S (shared object) offset is out of bounds");
     }
     readHSharedObject(BitStream(h_buf + HSi, h_size - toS(HSi)));
 
     if (HO.isInteger()) {
         int HOi = HO.getIntValueAsInt();
         if ((HOi < 0) || (toS(HOi) >= h_size)) {
-            throw damagedPDF(
-                "linearization hint table",
-                "/O (outline) offset is out of bounds");
+            throw damagedPDF("linearization hint table", "/O (outline) offset is out of bounds");
         }
-        readHGeneric(
-            BitStream(h_buf + HOi, h_size - toS(HOi)), this->m->outline_hints);
+        readHGeneric(BitStream(h_buf + HOi, h_size - toS(HOi)), m->outline_hints);
     }
 }
 
@@ -305,19 +288,13 @@ QPDFObjectHandle
 QPDF::readHintStream(Pipeline& pl, qpdf_offset_t offset, size_t length)
 {
     QPDFObjGen og;
-    QPDFObjectHandle H = readObjectAtOffset(
-        false,
-        offset,
-        "linearization hint stream",
-        QPDFObjGen(0, 0),
-        og,
-        false);
-    ObjCache& oc = this->m->obj_cache[og];
+    QPDFObjectHandle H =
+        readObjectAtOffset(false, offset, "linearization hint stream", QPDFObjGen(0, 0), og, false);
+    ObjCache& oc = m->obj_cache[og];
     qpdf_offset_t min_end_offset = oc.end_before_space;
     qpdf_offset_t max_end_offset = oc.end_after_space;
     if (!H.isStream()) {
-        throw damagedPDF(
-            "linearization dictionary", "hint table is not a stream");
+        throw damagedPDF("linearization dictionary", "hint table is not a stream");
     }
 
     QPDFObjectHandle Hdict = H.getDict();
@@ -332,7 +309,7 @@ QPDF::readHintStream(Pipeline& pl, qpdf_offset_t offset, size_t length)
         QTC::TC("qpdf", "QPDF hint table length indirect");
         // Force resolution
         (void)length_obj.getIntValue();
-        ObjCache& oc2 = this->m->obj_cache[length_obj.getObjGen()];
+        ObjCache& oc2 = m->obj_cache[length_obj.getObjGen()];
         min_end_offset = oc2.end_before_space;
         max_end_offset = oc2.end_after_space;
     } else {
@@ -342,10 +319,8 @@ QPDF::readHintStream(Pipeline& pl, qpdf_offset_t offset, size_t length)
     if ((computed_end < min_end_offset) || (computed_end > max_end_offset)) {
         linearizationWarning(
             "expected = " + std::to_string(computed_end) +
-            "; actual = " + std::to_string(min_end_offset) + ".." +
-            std::to_string(max_end_offset));
-        throw damagedPDF(
-            "linearization dictionary", "hint table length mismatch");
+            "; actual = " + std::to_string(min_end_offset) + ".." + std::to_string(max_end_offset));
+        throw damagedPDF("linearization dictionary", "hint table length mismatch");
     }
     H.pipeStreamData(&pl, 0, qpdf_dl_specialized);
     return Hdict;
@@ -357,7 +332,7 @@ QPDF::readHPageOffset(BitStream h)
     // All comments referring to the PDF spec refer to the spec for
     // version 1.4.
 
-    HPageOffset& t = this->m->page_offset_hints;
+    HPageOffset& t = m->page_offset_hints;
 
     t.min_nobjects = h.getBitsInt(32);               // 1
     t.first_page_offset = h.getBitsInt(32);          // 2
@@ -375,25 +350,12 @@ QPDF::readHPageOffset(BitStream h)
 
     std::vector<HPageOffsetEntry>& entries = t.entries;
     entries.clear();
-    int nitems = this->m->linp.npages;
+    int nitems = m->linp.npages;
+    load_vector_int(h, nitems, entries, t.nbits_delta_nobjects, &HPageOffsetEntry::delta_nobjects);
     load_vector_int(
-        h,
-        nitems,
-        entries,
-        t.nbits_delta_nobjects,
-        &HPageOffsetEntry::delta_nobjects);
+        h, nitems, entries, t.nbits_delta_page_length, &HPageOffsetEntry::delta_page_length);
     load_vector_int(
-        h,
-        nitems,
-        entries,
-        t.nbits_delta_page_length,
-        &HPageOffsetEntry::delta_page_length);
-    load_vector_int(
-        h,
-        nitems,
-        entries,
-        t.nbits_nshared_objects,
-        &HPageOffsetEntry::nshared_objects);
+        h, nitems, entries, t.nbits_nshared_objects, &HPageOffsetEntry::nshared_objects);
     load_vector_vector(
         h,
         nitems,
@@ -409,23 +371,15 @@ QPDF::readHPageOffset(BitStream h)
         t.nbits_shared_numerator,
         &HPageOffsetEntry::shared_numerators);
     load_vector_int(
-        h,
-        nitems,
-        entries,
-        t.nbits_delta_content_offset,
-        &HPageOffsetEntry::delta_content_offset);
+        h, nitems, entries, t.nbits_delta_content_offset, &HPageOffsetEntry::delta_content_offset);
     load_vector_int(
-        h,
-        nitems,
-        entries,
-        t.nbits_delta_content_length,
-        &HPageOffsetEntry::delta_content_length);
+        h, nitems, entries, t.nbits_delta_content_length, &HPageOffsetEntry::delta_content_length);
 }
 
 void
 QPDF::readHSharedObject(BitStream h)
 {
-    HSharedObject& t = this->m->shared_object_hints;
+    HSharedObject& t = m->shared_object_hints;
 
     t.first_shared_obj = h.getBitsInt(32);         // 1
     t.first_shared_offset = h.getBitsInt(32);      // 2
@@ -444,13 +398,8 @@ QPDF::readHSharedObject(BitStream h)
     entries.clear();
     int nitems = t.nshared_total;
     load_vector_int(
-        h,
-        nitems,
-        entries,
-        t.nbits_delta_group_length,
-        &HSharedObjectEntry::delta_group_length);
-    load_vector_int(
-        h, nitems, entries, 1, &HSharedObjectEntry::signature_present);
+        h, nitems, entries, t.nbits_delta_group_length, &HSharedObjectEntry::delta_group_length);
+    load_vector_int(h, nitems, entries, 1, &HSharedObjectEntry::signature_present);
     for (size_t i = 0; i < toS(nitems); ++i) {
         if (entries.at(i).signature_present) {
             // Skip 128-bit MD5 hash.  These are not supported by
@@ -461,12 +410,7 @@ QPDF::readHSharedObject(BitStream h)
             }
         }
     }
-    load_vector_int(
-        h,
-        nitems,
-        entries,
-        t.nbits_nobjects,
-        &HSharedObjectEntry::nobjects_minus_one);
+    load_vector_int(h, nitems, entries, t.nbits_nobjects, &HSharedObjectEntry::nobjects_minus_one);
 }
 
 void
@@ -486,7 +430,7 @@ QPDF::checkLinearizationInternal()
 
     // Check all values in linearization parameter dictionary
 
-    LinParameters& p = this->m->linp;
+    LinParameters& p = m->linp;
 
     // L: file size in bytes -- checked by isLinearized
 
@@ -507,30 +451,29 @@ QPDF::checkLinearizationInternal()
     for (size_t i = 0; i < toS(npages); ++i) {
         QPDFObjectHandle const& page = pages.at(i);
         QPDFObjGen og(page.getObjGen());
-        if (this->m->xref_table[og].getType() == 2) {
+        if (m->xref_table[og].getType() == 2) {
             linearizationWarning(
-                "page dictionary for page " + std::to_string(i) +
-                " is compressed");
+                "page dictionary for page " + std::to_string(i) + " is compressed");
         }
     }
 
     // T: offset of whitespace character preceding xref entry for object 0
-    this->m->file->seek(p.xref_zero_offset, SEEK_SET);
+    m->file->seek(p.xref_zero_offset, SEEK_SET);
     while (true) {
         char ch;
-        this->m->file->read(&ch, 1);
+        m->file->read(&ch, 1);
         if (!((ch == ' ') || (ch == '\r') || (ch == '\n'))) {
-            this->m->file->seek(-1, SEEK_CUR);
+            m->file->seek(-1, SEEK_CUR);
             break;
         }
     }
-    if (this->m->file->tell() != this->m->first_xref_item_offset) {
+    if (m->file->tell() != m->first_xref_item_offset) {
         QTC::TC("qpdf", "QPDF err /T mismatch");
         linearizationWarning(
             "space before first xref item (/T) mismatch "
             "(computed = " +
-            std::to_string(this->m->first_xref_item_offset) +
-            "; file = " + std::to_string(this->m->file->tell()));
+            std::to_string(m->first_xref_item_offset) +
+            "; file = " + std::to_string(m->file->tell()));
     }
 
     // P: first page number -- Implementation note 124 says Acrobat
@@ -541,10 +484,9 @@ QPDF::checkLinearizationInternal()
     // at the end of the containing xref section if any object streams
     // are in use.
 
-    if (this->m->uncompressed_after_compressed) {
-        linearizationWarning(
-            "linearized file contains an uncompressed object"
-            " after a compressed one in a cross-reference stream");
+    if (m->uncompressed_after_compressed) {
+        linearizationWarning("linearized file contains an uncompressed object"
+                             " after a compressed one in a cross-reference stream");
     }
 
     // Further checking requires optimization and order calculation.
@@ -554,7 +496,7 @@ QPDF::checkLinearizationInternal()
     // uncompressed.
     { // local scope
         std::map<int, int> object_stream_data;
-        for (auto const& iter: this->m->xref_table) {
+        for (auto const& iter: m->xref_table) {
             QPDFObjGen const& og = iter.first;
             QPDFXRefEntry const& entry = iter.second;
             if (entry.getType() == 2) {
@@ -576,27 +518,26 @@ QPDF::checkLinearizationInternal()
     // agree with pdlin.  As of this writing, the test suite doesn't
     // contain any files with threads.
 
-    if (this->m->part6.empty()) {
+    if (m->part6.empty()) {
         stopOnError("linearization part 6 unexpectedly empty");
     }
     qpdf_offset_t min_E = -1;
     qpdf_offset_t max_E = -1;
-    for (auto const& oh: this->m->part6) {
+    for (auto const& oh: m->part6) {
         QPDFObjGen og(oh.getObjGen());
-        if (this->m->obj_cache.count(og) == 0) {
+        if (m->obj_cache.count(og) == 0) {
             // All objects have to have been dereferenced to be classified.
             throw std::logic_error("linearization part6 object not in cache");
         }
-        ObjCache const& oc = this->m->obj_cache[og];
+        ObjCache const& oc = m->obj_cache[og];
         min_E = std::max(min_E, oc.end_before_space);
         max_E = std::max(max_E, oc.end_after_space);
     }
     if ((p.first_page_end < min_E) || (p.first_page_end > max_E)) {
         QTC::TC("qpdf", "QPDF warn /E mismatch");
         linearizationWarning(
-            "end of first page section (/E) mismatch: /E = " +
-            std::to_string(p.first_page_end) + "; computed = " +
-            std::to_string(min_E) + ".." + std::to_string(max_E));
+            "end of first page section (/E) mismatch: /E = " + std::to_string(p.first_page_end) +
+            "; computed = " + std::to_string(min_E) + ".." + std::to_string(max_E));
     }
 
     // Check hint tables
@@ -606,21 +547,21 @@ QPDF::checkLinearizationInternal()
     checkHPageOffset(pages, shared_idx_to_obj);
     checkHOutlines();
 
-    return !this->m->linearization_warnings;
+    return !m->linearization_warnings;
 }
 
 qpdf_offset_t
 QPDF::maxEnd(ObjUser const& ou)
 {
-    if (this->m->obj_user_to_objects.count(ou) == 0) {
+    if (m->obj_user_to_objects.count(ou) == 0) {
         stopOnError("no entry in object user table for requested object user");
     }
     qpdf_offset_t end = 0;
-    for (auto const& og: this->m->obj_user_to_objects[ou]) {
-        if (this->m->obj_cache.count(og) == 0) {
+    for (auto const& og: m->obj_user_to_objects[ou]) {
+        if (m->obj_cache.count(og) == 0) {
             stopOnError("unknown object referenced in object user table");
         }
-        end = std::max(end, this->m->obj_cache[og].end_after_space);
+        end = std::max(end, m->obj_cache[og].end_after_space);
     }
     return end;
 }
@@ -628,7 +569,7 @@ QPDF::maxEnd(ObjUser const& ou)
 qpdf_offset_t
 QPDF::getLinearizationOffset(QPDFObjGen const& og)
 {
-    QPDFXRefEntry entry = this->m->xref_table[og];
+    QPDFXRefEntry entry = m->xref_table[og];
     qpdf_offset_t result = 0;
     switch (entry.getType()) {
     case 1:
@@ -638,21 +579,18 @@ QPDF::getLinearizationOffset(QPDFObjGen const& og)
     case 2:
         // For compressed objects, return the offset of the object
         // stream that contains them.
-        result =
-            getLinearizationOffset(QPDFObjGen(entry.getObjStreamNumber(), 0));
+        result = getLinearizationOffset(QPDFObjGen(entry.getObjStreamNumber(), 0));
         break;
 
     default:
-        stopOnError(
-            "getLinearizationOffset called for xref entry not of type 1 or 2");
+        stopOnError("getLinearizationOffset called for xref entry not of type 1 or 2");
         break;
     }
     return result;
 }
 
 QPDFObjectHandle
-QPDF::getUncompressedObject(
-    QPDFObjectHandle& obj, std::map<int, int> const& object_stream_data)
+QPDF::getUncompressedObject(QPDFObjectHandle& obj, std::map<int, int> const& object_stream_data)
 {
     if (obj.isNull() || (object_stream_data.count(obj.getObjectID()) == 0)) {
         return obj;
@@ -668,18 +606,15 @@ QPDF::lengthNextN(int first_object, int n)
     int length = 0;
     for (int i = 0; i < n; ++i) {
         QPDFObjGen og(first_object + i, 0);
-        if (this->m->xref_table.count(og) == 0) {
+        if (m->xref_table.count(og) == 0) {
             linearizationWarning(
-                "no xref table entry for " + std::to_string(first_object + i) +
-                " 0");
+                "no xref table entry for " + std::to_string(first_object + i) + " 0");
         } else {
-            if (this->m->obj_cache.count(og) == 0) {
+            if (m->obj_cache.count(og) == 0) {
                 stopOnError("found unknown object while"
                             " calculating length for linearization data");
             }
-            length +=
-                toI(this->m->obj_cache[og].end_after_space -
-                    getLinearizationOffset(og));
+            length += toI(m->obj_cache[og].end_after_space - getLinearizationOffset(og));
         }
     }
     return length;
@@ -687,8 +622,7 @@ QPDF::lengthNextN(int first_object, int n)
 
 void
 QPDF::checkHPageOffset(
-    std::vector<QPDFObjectHandle> const& pages,
-    std::map<int, int>& shared_idx_to_obj)
+    std::vector<QPDFObjectHandle> const& pages, std::map<int, int>& shared_idx_to_obj)
 {
     // Implementation note 126 says Acrobat always sets
     // delta_content_offset and delta_content_length in the page
@@ -708,10 +642,9 @@ QPDF::checkHPageOffset(
     // even when they are private.
 
     int npages = toI(pages.size());
-    qpdf_offset_t table_offset =
-        adjusted_offset(this->m->page_offset_hints.first_page_offset);
+    qpdf_offset_t table_offset = adjusted_offset(m->page_offset_hints.first_page_offset);
     QPDFObjGen first_page_og(pages.at(0).getObjGen());
-    if (this->m->xref_table.count(first_page_og) == 0) {
+    if (m->xref_table.count(first_page_og) == 0) {
         stopOnError("supposed first page object is not known");
     }
     qpdf_offset_t offset = getLinearizationOffset(first_page_og);
@@ -722,37 +655,31 @@ QPDF::checkHPageOffset(
     for (int pageno = 0; pageno < npages; ++pageno) {
         QPDFObjGen page_og(pages.at(toS(pageno)).getObjGen());
         int first_object = page_og.getObj();
-        if (this->m->xref_table.count(page_og) == 0) {
+        if (m->xref_table.count(page_og) == 0) {
             stopOnError("unknown object in page offset hint table");
         }
         offset = getLinearizationOffset(page_og);
 
-        HPageOffsetEntry& he =
-            this->m->page_offset_hints.entries.at(toS(pageno));
-        CHPageOffsetEntry& ce =
-            this->m->c_page_offset_data.entries.at(toS(pageno));
-        int h_nobjects =
-            he.delta_nobjects + this->m->page_offset_hints.min_nobjects;
+        HPageOffsetEntry& he = m->page_offset_hints.entries.at(toS(pageno));
+        CHPageOffsetEntry& ce = m->c_page_offset_data.entries.at(toS(pageno));
+        int h_nobjects = he.delta_nobjects + m->page_offset_hints.min_nobjects;
         if (h_nobjects != ce.nobjects) {
             // This happens with pdlin when there are thumbnails.
             linearizationWarning(
-                "object count mismatch for page " + std::to_string(pageno) +
-                ": hint table = " + std::to_string(h_nobjects) +
-                "; computed = " + std::to_string(ce.nobjects));
+                "object count mismatch for page " + std::to_string(pageno) + ": hint table = " +
+                std::to_string(h_nobjects) + "; computed = " + std::to_string(ce.nobjects));
         }
 
         // Use value for number of objects in hint table rather than
         // computed value if there is a discrepancy.
         int length = lengthNextN(first_object, h_nobjects);
-        int h_length = toI(
-            he.delta_page_length + this->m->page_offset_hints.min_page_length);
+        int h_length = toI(he.delta_page_length + m->page_offset_hints.min_page_length);
         if (length != h_length) {
             // This condition almost certainly indicates a bad hint
             // table or a bug in this code.
             linearizationWarning(
-                "page length mismatch for page " + std::to_string(pageno) +
-                ": hint table = " + std::to_string(h_length) +
-                "; computed length = " + std::to_string(length) +
+                "page length mismatch for page " + std::to_string(pageno) + ": hint table = " +
+                std::to_string(h_length) + "; computed length = " + std::to_string(length) +
                 " (offset = " + std::to_string(offset) + ")");
         }
 
@@ -779,10 +706,10 @@ QPDF::checkHPageOffset(
 
         for (size_t i = 0; i < toS(ce.nshared_objects); ++i) {
             int idx = ce.shared_identifiers.at(i);
-            if (idx >= this->m->c_shared_object_data.nshared_total) {
+            if (idx >= m->c_shared_object_data.nshared_total) {
                 stopOnError("index out of bounds for shared object hint table");
             }
-            int obj = this->m->c_shared_object_data.entries.at(toS(idx)).object;
+            int obj = m->c_shared_object_data.entries.at(toS(idx)).object;
             computed_shared.insert(obj);
         }
 
@@ -790,8 +717,7 @@ QPDF::checkHPageOffset(
             if (!computed_shared.count(iter)) {
                 // pdlin puts thumbnails here even though it shouldn't
                 linearizationWarning(
-                    "page " + std::to_string(pageno) + ": shared object " +
-                    std::to_string(iter) +
+                    "page " + std::to_string(pageno) + ": shared object " + std::to_string(iter) +
                     ": in hint table but not computed list");
             }
         }
@@ -802,8 +728,7 @@ QPDF::checkHPageOffset(
                 // built-in fonts and procsets here, at least in some
                 // cases.
                 linearizationWarning(
-                    ("page " + std::to_string(pageno) + ": shared object " +
-                     std::to_string(iter) +
+                    ("page " + std::to_string(pageno) + ": shared object " + std::to_string(iter) +
                      ": in computed list but not hint table"));
             }
         }
@@ -811,8 +736,7 @@ QPDF::checkHPageOffset(
 }
 
 void
-QPDF::checkHSharedObject(
-    std::vector<QPDFObjectHandle> const& pages, std::map<int, int>& idx_to_obj)
+QPDF::checkHSharedObject(std::vector<QPDFObjectHandle> const& pages, std::map<int, int>& idx_to_obj)
 {
     // Implementation note 125 says shared object groups always
     // contain only one object.  Implementation note 128 says that
@@ -832,7 +756,7 @@ QPDF::checkHSharedObject(
     // these whenever there are no shared objects not referenced by
     // the first page (i.e., nshared_total == nshared_first_page).
 
-    HSharedObject& so = this->m->shared_object_hints;
+    HSharedObject& so = m->shared_object_hints;
     if (so.nshared_total < so.nshared_first_page) {
         linearizationWarning("shared object hint table: ntotal < nfirst_page");
     } else {
@@ -843,11 +767,11 @@ QPDF::checkHSharedObject(
         for (int i = 0; i < so.nshared_total; ++i) {
             if (i == so.nshared_first_page) {
                 QTC::TC("qpdf", "QPDF lin check shared past first page");
-                if (this->m->part8.empty()) {
+                if (m->part8.empty()) {
                     linearizationWarning("part 8 is empty but nshared_total > "
                                          "nshared_first_page");
                 } else {
-                    int obj = this->m->part8.at(0).getObjectID();
+                    int obj = m->part8.at(0).getObjectID();
                     if (obj != so.first_shared_obj) {
                         linearizationWarning(
                             "first shared object number mismatch: "
@@ -860,17 +784,15 @@ QPDF::checkHSharedObject(
                 cur_object = so.first_shared_obj;
 
                 QPDFObjGen og(cur_object, 0);
-                if (this->m->xref_table.count(og) == 0) {
+                if (m->xref_table.count(og) == 0) {
                     stopOnError("unknown object in shared object hint table");
                 }
                 qpdf_offset_t offset = getLinearizationOffset(og);
-                qpdf_offset_t h_offset =
-                    adjusted_offset(so.first_shared_offset);
+                qpdf_offset_t h_offset = adjusted_offset(so.first_shared_offset);
                 if (offset != h_offset) {
                     linearizationWarning(
                         "first shared object offset mismatch: hint table = " +
-                        std::to_string(h_offset) +
-                        "; computed = " + std::to_string(offset));
+                        std::to_string(h_offset) + "; computed = " + std::to_string(offset));
                 }
             }
 
@@ -881,10 +803,8 @@ QPDF::checkHSharedObject(
             int h_length = so.min_group_length + se.delta_group_length;
             if (length != h_length) {
                 linearizationWarning(
-                    "shared object " + std::to_string(i) +
-                    " length mismatch: hint table = " +
-                    std::to_string(h_length) +
-                    "; computed = " + std::to_string(length));
+                    "shared object " + std::to_string(i) + " length mismatch: hint table = " +
+                    std::to_string(h_length) + "; computed = " + std::to_string(length));
             }
             cur_object += nobjects;
         }
@@ -902,44 +822,39 @@ QPDF::checkHOutlines()
     // wrong starting place).  pdlin appears to generate correct
     // values in those cases.
 
-    if (this->m->c_outline_data.nobjects == this->m->outline_hints.nobjects) {
-        if (this->m->c_outline_data.nobjects == 0) {
+    if (m->c_outline_data.nobjects == m->outline_hints.nobjects) {
+        if (m->c_outline_data.nobjects == 0) {
             return;
         }
 
-        if (this->m->c_outline_data.first_object ==
-            this->m->outline_hints.first_object) {
+        if (m->c_outline_data.first_object == m->outline_hints.first_object) {
             // Check length and offset.  Acrobat gets these wrong.
             QPDFObjectHandle outlines = getRoot().getKey("/Outlines");
             if (!outlines.isIndirect()) {
                 // This case is not exercised in test suite since not
                 // permitted by the spec, but if this does occur, the
                 // code below would fail.
-                linearizationWarning(
-                    "/Outlines key of root dictionary is not indirect");
+                linearizationWarning("/Outlines key of root dictionary is not indirect");
                 return;
             }
             QPDFObjGen og(outlines.getObjGen());
-            if (this->m->xref_table.count(og) == 0) {
+            if (m->xref_table.count(og) == 0) {
                 stopOnError("unknown object in outlines hint table");
             }
             qpdf_offset_t offset = getLinearizationOffset(og);
             ObjUser ou(ObjUser::ou_root_key, "/Outlines");
             int length = toI(maxEnd(ou) - offset);
-            qpdf_offset_t table_offset =
-                adjusted_offset(this->m->outline_hints.first_object_offset);
+            qpdf_offset_t table_offset = adjusted_offset(m->outline_hints.first_object_offset);
             if (offset != table_offset) {
                 linearizationWarning(
                     "incorrect offset in outlines table: hint table = " +
-                    std::to_string(table_offset) +
-                    "; computed = " + std::to_string(offset));
+                    std::to_string(table_offset) + "; computed = " + std::to_string(offset));
             }
-            int table_length = this->m->outline_hints.group_length;
+            int table_length = m->outline_hints.group_length;
             if (length != table_length) {
                 linearizationWarning(
                     "incorrect length in outlines table: hint table = " +
-                    std::to_string(table_length) +
-                    "; computed = " + std::to_string(length));
+                    std::to_string(table_length) + "; computed = " + std::to_string(length));
             }
         } else {
             linearizationWarning("incorrect first object number in outline "
@@ -965,28 +880,26 @@ QPDF::showLinearizationData()
 void
 QPDF::dumpLinearizationDataInternal()
 {
-    *this->m->log->getInfo()
-        << this->m->file->getName() << ": linearization data:\n\n";
+    *m->log->getInfo() << m->file->getName() << ": linearization data:\n\n";
 
-    *this->m->log->getInfo()
-        << "file_size: " << this->m->linp.file_size << "\n"
-        << "first_page_object: " << this->m->linp.first_page_object << "\n"
-        << "first_page_end: " << this->m->linp.first_page_end << "\n"
-        << "npages: " << this->m->linp.npages << "\n"
-        << "xref_zero_offset: " << this->m->linp.xref_zero_offset << "\n"
-        << "first_page: " << this->m->linp.first_page << "\n"
-        << "H_offset: " << this->m->linp.H_offset << "\n"
-        << "H_length: " << this->m->linp.H_length << "\n"
-        << "\n";
+    *m->log->getInfo() << "file_size: " << m->linp.file_size << "\n"
+                       << "first_page_object: " << m->linp.first_page_object << "\n"
+                       << "first_page_end: " << m->linp.first_page_end << "\n"
+                       << "npages: " << m->linp.npages << "\n"
+                       << "xref_zero_offset: " << m->linp.xref_zero_offset << "\n"
+                       << "first_page: " << m->linp.first_page << "\n"
+                       << "H_offset: " << m->linp.H_offset << "\n"
+                       << "H_length: " << m->linp.H_length << "\n"
+                       << "\n";
 
-    *this->m->log->getInfo() << "Page Offsets Hint Table\n\n";
+    *m->log->getInfo() << "Page Offsets Hint Table\n\n";
     dumpHPageOffset();
-    *this->m->log->getInfo() << "\nShared Objects Hint Table\n\n";
+    *m->log->getInfo() << "\nShared Objects Hint Table\n\n";
     dumpHSharedObject();
 
-    if (this->m->outline_hints.nobjects > 0) {
-        *this->m->log->getInfo() << "\nOutlines Hint Table\n\n";
-        dumpHGeneric(this->m->outline_hints);
+    if (m->outline_hints.nobjects > 0) {
+        *m->log->getInfo() << "\nOutlines Hint Table\n\n";
+        dumpHGeneric(m->outline_hints);
     }
 }
 
@@ -996,8 +909,8 @@ QPDF::adjusted_offset(qpdf_offset_t offset)
     // All offsets >= H_offset have to be increased by H_length
     // since all hint table location values disregard the hint table
     // itself.
-    if (offset >= this->m->linp.H_offset) {
-        return offset + this->m->linp.H_length;
+    if (offset >= m->linp.H_offset) {
+        return offset + m->linp.H_length;
     }
     return offset;
 }
@@ -1005,42 +918,38 @@ QPDF::adjusted_offset(qpdf_offset_t offset)
 void
 QPDF::dumpHPageOffset()
 {
-    HPageOffset& t = this->m->page_offset_hints;
-    *this->m->log->getInfo()
-        << "min_nobjects: " << t.min_nobjects << "\n"
-        << "first_page_offset: " << adjusted_offset(t.first_page_offset) << "\n"
-        << "nbits_delta_nobjects: " << t.nbits_delta_nobjects << "\n"
-        << "min_page_length: " << t.min_page_length << "\n"
-        << "nbits_delta_page_length: " << t.nbits_delta_page_length << "\n"
-        << "min_content_offset: " << t.min_content_offset << "\n"
-        << "nbits_delta_content_offset: " << t.nbits_delta_content_offset
-        << "\n"
-        << "min_content_length: " << t.min_content_length << "\n"
-        << "nbits_delta_content_length: " << t.nbits_delta_content_length
-        << "\n"
-        << "nbits_nshared_objects: " << t.nbits_nshared_objects << "\n"
-        << "nbits_shared_identifier: " << t.nbits_shared_identifier << "\n"
-        << "nbits_shared_numerator: " << t.nbits_shared_numerator << "\n"
-        << "shared_denominator: " << t.shared_denominator << "\n";
+    HPageOffset& t = m->page_offset_hints;
+    *m->log->getInfo() << "min_nobjects: " << t.min_nobjects << "\n"
+                       << "first_page_offset: " << adjusted_offset(t.first_page_offset) << "\n"
+                       << "nbits_delta_nobjects: " << t.nbits_delta_nobjects << "\n"
+                       << "min_page_length: " << t.min_page_length << "\n"
+                       << "nbits_delta_page_length: " << t.nbits_delta_page_length << "\n"
+                       << "min_content_offset: " << t.min_content_offset << "\n"
+                       << "nbits_delta_content_offset: " << t.nbits_delta_content_offset << "\n"
+                       << "min_content_length: " << t.min_content_length << "\n"
+                       << "nbits_delta_content_length: " << t.nbits_delta_content_length << "\n"
+                       << "nbits_nshared_objects: " << t.nbits_nshared_objects << "\n"
+                       << "nbits_shared_identifier: " << t.nbits_shared_identifier << "\n"
+                       << "nbits_shared_numerator: " << t.nbits_shared_numerator << "\n"
+                       << "shared_denominator: " << t.shared_denominator << "\n";
 
-    for (size_t i1 = 0; i1 < toS(this->m->linp.npages); ++i1) {
+    for (size_t i1 = 0; i1 < toS(m->linp.npages); ++i1) {
         HPageOffsetEntry& pe = t.entries.at(i1);
-        *this->m->log->getInfo()
-            << "Page " << i1 << ":\n"
-            << "  nobjects: " << pe.delta_nobjects + t.min_nobjects << "\n"
-            << "  length: " << pe.delta_page_length + t.min_page_length
-            << "\n"
-            // content offset is relative to page, not file
-            << "  content_offset: "
-            << pe.delta_content_offset + t.min_content_offset << "\n"
-            << "  content_length: "
-            << pe.delta_content_length + t.min_content_length << "\n"
-            << "  nshared_objects: " << pe.nshared_objects << "\n";
+        *m->log->getInfo() << "Page " << i1 << ":\n"
+                           << "  nobjects: " << pe.delta_nobjects + t.min_nobjects << "\n"
+                           << "  length: " << pe.delta_page_length + t.min_page_length
+                           << "\n"
+                           // content offset is relative to page, not file
+                           << "  content_offset: " << pe.delta_content_offset + t.min_content_offset
+                           << "\n"
+                           << "  content_length: " << pe.delta_content_length + t.min_content_length
+                           << "\n"
+                           << "  nshared_objects: " << pe.nshared_objects << "\n";
         for (size_t i2 = 0; i2 < toS(pe.nshared_objects); ++i2) {
-            *this->m->log->getInfo() << "    identifier " << i2 << ": "
-                                     << pe.shared_identifiers.at(i2) << "\n";
-            *this->m->log->getInfo() << "    numerator " << i2 << ": "
-                                     << pe.shared_numerators.at(i2) << "\n";
+            *m->log->getInfo() << "    identifier " << i2 << ": " << pe.shared_identifiers.at(i2)
+                               << "\n";
+            *m->log->getInfo() << "    numerator " << i2 << ": " << pe.shared_numerators.at(i2)
+                               << "\n";
         }
     }
 }
@@ -1048,31 +957,27 @@ QPDF::dumpHPageOffset()
 void
 QPDF::dumpHSharedObject()
 {
-    HSharedObject& t = this->m->shared_object_hints;
-    *this->m->log->getInfo()
-        << "first_shared_obj: " << t.first_shared_obj << "\n"
-        << "first_shared_offset: " << adjusted_offset(t.first_shared_offset)
-        << "\n"
-        << "nshared_first_page: " << t.nshared_first_page << "\n"
-        << "nshared_total: " << t.nshared_total << "\n"
-        << "nbits_nobjects: " << t.nbits_nobjects << "\n"
-        << "min_group_length: " << t.min_group_length << "\n"
-        << "nbits_delta_group_length: " << t.nbits_delta_group_length << "\n";
+    HSharedObject& t = m->shared_object_hints;
+    *m->log->getInfo() << "first_shared_obj: " << t.first_shared_obj << "\n"
+                       << "first_shared_offset: " << adjusted_offset(t.first_shared_offset) << "\n"
+                       << "nshared_first_page: " << t.nshared_first_page << "\n"
+                       << "nshared_total: " << t.nshared_total << "\n"
+                       << "nbits_nobjects: " << t.nbits_nobjects << "\n"
+                       << "min_group_length: " << t.min_group_length << "\n"
+                       << "nbits_delta_group_length: " << t.nbits_delta_group_length << "\n";
 
     for (size_t i = 0; i < toS(t.nshared_total); ++i) {
         HSharedObjectEntry& se = t.entries.at(i);
-        *this->m->log->getInfo()
-            << "Shared Object " << i << ":\n"
-            << "  group length: " << se.delta_group_length + t.min_group_length
-            << "\n";
+        *m->log->getInfo() << "Shared Object " << i << ":\n"
+                           << "  group length: " << se.delta_group_length + t.min_group_length
+                           << "\n";
         // PDF spec says signature present nobjects_minus_one are
         // always 0, so print them only if they have a non-zero value.
         if (se.signature_present) {
-            *this->m->log->getInfo() << "  signature present\n";
+            *m->log->getInfo() << "  signature present\n";
         }
         if (se.nobjects_minus_one != 0) {
-            *this->m->log->getInfo()
-                << "  nobjects: " << se.nobjects_minus_one + 1 << "\n";
+            *m->log->getInfo() << "  nobjects: " << se.nobjects_minus_one + 1 << "\n";
         }
     }
 }
@@ -1080,12 +985,10 @@ QPDF::dumpHSharedObject()
 void
 QPDF::dumpHGeneric(HGeneric& t)
 {
-    *this->m->log->getInfo()
-        << "first_object: " << t.first_object << "\n"
-        << "first_object_offset: " << adjusted_offset(t.first_object_offset)
-        << "\n"
-        << "nobjects: " << t.nobjects << "\n"
-        << "group_length: " << t.group_length << "\n";
+    *m->log->getInfo() << "first_object: " << t.first_object << "\n"
+                       << "first_object_offset: " << adjusted_offset(t.first_object_offset) << "\n"
+                       << "nobjects: " << t.nobjects << "\n"
+                       << "group_length: " << t.group_length << "\n";
 }
 
 void
@@ -1098,12 +1001,11 @@ QPDF::calculateLinearizationData(std::map<int, int> const& object_stream_data)
     // this function.  Note that actual offsets and lengths are not
     // computed here, but anything related to object ordering is.
 
-    if (this->m->object_to_obj_users.empty()) {
+    if (m->object_to_obj_users.empty()) {
         // Note that we can't call optimize here because we don't know
         // whether it should be called with or without allow changes.
-        throw std::logic_error(
-            "INTERNAL ERROR: QPDF::calculateLinearizationData "
-            "called before optimize()");
+        throw std::logic_error("INTERNAL ERROR: QPDF::calculateLinearizationData "
+                               "called before optimize()");
     }
 
     // Separate objects into the categories sufficient for us to
@@ -1153,21 +1055,20 @@ QPDF::calculateLinearizationData(std::map<int, int> const& object_stream_data)
 
     //   * outlines: part 6 or 9
 
-    this->m->part4.clear();
-    this->m->part6.clear();
-    this->m->part7.clear();
-    this->m->part8.clear();
-    this->m->part9.clear();
-    this->m->c_linp = LinParameters();
-    this->m->c_page_offset_data = CHPageOffset();
-    this->m->c_shared_object_data = CHSharedObject();
-    this->m->c_outline_data = HGeneric();
+    m->part4.clear();
+    m->part6.clear();
+    m->part7.clear();
+    m->part8.clear();
+    m->part9.clear();
+    m->c_linp = LinParameters();
+    m->c_page_offset_data = CHPageOffset();
+    m->c_shared_object_data = CHSharedObject();
+    m->c_outline_data = HGeneric();
 
     QPDFObjectHandle root = getRoot();
     bool outlines_in_first_page = false;
     QPDFObjectHandle pagemode = root.getKey("/PageMode");
-    QTC::TC(
-        "qpdf", "QPDF categorize pagemode present", pagemode.isName() ? 1 : 0);
+    QTC::TC("qpdf", "QPDF categorize pagemode present", pagemode.isName() ? 1 : 0);
     if (pagemode.isName()) {
         if (pagemode.getName() == "/UseOutlines") {
             if (root.hasKey("/Outlines")) {
@@ -1176,10 +1077,7 @@ QPDF::calculateLinearizationData(std::map<int, int> const& object_stream_data)
                 QTC::TC("qpdf", "QPDF UseOutlines but no Outlines");
             }
         }
-        QTC::TC(
-            "qpdf",
-            "QPDF categorize pagemode outlines",
-            outlines_in_first_page ? 1 : 0);
+        QTC::TC("qpdf", "QPDF categorize pagemode outlines", outlines_in_first_page ? 1 : 0);
     }
 
     std::set<std::string> open_document_keys;
@@ -1200,7 +1098,7 @@ QPDF::calculateLinearizationData(std::map<int, int> const& object_stream_data)
     std::set<QPDFObjGen> lc_outlines;
     std::set<QPDFObjGen> lc_root;
 
-    for (auto& oiter: this->m->object_to_obj_users) {
+    for (auto& oiter: m->object_to_obj_users) {
         QPDFObjGen const& og = oiter.first;
         std::set<ObjUser>& ous = oiter.second;
 
@@ -1261,9 +1159,7 @@ QPDF::calculateLinearizationData(std::map<int, int> const& object_stream_data)
             lc_outlines.insert(og);
         } else if (in_open_document) {
             lc_open_document.insert(og);
-        } else if (
-            (in_first_page) && (others == 0) && (other_pages == 0) &&
-            (thumbs == 0)) {
+        } else if ((in_first_page) && (others == 0) && (other_pages == 0) && (thumbs == 0)) {
             lc_first_page_private.insert(og);
         } else if (in_first_page) {
             lc_first_page_shared.insert(og);
@@ -1316,9 +1212,8 @@ QPDF::calculateLinearizationData(std::map<int, int> const& object_stream_data)
     // npages is the size of the existing pages vector, which has been
     // created by traversing the pages tree, and as such is a
     // reasonable size.
-    this->m->c_linp.npages = npages;
-    this->m->c_page_offset_data.entries =
-        std::vector<CHPageOffsetEntry>(toS(npages));
+    m->c_linp.npages = npages;
+    m->c_page_offset_data.entries = std::vector<CHPageOffsetEntry>(toS(npages));
 
     // Part 4: open document objects.  We don't care about the order.
 
@@ -1326,9 +1221,9 @@ QPDF::calculateLinearizationData(std::map<int, int> const& object_stream_data)
         stopOnError("found other than one root while"
                     " calculating linearization data");
     }
-    this->m->part4.push_back(getObject(*(lc_root.begin())));
+    m->part4.push_back(getObject(*(lc_root.begin())));
     for (auto const& og: lc_open_document) {
-        this->m->part4.push_back(getObject(og));
+        m->part4.push_back(getObject(og));
     }
 
     // Part 6: first page objects.  Note: implementation note 124
@@ -1343,13 +1238,12 @@ QPDF::calculateLinearizationData(std::map<int, int> const& object_stream_data)
     }
     QPDFObjGen first_page_og(pages.at(0).getObjGen());
     if (!lc_first_page_private.count(first_page_og)) {
-        stopOnError(
-            "INTERNAL ERROR: QPDF::calculateLinearizationData: first page "
-            "object not in lc_first_page_private");
+        stopOnError("INTERNAL ERROR: QPDF::calculateLinearizationData: first page "
+                    "object not in lc_first_page_private");
     }
     lc_first_page_private.erase(first_page_og);
-    this->m->c_linp.first_page_object = pages.at(0).getObjectID();
-    this->m->part6.push_back(pages.at(0));
+    m->c_linp.first_page_object = pages.at(0).getObjectID();
+    m->part6.push_back(pages.at(0));
 
     // The PDF spec "recommends" an order for the rest of the objects,
     // but we are going to disregard it except to the extent that it
@@ -1357,16 +1251,16 @@ QPDF::calculateLinearizationData(std::map<int, int> const& object_stream_data)
     // hint tables.
 
     for (auto const& og: lc_first_page_private) {
-        this->m->part6.push_back(getObject(og));
+        m->part6.push_back(getObject(og));
     }
 
     for (auto const& og: lc_first_page_shared) {
-        this->m->part6.push_back(getObject(og));
+        m->part6.push_back(getObject(og));
     }
 
     // Place the outline dictionary if it goes in the first page section.
     if (outlines_in_first_page) {
-        pushOutlinesToPart(this->m->part6, lc_outlines, object_stream_data);
+        pushOutlinesToPart(m->part6, lc_outlines, object_stream_data);
     }
 
     // Fill in page offset hint table information for the first page.
@@ -1375,8 +1269,7 @@ QPDF::calculateLinearizationData(std::map<int, int> const& object_stream_data)
     // in garbage values for all the shared object identifiers on the
     // first page.
 
-    this->m->c_page_offset_data.entries.at(0).nobjects =
-        toI(this->m->part6.size());
+    m->c_page_offset_data.entries.at(0).nobjects = toI(m->part6.size());
 
     // Part 7: other pages' private objects
 
@@ -1392,39 +1285,38 @@ QPDF::calculateLinearizationData(std::map<int, int> const& object_stream_data)
                 std::to_string(i) + " not in lc_other_page_private");
         }
         lc_other_page_private.erase(page_og);
-        this->m->part7.push_back(pages.at(i));
+        m->part7.push_back(pages.at(i));
 
         // Place all non-shared objects referenced by this page,
         // updating the page object count for the hint table.
 
-        this->m->c_page_offset_data.entries.at(i).nobjects = 1;
+        m->c_page_offset_data.entries.at(i).nobjects = 1;
 
         ObjUser ou(ObjUser::ou_page, toI(i));
-        if (this->m->obj_user_to_objects.count(ou) == 0) {
+        if (m->obj_user_to_objects.count(ou) == 0) {
             stopOnError("found unreferenced page while"
                         " calculating linearization data");
         }
-        for (auto const& og: this->m->obj_user_to_objects[ou]) {
+        for (auto const& og: m->obj_user_to_objects[ou]) {
             if (lc_other_page_private.count(og)) {
                 lc_other_page_private.erase(og);
-                this->m->part7.push_back(getObject(og));
-                ++this->m->c_page_offset_data.entries.at(i).nobjects;
+                m->part7.push_back(getObject(og));
+                ++m->c_page_offset_data.entries.at(i).nobjects;
             }
         }
     }
     // That should have covered all part7 objects.
     if (!lc_other_page_private.empty()) {
-        stopOnError(
-            "INTERNAL ERROR:"
-            " QPDF::calculateLinearizationData: lc_other_page_private is "
-            "not empty after generation of part7");
+        stopOnError("INTERNAL ERROR:"
+                    " QPDF::calculateLinearizationData: lc_other_page_private is "
+                    "not empty after generation of part7");
     }
 
     // Part 8: other pages' shared objects
 
     // Order is unimportant.
     for (auto const& og: lc_other_page_shared) {
-        this->m->part8.push_back(getObject(og));
+        m->part8.push_back(getObject(og));
     }
 
     // Part 9: other objects
@@ -1438,7 +1330,7 @@ QPDF::calculateLinearizationData(std::map<int, int> const& object_stream_data)
 
     // Place the pages tree.
     std::set<QPDFObjGen> pages_ogs =
-        this->m->obj_user_to_objects[ObjUser(ObjUser::ou_root_key, "/Pages")];
+        m->obj_user_to_objects[ObjUser(ObjUser::ou_root_key, "/Pages")];
     if (pages_ogs.empty()) {
         stopOnError("found empty pages tree while"
                     " calculating linearization data");
@@ -1446,7 +1338,7 @@ QPDF::calculateLinearizationData(std::map<int, int> const& object_stream_data)
     for (auto const& og: pages_ogs) {
         if (lc_other.count(og)) {
             lc_other.erase(og);
-            this->m->part9.push_back(getObject(og));
+            m->part9.push_back(getObject(og));
         }
     }
 
@@ -1461,7 +1353,7 @@ QPDF::calculateLinearizationData(std::map<int, int> const& object_stream_data)
             QPDFObjGen thumb_og(thumb.getObjGen());
             if (lc_thumbnail_private.count(thumb_og)) {
                 lc_thumbnail_private.erase(thumb_og);
-                this->m->part9.push_back(thumb);
+                m->part9.push_back(thumb);
             } else {
                 // No internal error this time...there's nothing to
                 // stop this object from having been referred to
@@ -1470,13 +1362,11 @@ QPDF::calculateLinearizationData(std::map<int, int> const& object_stream_data)
                 // having been in some set other than
                 // lc_thumbnail_private.
             }
-            std::set<QPDFObjGen>& ogs =
-                this->m
-                    ->obj_user_to_objects[ObjUser(ObjUser::ou_thumb, toI(i))];
+            std::set<QPDFObjGen>& ogs = m->obj_user_to_objects[ObjUser(ObjUser::ou_thumb, toI(i))];
             for (auto const& og: ogs) {
                 if (lc_thumbnail_private.count(og)) {
                     lc_thumbnail_private.erase(og);
-                    this->m->part9.push_back(getObject(og));
+                    m->part9.push_back(getObject(og));
                 }
             }
         }
@@ -1489,30 +1379,29 @@ QPDF::calculateLinearizationData(std::map<int, int> const& object_stream_data)
 
     // Place shared thumbnail objects
     for (auto const& og: lc_thumbnail_shared) {
-        this->m->part9.push_back(getObject(og));
+        m->part9.push_back(getObject(og));
     }
 
     // Place outlines unless in first page
     if (!outlines_in_first_page) {
-        pushOutlinesToPart(this->m->part9, lc_outlines, object_stream_data);
+        pushOutlinesToPart(m->part9, lc_outlines, object_stream_data);
     }
 
     // Place all remaining objects
     for (auto const& og: lc_other) {
-        this->m->part9.push_back(getObject(og));
+        m->part9.push_back(getObject(og));
     }
 
     // Make sure we got everything exactly once.
 
-    size_t num_placed = this->m->part4.size() + this->m->part6.size() +
-        this->m->part7.size() + this->m->part8.size() + this->m->part9.size();
-    size_t num_wanted = this->m->object_to_obj_users.size();
+    size_t num_placed =
+        m->part4.size() + m->part6.size() + m->part7.size() + m->part8.size() + m->part9.size();
+    size_t num_wanted = m->object_to_obj_users.size();
     if (num_placed != num_wanted) {
         stopOnError(
             "INTERNAL ERROR: QPDF::calculateLinearizationData: wrong "
             "number of objects placed (num_placed = " +
-            std::to_string(num_placed) +
-            "; number of objects: " + std::to_string(num_wanted));
+            std::to_string(num_placed) + "; number of objects: " + std::to_string(num_wanted));
     }
 
     // Calculate shared object hint table information including
@@ -1528,31 +1417,27 @@ QPDF::calculateLinearizationData(std::map<int, int> const& object_stream_data)
     // can map from object number only without regards to generation.
     std::map<int, int> obj_to_index;
 
-    this->m->c_shared_object_data.nshared_first_page =
-        toI(this->m->part6.size());
-    this->m->c_shared_object_data.nshared_total =
-        this->m->c_shared_object_data.nshared_first_page +
-        toI(this->m->part8.size());
+    m->c_shared_object_data.nshared_first_page = toI(m->part6.size());
+    m->c_shared_object_data.nshared_total =
+        m->c_shared_object_data.nshared_first_page + toI(m->part8.size());
 
-    std::vector<CHSharedObjectEntry>& shared =
-        this->m->c_shared_object_data.entries;
-    for (auto& oh: this->m->part6) {
+    std::vector<CHSharedObjectEntry>& shared = m->c_shared_object_data.entries;
+    for (auto& oh: m->part6) {
         int obj = oh.getObjectID();
         obj_to_index[obj] = toI(shared.size());
         shared.push_back(CHSharedObjectEntry(obj));
     }
-    QTC::TC("qpdf", "QPDF lin part 8 empty", this->m->part8.empty() ? 1 : 0);
-    if (!this->m->part8.empty()) {
-        this->m->c_shared_object_data.first_shared_obj =
-            this->m->part8.at(0).getObjectID();
-        for (auto& oh: this->m->part8) {
+    QTC::TC("qpdf", "QPDF lin part 8 empty", m->part8.empty() ? 1 : 0);
+    if (!m->part8.empty()) {
+        m->c_shared_object_data.first_shared_obj = m->part8.at(0).getObjectID();
+        for (auto& oh: m->part8) {
             int obj = oh.getObjectID();
             obj_to_index[obj] = toI(shared.size());
             shared.push_back(CHSharedObjectEntry(obj));
         }
     }
-    if (static_cast<size_t>(this->m->c_shared_object_data.nshared_total) !=
-        this->m->c_shared_object_data.entries.size()) {
+    if (static_cast<size_t>(m->c_shared_object_data.nshared_total) !=
+        m->c_shared_object_data.entries.size()) {
         stopOnError("shared object hint table has wrong number of entries");
     }
 
@@ -1560,15 +1445,14 @@ QPDF::calculateLinearizationData(std::map<int, int> const& object_stream_data)
     // first page.
 
     for (size_t i = 1; i < toS(npages); ++i) {
-        CHPageOffsetEntry& pe = this->m->c_page_offset_data.entries.at(i);
+        CHPageOffsetEntry& pe = m->c_page_offset_data.entries.at(i);
         ObjUser ou(ObjUser::ou_page, toI(i));
-        if (this->m->obj_user_to_objects.count(ou) == 0) {
+        if (m->obj_user_to_objects.count(ou) == 0) {
             stopOnError("found unreferenced page while"
                         " calculating linearization data");
         }
-        for (auto const& og: this->m->obj_user_to_objects[ou]) {
-            if ((this->m->object_to_obj_users[og].size() > 1) &&
-                (obj_to_index.count(og.getObj()) > 0)) {
+        for (auto const& og: m->obj_user_to_objects[ou]) {
+            if ((m->object_to_obj_users[og].size() > 1) && (obj_to_index.count(og.getObj()) > 0)) {
                 int idx = obj_to_index[og.getObj()];
                 ++pe.nshared_objects;
                 pe.shared_identifiers.push_back(idx);
@@ -1593,16 +1477,16 @@ QPDF::pushOutlinesToPart(
     QTC::TC(
         "qpdf",
         "QPDF lin outlines in part",
-        ((&part == (&this->m->part6))       ? 0
-             : (&part == (&this->m->part9)) ? 1
-                                            : 9999)); // can't happen
-    this->m->c_outline_data.first_object = outlines_og.getObj();
-    this->m->c_outline_data.nobjects = 1;
+        ((&part == (&m->part6))       ? 0
+             : (&part == (&m->part9)) ? 1
+                                      : 9999)); // can't happen
+    m->c_outline_data.first_object = outlines_og.getObj();
+    m->c_outline_data.nobjects = 1;
     lc_outlines.erase(outlines_og);
     part.push_back(outlines);
     for (auto const& og: lc_outlines) {
         part.push_back(getObject(og));
-        ++this->m->c_outline_data.nobjects;
+        ++m->c_outline_data.nobjects;
     }
 }
 
@@ -1616,11 +1500,11 @@ QPDF::getLinearizedParts(
     std::vector<QPDFObjectHandle>& part9)
 {
     calculateLinearizationData(object_stream_data);
-    part4 = this->m->part4;
-    part6 = this->m->part6;
-    part7 = this->m->part7;
-    part8 = this->m->part8;
-    part9 = this->m->part9;
+    part4 = m->part4;
+    part6 = m->part6;
+    part7 = m->part7;
+    part8 = m->part8;
+    part9 = m->part9;
 }
 
 static inline int
@@ -1669,7 +1553,7 @@ QPDF::calculateHPageOffset(
 
     std::vector<QPDFObjectHandle> const& pages = getAllPages();
     size_t npages = pages.size();
-    CHPageOffset& cph = this->m->c_page_offset_data;
+    CHPageOffset& cph = m->c_page_offset_data;
     std::vector<CHPageOffsetEntry>& cphe = cph.entries;
 
     // Calculate minimum and maximum values for number of objects per
@@ -1677,12 +1561,12 @@ QPDF::calculateHPageOffset(
 
     int min_nobjects = cphe.at(0).nobjects;
     int max_nobjects = min_nobjects;
-    int min_length = outputLengthNextN(
-        pages.at(0).getObjectID(), min_nobjects, lengths, obj_renumber);
+    int min_length =
+        outputLengthNextN(pages.at(0).getObjectID(), min_nobjects, lengths, obj_renumber);
     int max_length = min_length;
     int max_shared = cphe.at(0).nshared_objects;
 
-    HPageOffset& ph = this->m->page_offset_hints;
+    HPageOffset& ph = m->page_offset_hints;
     std::vector<HPageOffsetEntry>& phe = ph.entries;
     // npages is the size of the existing pages array.
     phe = std::vector<HPageOffsetEntry>(npages);
@@ -1695,8 +1579,7 @@ QPDF::calculateHPageOffset(
         // without duplicating those assignments.
 
         int nobjects = cphe.at(i).nobjects;
-        int length = outputLengthNextN(
-            pages.at(i).getObjectID(), nobjects, lengths, obj_renumber);
+        int length = outputLengthNextN(pages.at(i).getObjectID(), nobjects, lengths, obj_renumber);
         int nshared = cphe.at(i).nshared_objects;
 
         min_nobjects = std::min(min_nobjects, nobjects);
@@ -1718,8 +1601,7 @@ QPDF::calculateHPageOffset(
     ph.min_page_length = min_length;
     ph.nbits_delta_page_length = nbits(max_length - min_length);
     ph.nbits_nshared_objects = nbits(max_shared);
-    ph.nbits_shared_identifier =
-        nbits(this->m->c_shared_object_data.nshared_total);
+    ph.nbits_shared_identifier = nbits(m->c_shared_object_data.nshared_total);
     ph.shared_denominator = 4; // doesn't matter
 
     // It isn't clear how to compute content offset and content
@@ -1742,8 +1624,7 @@ QPDF::calculateHPageOffset(
         phe.at(i).delta_content_length = phe.at(i).delta_page_length;
 
         for (size_t j = 0; j < toS(cphe.at(i).nshared_objects); ++j) {
-            phe.at(i).shared_identifiers.push_back(
-                cphe.at(i).shared_identifiers.at(j));
+            phe.at(i).shared_identifiers.push_back(cphe.at(i).shared_identifiers.at(j));
             phe.at(i).shared_numerators.push_back(0);
         }
     }
@@ -1755,20 +1636,18 @@ QPDF::calculateHSharedObject(
     std::map<int, qpdf_offset_t> const& lengths,
     std::map<int, int> const& obj_renumber)
 {
-    CHSharedObject& cso = this->m->c_shared_object_data;
+    CHSharedObject& cso = m->c_shared_object_data;
     std::vector<CHSharedObjectEntry>& csoe = cso.entries;
-    HSharedObject& so = this->m->shared_object_hints;
+    HSharedObject& so = m->shared_object_hints;
     std::vector<HSharedObjectEntry>& soe = so.entries;
     soe.clear();
 
-    int min_length =
-        outputLengthNextN(csoe.at(0).object, 1, lengths, obj_renumber);
+    int min_length = outputLengthNextN(csoe.at(0).object, 1, lengths, obj_renumber);
     int max_length = min_length;
 
     for (size_t i = 0; i < toS(cso.nshared_total); ++i) {
         // Assign absolute numbers to deltas; adjust later
-        int length =
-            outputLengthNextN(csoe.at(i).object, 1, lengths, obj_renumber);
+        int length = outputLengthNextN(csoe.at(i).object, 1, lengths, obj_renumber);
         min_length = std::min(min_length, length);
         max_length = std::max(max_length, length);
         soe.push_back(HSharedObjectEntry());
@@ -1781,10 +1660,8 @@ QPDF::calculateHSharedObject(
     so.nshared_total = cso.nshared_total;
     so.nshared_first_page = cso.nshared_first_page;
     if (so.nshared_total > so.nshared_first_page) {
-        so.first_shared_obj =
-            (*(obj_renumber.find(cso.first_shared_obj))).second;
-        so.first_shared_offset =
-            (*(xref.find(so.first_shared_obj))).second.getOffset();
+        so.first_shared_obj = (*(obj_renumber.find(cso.first_shared_obj))).second;
+        so.first_shared_offset = (*(xref.find(so.first_shared_obj))).second.getOffset();
     }
     so.min_group_length = min_length;
     so.nbits_delta_group_length = nbits(max_length - min_length);
@@ -1805,32 +1682,29 @@ QPDF::calculateHOutline(
     std::map<int, qpdf_offset_t> const& lengths,
     std::map<int, int> const& obj_renumber)
 {
-    HGeneric& cho = this->m->c_outline_data;
+    HGeneric& cho = m->c_outline_data;
 
     if (cho.nobjects == 0) {
         return;
     }
 
-    HGeneric& ho = this->m->outline_hints;
+    HGeneric& ho = m->outline_hints;
 
     ho.first_object = (*(obj_renumber.find(cho.first_object))).second;
     ho.first_object_offset = (*(xref.find(ho.first_object))).second.getOffset();
     ho.nobjects = cho.nobjects;
-    ho.group_length =
-        outputLengthNextN(cho.first_object, ho.nobjects, lengths, obj_renumber);
+    ho.group_length = outputLengthNextN(cho.first_object, ho.nobjects, lengths, obj_renumber);
 }
 
 template <class T, class int_type>
 static void
-write_vector_int(
-    BitWriter& w, int nitems, std::vector<T>& vec, int bits, int_type T::*field)
+write_vector_int(BitWriter& w, int nitems, std::vector<T>& vec, int bits, int_type T::*field)
 {
     // nitems times, write bits bits from the given field of the ith
     // vector to the given bit writer.
 
     for (size_t i = 0; i < QIntC::to_size(nitems); ++i) {
-        w.writeBits(
-            QIntC::to_ulonglong(vec.at(i).*field), QIntC::to_size(bits));
+        w.writeBits(QIntC::to_ulonglong(vec.at(i).*field), QIntC::to_size(bits));
     }
     // The PDF spec says that each hint table starts at a byte
     // boundary.  Each "row" actually must start on a byte boundary.
@@ -1851,9 +1725,7 @@ write_vector_vector(
     // from the vec2 vector field of the ith item of vec1.
     for (size_t i1 = 0; i1 < QIntC::to_size(nitems1); ++i1) {
         for (size_t i2 = 0; i2 < QIntC::to_size(vec1.at(i1).*nitems2); ++i2) {
-            w.writeBits(
-                QIntC::to_ulonglong((vec1.at(i1).*vec2).at(i2)),
-                QIntC::to_size(bits));
+            w.writeBits(QIntC::to_ulonglong((vec1.at(i1).*vec2).at(i2)), QIntC::to_size(bits));
         }
     }
     w.flush();
@@ -1862,7 +1734,7 @@ write_vector_vector(
 void
 QPDF::writeHPageOffset(BitWriter& w)
 {
-    HPageOffset& t = this->m->page_offset_hints;
+    HPageOffset& t = m->page_offset_hints;
 
     w.writeBitsInt(t.min_nobjects, 32);               // 1
     w.writeBitsInt(toI(t.first_page_offset), 32);     // 2
@@ -1881,24 +1753,11 @@ QPDF::writeHPageOffset(BitWriter& w)
     int nitems = toI(getAllPages().size());
     std::vector<HPageOffsetEntry>& entries = t.entries;
 
+    write_vector_int(w, nitems, entries, t.nbits_delta_nobjects, &HPageOffsetEntry::delta_nobjects);
     write_vector_int(
-        w,
-        nitems,
-        entries,
-        t.nbits_delta_nobjects,
-        &HPageOffsetEntry::delta_nobjects);
+        w, nitems, entries, t.nbits_delta_page_length, &HPageOffsetEntry::delta_page_length);
     write_vector_int(
-        w,
-        nitems,
-        entries,
-        t.nbits_delta_page_length,
-        &HPageOffsetEntry::delta_page_length);
-    write_vector_int(
-        w,
-        nitems,
-        entries,
-        t.nbits_nshared_objects,
-        &HPageOffsetEntry::nshared_objects);
+        w, nitems, entries, t.nbits_nshared_objects, &HPageOffsetEntry::nshared_objects);
     write_vector_vector(
         w,
         nitems,
@@ -1914,23 +1773,15 @@ QPDF::writeHPageOffset(BitWriter& w)
         t.nbits_shared_numerator,
         &HPageOffsetEntry::shared_numerators);
     write_vector_int(
-        w,
-        nitems,
-        entries,
-        t.nbits_delta_content_offset,
-        &HPageOffsetEntry::delta_content_offset);
+        w, nitems, entries, t.nbits_delta_content_offset, &HPageOffsetEntry::delta_content_offset);
     write_vector_int(
-        w,
-        nitems,
-        entries,
-        t.nbits_delta_content_length,
-        &HPageOffsetEntry::delta_content_length);
+        w, nitems, entries, t.nbits_delta_content_length, &HPageOffsetEntry::delta_content_length);
 }
 
 void
 QPDF::writeHSharedObject(BitWriter& w)
 {
-    HSharedObject& t = this->m->shared_object_hints;
+    HSharedObject& t = m->shared_object_hints;
 
     w.writeBitsInt(t.first_shared_obj, 32);         // 1
     w.writeBitsInt(toI(t.first_shared_offset), 32); // 2
@@ -1949,13 +1800,8 @@ QPDF::writeHSharedObject(BitWriter& w)
     std::vector<HSharedObjectEntry>& entries = t.entries;
 
     write_vector_int(
-        w,
-        nitems,
-        entries,
-        t.nbits_delta_group_length,
-        &HSharedObjectEntry::delta_group_length);
-    write_vector_int(
-        w, nitems, entries, 1, &HSharedObjectEntry::signature_present);
+        w, nitems, entries, t.nbits_delta_group_length, &HSharedObjectEntry::delta_group_length);
+    write_vector_int(w, nitems, entries, 1, &HSharedObjectEntry::signature_present);
     for (size_t i = 0; i < toS(nitems); ++i) {
         // If signature were present, we'd have to write a 128-bit hash.
         if (entries.at(i).signature_present != 0) {
@@ -1963,12 +1809,7 @@ QPDF::writeHSharedObject(BitWriter& w)
                         " while writing linearization data");
         }
     }
-    write_vector_int(
-        w,
-        nitems,
-        entries,
-        t.nbits_nobjects,
-        &HSharedObjectEntry::nobjects_minus_one);
+    write_vector_int(w, nitems, entries, t.nbits_nobjects, &HSharedObjectEntry::nobjects_minus_one);
 }
 
 void
@@ -2005,9 +1846,9 @@ QPDF::generateHintStream(
     S = toI(c.getCount());
     writeHSharedObject(w);
     O = 0;
-    if (this->m->outline_hints.nobjects > 0) {
+    if (m->outline_hints.nobjects > 0) {
         O = toI(c.getCount());
-        writeHGeneric(w, this->m->outline_hints);
+        writeHGeneric(w, m->outline_hints);
     }
     c.finish();
 

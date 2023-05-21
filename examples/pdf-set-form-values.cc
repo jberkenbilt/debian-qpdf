@@ -3,20 +3,16 @@
 #include <qpdf/QPDFPageDocumentHelper.hh>
 #include <qpdf/QPDFWriter.hh>
 #include <qpdf/QUtil.hh>
+#include <cstdlib>
 #include <iostream>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 
 static char const* whoami = nullptr;
 
 void
 usage()
 {
-    std::cerr << "Usage: " << whoami << " infile.pdf outfile.pdf value"
-              << std::endl
-              << "Set the value of all text fields to a specified value"
-              << std::endl;
+    std::cerr << "Usage: " << whoami << " infile.pdf outfile.pdf value" << std::endl
+              << "Set the value of all text fields to a specified value" << std::endl;
     exit(2);
 }
 
@@ -57,8 +53,7 @@ main(int argc, char* argv[])
             for (auto& annot: afdh.getWidgetAnnotationsForPage(page)) {
                 // For each annotation, find its associated field. If
                 // it's a text field, set its value.
-                QPDFFormFieldObjectHelper ffh =
-                    afdh.getFieldForAnnotation(annot);
+                QPDFFormFieldObjectHelper ffh = afdh.getFieldForAnnotation(annot);
                 if (ffh.getFieldType() == "/Tx") {
                     // Set the value. Passing false as the second
                     // value prevents qpdf from setting
@@ -81,8 +76,7 @@ main(int argc, char* argv[])
         w.setStaticID(true); // for testing only
         w.write();
     } catch (std::exception& e) {
-        std::cerr << whoami << " processing file " << infilename << ": "
-                  << e.what() << std::endl;
+        std::cerr << whoami << " processing file " << infilename << ": " << e.what() << std::endl;
         exit(2);
     }
 

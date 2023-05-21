@@ -2,9 +2,9 @@
 
 #include <qpdf/Pl_StdioFile.hh>
 #include <qpdf/QUtil.hh>
+#include <cstdlib>
+#include <cstring>
 #include <iostream>
-#include <stdlib.h>
-#include <string.h>
 
 int
 main(int argc, char* argv[])
@@ -15,8 +15,7 @@ main(int argc, char* argv[])
     }
 
     if (argc < 3) {
-        std::cerr << "Usage: lzw infile outfile [ --no-early-code-change ]"
-                  << std::endl;
+        std::cerr << "Usage: lzw infile outfile [ --no-early-code-change ]" << std::endl;
         exit(2);
     }
 

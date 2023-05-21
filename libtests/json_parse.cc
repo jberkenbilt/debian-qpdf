@@ -1,6 +1,5 @@
 #include <qpdf/FileInputSource.hh>
 #include <qpdf/JSON.hh>
-#include <qpdf/QUtil.hh>
 #include <cstdlib>
 #include <cstring>
 #include <iostream>
@@ -12,13 +11,12 @@ namespace
     {
       public:
         virtual ~Reactor() = default;
-        virtual void dictionaryStart() override;
-        virtual void arrayStart() override;
-        virtual void containerEnd(JSON const& value) override;
-        virtual void topLevelScalar() override;
-        virtual bool
-        dictionaryItem(std::string const& key, JSON const& value) override;
-        virtual bool arrayItem(JSON const& value) override;
+        void dictionaryStart() override;
+        void arrayStart() override;
+        void containerEnd(JSON const& value) override;
+        void topLevelScalar() override;
+        bool dictionaryItem(std::string const& key, JSON const& value) override;
+        bool arrayItem(JSON const& value) override;
 
       private:
         void printItem(JSON const&);
@@ -76,8 +74,7 @@ Reactor::arrayItem(JSON const& value)
 void
 Reactor::printItem(JSON const& j)
 {
-    std::cout << "[" << j.getStart() << ", " << j.getEnd()
-              << "): " << j.unparse() << std::endl;
+    std::cout << "[" << j.getStart() << ", " << j.getEnd() << "): " << j.unparse() << std::endl;
 }
 
 static void

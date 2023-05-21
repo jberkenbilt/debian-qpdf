@@ -3,10 +3,10 @@
 #include <qpdf/QIntC.hh>
 #include <qpdf/QUtil.hh>
 
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
 #include <iostream>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 
 static void
 usage()
@@ -17,8 +17,7 @@ usage()
               << "  -encrypt     -- encrypt" << std::endl
               << "  -decrypt     -- decrypt CBC mode" << std::endl
               << "  -zero-iv     -- use zero initialization vector" << std::endl
-              << "  -static-iv   -- use static initialization vector"
-              << std::endl
+              << "  -static-iv   -- use static initialization vector" << std::endl
               << "  -no-padding  -- disable padding" << std::endl
               << "Options must precede key and file names." << std::endl;
     exit(2);
@@ -29,9 +28,9 @@ main(int argc, char* argv[])
 {
     bool encrypt = true;
     bool cbc_mode = true;
-    char* hexkey = 0;
-    char* infilename = 0;
-    char* outfilename = 0;
+    char* hexkey = nullptr;
+    char* infilename = nullptr;
+    char* outfilename = nullptr;
     bool zero_iv = false;
     bool static_iv = false;
     bool disable_padding = false;
@@ -65,7 +64,7 @@ main(int argc, char* argv[])
             usage();
         }
     }
-    if (outfilename == 0) {
+    if (outfilename == nullptr) {
         usage();
     }
 
@@ -74,21 +73,21 @@ main(int argc, char* argv[])
 
     FILE* infile = QUtil::safe_fopen(infilename, "rb");
     FILE* outfile = QUtil::safe_fopen(outfilename, "wb");
-    unsigned char* key = new unsigned char[keylen];
+    auto* key = new unsigned char[keylen];
     for (unsigned int i = 0; i < strlen(hexkey); i += 2) {
         char t[3];
         t[0] = hexkey[i];
         t[1] = hexkey[i + 1];
         t[2] = '\0';
 
-        long val = strtol(t, 0, 16);
+        long val = strtol(t, nullptr, 16);
         key[i / 2] = static_cast<unsigned char>(val);
     }
 
-    Pl_StdioFile* out = new Pl_StdioFile("stdout", outfile);
-    Pl_AES_PDF* aes = new Pl_AES_PDF("aes_128_cbc", out, encrypt, key, keylen);
+    auto* out = new Pl_StdioFile("stdout", outfile);
+    auto* aes = new Pl_AES_PDF("aes_128_cbc", out, encrypt, key, keylen);
     delete[] key;
-    key = 0;
+    key = nullptr;
     if (!cbc_mode) {
         aes->disableCBC();
     }

@@ -11,11 +11,11 @@ class SF_RunLengthDecode: public QPDFStreamFilter
     SF_RunLengthDecode() = default;
     virtual ~SF_RunLengthDecode() = default;
 
-    virtual Pipeline*
+    Pipeline*
     getDecodePipeline(Pipeline* next) override
     {
-        this->pipeline = std::make_shared<Pl_RunLength>(
-            "runlength decode", next, Pl_RunLength::a_decode);
+        this->pipeline =
+            std::make_shared<Pl_RunLength>("runlength decode", next, Pl_RunLength::a_decode);
         return this->pipeline.get();
     }
 
@@ -25,7 +25,7 @@ class SF_RunLengthDecode: public QPDFStreamFilter
         return std::make_shared<SF_RunLengthDecode>();
     }
 
-    virtual bool
+    bool
     isSpecializedCompression() override
     {
         return true;

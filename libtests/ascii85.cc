@@ -1,8 +1,8 @@
 #include <qpdf/Pl_ASCII85Decoder.hh>
 
 #include <qpdf/Pl_StdioFile.hh>
+#include <cstdlib>
 #include <iostream>
-#include <stdlib.h>
 
 int
 main()

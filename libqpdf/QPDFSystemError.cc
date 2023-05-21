@@ -1,10 +1,8 @@
 #include <qpdf/QPDFSystemError.hh>
 
-#include <qpdf/QUtil.hh>
-#include <string.h>
+#include <cstring>
 
-QPDFSystemError::QPDFSystemError(
-    std::string const& description, int system_errno) :
+QPDFSystemError::QPDFSystemError(std::string const& description, int system_errno) :
     std::runtime_error(createWhat(description, system_errno)),
     description(description),
     system_errno(system_errno)

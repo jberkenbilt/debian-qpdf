@@ -2,13 +2,10 @@
 
 #include <qpdf/QIntC.hh>
 #include <algorithm>
-#include <limits>
+#include <cstring>
 #include <sstream>
-#include <stdexcept>
-#include <string.h>
 
-BufferInputSource::BufferInputSource(
-    std::string const& description, Buffer* buf, bool own_memory) :
+BufferInputSource::BufferInputSource(std::string const& description, Buffer* buf, bool own_memory) :
     own_memory(own_memory),
     description(description),
     buf(buf),
@@ -17,8 +14,7 @@ BufferInputSource::BufferInputSource(
 {
 }
 
-BufferInputSource::BufferInputSource(
-    std::string const& description, std::string const& contents) :
+BufferInputSource::BufferInputSource(std::string const& description, std::string const& contents) :
     own_memory(true),
     description(description),
     buf(new Buffer(contents.length())),
@@ -102,14 +98,12 @@ BufferInputSource::seek(qpdf_offset_t offset, int whence)
         break;
 
     default:
-        throw std::logic_error(
-            "INTERNAL ERROR: invalid argument to BufferInputSource::seek");
+        throw std::logic_error("INTERNAL ERROR: invalid argument to BufferInputSource::seek");
         break;
     }
 
     if (this->cur_offset < 0) {
-        throw std::runtime_error(
-            this->description + ": seek before beginning of buffer");
+        throw std::runtime_error(this->description + ": seek before beginning of buffer");
     }
 }
 

@@ -4,21 +4,19 @@
 #include <qpdf/QIntC.hh>
 #include <qpdf/QPDF.hh>
 #include <qpdf/QPDFPageDocumentHelper.hh>
-#include <qpdf/QPDFPageObjectHelper.hh>
 #include <qpdf/QPDFTokenizer.hh>
 #include <qpdf/QUtil.hh>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
 #include <iostream>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 
-static char const* whoami = 0;
+static char const* whoami = nullptr;
 
 void
 usage()
 {
-    std::cerr << "Usage: " << whoami
-              << " [-maxlen len | -no-ignorable] filename" << std::endl;
+    std::cerr << "Usage: " << whoami << " [-maxlen len | -no-ignorable] filename" << std::endl;
     exit(2);
 }
 
@@ -92,7 +90,7 @@ tokenTypeName(QPDFTokenizer::token_type_e ttype)
     case QPDFTokenizer::tt_inline_image:
         return "inline-image";
     }
-    return 0;
+    return nullptr;
 }
 
 static std::string
@@ -103,9 +101,7 @@ sanitize(std::string const& value)
         if ((iter >= 32) && (iter <= 126)) {
             result.append(1, iter);
         } else {
-            result += "\\x" +
-                QUtil::int_to_string_base(
-                          static_cast<unsigned char>(iter), 16, 2);
+            result += "\\x" + QUtil::int_to_string_base(static_cast<unsigned char>(iter), 16, 2);
         }
     }
     return result;
@@ -146,8 +142,8 @@ dump_tokens(
     }
     qpdf_offset_t inline_image_offset = 0;
     while (!done) {
-        QPDFTokenizer::Token token = tokenizer.readToken(
-            is, "test", true, inline_image_offset ? 0 : max_len);
+        QPDFTokenizer::Token token =
+            tokenizer.readToken(is, "test", true, inline_image_offset ? 0 : max_len);
         if (inline_image_offset && (token.getType() == QPDFTokenizer::tt_bad)) {
             std::cout << "EI not found; resuming normal scanning" << std::endl;
             is->seek(inline_image_offset, SEEK_SET);
@@ -168,12 +164,10 @@ dump_tokens(
             std::cout << " (" << token.getErrorMessage() << ")";
         }
         std::cout << std::endl;
-        if (skip_streams &&
-            (token == QPDFTokenizer::Token(QPDFTokenizer::tt_word, "stream"))) {
+        if (skip_streams && (token == QPDFTokenizer::Token(QPDFTokenizer::tt_word, "stream"))) {
             try_skipping(tokenizer, is, max_len, "endstream", f1);
         } else if (
-            skip_inline_images &&
-            (token == QPDFTokenizer::Token(QPDFTokenizer::tt_word, "ID"))) {
+            skip_inline_images && (token == QPDFTokenizer::Token(QPDFTokenizer::tt_word, "ID"))) {
             char ch;
             is->read(&ch, 1);
             tokenizer.expectInlineImage(is);
@@ -191,7 +185,7 @@ process(char const* filename, bool include_ignorable, size_t max_len)
     std::shared_ptr<InputSource> is;
 
     // Tokenize file, skipping streams
-    FileInputSource* fis = new FileInputSource(filename);
+    auto* fis = new FileInputSource(filename);
     is = std::shared_ptr<InputSource>(fis);
     dump_tokens(is, "FILE", max_len, include_ignorable, true, false);
 
@@ -204,16 +198,10 @@ process(char const* filename, bool include_ignorable, size_t max_len)
         Pl_Buffer plb("buffer");
         page.pipeContents(&plb);
         auto content_data = plb.getBufferSharedPointer();
-        BufferInputSource* bis =
-            new BufferInputSource("content data", content_data.get());
+        auto* bis = new BufferInputSource("content data", content_data.get());
         is = std::shared_ptr<InputSource>(bis);
         dump_tokens(
-            is,
-            "PAGE " + QUtil::int_to_string(pageno),
-            max_len,
-            include_ignorable,
-            false,
-            true);
+            is, "PAGE " + QUtil::int_to_string(pageno), max_len, include_ignorable, false, true);
     }
 
     // Tokenize object streams
@@ -221,8 +209,7 @@ process(char const* filename, bool include_ignorable, size_t max_len)
         if (obj.isStream() && obj.getDict().getKey("/Type").isName() &&
             obj.getDict().getKey("/Type").getName() == "/ObjStm") {
             std::shared_ptr<Buffer> b = obj.getStreamData(qpdf_dl_specialized);
-            BufferInputSource* bis =
-                new BufferInputSource("object stream data", b.get());
+            auto* bis = new BufferInputSource("object stream data", b.get());
             is = std::shared_ptr<InputSource>(bis);
             dump_tokens(
                 is,
@@ -239,13 +226,13 @@ int
 main(int argc, char* argv[])
 {
     QUtil::setLineBuf(stdout);
-    if ((whoami = strrchr(argv[0], '/')) == NULL) {
+    if ((whoami = strrchr(argv[0], '/')) == nullptr) {
         whoami = argv[0];
     } else {
         ++whoami;
     }
 
-    char const* filename = 0;
+    char const* filename = nullptr;
     size_t max_len = 0;
     bool include_ignorable = true;
     for (int i = 1; i < argc; ++i) {
@@ -266,7 +253,7 @@ main(int argc, char* argv[])
             filename = argv[i];
         }
     }
-    if (filename == 0) {
+    if (filename == nullptr) {
         usage();
     }
 

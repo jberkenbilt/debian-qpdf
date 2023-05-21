@@ -1,16 +1,10 @@
 #include <qpdf/Pl_SHA2.hh>
 #include <qpdf/QUtil.hh>
+#include <cstring>
 #include <iostream>
-#include <stdlib.h>
-#include <string.h>
 
 static void
-test(
-    Pl_SHA2& sha2,
-    char const* description,
-    int bits,
-    char const* input,
-    std::string const& output)
+test(Pl_SHA2& sha2, char const* description, int bits, char const* input, std::string const& output)
 {
     sha2.resetBits(bits);
     sha2.write(QUtil::unsigned_char_pointer(input), strlen(input));

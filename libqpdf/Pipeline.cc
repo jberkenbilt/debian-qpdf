@@ -1,7 +1,5 @@
 #include <qpdf/Pipeline.hh>
 
-#include <qpdf/QUtil.hh>
-
 #include <cstring>
 #include <stdexcept>
 
@@ -16,8 +14,7 @@ Pipeline::getNext(bool allow_null)
 {
     if ((this->next == nullptr) && (!allow_null)) {
         throw std::logic_error(
-            this->identifier +
-            ": Pipeline::getNext() called on pipeline with no next");
+            this->identifier + ": Pipeline::getNext() called on pipeline with no next");
     }
     return this->next;
 }

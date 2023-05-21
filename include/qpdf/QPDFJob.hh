@@ -83,8 +83,7 @@ class QPDFJob
     // about converting arguments to UTF-8. This method will mutate
     // arguments that are passed to it.
     QPDF_DLL
-    void initializeFromArgv(
-        char const* const argv[], char const* progname_env = nullptr);
+    void initializeFromArgv(char const* const argv[], char const* progname_env = nullptr);
 
     // Initialize a QPDFJob from json. Passing partial = true prevents
     // this method from doing the final checks (calling
@@ -132,8 +131,7 @@ class QPDFJob
     // configures a private logger, separating this object from the
     // default logger, and calls setOutputStreams on that logger. See
     // QPDFLogger.hh for additional details.
-    [[deprecated(
-        "configure logger from getLogger() or call setLogger()")]] QPDF_DLL void
+    [[deprecated("configure logger from getLogger() or call setLogger()")]] QPDF_DLL void
     setOutputStreams(std::ostream* out_stream, std::ostream* err_stream);
 
     // You can register a custom progress reporter to be called by
@@ -187,10 +185,7 @@ class QPDFJob
 
     struct PageSpec
     {
-        PageSpec(
-            std::string const& filename,
-            char const* password,
-            std::string const& range);
+        PageSpec(std::string const& filename, char const* password, std::string const& range);
 
         std::string filename;
         std::shared_ptr<char> password;
@@ -284,9 +279,7 @@ class QPDFJob
         Config* endPages();
         QPDF_DLL
         PagesConfig* pageSpec(
-            std::string const& filename,
-            std::string const& range,
-            char const* password = nullptr);
+            std::string const& filename, std::string const& range, char const* password = nullptr);
 
 #include <qpdf/auto_job_c_pages.hh>
 
@@ -366,10 +359,8 @@ class QPDFJob
         QPDF_DLL
         std::shared_ptr<UOConfig> underlay();
         QPDF_DLL
-        std::shared_ptr<EncConfig> encrypt(
-            int keylen,
-            std::string const& user_password,
-            std::string const& owner_password);
+        std::shared_ptr<EncConfig>
+        encrypt(int keylen, std::string const& user_password, std::string const& owner_password);
 
 #include <qpdf/auto_job_c_main.hh>
 
@@ -397,6 +388,21 @@ class QPDFJob
     QPDF_DLL
     void run();
 
+    // The following two methods allow a job to be run in two stages - creation
+    // of a QPDF object and writing of the QPDF object. This allows the QPDF
+    // object to be modified prior to writing it out. See
+    // examples/qpdfjob-remove-annotations for an illustration of its use.
+
+    // Run the first stage of the job. Return a nullptr if the configuration is
+    // not valid.
+    QPDF_DLL
+    std::unique_ptr<QPDF> createQPDF();
+
+    // Run the second stage of the job. Do nothing if a nullptr is passed as
+    // parameter.
+    QPDF_DLL
+    void writeQPDF(QPDF& qpdf);
+
     // CHECK STATUS -- these methods provide information known after
     // run() is called.
 
@@ -423,8 +429,7 @@ class QPDFJob
     // If in verbose mode, call the given function, passing in the
     // output stream and message prefix.
     QPDF_DLL
-    void
-    doIfVerbose(std::function<void(Pipeline&, std::string const& prefix)> fn);
+    void doIfVerbose(std::function<void(Pipeline&, std::string const& prefix)> fn);
 
     // Provide a string that is the help information ("schema" for the
     // qpdf-specific JSON object) for the specified version of JSON
@@ -432,16 +437,14 @@ class QPDFJob
     QPDF_DLL
     static std::string json_out_schema(int version);
 
-    [[deprecated("use json_out_schema(version)")]] static std::string QPDF_DLL
-    json_out_schema_v1();
+    [[deprecated("use json_out_schema(version)")]] static std::string QPDF_DLL json_out_schema_v1();
 
     // Provide a string that is the help information for specified
     // version of JSON format for QPDFJob.
     QPDF_DLL
     static std::string job_json_schema(int version);
 
-    [[deprecated("use job_json_schema(version)")]] static std::string QPDF_DLL
-    job_json_schema_v1();
+    [[deprecated("use job_json_schema(version)")]] static std::string QPDF_DLL job_json_schema_v1();
 
   private:
     struct RotationSpec
@@ -474,7 +477,7 @@ class QPDFJob
         std::string to_nr;
         std::string from_nr;
         std::string repeat_nr;
-        std::shared_ptr<QPDF> pdf;
+        std::unique_ptr<QPDF> pdf;
         std::vector<int> to_pagenos;
         std::vector<int> from_pagenos;
         std::vector<int> repeat_pagenos;
@@ -482,33 +485,32 @@ class QPDFJob
 
     // Helper functions
     static void usage(std::string const& msg);
-    static JSON json_schema(int json_version, std::set<std::string>* keys = 0);
-    static void parse_object_id(
-        std::string const& objspec, bool& trailer, int& obj, int& gen);
+    static JSON json_schema(int json_version, std::set<std::string>* keys = nullptr);
+    static void parse_object_id(std::string const& objspec, bool& trailer, int& obj, int& gen);
     void parseRotationParameter(std::string const&);
     std::vector<int> parseNumrange(char const* range, int max);
 
     // Basic file processing
     void processFile(
-        std::shared_ptr<QPDF>&,
+        std::unique_ptr<QPDF>&,
         char const* filename,
         char const* password,
         bool used_for_input,
         bool main_input);
     void processInputSource(
-        std::shared_ptr<QPDF>&,
+        std::unique_ptr<QPDF>&,
         std::shared_ptr<InputSource> is,
         char const* password,
         bool used_for_input);
     void doProcess(
-        std::shared_ptr<QPDF>&,
+        std::unique_ptr<QPDF>&,
         std::function<void(QPDF*, char const*)> fn,
         char const* password,
         bool empty,
         bool used_for_input,
         bool main_input);
     void doProcessOnce(
-        std::shared_ptr<QPDF>&,
+        std::unique_ptr<QPDF>&,
         std::function<void(QPDF*, char const*)> fn,
         char const* password,
         bool empty,
@@ -517,14 +519,10 @@ class QPDFJob
 
     // Transformations
     void setQPDFOptions(QPDF& pdf);
-    void handlePageSpecs(
-        QPDF& pdf,
-        bool& warnings,
-        std::vector<std::shared_ptr<QPDF>>& page_heap);
+    void handlePageSpecs(QPDF& pdf, std::vector<std::unique_ptr<QPDF>>& page_heap);
     bool shouldRemoveUnreferencedResources(QPDF& pdf);
     void handleRotations(QPDF& pdf);
-    void
-    getUOPagenos(UnderOverlay& uo, std::map<int, std::vector<int>>& pagenos);
+    void getUOPagenos(UnderOverlay& uo, std::map<int, std::vector<int>>& pagenos);
     void handleUnderOverlay(QPDF& pdf);
     std::string doUnderOverlayForPage(
         QPDF& pdf,
@@ -549,7 +547,7 @@ class QPDFJob
     void doShowAttachment(QPDF& pdf);
 
     // Output generation
-    void doSplitPages(QPDF& pdf, bool& warnings);
+    void doSplitPages(QPDF& pdf);
     void setWriterOptions(QPDF& pdf, QPDFWriter& w);
     void setEncryptionOptions(QPDF&, QPDFWriter&);
     void maybeFixWritePassword(int R, std::string& password);
@@ -558,9 +556,8 @@ class QPDFJob
 
     // JSON
     void doJSON(QPDF& pdf, Pipeline*);
-    std::set<QPDFObjGen> getWantedJSONObjects();
-    void doJSONObject(
-        Pipeline* p, bool& first, std::string const& key, QPDFObjectHandle&);
+    QPDFObjGen::set getWantedJSONObjects();
+    void doJSONObject(Pipeline* p, bool& first, std::string const& key, QPDFObjectHandle&);
     void doJSONObjects(Pipeline* p, bool& first, QPDF& pdf);
     void doJSONObjectinfo(Pipeline* p, bool& first, QPDF& pdf);
     void doJSONPages(Pipeline* p, bool& first, QPDF& pdf);

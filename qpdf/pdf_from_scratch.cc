@@ -3,14 +3,13 @@
 #include <qpdf/QPDFObjectHandle.hh>
 #include <qpdf/QPDFPageDocumentHelper.hh>
 #include <qpdf/QPDFWriter.hh>
-#include <qpdf/QTC.hh>
 #include <qpdf/QUtil.hh>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
 #include <iostream>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 
-static char const* whoami = 0;
+static char const* whoami = nullptr;
 
 void
 usage()
@@ -39,17 +38,16 @@ runtest(int n)
     if (n == 0) {
         // Create a minimal PDF from scratch.
 
-        QPDFObjectHandle font = pdf.makeIndirectObject(
-            QPDFObjectHandle::parse("<<"
-                                    " /Type /Font"
-                                    " /Subtype /Type1"
-                                    " /Name /F1"
-                                    " /BaseFont /Helvetica"
-                                    " /Encoding /WinAnsiEncoding"
-                                    ">>"));
+        QPDFObjectHandle font =
+            pdf.makeIndirectObject(QPDFObjectHandle::parse("<<"
+                                                           " /Type /Font"
+                                                           " /Subtype /Type1"
+                                                           " /Name /F1"
+                                                           " /BaseFont /Helvetica"
+                                                           " /Encoding /WinAnsiEncoding"
+                                                           ">>"));
 
-        QPDFObjectHandle procset =
-            pdf.makeIndirectObject(QPDFObjectHandle::parse("[/PDF /Text]"));
+        QPDFObjectHandle procset = pdf.makeIndirectObject(QPDFObjectHandle::parse("[/PDF /Text]"));
 
         QPDFObjectHandle contents = createPageContents(pdf, "First Page");
 
@@ -62,8 +60,7 @@ runtest(int n)
         resources.replaceKey("/ProcSet", procset);
         resources.replaceKey("/Font", rfont);
 
-        QPDFObjectHandle page =
-            pdf.makeIndirectObject(QPDFObjectHandle::newDictionary());
+        QPDFObjectHandle page = pdf.makeIndirectObject(QPDFObjectHandle::newDictionary());
         page.replaceKey("/Type", newName("/Page"));
         page.replaceKey("/MediaBox", mediabox);
         page.replaceKey("/Contents", contents);
@@ -76,8 +73,7 @@ runtest(int n)
         w.setStreamDataMode(qpdf_s_preserve);
         w.write();
     } else {
-        throw std::runtime_error(
-            std::string("invalid test ") + std::to_string(n));
+        throw std::runtime_error(std::string("invalid test ") + std::to_string(n));
     }
 
     std::cout << "test " << n << " done" << std::endl;
@@ -87,7 +83,7 @@ int
 main(int argc, char* argv[])
 {
     QUtil::setLineBuf(stdout);
-    if ((whoami = strrchr(argv[0], '/')) == NULL) {
+    if ((whoami = strrchr(argv[0], '/')) == nullptr) {
         whoami = argv[0];
     } else {
         ++whoami;
