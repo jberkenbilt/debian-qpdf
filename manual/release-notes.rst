@@ -6,6 +6,10 @@ Release Notes
 For a detailed list of changes, please see the file
 :file:`ChangeLog` in the source distribution.
 
+If you are a developer and want to test your code against future API
+changes that are under consideration, you can build qpdf locally and
+enable the ``FUTURE`` build option (see :ref:`build-options`).
+
 Planned changes for future 12.x (subject to change):
   - ``QPDFObjectHandle`` will support move construction/assignment.
     This change will be invisible to most developers but may break
@@ -23,7 +27,39 @@ Planned changes for future 12.x (subject to change):
     it's possible that the new qpdf-provided conversion may override
     your conversion.
 
+  - ``Buffer`` copy constructor and assignment operator will be
+    removed. ``Buffer`` copy operations are expensive as they always
+    involve copying the buffer content. Use ``buffer2 =
+    buffer1.copy();`` or ``Buffer buffer2{buffer1.copy()};`` to make
+    it explicit that copying is intended.
+
 .. x.y.z: not yet released
+
+11.5.0: July 9, 2023
+  - Bug Fixes
+
+    - When copying the same page more than once, ensure that
+      annotations are copied and not shared among multiple pages.
+
+  - Build Changes
+
+    - Add new ``FUTURE`` build option. This option enables you to test
+      code against proposed changes to qpdf's API. See
+      :ref:`build-options` for details. Packagers: do not package qpdf
+      with the ``FUTURE`` option enabled as there are no API/ABI
+      compatibility guarantees when the option is turned on.
+
+  - Library Enhancements
+
+    - Add new method ``Buffer::copy`` and deprecate ``Buffer`` copy
+      constructor and assignment operator. ``Buffer`` copies are
+      expensive and should be done explicitly.
+
+  - Miscellaneous Changes
+
+    - The source code was reformatted to 100 columns instead of 80.
+      Numerous cosmetic changes and changes suggested by clang-tidy
+      were made. M. Holger did all the hard work.
 
 11.4.0: May 21, 2023
   - CLI Enhancements
