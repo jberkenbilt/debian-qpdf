@@ -40,18 +40,15 @@ namespace
         std::shared_ptr<QPDFJob::UOConfig> c_uo;
         std::shared_ptr<QPDFJob::EncConfig> c_enc;
         std::vector<std::string> accumulated_args;
-        std::shared_ptr<char> pages_password;
-        bool gave_input;
-        bool gave_output;
+        std::shared_ptr<char> pages_password{nullptr};
+        bool gave_input{false};
+        bool gave_output{false};
     };
 } // namespace
 
 ArgParser::ArgParser(QPDFArgParser& ap, std::shared_ptr<QPDFJob::Config> c_main) :
     ap(ap),
-    c_main(c_main),
-    pages_password(nullptr),
-    gave_input(false),
-    gave_output(false)
+    c_main(c_main)
 {
     initOptionTables();
 }
@@ -65,9 +62,9 @@ ArgParser::initOptionTables()
     this->ap.addFinalCheck([this]() { c_main->checkConfiguration(); });
     // add_help is defined in auto_job_help.hh
     add_help(this->ap);
-    // Special case: ignore -- at the top level. This undocumented
-    // behavior is for backward compatibility; it was unintentionally
-    // the case prior to 10.6, and some users were relying on it.
+    // Special case: ignore -- at the top level. This undocumented behavior is for backward
+    // compatibility; it was unintentionally the case prior to 10.6, and some users were relying on
+    // it.
     this->ap.selectMainOptionTable();
     this->ap.addBare("--", []() {});
 }
@@ -254,8 +251,7 @@ ArgParser::argPagesPositional(std::string const& arg)
         range_p = this->accumulated_args.at(1).c_str();
     }
 
-    // See if the user omitted the range entirely, in which case we
-    // assume "1-z".
+    // See if the user omitted the range entirely, in which case we assume "1-z".
     std::string next_file;
     if (range_p == nullptr) {
         if (arg.empty()) {

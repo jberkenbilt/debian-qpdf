@@ -9,10 +9,9 @@ ClosedFileInputSource::ClosedFileInputSource(char const* filename) :
 {
 }
 
-ClosedFileInputSource::~ClosedFileInputSource()
+ClosedFileInputSource::~ClosedFileInputSource() // NOLINT (modernize-use-equals-default)
 {
-    // Must be explicit and not inline -- see QPDF_DLL_CLASS in
-    // README-maintainer
+    // Must be explicit and not inline -- see QPDF_DLL_CLASS in README-maintainer
 }
 
 void
@@ -91,8 +90,7 @@ ClosedFileInputSource::unreadCh(char ch)
 {
     before();
     this->fis->unreadCh(ch);
-    // Don't call after -- the file has to stay open after this
-    // operation.
+    // Don't call after -- the file has to stay open after this operation.
 }
 
 void

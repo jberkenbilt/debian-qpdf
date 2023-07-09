@@ -1,30 +1,59 @@
-ROUTINE DEVELOPMENT
+# Maintainer Notes
+
+## Contents
+
+* [ROUTINE DEVELOPMENT](#routine-development)
+* [VERSIONS](#versions)
+* [CHECKING DOCS ON readthedocs](#checking-docs-on-readthedocs)
+* [GOOGLE OSS-FUZZ](#google-oss-fuzz)
+* [CODING RULES](#coding-rules)
+* [HOW TO ADD A COMMAND-LINE ARGUMENT](#how-to-add-a-command-line-argument)
+* [RELEASE PREPARATION](#release-preparation)
+* [CREATING A RELEASE](#creating-a-release)
+* [RUNNING pikepdf's TEST SUITE](#running-pikepdfs-test-suite)
+* [OTHER NOTES](#other-notes)
+* [DEPRECATION](#deprecation)
+* [LOCAL WINDOWS TESTING PROCEDURE](#local-windows-testing-procedure)
+* [DOCS ON readthedocs.org](#docs-on-readthedocsorg)
+* [CMAKE notes](#cmake-notes)
+* [ABI checks](#abi-checks)
+* [CODE FORMATTING](#code-formatting)
+
+
+## ROUTINE DEVELOPMENT
 
 **Remember to check pull requests as well as issues in github.**
 
 Default:
 
+```
 cmake -DCMAKE_EXPORT_COMPILE_COMMANDS=1 \
    -DMAINTAINER_MODE=1 -DBUILD_STATIC_LIBS=0 \
    -DCMAKE_BUILD_TYPE=RelWithDebInfo ..
+```
 
 Debugging:
 
+```
 cmake -DCMAKE_EXPORT_COMPILE_COMMANDS=1 \
    -DMAINTAINER_MODE=1 -DBUILD_SHARED_LIBS=0 \
    -DCMAKE_BUILD_TYPE=Debug ..
+```
 
 Profiling:
 
+```
 CFLAGS=-pg LDFLAGS=-pg \
    cmake -DCMAKE_EXPORT_COMPILE_COMMANDS=1 \
    -DMAINTAINER_MODE=1 -DBUILD_SHARED_LIBS=0 \
    -DCMAKE_BUILD_TYPE=Debug ..
+```
 
 Then run `gprof gmon.out`. Note that gmon.out is not cumulative.
 
 Memory checks:
 
+```
 CFLAGS="-fsanitize=address -fsanitize=undefined" \
    CXXFLAGS="-fsanitize=address -fsanitize=undefined" \
    LDFLAGS="-fsanitize=address -fsanitize=undefined" \
@@ -32,16 +61,18 @@ CFLAGS="-fsanitize=address -fsanitize=undefined" \
    cmake -DCMAKE_EXPORT_COMPILE_COMMANDS=1 \
    -DMAINTAINER_MODE=1 -DBUILD_SHARED_LIBS=0 \
    -DCMAKE_BUILD_TYPE=Debug ..
+```
 
 Windows:
 
+```
 ../cmake-win {mingw|msvc} maint
+```
 
 See ./build-scripts for other ways to run the build for different
 configurations.
 
-
-VERSIONS
+## VERSIONS
 
 * The version number on the main branch is whatever the version would
   be if the top of the branch were released. If the most recent
@@ -65,15 +96,13 @@ VERSIONS
   there or the changes can be merged back, depending on the amount of
   drift.
 
-
-CHECKING DOCS ON readthedocs
+## CHECKING DOCS ON readthedocs
 
 To check docs on readthedocs.io without running all of CI, push to the
 doc-check branch. Then visit https://qpdf.readthedocs.io/en/doc-check/
 Building docs from pull requests is also enabled.
 
-
-GOOGLE OSS-FUZZ
+## GOOGLE OSS-FUZZ
 
 * See ../misc/fuzz (not in repo) for unfixed, downloaded fuzz test cases
 
@@ -90,11 +119,13 @@ GOOGLE OSS-FUZZ
 
   Clone the oss-fuzz project. From the root directory of the repository:
 
+  ```
   python3 infra/helper.py build_image --pull qpdf
   python3 infra/helper.py build_fuzzers [ --sanitizer memory|undefined|address ] qpdf [path-to-qpdf-source]
   python3 infra/helper.py check_build qpdf
   python3 infra/helper.py build_fuzzers --sanitizer coverage qpdf
   python3 infra/helper.py coverage qpdf
+  ```
 
   To reproduce a test case, build with the correct sanitizer, then run
 
@@ -120,10 +151,9 @@ GOOGLE OSS-FUZZ
 * Latest corpus:
   gs://qpdf-backup.clusterfuzz-external.appspot.com/corpus/libFuzzer/qpdf_fuzzer/latest.zip
 
+## CODING RULES
 
-CODING RULES
-
-* Code is formatted with clang-format >= 15. See .clang-format and the
+* Code is formatted with clang-format-16. See .clang-format and the
   "Code Formatting" section in manual/contributing.rst for details.
   See also "CODE FORMATTING" below.
 
@@ -200,19 +230,41 @@ CODING RULES
   `= default` and provide a non-inline implementation in the source
   file. Add this comment to the implementation:
 
+    ```cpp
     // Must be explicit and not inline -- see QPDF_DLL_CLASS in
     // README-maintainer
+    ```
 
-* Put private member variables in std::shared_ptr<Members> for all
-  public classes. Remember to use QPDF_DLL on ~Members(). Exception:
-  indirection through std::shared_ptr<Members> is expensive, so don't
-  do it for classes that are copied a lot, like QPDFObjectHandle and
-  QPDFObject. It may be possible to declare
-  std::shared_ptr<Members> m_ph;
-  Member* m;
-  with m = m_ph.get(), and then indirect through m in
-  performance-critical settings, though in 2022, std::shared_ptr is
-  sufficiently performant that this may not be worth it.
+* Put private member variables in std::unique_ptr<Members> for all
+  public classes. Forward declare Members in the header file and define
+  Members in the implementation file. One of the major benefits of
+  defining Members in the implementation file is that it makes it easier
+  to use private classes as data members and simplifies the include order.
+  Remember that Members must be fully defined before the destructor of the
+  main class. For an example of this pattern see class JSONHandler.
+
+  Exception: indirection through std::unique_ptr<Members> incurs an overhead,
+  so don't do it for:
+  * (especially private) classes that are copied a lot, like QPDFObjectHandle
+    and QPDFObject.
+  * classes that are a shared pointer to another class, such as QPDFObjectHandle
+    or JSON.
+
+  For exported classes that do not use the member pattern for performance
+  reasons it is worth considering adding a std::unique_ptr to an empty Members
+  class initialized to nullptr to give the flexibility to add data members
+  without breaking the ABI.
+
+  Note that, as of qpdf 11, many public classes use `std::shared_ptr`
+  instead. Changing this to `std::unique_ptr` is ABI-breaking. If the
+  class doesn't allow copying, we can switch it to std::unique_ptr and
+  let that be the thing that prevents copying. If the intention is to
+  allow the object to be copied by value and treated as if it were
+  copied by reference, then `std::shared_ptr<Members>` should be used.
+  The `JSON` class is an example of this. As a rule, we should avoid
+  this design pattern. It's better to make things non-copiable and to
+  require explicit use of shared pointers, so going forward,
+  `std::unique_ptr` should be preferred.
 
 * Traversal of objects is expensive. It's worth adding some complexity
   to avoid needless traversals of objects.
@@ -220,8 +272,7 @@ CODING RULES
 * Avoid attaching too much metadata to objects and object handles
   since those have to get copied around a lot.
 
-
-HOW TO ADD A COMMAND-LINE ARGUMENT
+## HOW TO ADD A COMMAND-LINE ARGUMENT
 
 Quick reminder:
 
@@ -278,8 +329,7 @@ When done, the following should happen:
 * The job JSON file should have a new key in the schema corresponding
   to the new option
 
-
-RELEASE PREPARATION
+## RELEASE PREPARATION
 
 * Each year, update copyright notices. This will find all relevant
   places (assuming current copyright is from last year):
@@ -389,8 +439,7 @@ env PKG_CONFIG_PATH=/tmp/inst/lib/pkgconfig \
     CMAKE_PREFIX_PATH=/tmp/inst \
    ./pkg-test/run-all
 
-
-CREATING A RELEASE
+## CREATING A RELEASE
 
 * Push to main. This will create an artifact called distribution
   which will contain all the distribution files. Download these,
@@ -442,7 +491,9 @@ git push qpdf @:stable
 * Create a github release after pushing the tag. `gcurl` is an alias
   that includes the auth token.
 
+```
 # Create release
+
 GITHUB_TOKEN=$(qdata-show cred github-token)
 function gcurl() { curl -H "Authorization: token $GITHUB_TOKEN" ${1+"$@"}; }
 
@@ -458,6 +509,7 @@ for i in *; do
   mime=$(file -b --mime-type $i)
   gcurl -H "Content-Type: $mime" --data-binary @$i "$upload_url?name=$i"
 done
+```
 
 If needed, go onto github and make any manual updates such as
 indicating a pre-release, adding release notes, etc.
@@ -470,8 +522,10 @@ This is qpdf version x.y.z. (Brief description)
 For a full list of changes from previous releases, please see the [release notes](https://qpdf.readthedocs.io/en/stable/release-notes.html). See also [README-what-to-download](./README-what-to-download.md) for details about the available source and binary distributions.
 ```
 
+```
 # Publish release
 gcurl -XPOST $url -d'{"draft": false}'
+```
 
 * Upload files to sourceforge.
 
@@ -486,14 +540,14 @@ rsync -vrlcO ./ jay_berkenbilt,qpdf@frs.sourceforge.net:/home/frs/project/q/qp/q
 
 * Email the qpdf-announce list.
 
-
-RUNNING pikepdf's TEST SUITE
+## RUNNING pikepdf's TEST SUITE
 
 We run pikepdf's test suite from CI. These instructions show how to do
 it manually.
 
 Do this in a separate shell.
 
+```
 cd ...qpdf-source-tree...
 export QPDF_SOURCE_TREE=$PWD
 export QPDF_BUILD_LIBDIR=$QPDF_SOURCE_TREE/build/libqpdf
@@ -510,10 +564,12 @@ python3 -m pip install '.[test]'
 rehash
 python3 -m pip install .
 pytest -n auto
+```
 
 If there are failures, use git bisect to figure out where the failure
 was introduced. For example, set up a work area like this:
 
+```
 rm -rf /tmp/z
 mkdir /tmp/z
 cd /tmp/z
@@ -541,12 +597,12 @@ python3 -m pip install .
 pytest -n auto
 EOF
 chmod +x /tmp/check
+```
 
 Then in /tmp/z/qpdf, run git bisect. Use /tmp/check at each stage to
 test whether it's a good or bad commit.
 
-
-OTHER NOTES
+## OTHER NOTES
 
 For local iteration on the AppImage generation, it works to just
 ./build-scripts/build-appimage and get the resulting AppImage from the
@@ -558,9 +614,11 @@ Use -ti -e RUN_SHELL=1 to run a shell instead of the build script.
 
 To iterate on the scripts directly in the source tree, you can run
 
+```
 docker build -t qpdfbuild appimage
 docker run --privileged --rm -ti -e SKIP_TESTS=1 -e RUN_SHELL=1 \
        -v $PWD/..:/tmp/build ${1+"$@"} qpdfbuild
+```
 
 This will put you at a shell prompt inside the container with your
 current directory set to the top of the source tree and your uid equal
@@ -569,12 +627,13 @@ to the owner of the parent directory source tree.
 Note: this will leave some extra files (like .bash_history) in the
 parent directory of the source tree. You will want to clean those up.
 
-DEPRECATION
+## DEPRECATION
 
 This is a reminder of how to use and test deprecation.
 
 To temporarily disable deprecation warnings for testing:
 
+```cpp
 #ifdef _MSC_VER
 # pragma warning(disable : 4996)
 #endif
@@ -586,13 +645,15 @@ To temporarily disable deprecation warnings for testing:
 #if (defined(__GNUC__) || defined(__clang__))
 # pragma GCC diagnostic pop
 #endif
+```
 
 To declare something as deprecated:
 
+```cpp
 [[deprecated("explanation")]]
+```
 
-
-LOCAL WINDOWS TESTING PROCEDURE
+## LOCAL WINDOWS TESTING PROCEDURE
 
 This is what I do for routine testing on Windows.
 
@@ -612,8 +673,7 @@ This is what I do for routine testing on Windows.
 
 * Test with mingw:  `ctest --verbose -C RelWithDebInfo`
 
-
-DOCS ON readthedocs.org
+## DOCS ON readthedocs.org
 
 * Registered for an account at readthedocs.org with my github account
 * Project page: https://readthedocs.org/projects/qpdf/
@@ -640,8 +700,7 @@ following branching strategy to support docs:
 The release process includes updating the approach branches and
 activating versions.
 
-
-CMAKE notes
+## CMAKE notes
 
 To verify the various cmake options and their interactions, several
 manual tests were done:
@@ -662,8 +721,7 @@ We are using RelWithDebInfo for mingw and other non-Windows builds but
 Release for MSVC. There are linker warnings if MSVC is built with
 RelWithDebInfo when using external-libs.
 
-
-ABI checks
+## ABI checks
 
 Until the conversion of the build to cmake, we relied on running the
 test suite with old executables and a new library. When QPDFJob was
@@ -698,8 +756,7 @@ steps. See comments in check_abi for additional notes. Running
 "check_abi check-sizes" is run by ctest on Linux when CHECK_SIZES is
 on.
 
-
-CODE FORMATTING
+## CODE FORMATTING
 
 * Emacs doesn't indent breaking strings concatenated with + over
   lines but clang-format does. It's clearer with clang-format. To
@@ -708,17 +765,21 @@ CODE FORMATTING
 
 * With
 
+  ```cpp
   long_function(long_function(
       args)
+
+  ```
 
   clang-format anchors relative to the first function, and emacs
   anchors relative to the second function. Use
 
+  ```cpp
   long_function(
       // line-break
       long_function(
 	  args)
-
+  ```
   to resolve.
 
 In the revision control history, there is a commit around April 3,
@@ -727,6 +788,7 @@ formatting results" that shows several examples of changing code so
 that clang-format produces several results. (In git this is commit
 77e889495f7c513ba8677df5fe662f08053709eb.)
 
-The commit that has the bulk of the automatic reformatting is
-12f1eb15ca3fed6310402847559a7c99d3c77847. This could go in a
-blame.ignoreRevsFile file for `git blame` if needed.
+The commits that have the bulk of automatic or mechanical reformatting are
+listed in .git-blame-ignore-revs. Any new bulk updates should be added there.
+
+[//]: # (cSpell:ignore pikepdfs readthedocsorg .)

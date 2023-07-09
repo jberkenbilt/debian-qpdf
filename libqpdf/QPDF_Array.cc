@@ -12,9 +12,9 @@ QPDF_Array::checkOwnership(QPDFObjectHandle const& item) const
         if (qpdf) {
             if (auto item_qpdf = obj->getQPDF()) {
                 if (qpdf != item_qpdf) {
-                    throw std::logic_error("Attempting to add an object from a different QPDF. "
-                                           "Use QPDF::copyForeignObject to add objects from "
-                                           "another file.");
+                    throw std::logic_error(
+                        "Attempting to add an object from a different QPDF. Use "
+                        "QPDF::copyForeignObject to add objects from another file.");
                 }
             }
         }
@@ -201,7 +201,7 @@ QPDF_Array::getAsVector() const
         v.reserve(size_t(size()));
         for (auto const& item: sp_elements) {
             v.resize(size_t(item.first), null_oh);
-            v.push_back(item.second);
+            v.emplace_back(item.second);
         }
         v.resize(size_t(size()), null_oh);
         return v;
