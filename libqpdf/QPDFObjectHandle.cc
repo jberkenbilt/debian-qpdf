@@ -231,7 +231,7 @@ QPDFObjectHandle::disconnect()
     // Recursively remove association with any QPDF object. This method may only be called during
     // final destruction. QPDF::~QPDF() calls it for indirect objects using the object pointer
     // itself, so we don't do that here. Other objects call it through this method.
-    if (!isIndirect()) {
+    if (obj && !isIndirect()) {
         this->obj->disconnect();
     }
 }
@@ -2299,22 +2299,7 @@ QPDFObjectHandle::isPageObject()
     }
     // getAllPages repairs /Type when traversing the page tree.
     getOwningQPDF()->getAllPages();
-    if (!this->isDictionary()) {
-        return false;
-    }
-    if (this->hasKey("/Type")) {
-        QPDFObjectHandle type = this->getKey("/Type");
-        if (type.isNameAndEquals("/Page")) {
-            return true;
-        }
-        // Files have been seen in the wild that have /Type (Page)
-        else if (type.isString() && (type.getStringValue() == "Page")) {
-            return true;
-        } else {
-            return false;
-        }
-    }
-    return false;
+    return isDictionaryOfType("/Page");
 }
 
 bool
