@@ -1,3 +1,11 @@
+qpdf (11.6.2-2) unstable; urgency=medium
+
+  * Tweak cmake syntax: use ON and OFF instead of 1 and 0. This doesn't
+    change any functionality, but it is more standard, and I hope it
+    addresses the FTBFS in reproducible_builds.
+
+ -- Jay Berkenbilt <qjb@debian.org>  Sun, 08 Oct 2023 09:04:41 -0400
+
 qpdf (11.6.2-1) unstable; urgency=medium
 
   * New upstream release.
