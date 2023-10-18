@@ -1,0 +1,34 @@
+Description: data loss in qpdf lexical layer
+ This was fixed upstream in 11.6.3.
+Author: Jay Berkenbilt <ejb@ql.org>
+Bug: https://github.com/qpdf/qpdf/issues/1050
+Bug-Debian: http://bugs.debian.org/1054158
+
+--- a/libqpdf/QPDFTokenizer.cc.orig	2023-10-17 07:19:31.829119946 -0400
++++ a/libqpdf/QPDFTokenizer.cc	2023-10-17 07:20:55.689510562 -0400
+@@ -739,17 +739,22 @@
+ void
+ QPDFTokenizer::inCharCode(char ch)
+ {
++    bool handled = false;
+     if (('0' <= ch) && (ch <= '7')) {
+         this->char_code = 8 * this->char_code + (int(ch) - int('0'));
+         if (++(this->digit_count) < 3) {
+             return;
+         }
+-        // We've accumulated \ddd.  PDF Spec says to ignore
+-        // high-order overflow.
++        handled = true;
+     }
++    // We've accumulated \ddd or we have \d or \dd followed by other
++    // than an octal digit. The PDF Spec says to ignore high-order
++    // overflow.
+     this->val += char(this->char_code % 256);
+     this->state = st_in_string;
+-    return;
++    if (!handled) {
++        inString(ch);
++    }
+ }
+ 
+ void
