@@ -1,3 +1,16 @@
+qpdf (11.5.0-1ubuntu1) mantic; urgency=medium
+
+  * Fix data loss bug introduced in 11.0.0 and fixed in 11.6.3. The bug
+    causes the qpdf tokenizer to discard the character after a one-digit
+    or two-digit quoted octal string. Most writers don't create these, and
+    they are rare outside of content streams. By default, qpdf doesn't
+    parse content streams. The most common place for this to occur would
+    be in a document's /ID string, but in the worst case, this bug could
+    cause silent damage to some strings in a PDF file's metadata, such as
+    bookmark names or form field values.
+
+ -- Jay Berkenbilt <qjb@debian.org>  Thu, 19 Oct 2023 07:20:25 -0400
+
 qpdf (11.5.0-1) unstable; urgency=medium
 
   * New upstream release.
