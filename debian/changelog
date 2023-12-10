@@ -1,8 +1,10 @@
 qpdf (11.6.4-1) unstable; urgency=medium
 
   * New upstream release.
+  * Build qpdf-doc package. This is possible now that a sufficient new
+    sphinx_rtd_theme is packaged. (Closes: #1004159)
 
- -- Jay Berkenbilt <qjb@debian.org>  Sun, 10 Dec 2023 12:12:09 -0500
+ -- Jay Berkenbilt <qjb@debian.org>  Sun, 10 Dec 2023 12:15:06 -0500
 
 qpdf (11.6.3-1) unstable; urgency=medium
 
