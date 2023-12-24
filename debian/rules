@@ -14,14 +14,21 @@ COMMON_CONFIG = \
   -DSHOW_FAILED_TEST_OUTPUT=ON -DCMAKE_BUILD_TYPE=RelWithDebInfo \
   -DQTEST_COLOR=OFF
 
+SPHINX_VERSION != sphinx-build --version 2>/dev/null
+ifeq ($(.SHELLSTATUS), 0)
+  DOC_CONFIG = -DBUILD_DOC=ON -DINSTALL_MANUAL=ON
+else
+  DOC_CONFIG =
+endif
+
 %:
 	dh $@
 
 override_dh_compress:
-	dh_compress --exclude examples/
+	dh_compress --exclude examples/ --exclude qpdf-manual.pdf
 
 override_dh_auto_configure:
-	dh_auto_configure -- $(COMMON_CONFIG)
+	dh_auto_configure -- $(COMMON_CONFIG) $(DOC_CONFIG)
 
 override_dh_install:
 	dh_install

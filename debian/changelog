@@ -1,8 +1,15 @@
-qpdf (11.7.0-1~bpo20.04.1~ppa1) focal; urgency=medium
+qpdf (11.7.0-2~bpo20.04.1~ppa1) focal; urgency=medium
 
   * Backport to focal without qpdf-doc package. Focal's sphinx is too old.
 
- -- Jay Berkenbilt <qjb@debian.org>  Sun, 24 Dec 2023 11:14:46 -0500
+ -- Jay Berkenbilt <qjb@debian.org>  Sun, 24 Dec 2023 16:26:13 -0500
+
+qpdf (11.7.0-2) unstable; urgency=medium
+
+  * Fix handling of documentation build to correctly handle
+    architecture-only builds.
+
+ -- Jay Berkenbilt <qjb@debian.org>  Sun, 24 Dec 2023 16:09:13 -0500
 
 qpdf (11.7.0-1) unstable; urgency=medium
 
