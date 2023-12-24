@@ -8,23 +8,31 @@
 
 export DEB_BUILD_MAINT_OPTIONS = hardening=+all
 
+COMMON_CONFIG = \
+  -DCMAKE_BUILD_RPATH_USE_ORIGIN=ON \
+  -DUSE_IMPLICIT_CRYPTO=OFF -DREQUIRE_CRYPTO_GNUTLS=ON \
+  -DSHOW_FAILED_TEST_OUTPUT=ON -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+  -DQTEST_COLOR=OFF
+DOC_CONFIG = -DBUILD_DOC=ON -DINSTALL_MANUAL=ON
+
 %:
 	dh $@
 
 override_dh_compress:
 	dh_compress --exclude examples/ --exclude qpdf-manual.pdf
 
-override_dh_auto_configure:
-	dh_auto_configure -- \
-          -DCMAKE_BUILD_RPATH_USE_ORIGIN=ON \
-	  -DUSE_IMPLICIT_CRYPTO=OFF -DREQUIRE_CRYPTO_GNUTLS=ON \
-	  -DSHOW_FAILED_TEST_OUTPUT=ON -DCMAKE_BUILD_TYPE=RelWithDebInfo \
-	  -DQTEST_COLOR=OFF -DBUILD_DOC=ON -DINSTALL_MANUAL=ON
+override_dh_auto_configure-arch:
+	dh_auto_configure -- $(COMMON_CONFIG)
+
+override_dh_auto_configure-indep:
+	dh_auto_configure -- $(COMMON_CONFIG) $(DOC_CONFIG)
+
+execute_after_dh_installdocs-indep:
+	dh_sphinxdoc
 
 override_dh_install:
 	rm -rf debian/tmp/usr/share/doc/qpdf/manual-single-page-html
 	dh_install
-	dh_sphinxdoc
 	mkdir -p debian/qpdf/usr/share/doc/qpdf
 	(echo 'Complete documentation for qpdf can be found in the qpdf-doc package or'; \
 	 echo 'online at https://qpdf.readthedocs.io') \
