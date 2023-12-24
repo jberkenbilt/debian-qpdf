@@ -600,7 +600,9 @@ class QPDF
     // Return the previously computed or retrieved encryption key for this file
     QPDF_DLL
     std::string getEncryptionKey() const;
-    // Remove security restrictions associated with digitally signed files.
+    // Remove security restrictions associated with digitally signed files. From qpdf 11.7.0, this
+    // is called by QPDFAcroFormDocumentHelper::disableDigitalSignatures and is more useful when
+    // called from there than when just called by itself.
     QPDF_DLL
     void removeSecurityRestrictions();
 
@@ -745,9 +747,11 @@ class QPDF
             std::map<int, int> const& obj_renumber,
             std::shared_ptr<Buffer>& hint_stream,
             int& S,
-            int& O)
+            int& O,
+            bool compressed)
         {
-            return qpdf.generateHintStream(xref, lengths, obj_renumber, hint_stream, S, O);
+            return qpdf.generateHintStream(
+                xref, lengths, obj_renumber, hint_stream, S, O, compressed);
         }
 
         static void
@@ -1094,7 +1098,8 @@ class QPDF
         std::map<int, int> const& obj_renumber,
         std::shared_ptr<Buffer>& hint_stream,
         int& S,
-        int& O);
+        int& O,
+        bool compressed);
 
     // Map object to object stream that contains it
     void getObjectStreamData(std::map<int, int>&);
@@ -1133,7 +1138,7 @@ class QPDF
         Pipeline*& pipeline,
         QPDFObjGen const& og,
         QPDFObjectHandle& stream_dict,
-        std::vector<std::shared_ptr<Pipeline>>& heap);
+        std::unique_ptr<Pipeline>& heap);
 
     // Methods to support object copying
     void reserveObjects(QPDFObjectHandle foreign, ObjCopier& obj_copier, bool top);

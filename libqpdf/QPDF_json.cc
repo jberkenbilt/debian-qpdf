@@ -144,6 +144,12 @@ is_name(std::string const& v)
     return ((v.length() > 1) && (v.at(0) == '/'));
 }
 
+static bool
+is_pdf_name(std::string const& v)
+{
+    return ((v.length() > 3) && (v.substr(0, 3) == "n:/"));
+}
+
 bool
 QPDF::test_json_validators()
 {
@@ -726,6 +732,15 @@ QPDF::JSONReactor::makeObject(JSON const& value)
         if (QUtil::is_long_long(str_v.c_str())) {
             result = QPDFObjectHandle::newInteger(QUtil::string_to_ll(str_v.c_str()));
         } else {
+            // JSON allows scientific notation, but PDF does not.
+            if (str_v.find('e') != std::string::npos || str_v.find('E') != std::string::npos) {
+                try {
+                    auto v = std::stod(str_v);
+                    str_v = QUtil::double_to_string(v);
+                } catch (std::exception&) {
+                    // Keep it as it was
+                }
+            }
             result = QPDFObjectHandle::newReal(str_v);
         }
     } else if (value.getString(str_v)) {
@@ -740,6 +755,8 @@ QPDF::JSONReactor::makeObject(JSON const& value)
             result = QPDFObjectHandle::newString(QUtil::hex_decode(str));
         } else if (is_name(str_v)) {
             result = QPDFObjectHandle::newName(str_v);
+        } else if (is_pdf_name(str_v)) {
+            result = QPDFObjectHandle::parse(str_v.substr(2));
         } else {
             QTC::TC("qpdf", "QPDF_json unrecognized string value");
             error(value.getStart(), "unrecognized string value");

@@ -1,3 +1,76 @@
+2023-12-24  Jay Berkenbilt  <ejb@ql.org>
+
+	* 11.7.0: release
+
+2023-12-23  Jay Berkenbilt  <ejb@ql.org>
+
+	* Define CPACK_NSIS_MODIFY_PATH for the Windows builds so the
+	official installers will offer to modify PATH when installing
+	qpdf. Fixes #1054.
+
+	* Add QPDFAcroFormDocumentHelper::disableDigitalSignatures, which
+	disables any digital signature fields, leaving their visual
+	representations intact. The --remove-restrictions command-line
+	argument now calls this. Fixes #1015.
+
+2023-12-22  Jay Berkenbilt  <ejb@ql.org>
+
+	* Generate a more complete qpdf "man page" from the same source as
+	qpdf --help. Fixes #1064.
+
+	* Allow the syntax "--encrypt --user-password=user-password
+	--owner-password=owner-password --bits={40,128,256}" when
+	encrypting PDF files. This is an alternative to the syntax
+	"--encrypt user-password owner-password {40,128,256}", which will
+	continue to be supported. The new syntax works better with shell
+	completion and allows creation of passwords that start with "-".
+	Fixes #874.
+
+	* When setting a check box value, allow any value other than /Off
+	to mean checked. This is permitted by the spec. Previously, any
+	value other than /Yes or /Off was rejected. Fixes #1056.
+
+2023-12-21  Jay Berkenbilt  <ejb@ql.org>
+
+	* Fix to QPDF JSON: a floating point number that appears in
+	scientific notation will be converted to fixed-point notation,
+	rounded to six digits after the decimal point. Fixes #1079.
+
+	* Fix to QPDF JSON: the syntax "n:/pdf-syntax" is now accepted as
+	an alternative way to represent names. This can be used for any
+	name (e.g. "n:/text#2fplain"), but it is necessary when the name
+	contains binary characters. For example, /one#a0two must be
+	represented as "n:/one#a0two" since the single byte a0 is not
+	valid in JSON. Fixes #1072.
+
+	* From M. Holger: Refactor QPDFParser for performance. See #1059
+	for a discussion.
+
+2023-12-20  Jay Berkenbilt  <ejb@ql.org>
+
+	* Update code and tests so that qpdf's test suite no longer
+	depends on the output of any specific zlib implementation. This
+	makes it possible to get a fully passing test suite with any
+	API-compatible zlib library. CI tests with the default zlib as
+	well as zlib-ng (including verifying that zlib-ng is not the
+	default), but any zlib implementation should work. Fixes #774.
+
+	* Bug fix: with --compress-streams=n, don't compress object, XRef,
+	or linearization hint streams.
+
+2023-12-16  Jay Berkenbilt  <ejb@ql.org>
+
+	* Add new C++ functions "qpdf_c_get_qpdf" and "qpdf_c_wrap" to
+	qpdf-c.h that make it possible to write your own extern "C"
+	functions in C++ that interoperate with the C API. See
+	examples/extend-c-api for more information.
+
+	* Bug fix from M. Holger: the default for /Columns in PNG filter
+	is 1, but libqpdf was acting like it was 0.
+
+	* Enhancement from M. Holger: add methods to Buffer to work more
+	easily with std::string.
+
 2023-12-10  Jay Berkenbilt  <ejb@ql.org>
 
 	* 11.6.4: release

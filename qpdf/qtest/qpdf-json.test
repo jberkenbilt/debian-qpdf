@@ -61,6 +61,7 @@ my @goodfiles = (
     'form-fields-and-annotations.pdf',
     'need-appearances.pdf',
     'fxo-blue.pdf',
+    'weird-tokens.pdf',
     );
 $n_tests += 6 * scalar(@goodfiles);
 
@@ -294,31 +295,31 @@ $td->runtest("C API create from json file",
              {$td->STRING => "C test 42 done\n", $td->EXIT_STATUS => 0},
              $td->NORMALIZE_NEWLINES);
 $td->runtest("check C API create from file",
-             {$td->FILE => "a.pdf"},
-             {$td->FILE => "qpdf-ctest-42-43.pdf"});
+             {$td->COMMAND => "qpdf-test-compare a.pdf qpdf-ctest-42-43.pdf"},
+             {$td->FILE => "qpdf-ctest-42-43.pdf", $td->EXIT_STATUS => 0});
 $td->runtest("C API create from json buffer",
              {$td->COMMAND => "qpdf-ctest 43 minimal.json '' a.pdf"},
              {$td->STRING => "C test 43 done\n", $td->EXIT_STATUS => 0},
              $td->NORMALIZE_NEWLINES);
 $td->runtest("check C API create from buffer",
-             {$td->FILE => "a.pdf"},
-             {$td->FILE => "qpdf-ctest-42-43.pdf"});
+             {$td->COMMAND => "qpdf-test-compare a.pdf qpdf-ctest-42-43.pdf"},
+             {$td->FILE => "qpdf-ctest-42-43.pdf", $td->EXIT_STATUS => 0});
 $td->runtest("C API update from json file",
              {$td->COMMAND =>
                   "qpdf-ctest 44 minimal.pdf '' a.pdf minimal-update.json"},
              {$td->STRING => "C test 44 done\n", $td->EXIT_STATUS => 0},
              $td->NORMALIZE_NEWLINES);
 $td->runtest("check C API update from file",
-             {$td->FILE => "a.pdf"},
-             {$td->FILE => "qpdf-ctest-44-45.pdf"});
+             {$td->COMMAND => "qpdf-test-compare a.pdf qpdf-ctest-44-45.pdf"},
+             {$td->FILE => "qpdf-ctest-44-45.pdf", $td->EXIT_STATUS => 0});
 $td->runtest("C API update from json buffer",
              {$td->COMMAND =>
                   "qpdf-ctest 45 minimal.pdf '' a.pdf minimal-update.json"},
              {$td->STRING => "C test 45 done\n", $td->EXIT_STATUS => 0},
              $td->NORMALIZE_NEWLINES);
 $td->runtest("check C API update from buffer",
-             {$td->FILE => "a.pdf"},
-             {$td->FILE => "qpdf-ctest-44-45.pdf"});
+             {$td->COMMAND => "qpdf-test-compare a.pdf qpdf-ctest-44-45.pdf"},
+             {$td->FILE => "qpdf-ctest-44-45.pdf", $td->EXIT_STATUS => 0});
 $td->runtest("C API write to JSON 1",
              {$td->COMMAND =>
                   "qpdf-ctest 46 minimal.pdf '' a.json"},
@@ -340,6 +341,33 @@ $td->runtest("check C API write to JSON 2",
 $td->runtest("check C API write to JSON stream",
              {$td->FILE => "auto-4"},
              {$td->FILE => "qpdf-ctest-47-4"});
+
+# Bugs #1072 and #1079 illustrate cases that qpdf-json got wrong. In
+# #1072, it was noticed that name tokens containing binary characters
+# (using #xx) would generate invalid JSON, even though qpdf's own JSON
+# parser would accept it. Also, the JSON spec allows real numbers in
+# scientific notation, but the PDF spec does not.
+$n_tests += 4;
+$td->runtest("handle binary names",
+             {$td->COMMAND =>
+                  "qpdf --json-output weird-tokens.pdf a.json"},
+             {$td->STRING => "", $td->EXIT_STATUS => 0});
+# Round-trip back to PDF is tested above.
+$td->runtest("check json",
+             {$td->FILE => "a.json"},
+             {$td->FILE => "weird-tokens.json"},
+             $td->NORMALIZE_NEWLINES);
+# Make sure we can properly handle JSON with scientific notation.
+$td->runtest("weird tokens round trip json",
+             {$td->COMMAND =>
+                  "qpdf --json-input --json-output weird-tokens.json -"},
+             {$td->FILE => "weird-tokens.json", $td->EXIT_STATUS => 0},
+             $td->NORMALIZE_NEWLINES);
+$td->runtest("weird tokens with scientific notation",
+             {$td->COMMAND =>
+                  "qpdf --json-input --json-output weird-tokens-alt.json -"},
+             {$td->FILE => "weird-tokens.json", $td->EXIT_STATUS => 0},
+             $td->NORMALIZE_NEWLINES);
 
 cleanup();
 $td->report($n_tests);
