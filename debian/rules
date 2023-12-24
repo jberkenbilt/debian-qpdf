@@ -8,6 +8,12 @@
 
 export DEB_BUILD_MAINT_OPTIONS = hardening=+all
 
+COMMON_CONFIG = \
+  -DCMAKE_BUILD_RPATH_USE_ORIGIN=ON \
+  -DUSE_IMPLICIT_CRYPTO=OFF -DREQUIRE_CRYPTO_GNUTLS=ON \
+  -DSHOW_FAILED_TEST_OUTPUT=ON -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+  -DQTEST_COLOR=OFF
+
 %:
 	dh $@
 
@@ -15,11 +21,7 @@ override_dh_compress:
 	dh_compress --exclude examples/
 
 override_dh_auto_configure:
-	dh_auto_configure -- \
-          -DCMAKE_BUILD_RPATH_USE_ORIGIN=ON \
-	  -DUSE_IMPLICIT_CRYPTO=OFF -DREQUIRE_CRYPTO_GNUTLS=ON \
-	  -DSHOW_FAILED_TEST_OUTPUT=ON -DCMAKE_BUILD_TYPE=RelWithDebInfo \
-	  -DQTEST_COLOR=OFF
+	dh_auto_configure -- $(COMMON_CONFIG)
 
 override_dh_install:
 	dh_install
