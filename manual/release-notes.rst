@@ -38,6 +38,72 @@ Planned changes for future 12.x (subject to change):
 
 .. x.y.z: not yet released
 
+11.7.0: December 24, 2023
+  - Bug fixes:
+
+    - With ``--compress-streams=n``, qpdf was still compressing cross
+      reference streams, linearization hint streams, and object
+      streams. This has been fixed.
+
+    - Fix to QPDF JSON: the syntax ``"n:/pdf-syntax"`` is now accepted
+      as an alternative way to represent names. This can be used for
+      any name (e.g. ``"n:/text#2fplain"``), but it is necessary when
+      the name contains binary characters. For example, ``/one#a0two``
+      must be represented as ``"n:/one#a0two"`` since the single byte
+      ``a0`` is not valid in JSON.
+
+    - QPDF JSON will convert floating numbers that appear in the JSON
+      in scientific notation to fixed-point notation since PDF doesn't
+      accept scientific notation.
+
+    - When setting a check box value, allow any value other than
+      ``/Off`` to mean checked. This is permitted by the spec.
+      Previously, any value other than ``/Yes`` or ``/Off`` was
+      rejected.
+
+  - CLI Enhancements:
+
+    - Allow the syntax ``--encrypt --user-password=user-password
+      --owner-password=owner-password --bits={40,128,256}`` when
+      encrypting PDF files. This is an alternative to the syntax
+      ``--encrypt user-password owner-password {40,128,256}``, which
+      will continue to be supported. The new syntax works better with
+      shell completion and allows creation of passwords that start
+      with ``-``.
+
+    - :qpdf:ref:`--remove-restrictions` flag now also disables
+      digital signatures in the file.
+
+  - Build Enhancements:
+
+    - The qpdf test suite now passes when qpdf is linked with an
+      alternative ``zlib`` implementation. There are no dependencies
+      anywhere in the qpdf test suite on any particular ``zlib``
+      output. Consult the ``ZLIB COMPATIBILITY`` section of
+      ``README-maintainer.md`` for a detailed explanation of how to
+      maintain this.
+
+    - The official Windows installers now offers to modify ``PATH``
+      when installing qpdf.
+
+  - Package Enhancements:
+
+    - A UNIX man page is now automatically generated from the
+      documentation. It contains the same text as ``qpdf --help=all``.
+
+  - Library Enhancements:
+
+    - Add C++ functions ``qpdf_c_wrap`` and ``qpdf_c_get_qpdf`` to the
+      C API to enable custom C++ code to interoperate more easily with
+      the the C API. See ``examples/extend-c-api``.
+
+    - Add methods to ``Buffer`` to work more easily and efficiently
+      with ``std::string``.
+
+    - Add ``QPDFAcroFormDocumentHelper::disableDigitalSignatures``,
+      which disables any digital signature fields, leaving their
+      visual representations intact.
+
 11.6.4: December 10, 2023
   - Bug fixes:
 

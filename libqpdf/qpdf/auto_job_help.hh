@@ -37,10 +37,10 @@ description of the JSON input file format.
 )");
 ap.addHelpTopic("exit-status", "meanings of qpdf's exit codes", R"(Meaning of exit codes:
 
-0: no errors or warnings
-1: not used by qpdf but may be used by the shell if unable to invoke qpdf
-2: errors detected
-3: warnings detected, unless --warning-exit-0 is given
+- 0: no errors or warnings
+- 1: not used by qpdf but may be used by the shell if unable to invoke qpdf
+- 2: errors detected
+- 3: warnings detected, unless --warning-exit-0 is given
 )");
 ap.addOptionHelp("--warning-exit-0", "exit-status", "exit 0 even with warnings", R"(Use exit status 0 instead of 3 when warnings are present. When
 combined with --no-warn, warnings are completely ignored.
@@ -148,7 +148,7 @@ the structure without changing the content.
 )");
 ap.addOptionHelp("--linearize", "transformation", "linearize (web-optimize) output", R"(Create linearized (web-optimized) output files.
 )");
-ap.addOptionHelp("--encrypt", "transformation", "start encryption options", R"(--encrypt user-password owner-password key-length [options] --
+ap.addOptionHelp("--encrypt", "transformation", "start encryption options", R"(--encrypt [options] --
 
 Run qpdf --help=encryption for details.
 )");
@@ -158,8 +158,9 @@ present on the input file. This option overrides that behavior.
 )");
 ap.addOptionHelp("--remove-restrictions", "transformation", "remove security restrictions from input file", R"(Remove restrictions associated with digitally signed PDF files.
 This may be combined with --decrypt to allow free editing of
-previously signed/encrypted files. This option invalidates the
-signature but leaves its visual appearance intact.
+previously signed/encrypted files. This option invalidates and
+disables any digital signatures but leaves their visual
+appearances intact.
 )");
 ap.addOptionHelp("--copy-encryption", "transformation", "copy another file's encryption details", R"(--copy-encryption=file
 
@@ -394,13 +395,31 @@ ap.addOptionHelp("--remove-page-labels", "modification", "remove explicit page n
 )");
 ap.addHelpTopic("encryption", "create encrypted files", R"(Create encrypted files. Usage:
 
+--encrypt \
+  [--user-password=user-password] \
+  [--owner-password=owner-password] \
+  --bits=key-length [options] --
+
+OR
+
 --encrypt user-password owner-password key-length [options] --
 
-Either or both of user-password and owner-password may be empty
-strings, though setting either to the empty string enables the file
-to be opened and decrypted without a password. key-length may be
-40, 128, or 256. Encryption options are terminated by "--" by
-itself.
+The first form, with flags for the passwords and bit length, was
+introduced in qpdf 11.7.0. Only the --bits option is is mandatory.
+This form allows you to use any text as the password. If passwords
+are specified, they must be given before the --bits option.
+
+The second form has been in qpdf since the beginning and wil
+continue to be supported. Either or both of user-password and
+owner-password may be empty strings.
+
+The key-length parameter must be either 40, 128, or 256. The user
+and/or owner password may be omitted. Omitting either password
+enables the PDF file to be opened without a password. Specifying
+the same value for the user and owner password and specifying an
+empty owner password are both considered insecure.
+
+Encryption options are terminated by "--" by itself.
 
 40-bit encryption is insecure, as is 128-bit encryption without
 AES. Use 256-bit encryption unless you have a specific reason to
@@ -453,6 +472,22 @@ Values for modify-opt:
   annotate                 form + commenting and modifying forms
   all                      allow full document modification
 )");
+ap.addOptionHelp("--user-password", "encryption", "specify user password", R"(--user-password=user-password
+
+Set the user password of the encrypted file.
+)");
+ap.addOptionHelp("--owner-password", "encryption", "specify owner password", R"(--owner-password=owner-password
+
+Set the owner password of the encrypted file.
+)");
+}
+static void add_help_5(QPDFArgParser& ap)
+{
+ap.addOptionHelp("--bits", "encryption", "specify encryption key length", R"(--bits={48|128|256}
+
+Specify the encryption key length. For best security, always use
+a key length of 256.
+)");
 ap.addOptionHelp("--accessibility", "encryption", "restrict document accessibility", R"(--accessibility=[y|n]
 
 This option is ignored except with very old encryption formats.
@@ -467,9 +502,6 @@ and filling in form fields. For 128-bit and 256-bit encryption,
 this also enables editing, creating, and deleting form fields
 unless --modify-other=n or --modify=none is also specified.
 )");
-}
-static void add_help_5(QPDFArgParser& ap)
-{
 ap.addOptionHelp("--assemble", "encryption", "restrict document assembly", R"(--assemble=[y|n]
 
 Enable/disable document assembly (rotation and reordering of
@@ -628,6 +660,9 @@ Specify pages from the overlay/underlay that are repeated after
 "from" pages have been exhausted. See qpdf --help=page-ranges
 for help with the page range syntax.
 )");
+}
+static void add_help_6(QPDFArgParser& ap)
+{
 ap.addHelpTopic("attachments", "work with embedded files", R"(It is possible to list, add, or delete embedded files (also known
 as attachments) and to copy attachments from other files. See help
 on individual options for details. Run qpdf --help=add-attachment
@@ -645,9 +680,6 @@ The --copy-attachments-from flag and its options may be repeated
 to copy attachments from multiple files. Run
 qpdf --help=copy-attachments for details.
 )");
-}
-static void add_help_6(QPDFArgParser& ap)
-{
 ap.addOptionHelp("--remove-attachment", "attachments", "remove an embedded file", R"(--remove-attachment=key
 
 Remove an embedded file using its key. Get the key with
@@ -746,6 +778,9 @@ of the actual PDF page content or semantic correctness of the
 PDF file. It merely checks that the PDF file is syntactically
 valid. See also qpdf --help=exit-status.
 )");
+}
+static void add_help_7(QPDFArgParser& ap)
+{
 ap.addOptionHelp("--show-encryption", "inspection", "information about encrypted files", R"(Show document encryption parameters. Also show the document's
 user password if the owner password is given and the file was
 encrypted using older encryption formats that allow user
@@ -757,9 +792,6 @@ underlying encryption key to be displayed.
 ap.addOptionHelp("--check-linearization", "inspection", "check linearization tables", R"(Check to see whether a file is linearized and, if so, whether
 the linearization hint tables are correct.
 )");
-}
-static void add_help_7(QPDFArgParser& ap)
-{
 ap.addOptionHelp("--show-linearization", "inspection", "show linearization hint tables", R"(Check and display all data in the linearization hint tables.
 )");
 ap.addOptionHelp("--show-xref", "inspection", "show cross reference data", R"(Show the contents of the cross-reference table or stream (object
@@ -840,6 +872,9 @@ object number. The prefix can be overridden with
 when --json-output is specified, in which case the default is
 "inline".
 )");
+}
+static void add_help_8(QPDFArgParser& ap)
+{
 ap.addOptionHelp("--json-stream-prefix", "json", "prefix for json stream data files", R"(--json-stream-prefix=file-prefix
 
 When used with --json-stream-data=file, --json-stream-data=file-prefix
@@ -860,9 +895,6 @@ ap.addOptionHelp("--json-input", "json", "input file is qpdf JSON", R"(Treat the
 "qpdf JSON Format" section of the manual for information about
 how to use this option.
 )");
-}
-static void add_help_8(QPDFArgParser& ap)
-{
 ap.addOptionHelp("--update-from-json", "json", "update a PDF from qpdf JSON", R"(--update-from-json=qpdf-json-file
 
 Update a PDF file from a JSON file. Please see the "qpdf JSON"

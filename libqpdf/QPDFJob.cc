@@ -2127,7 +2127,8 @@ QPDFJob::handleTransformations(QPDF& pdf)
         }
     };
     if (m->remove_restrictions) {
-        pdf.removeSecurityRestrictions();
+        make_afdh();
+        afdh->disableDigitalSignatures();
     }
     if (m->externalize_inline_images || (m->optimize_images && (!m->keep_inline_images))) {
         for (auto& ph: dh.getAllPages()) {
@@ -3018,10 +3019,9 @@ QPDFJob::writeOutfile(QPDF& pdf)
             try {
                 QUtil::remove_file(backup.c_str());
             } catch (QPDFSystemError& e) {
-                *m->log->getError()
-                    << m->message_prefix << ": unable to delete original file (" << e.what() << ");"
-                    << " original file left in " << backup
-                    << ", but the input was successfully replaced\n";
+                *m->log->getError() << m->message_prefix << ": unable to delete original file ("
+                                    << e.what() << ");" << " original file left in " << backup
+                                    << ", but the input was successfully replaced\n";
             }
         }
     }

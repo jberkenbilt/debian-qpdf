@@ -416,6 +416,29 @@ QPDFAcroFormDocumentHelper::generateAppearancesIfNeeded()
 }
 
 void
+QPDFAcroFormDocumentHelper::disableDigitalSignatures()
+{
+    qpdf.removeSecurityRestrictions();
+    std::set<QPDFObjGen> to_remove;
+    auto fields = getFormFields();
+    for (auto& f: fields) {
+        auto ft = f.getFieldType();
+        if (ft == "/Sig") {
+            auto oh = f.getObjectHandle();
+            to_remove.insert(oh.getObjGen());
+            // Make this no longer a form field. If it's also an annotation, the annotation will
+            // survive. If it's only a field and is no longer referenced, it will disappear.
+            oh.removeKey("/FT");
+            // Remove fields that are specific to signature fields.
+            oh.removeKey("/V");
+            oh.removeKey("/SV");
+            oh.removeKey("/Lock");
+        }
+    }
+    removeFormFields(to_remove);
+}
+
+void
 QPDFAcroFormDocumentHelper::adjustInheritedFields(
     QPDFObjectHandle obj,
     bool override_da,
@@ -584,8 +607,7 @@ QPDFAcroFormDocumentHelper::adjustDefaultAppearances(
     ResourceReplacer rr(dr_map, rf.getNamesByResourceType());
     Pl_Buffer buf_pl("filtered DA");
     da_stream.filterAsContents(&rr, &buf_pl);
-    auto buf = buf_pl.getBufferSharedPointer();
-    std::string new_da(reinterpret_cast<char*>(buf->getBuffer()), buf->getSize());
+    std::string new_da = buf_pl.getString();
     obj.replaceKey("/DA", QPDFObjectHandle::newString(new_da));
 }
 

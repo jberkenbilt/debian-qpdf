@@ -1579,10 +1579,7 @@ QPDFWriter::unparseObject(
                     m->cur_data_key.length());
                 pl.writeString(val);
                 pl.finish();
-                auto buf = bufpl.getBufferSharedPointer();
-                val = QPDF_String(
-                          std::string(reinterpret_cast<char*>(buf->getBuffer()), buf->getSize()))
-                          .unparse(true);
+                val = QPDF_String(bufpl.getString()).unparse(true);
             } else {
                 auto tmp_ph = QUtil::make_unique_cstr(val);
                 char* tmp = tmp_ph.get();
@@ -1661,8 +1658,7 @@ QPDFWriter::writeObjectStream(QPDFObjectHandle object)
 
             // Set up a stream to write the stream data into a buffer.
             Pipeline* next = pushPipeline(new Pl_Buffer("object stream"));
-            if ((m->compress_streams || (m->stream_decode_level == qpdf_dl_none)) &&
-                (!m->qdf_mode)) {
+            if (m->compress_streams && !m->qdf_mode) {
                 compressed = true;
                 next =
                     pushPipeline(new Pl_Flate("compress object stream", next, Pl_Flate::a_deflate));
@@ -2293,15 +2289,20 @@ QPDFWriter::writeHintStream(int hint_id)
     std::shared_ptr<Buffer> hint_buffer;
     int S = 0;
     int O = 0;
+    bool compressed = (m->compress_streams && !m->qdf_mode);
     QPDF::Writer::generateHintStream(
-        m->pdf, m->xref, m->lengths, m->obj_renumber_no_gen, hint_buffer, S, O);
+        m->pdf, m->xref, m->lengths, m->obj_renumber_no_gen, hint_buffer, S, O, compressed);
 
     openObject(hint_id);
     setDataKey(hint_id);
 
     size_t hlen = hint_buffer->getSize();
 
-    writeString("<< /Filter /FlateDecode /S ");
+    writeString("<< ");
+    if (compressed) {
+        writeString("/Filter /FlateDecode ");
+    }
+    writeString("/S ");
     writeString(std::to_string(S));
     if (O) {
         writeString(" /O ");
@@ -2420,7 +2421,7 @@ QPDFWriter::writeXRefStream(
 
     Pipeline* p = pushPipeline(new Pl_Buffer("xref stream"));
     bool compressed = false;
-    if ((m->compress_streams || (m->stream_decode_level == qpdf_dl_none)) && (!m->qdf_mode)) {
+    if (m->compress_streams && !m->qdf_mode) {
         compressed = true;
         if (!skip_compression) {
             // Write the stream dictionary for compression but don't actually compress.  This helps
