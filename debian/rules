@@ -13,7 +13,13 @@ COMMON_CONFIG = \
   -DUSE_IMPLICIT_CRYPTO=OFF -DREQUIRE_CRYPTO_GNUTLS=ON \
   -DSHOW_FAILED_TEST_OUTPUT=ON -DCMAKE_BUILD_TYPE=RelWithDebInfo \
   -DQTEST_COLOR=OFF
-DOC_CONFIG = -DBUILD_DOC=ON -DINSTALL_MANUAL=ON
+
+SPHINX_VERSION != sphinx-build --version 2>/dev/null
+ifeq ($(.SHELLSTATUS), 0)
+  DOC_CONFIG = -DBUILD_DOC=ON -DINSTALL_MANUAL=ON
+else
+  DOC_CONFIG =
+endif
 
 %:
 	dh $@
@@ -21,18 +27,21 @@ DOC_CONFIG = -DBUILD_DOC=ON -DINSTALL_MANUAL=ON
 override_dh_compress:
 	dh_compress --exclude examples/ --exclude qpdf-manual.pdf
 
-override_dh_auto_configure-arch:
-	dh_auto_configure -- $(COMMON_CONFIG)
-
-override_dh_auto_configure-indep:
+override_dh_auto_configure:
 	dh_auto_configure -- $(COMMON_CONFIG) $(DOC_CONFIG)
 
-execute_after_dh_installdocs-indep:
-	dh_sphinxdoc
+# This target is not run for arch only builds
+execute_after_dh_auto_configure-indep:
+	if test "$(SPHINX_VERSION)" = ""; then \
+	    echo '*** sphinx is missing ***'; \
+	fi
 
 override_dh_install:
 	rm -rf debian/tmp/usr/share/doc/qpdf/manual-single-page-html
 	dh_install
+	if test "$(SPHINX_VERSION)" != ""; then \
+	    dh_sphinxdoc; \
+	fi
 	mkdir -p debian/qpdf/usr/share/doc/qpdf
 	(echo 'Complete documentation for qpdf can be found in the qpdf-doc package or'; \
 	 echo 'online at https://qpdf.readthedocs.io') \
