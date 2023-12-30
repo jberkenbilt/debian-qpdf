@@ -3,4 +3,4 @@ debian/tmp/usr/lib/*/lib*.a
 debian/tmp/usr/lib/*/pkgconfig/*.pc
 debian/tmp/usr/lib/*/cmake/qpdf/*.cmake
 debian/tmp/usr/include
-debian/tmp/usr/share/doc/qpdf/examples
+debian/tmp/usr/share/doc/libqpdf-dev
