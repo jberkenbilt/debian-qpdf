@@ -1,2 +1,5 @@
 debian/tmp/usr/bin
 debian/tmp/usr/share/man/man1
+debian/tmp/usr/share/doc/qpdf/README-doc.txt
+debian/tmp/usr/share/bash-completion/completions
+debian/tmp/usr/share/zsh/vendor-completions
