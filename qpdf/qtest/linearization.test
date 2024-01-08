@@ -39,7 +39,8 @@ my @to_linearize =
      'lin-delete-and-reuse',    # linearized, then delete and reuse
      'object-stream',           # contains object streams
      'hybrid-xref',             # contains both xref tables and streams
-     'gen1',                    # has objects with generation > 0
+     'gen1',                    # has objects with generation > 0 and dangling references
+     'gen1-no-dangling',        # has objects with generation > 0
      'direct-outlines',         # /Outlines is a direct object
      @linearized_files,         # we should be able to relinearize
      );
@@ -89,12 +90,12 @@ foreach my $base (@to_linearize)
         {
             $sdarg = "--stream-data=uncompress";
         }
+        unlink "a.pdf", "b.pdf", "c.pdf";
         $td->runtest("linearize $base ($omode)",
                      {$td->COMMAND =>
                           "qpdf -linearize $oarg $sdarg" .
                           " --static-id $base.pdf a.pdf"},
-                     {$td->STRING => "",
-                      $td->EXIT_STATUS => 0});
+                     {$td->STRING => "", $td->EXIT_STATUS => 0});
         $td->runtest("check linearization",
                      {$td->COMMAND => "qpdf --check-linearization a.pdf"},
                      {$td->STRING => "a.pdf: no linearization errors\n",
@@ -110,13 +111,11 @@ foreach my $base (@to_linearize)
         $td->runtest("relinearize $base 1",
                      {$td->COMMAND =>
                           "qpdf -linearize $sdarg --static-id a.pdf b.pdf"},
-                     {$td->STRING => "",
-                      $td->EXIT_STATUS => 0});
+                     {$td->STRING => "", $td->EXIT_STATUS => 0});
         $td->runtest("relinearize $base 2",
                      {$td->COMMAND =>
                           "qpdf -linearize $sdarg --static-id b.pdf c.pdf"},
-                     {$td->STRING => "",
-                      $td->EXIT_STATUS => 0});
+                     {$td->STRING => "", $td->EXIT_STATUS => 0});
         $td->runtest("compare files ($omode)",
                      {$td->FILE => "b.pdf"},
                      {$td->FILE => "c.pdf"});

@@ -1274,12 +1274,19 @@ Page Ranges
 .. help-topic page-ranges: page range syntax
 
    A full description of the page range syntax, with examples, can be
-   found in the manual. Summary:
+   found in the manual. In summary, a range is a comma-separated list
+   of groups. A group is a number or a range of numbers separated by a
+   dash. A group may be prepended by x to exclude its members from the
+   previous group. A number may be one of
 
-   - a,b,c    pages a, b, and c
-   - a-b      pages a through b inclusive; if a > b, this counts down
-   - r<n>     where <n> represents a number is the <n>th page from the end
-   - z        the last page, same as r1
+   - <n>        where <n> represents a number is the <n>th page
+   - r<n>       is the <n>th page from the end
+   - z          the last page, same as r1
+
+   - a,b,c      pages a, b, and c
+   - a-b        pages a through b inclusive; if a > b, this counts down
+   - a-b,xc     pages a through b except page c
+   - a-b,xc-d   pages a through b except pages c through d
 
    You can append :even or :odd to select every other page from the
    resulting set of pages, where :odd starts with the first page and
@@ -1302,6 +1309,10 @@ section describes the syntax of a page range.
 - Two page numbers separated by dashes represents the inclusive range
   of pages from the first to the second. If the first number is higher
   than the second number, it is the range of pages in reverse.
+
+- A number or dash-separated range of numbers may be prepended with
+  ``x`` (from qpdf 11.7.1). This means to exclude the pages in that
+  range from the previous range that didn't start with ``x``.
 
 - The range may be appended with ``:odd`` or ``:even`` to select only
   pages from the resulting range in odd or even positions. In this
@@ -1350,6 +1361,16 @@ section describes the syntax of a page range.
      - pages 7 and 9, which are the pages in even positions from the
        original set of 5, 7, 8, 9, 12
 
+   - - ``1-10,x3-4``
+     - pages 1 through 10 except pages 3 and 4 (1, 2, and 5
+       through 10)
+
+   - - ``4-10,x7-9,12-8,xr5``
+     - In a 15-page file, this is 4, 5, 6, 10, 12, 10, 9, and 8 in
+       that order. That is pages 4 through 10 except 7 through 9
+       followed by 12 through 8 descending except 11 (the fifth page
+       from the end)
+
 .. _modification-options:
 
 PDF Modification
@@ -1382,18 +1403,21 @@ Related Options
    See also :qpdf:ref:`--split-pages`, :qpdf:ref:`--collate`,
    :ref:`page-ranges`.
 
-.. qpdf:option:: --collate[=n]
+.. qpdf:option:: --collate[=n[,m,...]]
 
    .. help: collate with --pages
 
       Collate rather than concatenate pages specified with --pages.
       With a numeric parameter, collate in groups of n. The default
-      is 1. Run qpdf --help=page-selection for additional details.
+      is 1. With comma-separated numeric parameters, take n from the
+      first file, m from the second, etc. Run
+      qpdf --help=page-selection for additional details.
 
    This option causes :command:`qpdf` to collate rather than
    concatenate pages specified with :qpdf:ref:`--pages`. With a
    numeric parameter, collate in groups of :samp:`{n}`. The default
-   is 1.
+   is 1. With comma-separated numeric parameters, take :samp:`{n}`
+   from the first file, :samp:`{m}` from the second, etc.
 
    Please see :ref:`page-selection` for additional details.
 
@@ -1724,6 +1748,116 @@ Related Options
       Exclude page labels (explicit page numbers) from the output file.
 
    Exclude page labels (explicit page numbers) from the output file.
+   See also :qpdf:ref:`--set-page-labels`.
+
+.. qpdf:option:: --set-page-labels label-spec ... --
+
+   .. help: number pages for the entire document
+
+      Set page labels (explicit page numbers) for the entire file.
+      Each label-spec has the form
+
+      first-page:[type][/start[/prefix]]
+
+      where
+
+      - "first-page" represents a sequential page number using the
+        same format as page ranges: a number, a number preceded by "r"
+        to indicate counting from the end, or "z" indicating the last
+        page
+      - "type" is one of
+        - D: Arabic numerals (digits)
+        - A: Upper-case alphabetic characters
+        - a: Lower-case alphabetic characters
+        - R: Upper-case Roman numerals
+        - r: Lower-case Roman numerals
+        - omitted: the page number does not appear, though the prefix,
+          if specified will still appear
+      - "prefix"` may be any string and is prepended to each page
+        label
+
+      A given page label spec causes pages to be numbered according to
+      that scheme starting with first-page and continuing until the
+      next label spec or the end of the document. If you want to omit
+      numbering starting at a certain page, you can use first-page: as
+      the spec.
+
+      Example: "1:r 5:D" would number the first four pages i through
+      iv, then the remaining pages with Arabic numerals starting with
+      1 and continuing sequentially until the end of the document. For
+      additional examples, please consult the manual.
+
+   Set page labels (explicit page numbers) for the entire file. A PDF
+   file's pages can be explicitly numbered using page labels. Page
+   labels in a PDF file have an optional type (Arabic numerals,
+   upper/lower-case alphabetic characters, upper/lower-case Roman
+   numerals), an optional prefix, and an optional starting value,
+   which defaults to 1. A qpdf page label spec has the form
+
+   :samp:`{first-page}:[{type}][/{start}[/{prefix}]]`
+
+   where
+
+   - :samp:`{first-page}` represents a sequential page number using
+     the same format as page ranges (see :ref:`page-ranges`): a
+     number, a number preceded by ``r`` to indicate counting from the
+     end, or ``z`` indicating the last page
+
+   - :samp:`{type}` may be one of
+
+     - ``D``: Arabic numerals (digits)
+
+     - ``A``: Upper-case alphabetic characters
+
+     - ``a``: Lower-case alphabetic characters
+
+     - ``R``: Upper-case Roman numerals
+
+     - ``r``: Lower-case Roman numerals
+
+     - omitted: the page number does not appear, though the prefix, if
+       specified will still appear
+
+   - :samp:`{prefix}` may be any string and is prepended to each page
+     label
+
+   A given page label spec causes pages to be numbered according to
+   that scheme starting with :samp:`{first-page}` and continuing until
+   the next label spec or the end of the document. If you want to omit
+   numbering starting at a certain page, you can use
+   :samp:`{first-page}:` as the spec.
+
+   Here are some example page labeling schemes. First these examples,
+   assume a 50-page document.
+
+   - ``1:a 5:D``
+
+     - The first four pages will be numbered ``a`` through ``d``, then
+       the remaining pages will numbered ``1`` through ``46``.
+
+   - ``1:r 5:D 12: 14:D/10 r5:D//A- z://"end note"``:
+
+     - The first four pages are numbered ``i`` through ``iv``
+
+     - The 5th page is numbered ``1``, and pages are numbered
+       sequentially through the 11th page, which will be numbered
+       ``7``
+
+     - The 12th and 13th pages will not have labels
+
+     - The 14th page is numbered ``10``. Pages will be numbered
+       sequentially up through the 45th page, which will be numbered
+       ``41``
+
+     - Starting with the 46th page (the fifth to last page) and going
+       to the 49th page, pages will be labeled ``A-1`` through ``A-4``
+
+     - The 50th page (the last page) will be labeled ``end note``.
+
+   The limitations on the range of formats for page labels are as
+   specified in Section 12.4.2 of the PDF spec, ISO 32000.
+
+   See also :qpdf:ref:`--remove-page-labels`.
 
 .. _encryption-options:
 
@@ -2314,6 +2448,8 @@ Page Selection
 
    Use --collate=n to cause pages to be collated in groups of n pages
    (default 1) instead of concatenating the input.
+   Use --collate=i,j,k,... to take i from the first, then j from the
+   second, then k from the third, then i from the first, etc.
 
    Examples:
 
@@ -2362,9 +2498,13 @@ Notes:
 See :ref:`page-ranges` for help on specifying a page range.
 
 Use :samp:`--collate={n}` to cause pages to be collated in groups of
-:samp:`{n}` pages (default 1) instead of concatenating the input. Note
-that the :qpdf:ref:`--collate` appears outside of ``--pages ... --``
-(before ``--pages`` or after ``--``). Pages are pulled from each
+:samp:`{n}` pages (default 1) instead of concatenating the input. Use
+:samp:`--collate={i},{j},{k},...` to take :samp:`{i}` from the first,
+then :samp:`{j}` from the second, then :samp:`{k}` from the third,
+then :samp:`{i}` from the first, etc.
+
+Note that the :qpdf:ref:`--collate` appears outside of ``--pages ...
+--`` (before ``--pages`` or after ``--``). Pages are pulled from each
 document in turn. When a document is out of pages, it is skipped. See
 examples below.
 
@@ -2459,6 +2599,34 @@ Examples
   - b.pdf page 4
 
   - a.pdf page 5
+
+- You can specify a multiple numeric parameters to :qpdf:ref:`--collate`. With
+  :samp:`--collate={i,j,k}`, pull groups of :samp:`{i}` pages from the
+  first file, then :samp:`{j}` from the second, then :samp:`{k}` from
+  the third, repeating. The number of parameters must equal the number
+  of groups. For example, if you ran
+
+  ::
+
+     qpdf --collate=2,1,3 --empty --pages a.pdf 1-5 b.pdf 6-4 c.pdf r1-r4 -- out.pdf
+
+  you would get the following pages in this order:
+
+  - a.pdf pages 1 and 2
+
+  - b.pdf page 6
+
+  - c.pdf last three pages in reverse order
+
+  - a.pdf pages 3 and 4
+
+  - b.pdf page 5
+
+  - c.pdf fourth to last page
+
+  - a.pdf page 5
+
+  - b.pdf page 4
 
 - Take pages 1 through 5 from :file:`file1.pdf` and pages 11 through
   15 in reverse from :file:`file2.pdf`, taking document-level metadata
@@ -2630,9 +2798,6 @@ they are exhausted, after which any pages specified with
 :qpdf:ref:`--repeat` are used. If you are using the
 :qpdf:ref:`--repeat` option, you can use ``--from=`` to provide an
 empty set of "from" pages.
-
-This Can be left empty by omitting
-:samp:`{page-range}` 
 
 .. qpdf:option:: --repeat=page-range
 

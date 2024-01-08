@@ -1,10 +1,6 @@
 #include <qpdf/QPDFJob.hh>
 
-#include <cctype>
-#include <cstdio>
-#include <cstdlib>
 #include <cstring>
-#include <fcntl.h>
 #include <iostream>
 #include <memory>
 
@@ -14,13 +10,11 @@
 #include <qpdf/Pl_DCT.hh>
 #include <qpdf/Pl_Discard.hh>
 #include <qpdf/Pl_Flate.hh>
-#include <qpdf/Pl_OStream.hh>
 #include <qpdf/Pl_StdioFile.hh>
 #include <qpdf/Pl_String.hh>
 #include <qpdf/QIntC.hh>
 #include <qpdf/QPDF.hh>
 #include <qpdf/QPDFAcroFormDocumentHelper.hh>
-#include <qpdf/QPDFArgParser.hh>
 #include <qpdf/QPDFCryptoProvider.hh>
 #include <qpdf/QPDFEmbeddedFileDocumentHelper.hh>
 #include <qpdf/QPDFExc.hh>
@@ -2178,6 +2172,37 @@ QPDFJob::handleTransformations(QPDF& pdf)
     if (m->remove_page_labels) {
         pdf.getRoot().removeKey("/PageLabels");
     }
+    if (!m->page_label_specs.empty()) {
+        auto nums = QPDFObjectHandle::newArray();
+        auto n_pages = QIntC::to_int(dh.getAllPages().size());
+        int last_page_seen{0};
+        for (auto& spec: m->page_label_specs) {
+            if (spec.first_page < 0) {
+                spec.first_page = n_pages + 1 + spec.first_page;
+            }
+            if (last_page_seen == 0) {
+                if (spec.first_page != 1) {
+                    throw std::runtime_error(
+                        "the first page label specification must start with page 1");
+                }
+            } else if (spec.first_page <= last_page_seen) {
+                throw std::runtime_error(
+                    "page label specifications must be in order by first page");
+            }
+            if (spec.first_page > n_pages) {
+                throw std::runtime_error(
+                    "page label spec: page " + std::to_string(spec.first_page) +
+                    " is more than the total number of pages (" + std::to_string(n_pages) + ")");
+            }
+            last_page_seen = spec.first_page;
+            nums.appendItem(QPDFObjectHandle::newInteger(spec.first_page - 1));
+            nums.appendItem(QPDFPageLabelDocumentHelper::pageLabelDict(
+                spec.label_type, spec.start_num, spec.prefix));
+        }
+        auto page_labels = QPDFObjectHandle::newDictionary();
+        page_labels.replaceKey("/Nums", nums);
+        pdf.getRoot().replaceKey("/PageLabels", page_labels);
+    }
     if (!m->attachments_to_remove.empty()) {
         QPDFEmbeddedFileDocumentHelper efdh(pdf);
         for (auto const& key: m->attachments_to_remove) {
@@ -2419,26 +2444,32 @@ QPDFJob::handlePageSpecs(QPDF& pdf, std::vector<std::unique_ptr<QPDF>>& page_hea
         dh.removePage(page);
     }
 
-    if (m->collate && (parsed_specs.size() > 1)) {
+    auto n_collate = m->collate.size();
+    auto n_specs = parsed_specs.size();
+    if (n_collate > 0 && n_specs > 1) {
         // Collate the pages by selecting one page from each spec in order. When a spec runs out of
         // pages, stop selecting from it.
         std::vector<QPDFPageData> new_parsed_specs;
-        size_t nspecs = parsed_specs.size();
-        size_t cur_page = 0;
+        // Make sure we have a collate value for each spec. We have already checked that a non-empty
+        // collate has either one value or one value per spec.
+        for (auto i = n_collate; i < n_specs; ++i) {
+            m->collate.push_back(m->collate.at(0));
+        }
+        std::vector<size_t> cur_page(n_specs, 0);
         bool got_pages = true;
         while (got_pages) {
             got_pages = false;
-            for (size_t i = 0; i < nspecs; ++i) {
+            for (size_t i = 0; i < n_specs; ++i) {
                 QPDFPageData& page_data = parsed_specs.at(i);
-                for (size_t j = 0; j < m->collate; ++j) {
-                    if (cur_page + j < page_data.selected_pages.size()) {
+                for (size_t j = 0; j < m->collate.at(i); ++j) {
+                    if (cur_page.at(i) + j < page_data.selected_pages.size()) {
                         got_pages = true;
                         new_parsed_specs.emplace_back(
-                            page_data, page_data.selected_pages.at(cur_page + j));
+                            page_data, page_data.selected_pages.at(cur_page.at(i) + j));
                     }
                 }
+                cur_page.at(i) += m->collate.at(i);
             }
-            cur_page += m->collate;
         }
         parsed_specs = new_parsed_specs;
     }
@@ -2661,7 +2692,7 @@ QPDFJob::maybeFixWritePassword(int R, std::string& password)
 }
 
 void
-QPDFJob::setEncryptionOptions(QPDF& pdf, QPDFWriter& w)
+QPDFJob::setEncryptionOptions(QPDFWriter& w)
 {
     int R = 0;
     if (m->keylen == 40) {
@@ -2782,7 +2813,7 @@ parse_version(std::string const& full_version_string, std::string& version, int&
 }
 
 void
-QPDFJob::setWriterOptions(QPDF& pdf, QPDFWriter& w)
+QPDFJob::setWriterOptions(QPDFWriter& w)
 {
     if (m->compression_level >= 0) {
         Pl_Flate::setCompressionLevel(m->compression_level);
@@ -2837,7 +2868,7 @@ QPDFJob::setWriterOptions(QPDF& pdf, QPDFWriter& w)
         w.copyEncryptionParameters(*encryption_pdf);
     }
     if (m->encrypt) {
-        setEncryptionOptions(pdf, w);
+        setEncryptionOptions(w);
     }
     if (m->linearize) {
         w.setLinearization(true);
@@ -2956,7 +2987,7 @@ QPDFJob::doSplitPages(QPDF& pdf)
             throw std::runtime_error("split pages would overwrite input file with " + outfile);
         }
         QPDFWriter w(outpdf, outfile.c_str());
-        setWriterOptions(outpdf, w);
+        setWriterOptions(w);
         w.write();
         doIfVerbose([&](Pipeline& v, std::string const& prefix) {
             v << prefix << ": wrote file " << outfile << "\n";
@@ -2991,7 +3022,7 @@ QPDFJob::writeOutfile(QPDF& pdf)
             m->log->saveToStandardOutput(true);
             w.setOutputPipeline(m->log->getSave().get());
         }
-        setWriterOptions(pdf, w);
+        setWriterOptions(w);
         w.write();
     }
     if (m->outfilename) {

@@ -1,3 +1,46 @@
+2024-01-08  Jay Berkenbilt  <ejb@ql.org>
+
+	* 11.8.0: release
+
+2024-01-07  Jay Berkenbilt  <ejb@ql.org>
+
+	* Bug fix: treat references to older generations of objects as
+	null.
+
+2024-01-06  Jay Berkenbilt  <ejb@ql.org>
+
+	* When recovering a file's xref table, attempt to find xref
+	streams if a traditional trailer dictionary is not found. Fixes
+	#1103.
+
+2024-01-05  Jay Berkenbilt  <ejb@ql.org>
+
+	* Add --set-page-labels command-line argument and supporting API.
+	Fixes #939.
+	  - QPDFJob::Config::setPageLabels
+	  - pdf_page_label_e enumerated type
+	  - QPDFPageLabelDocumentHelper::pageLabelDict
+
+2024-01-01  Jay Berkenbilt  <ejb@ql.org>
+
+	* Support comma-separated numeric values with --collate to select
+	different group sizes from different files. Fixes #505.
+
+	* Support "x" before a group in a numeric range to exclude a group
+	from the previous group. Details are in the manual. Fixes #564,
+	#790.
+
+2023-12-29  Jay Berkenbilt  <ejb@ql.org>
+
+	* When flattening annotations, preserve annotations without any
+	appearance information at all, such as types /Link, /Popup, and
+	/Projection. Fixes #1039.
+
+2023-12-25  Jay Berkenbilt  <ejb@ql.org>
+
+	* Detect overlong UTF-8 in the UTF-8 decoder, and fix detection of
+	8-bit characters in erroneous UTF-8 strings.
+
 2023-12-24  Jay Berkenbilt  <ejb@ql.org>
 
 	* 11.7.0: release

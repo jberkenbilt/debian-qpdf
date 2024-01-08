@@ -38,6 +38,40 @@ Planned changes for future 12.x (subject to change):
 
 .. x.y.z: not yet released
 
+11.8.0: January 8, 2024
+  - Bug fixes:
+
+    - When flattening annotations, preserve hyperlinks and other
+      annotations that inherently have no appearance information.
+
+  - CLI Enhancements
+
+    - Introduce ``x`` in the numeric range syntax to allow exclusion
+      of pages within a page range. See :ref:`page-ranges` for
+      details.
+
+    - Support comma-separated numeric values with
+      :qpdf:ref:`--collate` to select different numbers of pages from
+      different groups.
+
+    - Add :qpdf:ref:`--set-page-labels` option to completely override
+      page labels in the output.
+
+  - Library Enhancements
+
+    - Add API to support :qpdf:ref:`--set-page-labels`:
+
+      - ``QPDFJob::Config::setPageLabels``
+
+      - ``pdf_page_label_e`` enumerated type
+
+      - ``QPDFPageLabelDocumentHelper::pageLabelDict``
+
+    - Improve file recovery logic to better handle files with
+      cross-reference streams. This should enable qpdf to recover some
+      files that it would previously have reported "unable to find
+      trailer dictionary."
+
 11.7.0: December 24, 2023
   - Bug fixes:
 
