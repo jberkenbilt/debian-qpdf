@@ -1,3 +1,9 @@
+qpdf (11.8.0-1) unstable; urgency=medium
+
+  * New upstream release.
+
+ -- Jay Berkenbilt <qjb@debian.org>  Mon, 08 Jan 2024 12:48:05 -0500
+
 qpdf (11.7.0-4) unstable; urgency=medium
 
   * Fix debian/rules to correctly support arch=all build
