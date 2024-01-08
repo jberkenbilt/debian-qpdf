@@ -1,4 +1,4 @@
-// Copyright (c) 2005-2023 Jay Berkenbilt
+// Copyright (c) 2005-2024 Jay Berkenbilt
 //
 // This file is part of qpdf.
 //
@@ -1038,6 +1038,7 @@ class QPDF
     QPDFObjectHandle makeIndirectFromQPDFObject(std::shared_ptr<QPDFObject> const& obj);
     bool isCached(QPDFObjGen const& og);
     bool isUnresolved(QPDFObjGen const& og);
+    void removeObject(QPDFObjGen og);
     void updateCache(
         QPDFObjGen const& og,
         std::shared_ptr<QPDFObject> const& object,

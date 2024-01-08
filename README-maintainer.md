@@ -377,7 +377,8 @@ Quick reminder:
   argument
 * Add an entry to the bottom half of job.yml for the job JSON field
 * Add documentation for the new option to cli.rst
-* Implement the QPDFJob::Config method in QPDFJob_config.cc.
+* Implement the QPDFJob::Config method in QPDFJob_config.cc
+* Adding new options tables is harder -- see below
 
 QPDFJob is documented in three places:
 
@@ -405,6 +406,12 @@ the appropriate Config method, which you then have to implement. If
 you need a manual handler, you have to declare the option as manual in
 job.yml and implement the handler yourself, though the automatically
 generated code will declare it for you.
+
+Adding a new option table is a bit harder and is not well-documented.
+For a simple example, look at the code that added the
+--set-page-labels table. That change was divided into two commits (one
+for the manual changes, and one for the generated changes) to make it
+easier to use as an example.
 
 The build will fail until the new option is documented in
 manual/cli.rst. To do that, create documentation for the option by
@@ -439,7 +446,7 @@ When done, the following should happen:
   * debian package -- search for copyright.*berkenbilt in debian/copyright
   * qtest-driver, TestDriver.pm in qtest source
 
-  Copyright last updated: 2023.
+  Copyright last updated: 2024.
 
 * Take a look at "External Libraries" in TODO to see if we need to
   make any changes. There is still some automation work left to do, so
@@ -499,7 +506,6 @@ When done, the following should happen:
   * Make sure version numbers are consistent in the following locations:
     * CMakeLists.txt
     * include/qpdf/DLL.h
-    * manual/conf.py
 
   `make_dist` verifies this consistency, and CI fails if they are
   inconsistent.
@@ -615,7 +621,7 @@ done
 If needed, go onto github and make any manual updates such as
 indicating a pre-release, adding release notes, etc.
 
-Template for release notes:
+Template for release notes.
 
 ```
 This is qpdf version x.y.z. (Brief description)
@@ -638,7 +644,8 @@ rsync -vrlcO ./ jay_berkenbilt,qpdf@frs.sourceforge.net:/home/frs/project/q/qp/q
 * On sourceforge, make the source package the default for all but
   Windows, and make the 64-bit msvc build the default for Windows.
 
-* Publish a news item manually on sourceforge.
+* Publish a news item manually on sourceforge using the release notes text. Remove the relative link
+  to README-what-to-download.md (just reference the file by name)
 
 * Upload the debian package and Ubuntu ppa backports.
 
