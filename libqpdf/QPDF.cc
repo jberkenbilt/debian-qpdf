@@ -709,10 +709,12 @@ QPDF::read_xref(qpdf_offset_t xref_offset)
 
     // Make sure we keep only the highest generation for any object.
     QPDFObjGen last_og{-1, 0};
-    for (auto const& og: m->xref_table) {
-        if (og.first.getObj() == last_og.getObj())
+    for (auto const& item: m->xref_table) {
+        auto id = item.first.getObj();
+        if (id == last_og.getObj() && id > 0) {
             removeObject(last_og);
-        last_og = og.first;
+        }
+        last_og = item.first;
     }
 }
 
@@ -1194,6 +1196,10 @@ QPDF::insertFreeXrefEntry(QPDFObjGen og)
 void
 QPDF::insertReconstructedXrefEntry(int obj, qpdf_offset_t f1, int f2)
 {
+    if (!(obj > 0 && 0 <= f2 && f2 < 65535)) {
+        QTC::TC("qpdf", "QPDF xref overwrite invalid objgen");
+        return;
+    }
     QPDFObjGen og(obj, f2);
     if (!m->deleted_objects.count(obj)) {
         // deleted_objects stores the uncompressed objects removed from the xref table at the start
@@ -2405,12 +2411,13 @@ QPDF::getCompressibleObjGens()
     while (!queue.empty()) {
         auto obj = queue.back();
         queue.pop_back();
-        if (obj.isIndirect()) {
+        if (obj.getObjectID() > 0) {
             QPDFObjGen og = obj.getObjGen();
             const size_t id = toS(og.getObj() - 1);
-            if (id >= max_obj)
+            if (id >= max_obj) {
                 throw std::logic_error(
                     "unexpected object id encountered in getCompressibleObjGens");
+            }
             if (visited[id]) {
                 QTC::TC("qpdf", "QPDF loop detected traversing objects");
                 continue;

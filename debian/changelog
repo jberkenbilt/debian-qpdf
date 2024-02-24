@@ -1,3 +1,20 @@
+qpdf (11.9.0-2~exp1) experimental; urgency=medium
+
+  [ Sergio Durigan Junior ]
+  * Rename libraries for 64-bit time_t transition.
+
+  [ Jay Berkenbilt ]
+  * Prepare release to experimental based on Sergio Durigan Junior's
+    previous NMU and new upstream qpdf release.
+
+ -- Jay Berkenbilt <qjb@debian.org>  Sat, 24 Feb 2024 17:26:40 -0500
+
+qpdf (11.9.0-1) unstable; urgency=medium
+
+  * New upstream release.
+
+ -- Jay Berkenbilt <qjb@debian.org>  Sat, 24 Feb 2024 16:31:27 -0500
+
 qpdf (11.8.0-1.1) experimental; urgency=medium
 
   * Non-maintainer upload.

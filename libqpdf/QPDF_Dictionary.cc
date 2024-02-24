@@ -1,8 +1,10 @@
 #include <qpdf/QPDF_Dictionary.hh>
 
+#include <qpdf/JSON_writer.hh>
 #include <qpdf/QPDFObject_private.hh>
 #include <qpdf/QPDF_Name.hh>
 #include <qpdf/QPDF_Null.hh>
+#include <qpdf/QUtil.hh>
 
 using namespace std::literals;
 
@@ -66,18 +68,30 @@ QPDF_Dictionary::unparse()
     return result;
 }
 
-JSON
-QPDF_Dictionary::getJSON(int json_version)
+void
+QPDF_Dictionary::writeJSON(int json_version, JSON::Writer& p)
 {
-    JSON j = JSON::makeDictionary();
+    p.writeStart('{');
     for (auto& iter: this->items) {
         if (!iter.second.isNull()) {
-            std::string key =
-                (json_version == 1 ? QPDF_Name::normalizeName(iter.first) : iter.first);
-            j.addDictionaryMember(key, iter.second.getJSON(json_version));
+            p.writeNext();
+            if (json_version == 1) {
+                p << "\"" << JSON::Writer::encode_string(QPDF_Name::normalizeName(iter.first))
+                  << "\": ";
+            } else if (auto res = QPDF_Name::analyzeJSONEncoding(iter.first); res.first) {
+                if (res.second) {
+                    p << "\"" << iter.first << "\": ";
+                } else {
+                    p << "\"" << JSON::Writer::encode_string(iter.first) << "\": ";
+                }
+            } else {
+                p << "\"n:" << JSON::Writer::encode_string(QPDF_Name::normalizeName(iter.first))
+                  << "\": ";
+            }
+            iter.second.writeJSON(json_version, p);
         }
     }
-    return j;
+    p.writeEnd('}');
 }
 
 bool

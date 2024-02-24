@@ -28,6 +28,7 @@ my @badfiles = (
     'objects-not-dict',
     'bad-object-key',
     'object-not-dict',
+    'object-value-indirect',
     'stream-not-dict',
     'stream-dict-not-dict',
     'trailer-not-dict',
@@ -37,6 +38,8 @@ my @badfiles = (
     'obj-key-errors',
     'bad-data',
     'bad-datafile',
+    'bad-data2',
+    'bad-datafile2',
     );
 
 $n_tests += scalar(@badfiles);
@@ -347,7 +350,7 @@ $td->runtest("check C API write to JSON stream",
 # (using #xx) would generate invalid JSON, even though qpdf's own JSON
 # parser would accept it. Also, the JSON spec allows real numbers in
 # scientific notation, but the PDF spec does not.
-$n_tests += 4;
+$n_tests += 7;
 $td->runtest("handle binary names",
              {$td->COMMAND =>
                   "qpdf --json-output weird-tokens.pdf a.json"},
@@ -368,6 +371,17 @@ $td->runtest("weird tokens with scientific notation",
                   "qpdf --json-input --json-output weird-tokens-alt.json -"},
              {$td->FILE => "weird-tokens.json", $td->EXIT_STATUS => 0},
              $td->NORMALIZE_NEWLINES);
-
+$td->runtest("handle binary names (JSON v1)",
+             {$td->COMMAND =>
+                  "qpdf --json=1 weird-tokens.pdf a.json"},
+             {$td->STRING => "", $td->EXIT_STATUS => 0});
+$td->runtest("check json",
+             {$td->FILE => "a.json"},
+             {$td->FILE => "weird-tokens-v1.json"},
+             $td->NORMALIZE_NEWLINES);
+$td->runtest("write JSON to pipeline",
+             {$td->COMMAND => "test_driver 98 minimal.pdf ''"},
+             {$td->STRING => "test 98 done\n", $td->EXIT_STATUS => 0},
+             $td->NORMALIZE_NEWLINES);
 cleanup();
 $td->report($n_tests);
