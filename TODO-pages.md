@@ -2,7 +2,7 @@
 
 This document describes a project known as the _pages epic_. The goal of the pages epic is to enable
 qpdf to properly preserve all functionality associated with a page as pages are copied from one PDF
-to another (or back to the same PDF). A secondary goal is to add more flexiblity to the ways in
+to another (or back to the same PDF). A secondary goal is to add more flexibility to the ways in
 which documents can be split and combined (flexible assembly).
 
 This is a work in progress. As implementation proceeds, details will become more solid. Comments are
@@ -156,7 +156,7 @@ Within `QPDFAssembler`, we will extend the create QPDF logic in the following wa
 * Allow creation of blank pages as an additional input source
 * Generalize underlay/overlay
   * Enable controlling placement
-  * Make repeatable
+  * Make repeatable (done)
 * Add additional reordering options
   * We don't need to provide hooks for this. If someone is going to code a hook, they can just
     compute the page ordering directly.
@@ -194,10 +194,9 @@ Other notes:
 ## Flexible Assembly
 
 This section discusses modifications to the command-line syntax to make it easier to add flexibility
-going forward without breaking backward compatibility. The main thrust will be to create
-non-positional alternatives to some things that currently use positional arguments (`--pages`,
-`--overlay`, `--underlay`), as was done for `--encrypt` in 11.7.0, to make it possible to add
-additional flags.
+going forward without breaking backward compatibility. In qpdf 11.9.0, we added non-positional
+options to `--pages`, `--overlay`, `--underlay` and modified configuration to make it easier to add
+new options.
 
 In several cases, we allow specification of transformations or placements. In this context:
 * The origin is always lower-left corner.
@@ -205,7 +204,7 @@ In several cases, we allow specification of transformations or placements. In th
   * An _absolute dimension_ is `{n}` (in points), `{n}in` (inches), `{n}cm` (centimeters),
   * A _relative dimension_ is expressed in terms of the corresponding dimension of one of a page's
     boxes. Which dimension is determined by context.
-    * `{n}{M|C|B|T|A}` is `{n}` times the corresopnding dimension of the media, crop, bleed, trim,
+    * `{n}{M|C|B|T|A}` is `{n}` times the corresponding dimension of the media, crop, bleed, trim,
       or art box. Example: `0.5M` would be half the width or height of the media box.
     * `{n}+{M|C|B|T|A}` is `{n}` plus the corresponding dimension. Example: `-0.5in+T` is half an
       inch (36 points) less than the width or height of the trim box.
@@ -221,21 +220,6 @@ In several cases, we allow specification of transformations or placements. In th
     * `0,0,612,792` is a box whose size is that of a US Letter page.
   * A rectangle may also be just one of `M|C|B|T|A` to refer to a page's media, crop, bleed, trim,
     or art box.
-
-Tweak `--pages` similarly to `--encrypt`. As an alternative to `--pages file [--password=p] range
---`, support `--pages --file=x --password=y --range=z --`. This allows for a more flexible syntax.
-If `--file` appears, positional arguments are disallowed. The same applies to `--overlay` and
-`--underlay`.
-
-```
-OLD: qpdf 2.pdf --pages 1.pdf --password=x . 3.pdf 1-z -- out.pdf
-NEW: qpdf 2.pdf --pages --file=1.pdf --password=x --file=. --file 3.pdf --range=1-z -- out.pdf
-```
-
-This makes it possible to add additional flags to do things like control how document-level features
-are handled, specify placement options, etc. Given the above framework, it would be possible to add
-additional features incrementally, without breaking compatibility, such as selecting or splitting
-pages based on tags, article threads, or outlines.
 
 It's tempting to allow assemblies to be nested, but this gets very complicated. From the C++ API,
 there is no problem using the output of one `QPDFAssembler` as the input to another, but supporting
@@ -260,7 +244,7 @@ Proposed CLI enhancements:
 --flip={h|v}[:page-range]
 --transform=a,b,c,d,e,f[:page-range]
 --set-box={M|C|B|T|A}=rect[:page-range]  # change a bounding box
-# stacking -- make --underlay and --overlay repeatbale
+# stacking -- make --underlay and --overlay repeatable
 --{underlay|overlay} ... --
 --file=x [ --password=x ]
 --from, --to, --repeat  # same as current --overlay, --underlay
@@ -463,15 +447,22 @@ Most of chapter 12 applies. See Document-level navigation (12.3).
 
 # Feature to Issue Mapping
 
-Last checked: 2023-12-29
+Last checked: 2024-01-18
 
 ```
 gh search issues label:pages --repo qpdf/qpdf --limit 200 --state=open
 ```
 
-* Allow an existing `QPDF` to be an input to a merge or underly/overlay operation when using the
+* Allow an existing `QPDF` to be an input to a merge or underlay/overlay operation when using the
   `QPDFAssembler` C++ API
   * Issues: none
+* Fixes to copying annotations
+  * Issues: #1116
+  * Notes:
+    * This is a PR that includes some failing test cases
+    * Fix `/P`
+    * Allow copying of annotations from a region of a page (not sure I want to add that)
+    * Allow selection of pages without annotations (not sure I want to do that)
 * Generate a mapping from source to destination for all destinations
   * Issues: #1077
   * Notes:
@@ -555,6 +546,8 @@ gh search issues label:pages --repo qpdf/qpdf --limit 200 --state=open
     * There is some helpful discussion in #343 including
       * Preserving open/closed status
       * Preserving javascript actions
+* Split pages: write pages to memory
+  * Issues: #1130
 
 # Other use cases
 

@@ -51,9 +51,9 @@ foreach (my $i = 64; $i <= 67; ++$i)
 
 my @uo_cases = (
     '--underlay fxo-green.pdf --repeat=z --to=1-14 --' .
-    ' --overlay fxo-blue.pdf --', # 1
+    ' --overlay --file=fxo-blue.pdf --', # 1
     '--overlay fxo-green.pdf --from= --repeat=r2,r1 --' .
-    ' --underlay fxo-blue.pdf --from=z-1 --', # 2
+    ' --underlay --file=fxo-blue.pdf --from=z-1 --', # 2
     '--overlay fxo-green.pdf --from= --repeat=r2,r1 --' .
     ' --underlay fxo-blue.pdf --from=z-1 -- --coalesce-contents', # 3
     '--overlay fxo-green.pdf --', # 4
@@ -61,6 +61,11 @@ my @uo_cases = (
     '--overlay fxo-blue.pdf --to=1,1,1,1 --from=1-4 --' .
     ' --pages . 1 --', #6
     '--overlay 20-pages.pdf --password=user --', #7
+    '--overlay fxo-blue.pdf --to=1-4 --from=1-4 --' .
+    ' --overlay fxo-green.pdf --to=1-4 --from=4-1 --' .
+    ' --underlay fxo-blue.pdf --to=4-1 --from=5-8 --' .
+    ' --underlay fxo-green.pdf --to=4-1 --from=8-5 --' .
+    ' --pages . 1-4 --', #8
     );
 $n_tests += 2 * scalar(@uo_cases);
 for (my $i = 1; $i <= scalar(@uo_cases); ++$i)

@@ -1191,6 +1191,7 @@ test_31(QPDF& pdf, char const* arg2)
         std::cout << "trailing data: " << e.what() << std::endl;
     }
     assert(QPDFObjectHandle::parse(&pdf, "[5 0 R]").getArrayItem(0).isInteger());
+    assert(!QPDFObjectHandle::parse(&pdf, "[5 0 R]").getArrayItem(0).isDirectNull());
     // Make sure an indirect integer followed by "0 R" is not
     // mistakenly parsed as an indirect object.
     assert(QPDFObjectHandle::parse(&pdf, "[5 0 R 0 R /X]").unparse() == "[ 5 0 R 0 (R) /X ]");
@@ -1202,6 +1203,12 @@ test_31(QPDF& pdf, char const* arg2)
     assert(QPDFObjectHandle::parse(&pdf, ">>").unparse() == "null");
     // TC:QPDFParser eof in parse
     assert(QPDFObjectHandle::parse(&pdf, "[7 0 R]").getArrayItem(0).isNull());
+    assert(!QPDFObjectHandle::parse(&pdf, "[7 0 R]").getArrayItem(0).isDirectNull());
+    assert(QPDFObjectHandle::parse(&pdf, "null").isDirectNull());
+    // TC:QPDFParser invalid objgen
+    assert(
+        QPDFObjectHandle::parse(&pdf, "[0 0 R -1 0 R 1 65535 R 1 100000 R 1 -1 R]").unparse() ==
+        "[ null null null null null ]");
 }
 
 static void
@@ -1489,7 +1496,7 @@ test_42(QPDF& pdf, char const* arg2)
     // Stream dictionary
     QPDFObjectHandle page = pdf.getAllPages().at(0);
     assert("/QPDFFakeName" == page.getKey("/Contents").getDict().getKey("/Potato").getName());
-    // Rectangles
+    // Rectangle
     QPDFObjectHandle::Rectangle r0 = integer.getArrayAsRectangle();
     assert((r0.llx == 0) && (r0.lly == 0) && (r0.urx == 0) && (r0.ury == 0));
     QPDFObjectHandle rect =
@@ -1498,6 +1505,42 @@ test_42(QPDF& pdf, char const* arg2)
     assert(
         (r1.llx > 1.19) && (r1.llx < 1.21) && (r1.lly > 3.39) && (r1.lly < 3.41) &&
         (r1.urx > 5.59) && (r1.urx < 5.61) && (r1.ury > 7.79) && (r1.ury < 7.81));
+    assert(!"[1 2 3 4 5]"_qpdf.isRectangle());
+    r1 = "[1 2 3 4 5]"_qpdf.getArrayAsRectangle();
+    assert(r0.llx == 0 && r0.lly == 0 && r0.urx == 0 && r0.ury == 0);
+    assert(!"[1 2 3]"_qpdf.isRectangle());
+    r1 = "[1 2 3]"_qpdf.getArrayAsRectangle();
+    assert(r0.llx == 0 && r0.lly == 0 && r0.urx == 0 && r0.ury == 0);
+    assert(!"[1 2 false 4]"_qpdf.isRectangle());
+    r1 = "[1 2 false 4]"_qpdf.getArrayAsRectangle();
+    assert(r0.llx == 0 && r0.lly == 0 && r0.urx == 0 && r0.ury == 0);
+    // Matrix
+    auto matrix =
+        QPDFObjectHandle::newFromMatrix(QPDFObjectHandle::Matrix{1.2, 3.4, 5.6, 7.8, 9.1, 2.3});
+    auto m1 = matrix.getArrayAsMatrix();
+    assert(
+        m1.a > 1.19 && m1.a < 1.21 && m1.b > 3.39 && m1.b < 3.41 && m1.c > 5.59 && m1.c < 5.61 &&
+        m1.d > 7.79 && m1.d < 7.81 && m1.e > 9.09 && m1.e < 9.11 && m1.f > 2.29 && m1.f < 2.31);
+    assert(matrix.isMatrix());
+    matrix = QPDFObjectHandle::newFromMatrix(QPDFMatrix{1.2, 3.4, 5.6, 7.8, 9.1, 2.3});
+    m1 = matrix.getArrayAsMatrix();
+    assert(
+        m1.a > 1.19 && m1.a < 1.21 && m1.b > 3.39 && m1.b < 3.41 && m1.c > 5.59 && m1.c < 5.61 &&
+        m1.d > 7.79 && m1.d < 7.81 && m1.e > 9.09 && m1.e < 9.11 && m1.f > 2.29 && m1.f < 2.31);
+    assert(matrix.isMatrix());
+    assert(!"[1 2 3 4 5]"_qpdf.isMatrix());
+    m1 = "[1 2 3 4 5]"_qpdf.getArrayAsMatrix();
+    assert(m1.a == 0 && m1.b == 0 && m1.c == 0 && m1.d == 0 && m1.e == 0 && m1.f == 0);
+    assert(!"[1 2 3 4 5 6 7]"_qpdf.isMatrix());
+    m1 = "[1 2 3 4 5 6 7]"_qpdf.getArrayAsMatrix();
+    assert(m1.a == 0 && m1.b == 0 && m1.c == 0 && m1.d == 0 && m1.e == 0 && m1.f == 0);
+    assert(!"[1 2 3 false 5 6 7]"_qpdf.isMatrix());
+    m1 = "[1 2 3 false 5 6 7]"_qpdf.getArrayAsMatrix();
+    assert(m1.a == 0 && m1.b == 0 && m1.c == 0 && m1.d == 0 && m1.e == 0 && m1.f == 0);
+    assert(!"42"_qpdf.isMatrix());
+    m1 = "42"_qpdf.getArrayAsMatrix();
+    assert(m1.a == 0 && m1.b == 0 && m1.c == 0 && m1.d == 0 && m1.e == 0 && m1.f == 0);
+    // Uninitialized
     QPDFObjectHandle uninitialized;
     assert(!uninitialized.isInitialized());
     assert(!uninitialized.isInteger());
@@ -1938,7 +1981,9 @@ test_51(QPDF& pdf, char const* arg2)
         } else if (Tval == "checkbox1") {
             std::cout << "turning checkbox1 on\n";
             QPDFFormFieldObjectHelper foh(field);
-            foh.setV(QPDFObjectHandle::newName("/Yes"));
+            // The value that eventually gets set is based on what's allowed in /N and may not match
+            // this value.
+            foh.setV(QPDFObjectHandle::newName("/Sure"));
         } else if (Tval == "checkbox2") {
             std::cout << "turning checkbox2 off\n";
             QPDFFormFieldObjectHelper foh(field);
@@ -3366,6 +3411,48 @@ test_96(QPDF& pdf, char const* arg2)
     assert(s.unparseBinary() == "<abc0>");
 }
 
+static void
+test_97(QPDF& pdf, char const* arg2)
+{
+    // Shallow array copy. This test uses many-nulls.pdf.
+    auto nulls = pdf.getTrailer().getKey("/Nulls").getArrayItem(0);
+    assert(nulls.isArray() && nulls.getArrayNItems() > 10000);
+    auto nulls2 = nulls.shallowCopy();
+    assert(nulls.unparse() == nulls2.unparse());
+}
+
+static void
+test_98(QPDF& pdf, char const* arg2)
+{
+    // Test methods no longer used by qpdf as a result of QPDFObjectHandle::writeJSON. This test is
+    // built for minimal.pdf.
+
+    // Test QPDFObjectHandle::getJSON.
+    for (int i = 1; i < 7; ++i) {
+        auto oh = pdf.getObject(i, 0);
+        Pl_Buffer bf1{"write", nullptr};
+        Pl_Buffer bf2{"get", nullptr};
+        oh.writeJSON(JSON::LATEST, &bf1, true, 7);
+        bf1.finish();
+        oh.getJSON(JSON::LATEST, true).write(&bf2, 7);
+        bf2.finish();
+        assert(bf1.getString() == bf2.getString());
+    }
+
+    // Test QPDFObjectHandle::getStreamJSON.
+    pdf.getObject(4, 0).getDict().replaceKey("/Test", "42"_qpdf);
+    assert(
+        pdf.getObject(4, 0)
+            .getStreamJSON(JSON::LATEST, qpdf_sj_inline, qpdf_dl_generalized, nullptr, "")
+            .unparse() ==
+        "{\n"
+        "  \"data\": \"QlQKICAvRjEgMjQgVGYKICA3MiA3MjAgVGQKICAoUG90YXRvKSBUagpFVAo=\",\n"
+        "  \"dict\": {\n"
+        "    \"/Test\": 42\n"
+        "  }\n"
+        "}");
+}
+
 void
 runtest(int n, char const* filename1, char const* arg2)
 {
@@ -3467,7 +3554,7 @@ runtest(int n, char const* filename1, char const* arg2)
         {78, test_78}, {79, test_79}, {80, test_80}, {81, test_81}, {82, test_82}, {83, test_83},
         {84, test_84}, {85, test_85}, {86, test_86}, {87, test_87}, {88, test_88}, {89, test_89},
         {90, test_90}, {91, test_91}, {92, test_92}, {93, test_93}, {94, test_94}, {95, test_95},
-        {96, test_96}};
+        {96, test_96}, {97, test_97}, {98, test_98}};
 
     auto fn = test_functions.find(n);
     if (fn == test_functions.end()) {

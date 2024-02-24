@@ -7,6 +7,7 @@ set(FUZZERS
   dct_fuzzer
   flate_fuzzer
   hex_fuzzer
+  json_fuzzer
   lzw_fuzzer
   pngpredictor_fuzzer
   runlength_fuzzer
@@ -109,7 +110,11 @@ set(CORPUS_OTHER
   28262.fuzz
   30507.fuzz
   37740.fuzz
-  57639.fuzz)
+  57639.fuzz
+  65681.fuzz
+  65773.fuzz
+  65777.fuzz
+)
 
 set(CORPUS_DIR ${CMAKE_CURRENT_BINARY_DIR}/qpdf_corpus)
 file(MAKE_DIRECTORY ${CORPUS_DIR})

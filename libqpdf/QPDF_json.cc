@@ -1,12 +1,14 @@
 #include <qpdf/QPDF.hh>
 
 #include <qpdf/FileInputSource.hh>
+#include <qpdf/JSON_writer.hh>
 #include <qpdf/Pl_Base64.hh>
 #include <qpdf/Pl_StdioFile.hh>
 #include <qpdf/QIntC.hh>
 #include <qpdf/QPDFObject_private.hh>
 #include <qpdf/QPDFValue.hh>
 #include <qpdf/QPDF_Null.hh>
+#include <qpdf/QPDF_Stream.hh>
 #include <qpdf/QTC.hh>
 #include <qpdf/QUtil.hh>
 #include <algorithm>
@@ -14,7 +16,7 @@
 
 // This chart shows an example of the state transitions that would occur in parsing a minimal file.
 
-//                                | st_initial
+//                                |
 // {                              |   -> st_top
 //   "qpdf": [                    |   -> st_qpdf
 //     {                          |   -> st_qpdf_meta
@@ -47,7 +49,7 @@
 //       }                        |   <- st_objects
 //     }                          |   <- st_qpdf
 //   ]                            |   <- st_top
-// }                              |   <- st_initial
+// }                              |
 
 static char const* JSON_PDF = (
     // force line break
@@ -99,7 +101,7 @@ is_indirect_object(std::string const& v, int& obj, int& gen)
     }
     obj = QUtil::string_to_int(o_str.c_str());
     gen = QUtil::string_to_int(g_str.c_str());
-    return true;
+    return obj > 0;
 }
 
 static bool
@@ -256,7 +258,6 @@ class QPDF::JSONReactor: public JSON::Reactor
 
   private:
     enum state_e {
-        st_initial,
         st_top,
         st_qpdf,
         st_qpdf_meta,
@@ -268,28 +269,35 @@ class QPDF::JSONReactor: public JSON::Reactor
         st_ignore,
     };
 
+    struct StackFrame
+    {
+        StackFrame(state_e state) :
+            state(state){};
+        StackFrame(state_e state, QPDFObjectHandle&& object) :
+            state(state),
+            object(object){};
+        state_e state;
+        QPDFObjectHandle object;
+    };
+
     void containerStart();
-    void nestedState(std::string const& key, JSON const& value, state_e);
+    bool setNextStateIfDictionary(std::string const& key, JSON const& value, state_e);
     void setObjectDescription(QPDFObjectHandle& oh, JSON const& value);
     QPDFObjectHandle makeObject(JSON const& value);
     void error(qpdf_offset_t offset, std::string const& message);
-    void
-    replaceObject(QPDFObjectHandle to_replace, QPDFObjectHandle replacement, JSON const& value);
+    void replaceObject(QPDFObjectHandle&& replacement, JSON const& value);
 
     QPDF& pdf;
     std::shared_ptr<InputSource> is;
     bool must_be_complete{true};
     std::shared_ptr<QPDFValue::Description> descr;
     bool errors{false};
-    bool parse_error{false};
     bool saw_qpdf{false};
     bool saw_qpdf_meta{false};
     bool saw_objects{false};
     bool saw_json_version{false};
     bool saw_pdf_version{false};
     bool saw_trailer{false};
-    state_e state{st_initial};
-    state_e next_state{st_top};
     std::string cur_object;
     bool saw_value{false};
     bool saw_stream{false};
@@ -297,9 +305,10 @@ class QPDF::JSONReactor: public JSON::Reactor
     bool saw_data{false};
     bool saw_datafile{false};
     bool this_stream_needs_data{false};
-    std::vector<state_e> state_stack{st_initial};
-    std::vector<QPDFObjectHandle> object_stack;
     std::set<QPDFObjGen> reserved;
+    std::vector<StackFrame> stack;
+    QPDFObjectHandle next_obj;
+    state_e next_state{st_top};
 };
 
 void
@@ -322,8 +331,12 @@ QPDF::JSONReactor::anyErrors() const
 void
 QPDF::JSONReactor::containerStart()
 {
-    state_stack.push_back(state);
-    state = next_state;
+    if (next_obj.isInitialized()) {
+        stack.emplace_back(next_state, std::move(next_obj));
+        next_obj = QPDFObjectHandle();
+    } else {
+        stack.emplace_back(next_state);
+    }
 }
 
 void
@@ -335,20 +348,19 @@ QPDF::JSONReactor::dictionaryStart()
 void
 QPDF::JSONReactor::arrayStart()
 {
-    containerStart();
-    if (state == st_top) {
+    if (stack.empty()) {
         QTC::TC("qpdf", "QPDF_json top-level array");
         throw std::runtime_error("QPDF JSON must be a dictionary");
     }
+    containerStart();
 }
 
 void
 QPDF::JSONReactor::containerEnd(JSON const& value)
 {
-    auto from_state = state;
-    state = state_stack.back();
-    state_stack.pop_back();
-    if (state == st_initial) {
+    auto from_state = stack.back().state;
+    stack.pop_back();
+    if (stack.empty()) {
         if (!this->saw_qpdf) {
             QTC::TC("qpdf", "QPDF_json missing qpdf");
             error(0, "\"qpdf\" object was not seen");
@@ -371,26 +383,16 @@ QPDF::JSONReactor::containerEnd(JSON const& value)
                 }
             }
         }
-    } else if (state == st_objects) {
-        if (parse_error) {
-            QTC::TC("qpdf", "QPDF_json don't check object after parse error");
-        } else if (cur_object == "trailer") {
-            if (!saw_value) {
-                QTC::TC("qpdf", "QPDF_json trailer no value");
-                error(value.getStart(), "\"trailer\" is missing \"value\"");
-            }
-        } else if (saw_value == saw_stream) {
+    } else if (from_state == st_trailer) {
+        if (!saw_value) {
+            QTC::TC("qpdf", "QPDF_json trailer no value");
+            error(value.getStart(), "\"trailer\" is missing \"value\"");
+        }
+    } else if (from_state == st_object_top) {
+        if (saw_value == saw_stream) {
             QTC::TC("qpdf", "QPDF_json value stream both or neither");
             error(value.getStart(), "object must have exactly one of \"value\" or \"stream\"");
         }
-        object_stack.clear();
-        this->cur_object = "";
-        this->saw_dict = false;
-        this->saw_data = false;
-        this->saw_datafile = false;
-        this->saw_value = false;
-        this->saw_stream = false;
-    } else if (state == st_object_top) {
         if (saw_stream) {
             if (!saw_dict) {
                 QTC::TC("qpdf", "QPDF_json stream no dict");
@@ -414,11 +416,7 @@ QPDF::JSONReactor::containerEnd(JSON const& value)
                 }
             }
         }
-    } else if ((state == st_stream) || (state == st_object)) {
-        if (!parse_error) {
-            object_stack.pop_back();
-        }
-    } else if ((state == st_top) && (from_state == st_qpdf)) {
+    } else if (from_state == st_qpdf) {
         // Handle dangling indirect object references which the PDF spec says to treat as nulls.
         // It's tempting to make this an error, but that would be wrong since valid input files may
         // have these.
@@ -429,16 +427,33 @@ QPDF::JSONReactor::containerEnd(JSON const& value)
             }
         }
     }
+    if (!stack.empty()) {
+        auto state = stack.back().state;
+        if (state == st_objects) {
+            this->cur_object = "";
+            this->saw_dict = false;
+            this->saw_data = false;
+            this->saw_datafile = false;
+            this->saw_value = false;
+            this->saw_stream = false;
+        }
+    }
 }
 
 void
-QPDF::JSONReactor::replaceObject(
-    QPDFObjectHandle to_replace, QPDFObjectHandle replacement, JSON const& value)
+QPDF::JSONReactor::replaceObject(QPDFObjectHandle&& replacement, JSON const& value)
 {
-    auto og = to_replace.getObjGen();
+    if (replacement.isIndirect()) {
+        error(
+            replacement.getParsedOffset(),
+            "the value of an object may not be an indirect object reference");
+        return;
+    }
+    auto& tos = stack.back();
+    auto og = tos.object.getObjGen();
     this->pdf.replaceObject(og, replacement);
-    auto oh = pdf.getObject(og);
-    setObjectDescription(oh, value);
+    next_obj = pdf.getObject(og);
+    setObjectDescription(tos.object, value);
 }
 
 void
@@ -448,22 +463,26 @@ QPDF::JSONReactor::topLevelScalar()
     throw std::runtime_error("QPDF JSON must be a dictionary");
 }
 
-void
-QPDF::JSONReactor::nestedState(std::string const& key, JSON const& value, state_e next)
+bool
+QPDF::JSONReactor::setNextStateIfDictionary(std::string const& key, JSON const& value, state_e next)
 {
     // Use this method when the next state is for processing a nested dictionary.
     if (value.isDictionary()) {
         this->next_state = next;
-    } else {
-        error(value.getStart(), "\"" + key + "\" must be a dictionary");
-        this->next_state = st_ignore;
-        this->parse_error = true;
+        return true;
     }
+    error(value.getStart(), "\"" + key + "\" must be a dictionary");
+    return false;
 }
 
 bool
 QPDF::JSONReactor::dictionaryItem(std::string const& key, JSON const& value)
 {
+    if (stack.empty()) {
+        throw std::logic_error("stack is empty in dictionaryItem");
+    }
+    next_state = st_ignore;
+    auto state = stack.back().state;
     if (state == st_ignore) {
         QTC::TC("qpdf", "QPDF_json ignoring in st_ignore");
         // ignore
@@ -473,51 +492,48 @@ QPDF::JSONReactor::dictionaryItem(std::string const& key, JSON const& value)
             if (!value.isArray()) {
                 QTC::TC("qpdf", "QPDF_json qpdf not array");
                 error(value.getStart(), "\"qpdf\" must be an array");
-                next_state = st_ignore;
-                parse_error = true;
             } else {
                 next_state = st_qpdf;
             }
         } else {
             // Ignore all other fields.
             QTC::TC("qpdf", "QPDF_json ignoring unknown top-level key");
-            next_state = st_ignore;
         }
     } else if (state == st_qpdf_meta) {
         if (key == "pdfversion") {
             this->saw_pdf_version = true;
-            bool version_okay = false;
             std::string v;
+            bool okay = false;
             if (value.getString(v)) {
                 std::string version;
                 char const* p = v.c_str();
                 if (QPDF::validatePDFVersion(p, version) && (*p == '\0')) {
-                    version_okay = true;
                     this->pdf.m->pdf_version = version;
+                    okay = true;
                 }
             }
-            if (!version_okay) {
+            if (!okay) {
                 QTC::TC("qpdf", "QPDF_json bad pdf version");
-                error(value.getStart(), "invalid PDF version (must be x.y)");
+                error(value.getStart(), "invalid PDF version (must be \"x.y\")");
             }
         } else if (key == "jsonversion") {
             this->saw_json_version = true;
-            bool version_okay = false;
             std::string v;
+            bool okay = false;
             if (value.getNumber(v)) {
                 std::string version;
                 if (QUtil::string_to_int(v.c_str()) == 2) {
-                    version_okay = true;
+                    okay = true;
                 }
             }
-            if (!version_okay) {
+            if (!okay) {
                 QTC::TC("qpdf", "QPDF_json bad json version");
-                error(value.getStart(), "invalid JSON version (must be 2)");
+                error(value.getStart(), "invalid JSON version (must be numeric value 2)");
             }
         } else if (key == "pushedinheritedpageresources") {
             bool v;
             if (value.getBool(v)) {
-                if ((!this->must_be_complete) && v) {
+                if (!this->must_be_complete && v) {
                     this->pdf.pushInheritedAttributesToPage();
                 }
             } else {
@@ -527,7 +543,7 @@ QPDF::JSONReactor::dictionaryItem(std::string const& key, JSON const& value)
         } else if (key == "calledgetallpages") {
             bool v;
             if (value.getBool(v)) {
-                if ((!this->must_be_complete) && v) {
+                if (!this->must_be_complete && v) {
                     this->pdf.getAllPages();
                 }
             } else {
@@ -538,103 +554,95 @@ QPDF::JSONReactor::dictionaryItem(std::string const& key, JSON const& value)
             // ignore unknown keys for forward compatibility and to skip keys we don't care about
             // like "maxobjectid".
             QTC::TC("qpdf", "QPDF_json ignore second-level key");
-            next_state = st_ignore;
         }
     } else if (state == st_objects) {
         int obj = 0;
         int gen = 0;
         if (key == "trailer") {
             this->saw_trailer = true;
-            nestedState(key, value, st_trailer);
             this->cur_object = "trailer";
+            setNextStateIfDictionary(key, value, st_trailer);
         } else if (is_obj_key(key, obj, gen)) {
             this->cur_object = key;
-            auto oh = pdf.reserveObjectIfNotExists(QPDFObjGen(obj, gen));
-            object_stack.push_back(oh);
-            nestedState(key, value, st_object_top);
+            if (setNextStateIfDictionary(key, value, st_object_top)) {
+                next_obj = pdf.reserveObjectIfNotExists(QPDFObjGen(obj, gen));
+            }
         } else {
             QTC::TC("qpdf", "QPDF_json bad object key");
             error(value.getStart(), "object key should be \"trailer\" or \"obj:n n R\"");
-            next_state = st_ignore;
-            parse_error = true;
         }
     } else if (state == st_object_top) {
-        if (object_stack.size() == 0) {
-            throw std::logic_error("no object on stack in st_object_top");
+        if (stack.empty()) {
+            throw std::logic_error("stack empty in st_object_top");
         }
-        auto tos = object_stack.back();
-        QPDFObjectHandle replacement;
+        auto& tos = stack.back();
+        if (!tos.object.isInitialized()) {
+            throw std::logic_error("current object uninitialized in st_object_top");
+        }
         if (key == "value") {
-            // Don't use nestedState since this can have any type.
+            // Don't use setNextStateIfDictionary since this can have any type.
             this->saw_value = true;
+            replaceObject(makeObject(value), value);
             next_state = st_object;
-            replacement = makeObject(value);
-            replaceObject(tos, replacement, value);
         } else if (key == "stream") {
             this->saw_stream = true;
-            nestedState(key, value, st_stream);
-            this->this_stream_needs_data = false;
-            if (tos.isStream()) {
-                QTC::TC("qpdf", "QPDF_json updating existing stream");
+            if (setNextStateIfDictionary(key, value, st_stream)) {
+                this->this_stream_needs_data = false;
+                if (tos.object.isStream()) {
+                    QTC::TC("qpdf", "QPDF_json updating existing stream");
+                } else {
+                    this->this_stream_needs_data = true;
+                    replaceObject(pdf.reserveStream(tos.object.getObjGen()), value);
+                }
+                next_obj = tos.object;
             } else {
-                this->this_stream_needs_data = true;
-                replacement = pdf.reserveStream(tos.getObjGen());
-                replaceObject(tos, replacement, value);
+                // Error message already given above
+                QTC::TC("qpdf", "QPDF_json stream not a dictionary");
             }
         } else {
             // Ignore unknown keys for forward compatibility
             QTC::TC("qpdf", "QPDF_json ignore unknown key in object_top");
-            next_state = st_ignore;
-        }
-        if (replacement.isInitialized()) {
-            object_stack.pop_back();
-            object_stack.push_back(replacement);
         }
     } else if (state == st_trailer) {
         if (key == "value") {
             this->saw_value = true;
-            // The trailer must be a dictionary, so we can use nestedState.
-            nestedState("trailer.value", value, st_object);
-            this->pdf.m->trailer = makeObject(value);
-            setObjectDescription(this->pdf.m->trailer, value);
+            // The trailer must be a dictionary, so we can use setNextStateIfDictionary.
+            if (setNextStateIfDictionary("trailer.value", value, st_object)) {
+                this->pdf.m->trailer = makeObject(value);
+                setObjectDescription(this->pdf.m->trailer, value);
+            }
         } else if (key == "stream") {
             // Don't need to set saw_stream here since there's already an error.
             QTC::TC("qpdf", "QPDF_json trailer stream");
             error(value.getStart(), "the trailer may not be a stream");
-            next_state = st_ignore;
-            parse_error = true;
         } else {
             // Ignore unknown keys for forward compatibility
             QTC::TC("qpdf", "QPDF_json ignore unknown key in trailer");
-            next_state = st_ignore;
         }
     } else if (state == st_stream) {
-        if (object_stack.size() == 0) {
-            throw std::logic_error("no object on stack in st_stream");
+        if (stack.empty()) {
+            throw std::logic_error("stack empty in st_stream");
         }
-        auto tos = object_stack.back();
-        if (!tos.isStream()) {
-            throw std::logic_error("top of stack is not stream in st_stream");
+        auto& tos = stack.back();
+        if (!tos.object.isStream()) {
+            throw std::logic_error("current object is not stream in st_stream");
         }
         auto uninitialized = QPDFObjectHandle();
         if (key == "dict") {
             this->saw_dict = true;
-            // Since a stream dictionary must be a dictionary, we can use nestedState to transition
-            // to st_value.
-            nestedState("stream.dict", value, st_object);
-            auto dict = makeObject(value);
-            if (dict.isDictionary()) {
-                tos.replaceDict(dict);
+            if (setNextStateIfDictionary("stream.dict", value, st_object)) {
+                tos.object.replaceDict(makeObject(value));
             } else {
-                // An error had already been given by nestedState
+                // An error had already been given by setNextStateIfDictionary
                 QTC::TC("qpdf", "QPDF_json stream dict not dict");
-                parse_error = true;
             }
         } else if (key == "data") {
             this->saw_data = true;
             std::string v;
             if (!value.getString(v)) {
+                QTC::TC("qpdf", "QPDF_json stream data not string");
                 error(value.getStart(), "\"stream.data\" must be a string");
+                tos.object.replaceStreamData("", uninitialized, uninitialized);
             } else {
                 // The range includes the quotes.
                 auto start = value.getStart() + 1;
@@ -642,32 +650,42 @@ QPDF::JSONReactor::dictionaryItem(std::string const& key, JSON const& value)
                 if (end < start) {
                     throw std::logic_error("QPDF_json: JSON string length < 0");
                 }
-                tos.replaceStreamData(provide_data(is, start, end), uninitialized, uninitialized);
+                tos.object.replaceStreamData(
+                    provide_data(is, start, end), uninitialized, uninitialized);
             }
         } else if (key == "datafile") {
             this->saw_datafile = true;
             std::string filename;
-            if (value.getString(filename)) {
-                tos.replaceStreamData(QUtil::file_provider(filename), uninitialized, uninitialized);
-            } else {
+            if (!value.getString(filename)) {
+                QTC::TC("qpdf", "QPDF_json stream datafile not string");
                 error(
                     value.getStart(),
-                    "\"stream.datafile\" must be a string containing a file "
-                    "name");
+                    "\"stream.datafile\" must be a string containing a file name");
+                tos.object.replaceStreamData("", uninitialized, uninitialized);
+            } else {
+                tos.object.replaceStreamData(
+                    QUtil::file_provider(filename), uninitialized, uninitialized);
             }
         } else {
             // Ignore unknown keys for forward compatibility.
             QTC::TC("qpdf", "QPDF_json ignore unknown key in stream");
-            next_state = st_ignore;
         }
     } else if (state == st_object) {
-        if (!parse_error) {
-            auto dict = object_stack.back();
-            if (dict.isStream()) {
-                dict = dict.getDict();
-            }
-            dict.replaceKey(key, makeObject(value));
+        if (stack.empty()) {
+            throw std::logic_error("stack empty in st_object");
         }
+        auto& tos = stack.back();
+        auto dict = tos.object;
+        if (dict.isStream()) {
+            dict = dict.getDict();
+        }
+        if (!dict.isDictionary()) {
+            throw std::logic_error(
+                "current object is not stream or dictionary in st_object dictionary item");
+        }
+        dict.replaceKey(
+            is_pdf_name(key) ? QPDFObjectHandle::parse(key.substr(2)).getName() : key,
+            makeObject(value));
     } else {
         throw std::logic_error("QPDF_json: unknown state " + std::to_string(state));
     }
@@ -677,25 +695,24 @@ QPDF::JSONReactor::dictionaryItem(std::string const& key, JSON const& value)
 bool
 QPDF::JSONReactor::arrayItem(JSON const& value)
 {
+    if (stack.empty()) {
+        throw std::logic_error("stack is empty in arrayItem");
+    }
+    next_state = st_ignore;
+    auto state = stack.back().state;
     if (state == st_qpdf) {
         if (!this->saw_qpdf_meta) {
             this->saw_qpdf_meta = true;
-            nestedState("qpdf[0]", value, st_qpdf_meta);
+            setNextStateIfDictionary("qpdf[0]", value, st_qpdf_meta);
         } else if (!this->saw_objects) {
             this->saw_objects = true;
-            nestedState("qpdf[1]", value, st_objects);
+            setNextStateIfDictionary("qpdf[1]", value, st_objects);
         } else {
             QTC::TC("qpdf", "QPDF_json more than two qpdf elements");
             error(value.getStart(), "\"qpdf\" must have two elements");
-            next_state = st_ignore;
-            parse_error = true;
         }
-    }
-    if (state == st_object) {
-        if (!parse_error) {
-            auto tos = object_stack.back();
-            tos.appendItem(makeObject(value));
-        }
+    } else if (state == st_object) {
+        stack.back().object.appendItem(makeObject(value));
     }
     return true;
 }
@@ -720,10 +737,12 @@ QPDF::JSONReactor::makeObject(JSON const& value)
     bool bool_v = false;
     if (value.isDictionary()) {
         result = QPDFObjectHandle::newDictionary();
-        object_stack.push_back(result);
+        next_obj = result;
+        next_state = st_object;
     } else if (value.isArray()) {
         result = QPDFObjectHandle::newArray();
-        object_stack.push_back(result);
+        next_obj = result;
+        next_state = st_object;
     } else if (value.isNull()) {
         result = QPDFObjectHandle::newNull();
     } else if (value.getBool(bool_v)) {
@@ -813,45 +832,20 @@ QPDF::importJSON(std::shared_ptr<InputSource> is, bool must_be_complete)
 }
 
 void
-QPDF::writeJSONStream(
+writeJSONStreamFile(
     int version,
-    Pipeline* p,
-    bool& first,
-    std::string const& key,
-    QPDFObjectHandle& obj,
+    JSON::Writer& jw,
+    QPDF_Stream& stream,
+    int id,
     qpdf_stream_decode_level_e decode_level,
-    qpdf_json_stream_data_e json_stream_data,
     std::string const& file_prefix)
 {
-    Pipeline* stream_p = nullptr;
-    FILE* f = nullptr;
-    std::shared_ptr<Pl_StdioFile> f_pl;
-    std::string filename;
-    if (json_stream_data == qpdf_sj_file) {
-        filename = file_prefix + "-" + std::to_string(obj.getObjectID());
-        f = QUtil::safe_fopen(filename.c_str(), "wb");
-        f_pl = std::make_shared<Pl_StdioFile>("stream data", f);
-        stream_p = f_pl.get();
-    }
-    auto j = JSON::makeDictionary();
-    j.addDictionaryMember(
-        "stream", obj.getStreamJSON(version, json_stream_data, decode_level, stream_p, filename));
-
-    JSON::writeDictionaryItem(p, first, key, j, 3);
-    if (f) {
-        f_pl->finish();
-        f_pl = nullptr;
-        fclose(f);
-    }
-}
-
-void
-QPDF::writeJSONObject(
-    int version, Pipeline* p, bool& first, std::string const& key, QPDFObjectHandle& obj)
-{
-    auto j = JSON::makeDictionary();
-    j.addDictionaryMember("value", obj.getJSON(version, true));
-    JSON::writeDictionaryItem(p, first, key, j, 3);
+    auto filename = file_prefix + "-" + std::to_string(id);
+    auto* f = QUtil::safe_fopen(filename.c_str(), "wb");
+    Pl_StdioFile f_pl{"stream data", f};
+    stream.writeStreamJSON(version, jw, qpdf_sj_file, decode_level, &f_pl, filename);
+    f_pl.finish();
+    fclose(f);
 }
 
 void
@@ -878,80 +872,75 @@ QPDF::writeJSON(
     std::string const& file_prefix,
     std::set<std::string> wanted_objects)
 {
-    int const depth_outer = 1;
-    int const depth_top = 1;
-    int const depth_qpdf = 2;
-    int const depth_qpdf_inner = 3;
-
     if (version != 2) {
         throw std::runtime_error("QPDF::writeJSON: only version 2 is supported");
     }
-    bool first = true;
+    JSON::Writer jw{p, 4};
     if (complete) {
-        JSON::writeDictionaryOpen(p, first, depth_outer);
-    } else {
-        first = first_key;
+        jw << "{";
+    } else if (!first_key) {
+        jw << ",";
     }
-    JSON::writeDictionaryKey(p, first, "qpdf", depth_top);
-    bool first_qpdf = true;
-    JSON::writeArrayOpen(p, first_qpdf, depth_top);
-    JSON::writeNext(p, first_qpdf, depth_qpdf);
-    bool first_qpdf_inner = true;
-    JSON::writeDictionaryOpen(p, first_qpdf_inner, depth_qpdf);
-    JSON::writeDictionaryItem(
-        p, first_qpdf_inner, "jsonversion", JSON::makeInt(version), depth_qpdf_inner);
-    JSON::writeDictionaryItem(
-        p, first_qpdf_inner, "pdfversion", JSON::makeString(getPDFVersion()), depth_qpdf_inner);
-    JSON::writeDictionaryItem(
-        p,
-        first_qpdf_inner,
-        "pushedinheritedpageresources",
-        JSON::makeBool(everPushedInheritedAttributesToPages()),
-        depth_qpdf_inner);
-    JSON::writeDictionaryItem(
-        p,
-        first_qpdf_inner,
-        "calledgetallpages",
-        JSON::makeBool(everCalledGetAllPages()),
-        depth_qpdf_inner);
-    JSON::writeDictionaryItem(
-        p,
-        first_qpdf_inner,
-        "maxobjectid",
-        JSON::makeInt(QIntC::to_longlong(getObjectCount())),
-        depth_qpdf_inner);
-    JSON::writeDictionaryClose(p, first_qpdf_inner, depth_qpdf);
-    JSON::writeNext(p, first_qpdf, depth_qpdf);
-    JSON::writeDictionaryOpen(p, first_qpdf_inner, depth_qpdf);
+    first_key = false;
+
+    /* clang-format off */
+    jw << "\n"
+          "  \"qpdf\": [\n"
+          "    {\n"
+          "      \"jsonversion\": " << std::to_string(version) << ",\n"
+          "      \"pdfversion\": \"" << getPDFVersion() << "\",\n"
+          "      \"pushedinheritedpageresources\": " <<  (everPushedInheritedAttributesToPages() ? "true" : "false") << ",\n"
+          "      \"calledgetallpages\": " <<  (everCalledGetAllPages() ? "true" : "false") << ",\n"
+          "      \"maxobjectid\": " <<  std::to_string(getObjectCount()) << "\n"
+          "    },\n"
+          "    {";
+    /* clang-format on */
+
     bool all_objects = wanted_objects.empty();
+    bool first = true;
     for (auto& obj: getAllObjects()) {
-        std::string key = "obj:" + obj.unparse();
+        auto const og = obj.getObjGen();
+        std::string key = "obj:" + og.unparse(' ') + " R";
         if (all_objects || wanted_objects.count(key)) {
-            if (obj.isStream()) {
-                writeJSONStream(
-                    version,
-                    p,
-                    first_qpdf_inner,
-                    key,
-                    obj,
-                    decode_level,
-                    json_stream_data,
-                    file_prefix);
+            if (first) {
+                jw << "\n      \"" << key;
+                first = false;
             } else {
-                writeJSONObject(version, p, first_qpdf_inner, key, obj);
+                jw << "\n      },\n      \"" << key;
+            }
+            if (auto* stream = obj.getObjectPtr()->as<QPDF_Stream>()) {
+                jw << "\": {\n        \"stream\": ";
+                if (json_stream_data == qpdf_sj_file) {
+                    writeJSONStreamFile(
+                        version, jw, *stream, og.getObj(), decode_level, file_prefix);
+                } else {
+                    stream->writeStreamJSON(
+                        version, jw, json_stream_data, decode_level, nullptr, "");
+                }
+            } else {
+                jw << "\": {\n        \"value\": ";
+                obj.writeJSON(version, jw, true);
             }
         }
     }
     if (all_objects || wanted_objects.count("trailer")) {
-        auto trailer = getTrailer();
-        writeJSONObject(version, p, first_qpdf_inner, "trailer", trailer);
+        if (!first) {
+            jw << "\n      },";
+        }
+        jw << "\n      \"trailer\": {\n        \"value\": ";
+        getTrailer().writeJSON(version, jw, true);
+        first = false;
     }
-    JSON::writeDictionaryClose(p, first_qpdf_inner, depth_qpdf);
-    JSON::writeArrayClose(p, first_qpdf, depth_top);
+    if (!first) {
+        jw << "\n      }";
+    }
+    /* clang-format off */
+    jw << "\n"
+          "    }\n"
+          "  ]";
+    /* clang-format on */
     if (complete) {
-        JSON::writeDictionaryClose(p, first, 0);
-        *p << "\n";
+        jw << "\n}\n";
         p->finish();
     }
-    first_key = false;
 }

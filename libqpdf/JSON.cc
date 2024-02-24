@@ -1,5 +1,7 @@
 #include <qpdf/JSON.hh>
 
+#include <qpdf/JSON_writer.hh>
+
 #include <qpdf/BufferInputSource.hh>
 #include <qpdf/Pl_Base64.hh>
 #include <qpdf/Pl_Concatenate.hh>
@@ -119,7 +121,7 @@ JSON::JSON_array::write(Pipeline* p, size_t depth) const
 JSON::JSON_string::JSON_string(std::string const& utf8) :
     JSON_value(vt_string),
     utf8(utf8),
-    encoded(encode_string(utf8))
+    encoded(Writer::encode_string(utf8))
 {
 }
 
@@ -191,7 +193,7 @@ JSON::JSON_blob::write(Pipeline* p, size_t) const
 void
 JSON::write(Pipeline* p, size_t depth) const
 {
-    if (nullptr == m->value) {
+    if (!m) {
         *p << "null";
     } else {
         m->value->write(p, depth);
@@ -201,6 +203,9 @@ JSON::write(Pipeline* p, size_t depth) const
 std::string
 JSON::unparse() const
 {
+    if (!m) {
+        return "null";
+    }
     std::string s;
     Pl_String p("unparse", nullptr, s);
     write(&p, 0);
@@ -208,7 +213,7 @@ JSON::unparse() const
 }
 
 std::string
-JSON::encode_string(std::string const& str)
+JSON::Writer::encode_string(std::string const& str)
 {
     static auto constexpr hexchars = "0123456789abcdef";
 
@@ -275,8 +280,8 @@ JSON::makeDictionary()
 JSON
 JSON::addDictionaryMember(std::string const& key, JSON const& val)
 {
-    if (auto* obj = dynamic_cast<JSON_dictionary*>(m->value.get())) {
-        return obj->members[encode_string(key)] = val.m->value ? val : makeNull();
+    if (auto* obj = m ? dynamic_cast<JSON_dictionary*>(m->value.get()) : nullptr) {
+        return obj->members[Writer::encode_string(key)] = val.m ? val : makeNull();
     } else {
         throw std::runtime_error("JSON::addDictionaryMember called on non-dictionary");
     }
@@ -285,15 +290,11 @@ JSON::addDictionaryMember(std::string const& key, JSON const& val)
 bool
 JSON::checkDictionaryKeySeen(std::string const& key)
 {
-    auto* obj = dynamic_cast<JSON_dictionary*>(m->value.get());
-    if (nullptr == obj) {
-        throw std::logic_error("JSON::checkDictionaryKey called on non-dictionary");
+    if (auto* obj = m ? dynamic_cast<JSON_dictionary*>(m->value.get()) : nullptr) {
+        return !obj->parsed_keys.insert(key).second;
     }
-    if (obj->parsed_keys.count(key)) {
-        return true;
-    }
-    obj->parsed_keys.insert(key);
-    return false;
+    throw std::logic_error("JSON::checkDictionaryKey called on non-dictionary");
+    return false; // unreachable
 }
 
 JSON
@@ -305,16 +306,16 @@ JSON::makeArray()
 JSON
 JSON::addArrayElement(JSON const& val)
 {
-    auto* arr = dynamic_cast<JSON_array*>(m->value.get());
-    if (nullptr == arr) {
-        throw std::runtime_error("JSON::addArrayElement called on non-array");
+    if (auto* arr = m ? dynamic_cast<JSON_array*>(m->value.get()) : nullptr) {
+        if (val.m) {
+            arr->elements.push_back(val);
+        } else {
+            arr->elements.push_back(makeNull());
+        }
+        return arr->elements.back();
     }
-    if (val.m->value.get()) {
-        arr->elements.push_back(val);
-    } else {
-        arr->elements.push_back(makeNull());
-    }
-    return arr->elements.back();
+    throw std::runtime_error("JSON::addArrayElement called on non-array");
+    return {}; // unreachable
 }
 
 JSON
@@ -362,19 +363,19 @@ JSON::makeBlob(std::function<void(Pipeline*)> fn)
 bool
 JSON::isArray() const
 {
-    return m->value->type_code == vt_array;
+    return m ? m->value->type_code == vt_array : false;
 }
 
 bool
 JSON::isDictionary() const
 {
-    return m->value->type_code == vt_dictionary;
+    return m && m->value->type_code == vt_dictionary;
 }
 
 bool
 JSON::getString(std::string& utf8) const
 {
-    if (m->value->type_code == vt_string) {
+    if (m && m->value->type_code == vt_string) {
         auto v = dynamic_cast<JSON_string const*>(m->value.get());
         utf8 = v->utf8;
         return true;
@@ -385,7 +386,7 @@ JSON::getString(std::string& utf8) const
 bool
 JSON::getNumber(std::string& value) const
 {
-    if (m->value->type_code == vt_number) {
+    if (m && m->value->type_code == vt_number) {
         auto v = dynamic_cast<JSON_number const*>(m->value.get());
         value = v->encoded;
         return true;
@@ -396,7 +397,7 @@ JSON::getNumber(std::string& value) const
 bool
 JSON::getBool(bool& value) const
 {
-    if (m->value->type_code == vt_bool) {
+    if (m && m->value->type_code == vt_bool) {
         auto v = dynamic_cast<JSON_bool const*>(m->value.get());
         value = v->value;
         return true;
@@ -407,45 +408,54 @@ JSON::getBool(bool& value) const
 bool
 JSON::isNull() const
 {
-    return m->value->type_code == vt_null;
+    return m && m->value->type_code == vt_null;
+}
+
+JSON
+JSON::getDictItem(std::string const& key) const
+{
+    if (auto v = m ? dynamic_cast<JSON_dictionary const*>(m->value.get()) : nullptr) {
+        if (auto it = v->members.find(key); it != v->members.end()) {
+            return it->second;
+        }
+    }
+    return makeNull();
 }
 
 bool
 JSON::forEachDictItem(std::function<void(std::string const& key, JSON value)> fn) const
 {
-    auto v = dynamic_cast<JSON_dictionary const*>(m->value.get());
-    if (v == nullptr) {
-        return false;
+    if (auto v = m ? dynamic_cast<JSON_dictionary const*>(m->value.get()) : nullptr) {
+        for (auto const& [key, value]: v->members) {
+            fn(key, value);
+        }
+        return true;
     }
-    for (auto const& k: v->members) {
-        fn(k.first, JSON(k.second));
-    }
-    return true;
+    return false;
 }
 
 bool
 JSON::forEachArrayItem(std::function<void(JSON value)> fn) const
 {
-    auto v = dynamic_cast<JSON_array const*>(m->value.get());
-    if (v == nullptr) {
-        return false;
+    if (auto v = m ? dynamic_cast<JSON_array const*>(m->value.get()) : nullptr) {
+        for (auto const& i: v->elements) {
+            fn(JSON(i));
+        }
+        return true;
     }
-    for (auto const& i: v->elements) {
-        fn(JSON(i));
-    }
-    return true;
+    return false;
 }
 
 bool
 JSON::checkSchema(JSON schema, std::list<std::string>& errors)
 {
-    return checkSchemaInternal(m->value.get(), schema.m->value.get(), 0, errors, "");
+    return m && checkSchemaInternal(m->value.get(), schema.m->value.get(), 0, errors, "");
 }
 
 bool
 JSON::checkSchema(JSON schema, unsigned long flags, std::list<std::string>& errors)
 {
-    return checkSchemaInternal(m->value.get(), schema.m->value.get(), flags, errors, "");
+    return m && checkSchemaInternal(m->value.get(), schema.m->value.get(), flags, errors, "");
 }
 
 bool
@@ -620,6 +630,7 @@ namespace
             ls_number_e_sign,
             ls_alpha,
             ls_string,
+            ls_after_string,
             ls_backslash,
             ls_u4,
             ls_begin_array,
@@ -1031,7 +1042,7 @@ JSONParser::getToken()
                             "JSON: offset " + std::to_string(high_offset) +
                             ": UTF-16 high surrogate not followed by low surrogate");
                     }
-                    ignore();
+                    ignore(ls_after_string);
                     return;
                 } else if (*p == '\\') {
                     ignore(ls_backslash);
@@ -1226,7 +1237,7 @@ JSONParser::handleToken()
         }
         break;
 
-    case ls_string:
+    case ls_after_string:
         if (parser_state == ps_dict_begin || parser_state == ps_dict_after_comma) {
             dict_key = token;
             dict_key_offset = token_start;
@@ -1238,7 +1249,8 @@ JSONParser::handleToken()
         break;
 
     default:
-        throw std::logic_error("JSONParser::handleToken : non-terminal lexer state encountered");
+        throw std::runtime_error(
+            "JSON: offset " + std::to_string(offset) + ": premature end of input");
         break;
     }
 
@@ -1363,23 +1375,27 @@ JSON::parse(std::string const& s)
 void
 JSON::setStart(qpdf_offset_t start)
 {
-    m->start = start;
+    if (m) {
+        m->start = start;
+    }
 }
 
 void
 JSON::setEnd(qpdf_offset_t end)
 {
-    m->end = end;
+    if (m) {
+        m->end = end;
+    }
 }
 
 qpdf_offset_t
 JSON::getStart() const
 {
-    return m->start;
+    return m ? m->start : 0;
 }
 
 qpdf_offset_t
 JSON::getEnd() const
 {
-    return m->end;
+    return m ? m->end : 0;
 }

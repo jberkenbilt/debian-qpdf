@@ -29,6 +29,7 @@ Always
 Next
 ====
 
+* Add some additional code coverage analysis to CI
 * Spell check: Have the spell-check script synchronize cSpell.json with .idea/dictionaries/qpdf.xml,
   which should be set to the union of all the validated user dictionaries.
 * Maybe fix #553 -- use file times for attachments (trivial with C++-20)
@@ -37,6 +38,9 @@ Next
   * Make it possible to see incremental updates in qdf mode.
   * Make it possible to add incremental updates.
   * We may want a writing mode that preserves object IDs. See #339.
+  * Issue #1148 raises concerns about mixing xref tables and xref streams. We will have to consider
+    how qpdf should deal with this while making sure not to break hybrid-ref files, which are in the
+    test suite.
 * Support digital signatures. This probably requires support for incremental updates. First, add
   support for verifying digital signatures. Then we can consider adding support for signing
   documents, though the ability to sign documents is less useful without an interactive process of
@@ -335,9 +339,9 @@ so, I find it useful to make reference to them in this list.
   Note that there's nothing that says an indirect object in one update can't refer to an object that
   doesn't appear until a later update. This means that QPDF has to hang onto indirect nulls,
   including when they appear as dictionary values. In this case, QPDF_Dictionary::getKeys() ignores
-  all keys with null values, and hasKey() returns false for keys that have null values. We would
-  probably want to make QPDF_Dictionary able to handle the special case of keys that are indirect
-  nulls and basically never have it drop any keys that are indirect objects. We also have to make
+  all keys with null values, and hasKey() returns false for keys that have null values. QPDF_Dictionary
+  already handles the special case of keys that are indirect nulls, which is used to reserve foreign
+  objects, including foreign pages which may or may not be copied. We also have to make
   sure that the testing for this handles non-trivial cases of the targets of indirect nulls being
   replaced by real objects in an update. Such indirect nulls should appear in tests as dictionary
   values and as array values. In the distant past, qpdf used to replace indirect nulls with direct
@@ -376,8 +380,6 @@ so, I find it useful to make reference to them in this list.
   safe if all intermediate page nodes have only /Kids, /Parent, /Type, and /Count.
 
 * Look at https://bestpractices.coreinfrastructure.org/en
-
-* Consider adding fuzzer code for JSON
 
 * Rework tests so that nothing is written into the source directory. Ideally then the entire build
   could be done with a read-only source tree.

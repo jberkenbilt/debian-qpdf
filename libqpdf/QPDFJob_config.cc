@@ -957,11 +957,6 @@ QPDFJob::PagesConfig::endPages()
     if (n_specs == 0) {
         usage("--pages: no page specifications given");
     }
-    auto n_collate = config->o.m->collate.size();
-    if (!(n_collate == 0 || n_collate == 1 || n_collate == n_specs)) {
-        usage("--pages: if --collate has more than one value, it must have one value per page "
-              "specification");
-    }
     return this->config;
 }
 
@@ -973,17 +968,58 @@ QPDFJob::PagesConfig::pageSpec(
     return this;
 }
 
+QPDFJob::PagesConfig*
+QPDFJob::PagesConfig::file(std::string const& arg)
+{
+    this->config->o.m->page_specs.emplace_back(arg, nullptr, "");
+    return this;
+}
+
+QPDFJob::PagesConfig*
+QPDFJob::PagesConfig::range(std::string const& arg)
+{
+    if (config->o.m->page_specs.empty()) {
+        QTC::TC("qpdf", "QPDFJob misplaced page range");
+        usage("in --range must follow a file name");
+    }
+    auto& last = config->o.m->page_specs.back();
+    if (!last.range.empty()) {
+        QTC::TC("qpdf", "QPDFJob duplicated range");
+        usage("--range already specified for this file");
+    }
+    last.range = arg;
+    return this;
+}
+
+QPDFJob::PagesConfig*
+QPDFJob::PagesConfig::password(std::string const& arg)
+{
+    if (config->o.m->page_specs.empty()) {
+        QTC::TC("qpdf", "QPDFJob misplaced pages password");
+        usage("in --pages, --password must follow a file name");
+    }
+    auto& last = config->o.m->page_specs.back();
+    if (last.password) {
+        QTC::TC("qpdf", "QPDFJob duplicated pages password");
+        usage("--password already specified for this file");
+    }
+    last.password = QUtil::make_shared_cstr(arg);
+    return this;
+}
+
 std::shared_ptr<QPDFJob::UOConfig>
 QPDFJob::Config::overlay()
 {
-    o.m->under_overlay = &o.m->overlay;
+    o.m->overlay.emplace_back("overlay");
+    o.m->under_overlay = &o.m->overlay.back();
     return std::shared_ptr<UOConfig>(new UOConfig(this));
 }
 
 std::shared_ptr<QPDFJob::UOConfig>
 QPDFJob::Config::underlay()
 {
-    o.m->under_overlay = &o.m->underlay;
+    o.m->underlay.emplace_back("underlay");
+    o.m->under_overlay = &o.m->underlay.back();
     return std::shared_ptr<UOConfig>(new UOConfig(this));
 }
 
@@ -1103,6 +1139,9 @@ QPDFJob::Config::setPageLabels(const std::vector<std::string>& specs)
         }
 
         auto start_num = match[3].matched ? QUtil::string_to_int(match[3].str().c_str()) : 1;
+        if (start_num < 1) {
+            usage("starting page number must be >= 1");
+        }
         auto prefix = match[4].matched ? match[4].str() : "";
         // We can't check ordering until we know how many pages there are, so that is delayed until
         // near the end.
