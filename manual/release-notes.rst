@@ -38,6 +38,38 @@ Planned changes for future 12.x (subject to change):
 
 .. x.y.z: not yet released
 
+11.9.0: February 24, 2024
+  - CLI Enhancements
+
+    - Add new command-line arguments :qpdf:ref:`--file` and
+      :qpdf:ref:`--range` which can be used within :qpdf:ref:`--pages`
+      in place of positional arguments. Allow :qpdf:ref:`--file` to be
+      used inside of :qpdf:ref:`--overlay` and :qpdf:ref:`--underlay`
+      as well. These new options can be freely intermixed with
+      positional arguments.
+
+    - Allow :qpdf:ref:`--overlay` and :qpdf:ref:`--underlay` to be
+      repeated. They may appear multiple times on the command-line and
+      will be stacked in the order in which they appear. In QPDFJob
+      JSON (see :ref:`qpdf-job`), the `overlay` and `underlay` keys
+      may contain arrays. For compatibility, they may also contain a
+      single dictionary.
+
+  - Library Enhancements
+
+    - Add ``file()``, ``range()``, and ``password()`` to
+      ``QPDFJob::PagesConfig`` as an alternative to ``pageSpec``.
+
+    - Add ``QPDFObjectHandle::writeJSON`` to write the JSON
+      representation of the object directly to a pipeline. This is
+      much faster than calling ``QPDFObjectHandle::getJSON``.
+
+  - Other Enhancements
+
+    - There have been non-user-visible improvements to the reliability
+      of the JSON parser. The JSON parser has been added to fuzz
+      testing with OSS-Fuzz.
+
 11.8.0: January 8, 2024
   - Bug fixes:
 
