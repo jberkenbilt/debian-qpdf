@@ -1,3 +1,15 @@
+qpdf (11.9.0-1~bpo20.04.1~ppa1) focal; urgency=medium
+
+  * Backport to focal without qpdf-doc package.
+
+ -- Jay Berkenbilt <qjb@debian.org>  Mon, 08 Jan 2024 13:20:31 -0500
+
+qpdf (11.9.0-1) unstable; urgency=medium
+
+  * New upstream release.
+
+ -- Jay Berkenbilt <qjb@debian.org>  Sat, 24 Feb 2024 16:31:27 -0500
+
 qpdf (11.8.0-1~bpo20.04.1~ppa1) focal; urgency=medium
 
   * Backport to focal without qpdf-doc package.

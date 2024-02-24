@@ -1,3 +1,49 @@
+2024-02-24  Jay Berkenbilt  <ejb@ql.org>
+
+	* 11.9.0: release
+
+2024-02-17  Jay Berkenbilt  <ejb@ql.org>
+
+	* Add ENABLE_COVERAGE cmake option to assist with generating
+	coverage reports.
+
+	* From M. Holger: add QPDFObjectHandle::writeJSON to directly
+	write a JSON representation to a pipeline. This is much faster
+	than writing the serialized result of getJSON.
+
+2024-02-11  Jay Berkenbilt  <ejb@ql.org>
+
+	* The previous fix to #1056 was incomplete. When setting a check
+	box value, the previous fix allowed any value other than /Off to
+	mean checked. Now we also set the actual value based on the
+	allowable non-/Off value in the normal appearance dictionary.
+	Fixes #1056.
+
+2024-02-03  Jay Berkenbilt  <ejb@ql.org>
+
+	* Add fuzz testing for JSON.
+
+2024-01-15  Jay Berkenbilt  <ejb@ql.org>
+
+	* Add JSON::getDictItem (from m-holger)
+
+2024-01-10  Jay Berkenbilt  <ejb@ql.org>
+
+	* Allow --overlay and --underlay to be repeated. They may appear
+	multiple times on the command-line and will be stacked in the
+	order in which they appear. In QPDFJob JSON, the overlay and
+	underlay keys may contain arrays. For compatibility, they may also
+	contain a single dictionary.
+
+2024-01-09  Jay Berkenbilt  <ejb@ql.org>
+
+	* Add new command-line arguments --file and --range which can be
+	used within --pages in place of positional arguments. Allow --file
+	to be used inside of --overlay and --underlay as well. These new
+	options can be freely intermixed with positional arguments. Also
+	add file(), range(), and password() to QPDFJob::PagesConfig as an
+	alternative to pageSpec.
+
 2024-01-08  Jay Berkenbilt  <ejb@ql.org>
 
 	* 11.8.0: release

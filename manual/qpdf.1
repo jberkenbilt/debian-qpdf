@@ -3,7 +3,7 @@
 .\" Edits will be automatically overwritten if the build is
 .\" run in maintainer mode.
 .\"
-.TH QPDF "1" "" "qpdf version 11.8.0" "User Commands"
+.TH QPDF "1" "" "qpdf version 11.9.0" "User Commands"
 .SH NAME
 qpdf \- PDF transformation software
 .SH SYNOPSIS
@@ -409,9 +409,25 @@ the PDF, causing the PDF to render differently from the original.
 Related Options:
 .TP
 .B --pages \-\- begin page selection
---pages file [--password=password] [page-range] [...] --
+--pages [--file=]file [options] [...] --
 
 Run qpdf --help=page-selection for details.
+.TP
+.B --file \-\- source for pages
+--file=file
+
+Specify the file for the current page operation. This is used
+with --pages, --overlay, and --underlay and appears between the
+option and the terminating --. Run qpdf --help=page-selection
+for details.
+.TP
+.B --range \-\- page range
+--range=numeric-range
+
+Specify the page range for the current page operation with
+--pages. If omitted, all pages are selected. This is used
+with --pages and appears between --pages and --. Run
+qpdf --help=page-selection for details.
 .TP
 .B --collate \-\- collate with --pages
 --collate[=n[,m,...]]
@@ -542,8 +558,18 @@ page
 - omitted: the page number does not appear, though the prefix,
   if specified will still appear
 .IP \[bu]
+"start" must be a number >= 1
+.IP \[bu]
 "prefix"` may be any string and is prepended to each page
 label
+
+The first label spec must have a first-page value of 1,
+indicating the first page of the document. If multiple page
+label specs are specified, they must be given in increasing
+order.
+
+If multiple page label specs are specified, they must be given
+in increasing order.
 
 A given page label spec causes pages to be numbered according to
 that scheme starting with first-page and continuing until the
@@ -754,11 +780,23 @@ should not be used except for compatibility testing.
 .SH PAGE-SELECTION (select pages from one or more files)
 Use the --pages option to select pages from multiple files. Usage:
 
+qpdf in.pdf --pages --file=input-file \
+    [--range=page-range] [--password=password] [...] -- out.pdf
+
+OR
+
 qpdf in.pdf --pages input-file [--password=password] [page-range] \
     [...] -- out.pdf
 
 Between --pages and the -- that terminates pages option, repeat
 the following:
+
+--file=filename [--range=page-range] [--password=password] [options]
+
+For compatibility, the file and range can be specified
+positionally. qpdf versions prior to 11.9.0
+require --password=password to immediately follow the filename. In
+the older syntax, repeat the following:
 
 filename [--password=password] [page-range]
 
@@ -789,7 +827,7 @@ pages from b.pdf, and write the output to out.pdf. Document-level
 information from in.pdf is retained. Note the use of "." to refer
 to in.pdf.
 
-  qpdf in.pdf --pages . a.pdf b.pdf:even -- out.pdf
+  qpdf in.pdf --pages . a.pdf b.pdf 1-z:even -- out.pdf
 
 .IP \[bu]
 Take all the pages from a.pdf, all the pages from b.pdf in
@@ -805,7 +843,7 @@ underlaid on the primary output. Overlaid pages are drawn on top of
 the destination page and may obscure the page. Underlaid pages are
 drawn below the destination page. Usage:
 
-{--overlay|--underlay} file
+{--overlay|--underlay} [--file=]file
       [--password=password]
       [--to=page-range]
       [--from=[page-range]]
@@ -820,6 +858,9 @@ page of the overlay or underlay file is imposed on the corresponding page
 of the primary output until it runs out of pages, and any extra pages are
 ignored. You can also give a page range with --repeat to cause
 those pages to be repeated after the original pages are exhausted.
+
+This options are repeatable. Pages will be stacked in order of
+appearance: first underlays, then the original page, then overlays.
 
 Run qpdf --help=page-ranges for help with page ranges.
 .PP

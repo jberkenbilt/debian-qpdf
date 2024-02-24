@@ -1388,7 +1388,7 @@ PDF, causing the PDF to render differently from the original. See also
 Related Options
 ~~~~~~~~~~~~~~~
 
-.. qpdf:option:: --pages file [--password=password] [page-range] [...] --
+.. qpdf:option:: --pages [--file=]file [options] [...] --
 
    .. help: begin page selection
 
@@ -1402,6 +1402,38 @@ Related Options
 
    See also :qpdf:ref:`--split-pages`, :qpdf:ref:`--collate`,
    :ref:`page-ranges`.
+
+.. qpdf:option:: --file=file
+
+   .. help: source for pages
+
+      Specify the file for the current page operation. This is used
+      with --pages, --overlay, and --underlay and appears between the
+      option and the terminating --. Run qpdf --help=page-selection
+      for details.
+
+   Specify the file for the current page operation. This option is
+   used with :qpdf:ref:`--pages`, :qpdf:ref:`--overlay` and
+   :qpdf:ref:`--underlay` and appears between the option and the
+   terminating ``--``.
+
+   Please see :ref:`page-selection` for additional details.
+
+.. qpdf:option:: --range=numeric-range
+
+   .. help: page range
+
+      Specify the page range for the current page operation with
+      --pages. If omitted, all pages are selected. This is used
+      with --pages and appears between --pages and --. Run
+      qpdf --help=page-selection for details.
+
+   Specify the page range for the current page operation with
+   :qpdf:ref:`--pages`. If omitted, all pages are selected. This
+   option is used with :qpdf:ref:`--pages` and appears between
+   :qpdf:ref:`--pages` and ``--``.
+
+   Please see :ref:`page-selection` for additional details.
 
 .. qpdf:option:: --collate[=n[,m,...]]
 
@@ -1747,7 +1779,8 @@ Related Options
 
       Exclude page labels (explicit page numbers) from the output file.
 
-   Exclude page labels (explicit page numbers) from the output file.
+   Exclude page labels (explicit page numbers) from the output file by
+   omitting the ``/PageLabels`` dictionary in the document catalog.
    See also :qpdf:ref:`--set-page-labels`.
 
 .. qpdf:option:: --set-page-labels label-spec ... --
@@ -1773,8 +1806,17 @@ Related Options
         - r: Lower-case Roman numerals
         - omitted: the page number does not appear, though the prefix,
           if specified will still appear
+      - "start" must be a number >= 1
       - "prefix"` may be any string and is prepended to each page
         label
+
+      The first label spec must have a first-page value of 1,
+      indicating the first page of the document. If multiple page
+      label specs are specified, they must be given in increasing
+      order.
+
+      If multiple page label specs are specified, they must be given
+      in increasing order.
 
       A given page label spec causes pages to be numbered according to
       that scheme starting with first-page and continuing until the
@@ -1787,8 +1829,9 @@ Related Options
       1 and continuing sequentially until the end of the document. For
       additional examples, please consult the manual.
 
-   Set page labels (explicit page numbers) for the entire file. A PDF
-   file's pages can be explicitly numbered using page labels. Page
+   Set page labels (explicit page numbers) for the entire file. This
+   generates a ``/PageLabels`` dictionary in the document catalog. A
+   PDF file's pages can be explicitly numbered using page labels. Page
    labels in a PDF file have an optional type (Arabic numerals,
    upper/lower-case alphabetic characters, upper/lower-case Roman
    numerals), an optional prefix, and an optional starting value,
@@ -1818,8 +1861,14 @@ Related Options
      - omitted: the page number does not appear, though the prefix, if
        specified will still appear
 
+   - :samp:`{start}` must be a number ≥ 1
+
    - :samp:`{prefix}` may be any string and is prepended to each page
      label
+
+   The first label spec must have a :samp:`{first-page}` value of
+   ``1``, indicating the first page of the document. If multiple page
+   label specs are specified, they must be given in increasing order.
 
    A given page label spec causes pages to be numbered according to
    that scheme starting with :samp:`{first-page}` and continuing until
@@ -1827,7 +1876,7 @@ Related Options
    numbering starting at a certain page, you can use
    :samp:`{first-page}:` as the spec.
 
-   Here are some example page labeling schemes. First these examples,
+   Here are some example page labeling schemes. For these examples,
    assume a 50-page document.
 
    - ``1:a 5:D``
@@ -2424,11 +2473,23 @@ Page Selection
 
    Use the --pages option to select pages from multiple files. Usage:
 
+   qpdf in.pdf --pages --file=input-file \
+       [--range=page-range] [--password=password] [...] -- out.pdf
+
+   OR
+
    qpdf in.pdf --pages input-file [--password=password] [page-range] \
        [...] -- out.pdf
 
    Between --pages and the -- that terminates pages option, repeat
    the following:
+
+   --file=filename [--range=page-range] [--password=password] [options]
+
+   For compatibility, the file and range can be specified
+   positionally. qpdf versions prior to 11.9.0
+   require --password=password to immediately follow the filename. In
+   the older syntax, repeat the following:
 
    filename [--password=password] [page-range]
 
@@ -2458,7 +2519,7 @@ Page Selection
      information from in.pdf is retained. Note the use of "." to refer
      to in.pdf.
 
-     qpdf in.pdf --pages . a.pdf b.pdf:even -- out.pdf
+     qpdf in.pdf --pages . a.pdf b.pdf 1-z:even -- out.pdf
 
    - Take all the pages from a.pdf, all the pages from b.pdf in
      reverse, and only pages 3 and 6 from c.pdf and write the result
@@ -2472,14 +2533,29 @@ Page Selection
 split and merge PDF files by selecting pages from one or more input
 files.
 
-Usage: :samp:`qpdf {in.pdf} --pages input-file [--password={password}] [{page-range}] [...] -- {out.pdf}`
+::
 
-Between ``--pages`` and the ``--`` that terminates pages option,
-repeat the following:
+    qpdf primary-input.pdf \
+      --file=input.pdf \
+      [--range=page-range] \
+      [--password=password] \
+      [...] \
+      -- output.pdf
 
-:samp:`{filename} [--password={password}] [{page-range}]`
+OR
+
+::
+
+    qpdf primary-input.pdf \
+      input.pdf [--password=password] [page-range] \
+      [...] -- output.pdf
 
 Notes:
+  - The first form, with :qpdf:ref:`--file` and :qpdf:ref:`--range`,
+    was introduced in qpdf 11.9.0. In this form, the
+    :qpdf:ref:`--range` and :qpdf:ref:`--password` options apply to
+    the most recently specified :qpdf:ref:`--file` option.
+
   - The password option is needed only for password-protected files.
     If you specify the same file more than once, you only need to supply
     the password the first time.
@@ -2518,8 +2594,7 @@ Examples
 
   ::
 
-     qpdf in.pdf --pages . a.pdf b.pdf:even -- out.pdf
-
+     qpdf in.pdf --pages . a.pdf b.pdf 1-z:even -- out.pdf
 
 - Take all the pages from :file:`a.pdf`, all the pages from
   :file:`b.pdf` in reverse, and only pages 3 and 6 from :file:`c.pdf`
@@ -2529,7 +2604,9 @@ Examples
 
   ::
 
-     qpdf --empty --pages a.pdf b.pdf --password=x z-1 c.pdf 3,6
+     qpdf --empty --pages --file=a.pdf \
+       --file=b.pdf --password=x --range=z-1 \
+       --file=c.pdf --range=3,6 -- out.pdf
 
 - Scan a document with double-sided printing by scanning the fronts
   into :file:`odd.pdf` and the backs into :file:`even.pdf`. Collate
@@ -2542,6 +2619,8 @@ Examples
      qpdf --collate odd.pdf --pages . even.pdf -- all.pdf
        OR
      qpdf --collate --empty --pages odd.pdf even.pdf -- all.pdf
+       OR
+     qpdf --collate --empty --pages --file=odd.pdf --file=even.pdf -- all.pdf
 
 - When collating, any number of files and page ranges can be
   specified. If any file has fewer pages, that file is just skipped
@@ -2727,7 +2806,7 @@ Overlay and Underlay
    the destination page and may obscure the page. Underlaid pages are
    drawn below the destination page. Usage:
 
-   {--overlay|--underlay} file
+   {--overlay|--underlay} [--file=]file
          [--password=password]
          [--to=page-range]
          [--from=[page-range]]
@@ -2743,6 +2822,9 @@ Overlay and Underlay
    ignored. You can also give a page range with --repeat to cause
    those pages to be repeated after the original pages are exhausted.
 
+   This options are repeatable. Pages will be stacked in order of
+   appearance: first underlays, then the original page, then overlays.
+
    Run qpdf --help=page-ranges for help with page ranges.
 
 You can use :command:`qpdf` to overlay or underlay pages from other
@@ -2751,7 +2833,7 @@ as follows:
 
 ::
 
-   {--overlay|--underlay} file [options] --
+   {--overlay|--underlay} [--file=]file [options] --
 
 Overlay and underlay options are processed late, so they can be
 combined with other options like merging and will apply to the final
@@ -2759,8 +2841,12 @@ output. The ``--overlay`` and ``--underlay`` options work the same
 way, except underlay pages are drawn underneath the page to which they
 are applied, possibly obscured by the original page, and overlay files
 are drawn on top of the page to which they are applied, possibly
-obscuring the page. You can combine overlay and underlay, but you can
-only specify each option at most one time.
+obscuring the page. The ability to specify the file using the
+:qpdf:ref:`--file` option was added in qpdf 11.9.0. You can combine
+overlay and underlay. Starting in qpdf 11.9.0, you can specify these
+options multiple times. The final page will be a stack containing the
+underlays in order of appearance, then the original page, then the
+overlays in order of appearance.
 
 The default behavior of overlay and underlay is that pages are taken
 from the overlay/underlay file in sequence and applied to

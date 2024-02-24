@@ -105,6 +105,7 @@ QPDF_encryption xref stream from encrypted file 0
 QPDFJob unable to filter 0
 QUtil non-trivial UTF-16 0
 QPDF xref overwrite object 0
+QPDF xref overwrite invalid objgen 0
 QPDF decoding error warning 0
 qpdf-c called qpdf_init 0
 qpdf-c called qpdf_cleanup 0
@@ -249,7 +250,6 @@ QPDF not caching overridden objstm object 0
 QPDFWriter original obj non-zero gen 0
 QPDF_optimization indirect outlines 0
 QPDF xref space 2
-QPDFJob pages range omitted at end 1
 QPDFJob pages range omitted in middle 0
 QPDFJob npages 0
 QPDF already reserved object 0
@@ -257,7 +257,7 @@ QPDFWriter standard deterministic ID 1
 QPDFWriter linearized deterministic ID 1
 QPDFWriter deterministic with no data 0
 qpdf-c called qpdf_set_deterministic_ID 0
-QPDFParser indirect with 0 objid 0
+QPDFParser invalid objgen 0
 QPDF object id 0 0
 QPDF recursion loop in resolve 0
 QPDFParser treat word as string 0
@@ -668,7 +668,6 @@ QPDF_json value stream both or neither 0
 QPDFJob need json-stream-prefix for stdout 0
 QPDFJob write json to stdout 0
 QPDFJob write json to file 0
-QPDF_json don't check object after parse error 0
 QPDF_json ignoring unknown top-level key 0
 QPDF_json ignore second-level key 0
 QPDF_json ignore unknown key in object_top 0
@@ -690,3 +689,10 @@ QPDF skipping cache for known unchecked object 0
 QPDF fix dangling triggered xref reconstruction 0
 QPDFPageDocumentHelper flatten resources missing or invalid 0
 QPDF recover xref stream 0
+QPDFJob misplaced page range 0
+QPDFJob duplicated range 0
+QPDFJob json over/under no file 0
+QPDF_Array copy 1
+QPDF_json stream data not string 0
+QPDF_json stream datafile not string 0
+QPDF_json stream not a dictionary 0

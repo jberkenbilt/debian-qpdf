@@ -243,6 +243,8 @@ class QPDFJob
       public:
         QPDF_DLL
         Config* endPages();
+        // From qpdf 11.9.0, you can call file(), range(), and password(). Each call to file()
+        // starts a new page spec.
         QPDF_DLL
         PagesConfig* pageSpec(
             std::string const& filename, std::string const& range, char const* password = nullptr);
@@ -264,14 +266,12 @@ class QPDFJob
       public:
         QPDF_DLL
         Config* endUnderlayOverlay();
-        QPDF_DLL
-        UOConfig* file(std::string const& parameter);
 
 #include <qpdf/auto_job_c_uo.hh>
 
       private:
         UOConfig(Config*);
-        UOConfig(PagesConfig const&) = delete;
+        UOConfig(UOConfig const&) = delete;
 
         Config* config;
     };
@@ -291,7 +291,7 @@ class QPDFJob
 
       private:
         EncConfig(Config*);
-        EncConfig(PagesConfig const&) = delete;
+        EncConfig(EncConfig const&) = delete;
 
         Config* config;
     };
@@ -309,7 +309,7 @@ class QPDFJob
 
       private:
         PageLabelsConfig(Config*);
-        PageLabelsConfig(PagesConfig const&) = delete;
+        PageLabelsConfig(PageLabelsConfig const&) = delete;
 
         Config* config;
     };
@@ -514,14 +514,16 @@ class QPDFJob
     void handlePageSpecs(QPDF& pdf, std::vector<std::unique_ptr<QPDF>>& page_heap);
     bool shouldRemoveUnreferencedResources(QPDF& pdf);
     void handleRotations(QPDF& pdf);
-    void getUOPagenos(UnderOverlay& uo, std::map<int, std::vector<int>>& pagenos);
+    void getUOPagenos(
+        std::vector<UnderOverlay>& uo, std::map<int, std::map<size_t, std::vector<int>>>& pagenos);
     void handleUnderOverlay(QPDF& pdf);
     std::string doUnderOverlayForPage(
         QPDF& pdf,
         UnderOverlay& uo,
-        std::map<int, std::vector<int>>& pagenos,
+        std::map<int, std::map<size_t, std::vector<int>>>& pagenos,
         size_t page_idx,
-        std::map<int, QPDFObjectHandle>& fo,
+        size_t uo_idx,
+        std::map<int, std::map<size_t, QPDFObjectHandle>>& fo,
         std::vector<QPDFPageObjectHelper>& pages,
         QPDFPageObjectHelper& dest_page);
     void validateUnderOverlay(QPDF& pdf, UnderOverlay* uo);
@@ -549,7 +551,6 @@ class QPDFJob
     // JSON
     void doJSON(QPDF& pdf, Pipeline*);
     QPDFObjGen::set getWantedJSONObjects();
-    void doJSONObject(Pipeline* p, bool& first, std::string const& key, QPDFObjectHandle&);
     void doJSONObjects(Pipeline* p, bool& first, QPDF& pdf);
     void doJSONObjectinfo(Pipeline* p, bool& first, QPDF& pdf);
     void doJSONPages(Pipeline* p, bool& first, QPDF& pdf);
@@ -696,8 +697,8 @@ class QPDFJob
         size_t oi_min_height{DEFAULT_OI_MIN_HEIGHT};
         size_t oi_min_area{DEFAULT_OI_MIN_AREA};
         size_t ii_min_bytes{DEFAULT_II_MIN_BYTES};
-        UnderOverlay underlay{"underlay"};
-        UnderOverlay overlay{"overlay"};
+        std::vector<UnderOverlay> underlay;
+        std::vector<UnderOverlay> overlay;
         UnderOverlay* under_overlay{nullptr};
         std::vector<PageSpec> page_specs;
         std::map<std::string, RotationSpec> rotations;
