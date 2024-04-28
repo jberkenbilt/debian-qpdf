@@ -1,3 +1,9 @@
+qpdf (11.9.0-2) unstable; urgency=medium
+
+  * Incorporate NMU changes, now that they have migrated to testing.
+
+ -- Jay Berkenbilt <qjb@debian.org>  Sun, 28 Apr 2024 14:02:33 -0400
+
 qpdf (11.9.0-1.1) unstable; urgency=medium
 
   * Non-maintainer upload.
