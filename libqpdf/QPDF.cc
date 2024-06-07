@@ -1117,8 +1117,7 @@ QPDF::processXRefStream(qpdf_offset_t xref_offset, QPDFObjectHandle& xref_obj)
         if (obj == 0) {
             // This is needed by checkLinearization()
             m->first_xref_item_offset = xref_offset;
-        }
-        if (fields[0] == 0) {
+        } else if (fields[0] == 0) {
             // Ignore fields[2], which we don't care about in this case. This works around the issue
             // of some PDF files that put invalid values, like -1, here for deleted objects.
             insertFreeXrefEntry(QPDFObjGen(obj, 0));
@@ -1196,7 +1195,9 @@ QPDF::insertFreeXrefEntry(QPDFObjGen og)
 void
 QPDF::insertReconstructedXrefEntry(int obj, qpdf_offset_t f1, int f2)
 {
-    if (!(obj > 0 && 0 <= f2 && f2 < 65535)) {
+    // Various tables are indexed by object id, with potential size id + 1
+    constexpr static int max_id = std::numeric_limits<int>::max() - 1;
+    if (!(obj > 0 && obj <= max_id && 0 <= f2 && f2 < 65535)) {
         QTC::TC("qpdf", "QPDF xref overwrite invalid objgen");
         return;
     }
@@ -2370,6 +2371,12 @@ QPDF::getRoot()
 std::map<QPDFObjGen, QPDFXRefEntry>
 QPDF::getXRefTable()
 {
+    return getXRefTableInternal();
+}
+
+std::map<QPDFObjGen, QPDFXRefEntry> const&
+QPDF::getXRefTableInternal()
+{
     if (!m->parsed) {
         throw std::logic_error("QPDF::getXRefTable called before parsing.");
     }
@@ -2377,19 +2384,40 @@ QPDF::getXRefTable()
     return m->xref_table;
 }
 
-void
-QPDF::getObjectStreamData(std::map<int, int>& omap)
+size_t
+QPDF::tableSize()
 {
-    for (auto const& iter: m->xref_table) {
-        QPDFObjGen const& og = iter.first;
-        QPDFXRefEntry const& entry = iter.second;
-        if (entry.getType() == 2) {
-            omap[og.getObj()] = entry.getObjStreamNumber();
-        }
+    // If obj_cache is dense, accommodate all object in tables,else accommodate only original
+    // objects.
+    auto max_xref = m->xref_table.size() ? m->xref_table.crbegin()->first.getObj() : 0;
+    auto max_obj = m->obj_cache.size() ? m->obj_cache.crbegin()->first.getObj() : 0;
+    auto max_id = std::numeric_limits<int>::max() - 1;
+    if (max_obj >= max_id || max_xref >= max_id) {
+        // Temporary fix. Long-term solution is
+        // - QPDFObjGen to enforce objgens are valid and sensible
+        // - xref table and obj cache to protect against insertion of impossibly large obj ids
+        stopOnError("Impossibly large object id encountered.");
     }
+    if (max_obj < 1.1 * std::max(toI(m->obj_cache.size()), max_xref)) {
+        return toS(++max_obj);
+    }
+    return toS(++max_xref);
 }
 
 std::vector<QPDFObjGen>
+QPDF::getCompressibleObjVector()
+{
+    return getCompressibleObjGens<QPDFObjGen>();
+}
+
+std::vector<bool>
+QPDF::getCompressibleObjSet()
+{
+    return getCompressibleObjGens<bool>();
+}
+
+template <typename T>
+std::vector<T>
 QPDF::getCompressibleObjGens()
 {
     // Return a list of objects that are allowed to be in object streams.  Walk through the objects
@@ -2407,7 +2435,14 @@ QPDF::getCompressibleObjGens()
     std::vector<QPDFObjectHandle> queue;
     queue.reserve(512);
     queue.push_back(m->trailer);
-    std::vector<QPDFObjGen> result;
+    std::vector<T> result;
+    if constexpr (std::is_same_v<T, QPDFObjGen>) {
+        result.reserve(m->obj_cache.size());
+    } else if constexpr (std::is_same_v<T, bool>) {
+        result.resize(max_obj + 1U, false);
+    } else {
+        throw std::logic_error("Unsupported type in QPDF::getCompressibleObjGens");
+    }
     while (!queue.empty()) {
         auto obj = queue.back();
         queue.pop_back();
@@ -2439,7 +2474,11 @@ QPDF::getCompressibleObjGens()
             } else if (!(obj.isStream() ||
                          (obj.isDictionaryOfType("/Sig") && obj.hasKey("/ByteRange") &&
                           obj.hasKey("/Contents")))) {
-                result.push_back(og);
+                if constexpr (std::is_same_v<T, QPDFObjGen>) {
+                    result.push_back(og);
+                } else if constexpr (std::is_same_v<T, bool>) {
+                    result[id + 1U] = true;
+                }
             }
         }
         if (obj.isStream()) {
