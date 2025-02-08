@@ -33,9 +33,9 @@ QPDFParser::parse(bool& empty, bool content_stream)
 
     QPDF::ParseGuard pg(context);
     empty = false;
-    start = input->tell();
+    start = input.tell();
 
-    if (!tokenizer.nextToken(*input, object_description)) {
+    if (!tokenizer.nextToken(input, object_description)) {
         warn(tokenizer.getErrorMessage());
     }
 
@@ -101,7 +101,7 @@ QPDFParser::parse(bool& empty, bool content_stream)
             } else if (value == "endobj") {
                 // We just saw endobj without having read anything.  Treat this as a null and do
                 // not move the input source's offset.
-                input->seek(input->getLastOffset(), SEEK_SET);
+                input.seek(input.getLastOffset(), SEEK_SET);
                 empty = true;
                 return {QPDF_Null::create()};
             } else {
@@ -138,7 +138,7 @@ QPDFParser::parseRemainder(bool content_stream)
     bool b_contents = false;
 
     while (true) {
-        if (!tokenizer.nextToken(*input, object_description)) {
+        if (!tokenizer.nextToken(input, object_description)) {
             warn(tokenizer.getErrorMessage());
         }
         ++good_count; // optimistically
@@ -151,7 +151,7 @@ QPDFParser::parseRemainder(bool content_stream)
                     // Process the oldest buffered integer.
                     addInt(int_count);
                 }
-                last_offset_buffer[int_count % 2] = input->getLastOffset();
+                last_offset_buffer[int_count % 2] = input.getLastOffset();
                 int_buffer[int_count % 2] = QUtil::string_to_ll(tokenizer.getValue().c_str());
                 continue;
 
@@ -160,16 +160,14 @@ QPDFParser::parseRemainder(bool content_stream)
                 tokenizer.getValue() == "R") {
                 if (context == nullptr) {
                     QTC::TC("qpdf", "QPDFParser indirect without context");
-                    throw std::logic_error("QPDFParser::parse called without context on an object "
-                                           "with indirect references");
+                    throw std::logic_error(
+                        "QPDFParser::parse called without context on an object "
+                        "with indirect references");
                 }
                 auto id = QIntC::to_int(int_buffer[(int_count - 1) % 2]);
                 auto gen = QIntC::to_int(int_buffer[(int_count) % 2]);
                 if (!(id < 1 || gen < 0 || gen >= 65535)) {
-                    // This action has the desirable side effect of causing dangling references
-                    // (references to indirect objects that don't appear in the PDF) in any parsed
-                    // object to appear in the object cache.
-                    add(std::move(context->getObject(id, gen).obj));
+                    add(QPDF::ParseGuard::getObject(context, id, gen, parse_pdf));
                 } else {
                     QTC::TC("qpdf", "QPDFParser invalid objgen");
                     addNull();
@@ -312,7 +310,7 @@ QPDFParser::parseRemainder(bool content_stream)
         case QPDFTokenizer::tt_integer:
             if (!content_stream) {
                 // Buffer token in case it is part of an indirect reference.
-                last_offset_buffer[1] = input->getLastOffset();
+                last_offset_buffer[1] = input.getLastOffset();
                 int_buffer[1] = QUtil::string_to_ll(tokenizer.getValue().c_str());
                 int_count = 1;
             } else {
@@ -354,7 +352,7 @@ QPDFParser::parseRemainder(bool content_stream)
                 if (decrypter) {
                     if (b_contents) {
                         frame->contents_string = val;
-                        frame->contents_offset = input->getLastOffset();
+                        frame->contents_offset = input.getLastOffset();
                         b_contents = false;
                     }
                     std::string s{val};
@@ -422,7 +420,7 @@ void
 QPDFParser::addScalar(Args&&... args)
 {
     auto obj = T::create(args...);
-    obj->setDescription(context, description, input->getLastOffset());
+    obj->setDescription(context, description, input.getLastOffset());
     add(std::move(obj));
 }
 
@@ -472,13 +470,23 @@ QPDFParser::fixMissingKeys()
 bool
 QPDFParser::tooManyBadTokens()
 {
-    if (good_count <= 4) {
-        if (++bad_count > 5) {
-            warn("too many errors; giving up on reading object");
-            return true;
-        }
-    } else {
+    if (frame->olist.size() > 5'000 || frame->dict.size() > 5'000) {
+        warn(
+            "encountered errors while parsing an array or dictionary with more than 5000 "
+            "elements; giving up on reading object");
+        return true;
+    }
+    if (--max_bad_count > 0 && good_count > 4) {
+        good_count = 0;
         bad_count = 1;
+        return false;
+    }
+    if (++bad_count > 5 ||
+        (frame->state != st_array && QIntC::to_size(max_bad_count) < frame->olist.size())) {
+        // Give up after 5 errors in close proximity or if the number of missing dictionary keys
+        // exceeds the remaining number of allowable total errors.
+        warn("too many errors; giving up on reading object");
+        return true;
     }
     good_count = 0;
     return false;
@@ -509,11 +517,11 @@ QPDFParser::warnDuplicateKey()
 void
 QPDFParser::warn(qpdf_offset_t offset, std::string const& msg) const
 {
-    warn(QPDFExc(qpdf_e_damaged_pdf, input->getName(), object_description, offset, msg));
+    warn(QPDFExc(qpdf_e_damaged_pdf, input.getName(), object_description, offset, msg));
 }
 
 void
 QPDFParser::warn(std::string const& msg) const
 {
-    warn(input->getLastOffset(), msg);
+    warn(input.getLastOffset(), msg);
 }

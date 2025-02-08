@@ -1,4 +1,5 @@
-// Copyright (c) 2005-2024 Jay Berkenbilt
+// Copyright (c) 2005-2021 Jay Berkenbilt
+// Copyright (c) 2022-2025 Jay Berkenbilt and Manfred Holger
 //
 // This file is part of qpdf.
 //
@@ -227,6 +228,10 @@ class QPDF
     // reporting of warnings is suppressed.  You may still retrieve warnings by calling getWarnings.
     QPDF_DLL
     void setSuppressWarnings(bool);
+
+    // Set the maximum number of warnings. A QPDFExc is thrown if the limit is exceeded.
+    QPDF_DLL
+    void setMaxWarnings(size_t);
 
     // By default, QPDF will try to recover if it finds certain types of errors in PDF files.  If
     // turned off, it will throw an exception on the first such problem it finds without attempting
@@ -672,7 +677,7 @@ class QPDF
     // Traverse page tree return all /Page objects. It also detects and resolves cases in which the
     // same /Page object is duplicated. For efficiency, this method returns a const reference to an
     // internal vector of pages. Calls to addPage, addPageAt, and removePage safely update this, but
-    // directly manipulation of the pages tree or pushing inheritable objects to the page level may
+    // direct manipulation of the pages tree or pushing inheritable objects to the page level may
     // invalidate it. See comments for updateAllPagesCache() for additional notes. Newer code should
     // use QPDFPageDocumentHelper::getAllPages instead. The decision to expose this internal cache
     // was arguably incorrect, but it is being left here for compatibility. It is, however,
@@ -792,12 +797,13 @@ class QPDF
     class Resolver
     {
         friend class QPDFObject;
+        friend class QPDF_Unresolved;
 
       private:
-        static void
-        resolve(QPDF* qpdf, QPDFObjGen const& og)
+        static QPDFObject*
+        resolved(QPDF* qpdf, QPDFObjGen og)
         {
-            qpdf->resolve(og);
+            return qpdf->resolve(og);
         }
     };
 
@@ -814,7 +820,8 @@ class QPDF
         }
     };
 
-    // The ParseGuard class allows QPDFParser to detect re-entrant parsing.
+    // The ParseGuard class allows QPDFParser to detect re-entrant parsing. It also provides
+    // special access to allow the parser to create unresolved objects and dangling references.
     class ParseGuard
     {
         friend class QPDFParser;
@@ -827,6 +834,13 @@ class QPDF
                 qpdf->inParse(true);
             }
         }
+
+        static std::shared_ptr<QPDFObject>
+        getObject(QPDF* qpdf, int id, int gen, bool parse_pdf)
+        {
+            return qpdf->getObjectForParser(id, gen, parse_pdf);
+        }
+
         ~ParseGuard()
         {
             if (qpdf) {
@@ -895,8 +909,8 @@ class QPDF
         }
         ObjCache(
             std::shared_ptr<QPDFObject> object,
-            qpdf_offset_t end_before_space,
-            qpdf_offset_t end_after_space) :
+            qpdf_offset_t end_before_space = 0,
+            qpdf_offset_t end_after_space = 0) :
             object(object),
             end_before_space(end_before_space),
             end_after_space(end_after_space)
@@ -1024,10 +1038,19 @@ class QPDF
     bool resolveXRefTable();
     void reconstruct_xref(QPDFExc& e);
     bool parse_xrefFirst(std::string const& line, int& obj, int& num, int& bytes);
-    bool parse_xrefEntry(std::string const& line, qpdf_offset_t& f1, int& f2, char& type);
+    bool read_xrefEntry(qpdf_offset_t& f1, int& f2, char& type);
+    bool read_bad_xrefEntry(qpdf_offset_t& f1, int& f2, char& type);
     qpdf_offset_t read_xrefTable(qpdf_offset_t offset);
     qpdf_offset_t read_xrefStream(qpdf_offset_t offset);
     qpdf_offset_t processXRefStream(qpdf_offset_t offset, QPDFObjectHandle& xref_stream);
+    std::pair<int, std::array<int, 3>>
+    processXRefW(QPDFObjectHandle& dict, std::function<QPDFExc(std::string_view)> damaged);
+    int processXRefSize(
+        QPDFObjectHandle& dict, int entry_size, std::function<QPDFExc(std::string_view)> damaged);
+    std::pair<int, std::vector<std::pair<int, int>>> processXRefIndex(
+        QPDFObjectHandle& dict,
+        int max_num_entries,
+        std::function<QPDFExc(std::string_view)> damaged);
     void insertXrefEntry(int obj, int f0, qpdf_offset_t f1, int f2);
     void insertFreeXrefEntry(QPDFObjGen);
     void insertReconstructedXrefEntry(int obj, qpdf_offset_t f1, int f2);
@@ -1039,7 +1062,7 @@ class QPDF
     QPDFObjectHandle readObjectInStream(std::shared_ptr<InputSource>& input, int obj);
     size_t recoverStreamLength(
         std::shared_ptr<InputSource> input, QPDFObjGen const& og, qpdf_offset_t stream_offset);
-    QPDFTokenizer::Token readToken(std::shared_ptr<InputSource>, size_t max_len = 0);
+    QPDFTokenizer::Token readToken(InputSource&, size_t max_len = 0);
 
     QPDFObjectHandle readObjectAtOffset(
         bool attempt_recovery,
@@ -1048,16 +1071,16 @@ class QPDF
         QPDFObjGen exp_og,
         QPDFObjGen& og,
         bool skip_cache_if_in_xref);
-    void resolve(QPDFObjGen og);
+    QPDFObject* resolve(QPDFObjGen og);
     void resolveObjectsInStream(int obj_stream_number);
     void stopOnError(std::string const& message);
-    QPDFObjectHandle reserveObjectIfNotExists(QPDFObjGen const& og);
-    QPDFObjectHandle reserveStream(QPDFObjGen const& og);
     QPDFObjGen nextObjGen();
     QPDFObjectHandle newIndirect(QPDFObjGen const&, std::shared_ptr<QPDFObject> const&);
     QPDFObjectHandle makeIndirectFromQPDFObject(std::shared_ptr<QPDFObject> const& obj);
     bool isCached(QPDFObjGen const& og);
     bool isUnresolved(QPDFObjGen const& og);
+    std::shared_ptr<QPDFObject> getObjectForParser(int id, int gen, bool parse_pdf);
+    std::shared_ptr<QPDFObject> getObjectForJSON(int id, int gen);
     void removeObject(QPDFObjGen og);
     void updateCache(
         QPDFObjGen const& og,
@@ -1065,14 +1088,11 @@ class QPDF
         qpdf_offset_t end_before_space,
         qpdf_offset_t end_after_space);
     static QPDFExc damagedPDF(
-        std::shared_ptr<InputSource> const& input,
+        InputSource& input,
         std::string const& object,
         qpdf_offset_t offset,
         std::string const& message);
-    QPDFExc damagedPDF(
-        std::shared_ptr<InputSource> const& input,
-        qpdf_offset_t offset,
-        std::string const& message);
+    QPDFExc damagedPDF(InputSource& input, qpdf_offset_t offset, std::string const& message);
     QPDFExc damagedPDF(std::string const& object, qpdf_offset_t offset, std::string const& message);
     QPDFExc damagedPDF(std::string const& object, std::string const& message);
     QPDFExc damagedPDF(qpdf_offset_t offset, std::string const& message);
@@ -1488,16 +1508,21 @@ class QPDF
         bool provided_password_is_hex_key{false};
         bool ignore_xref_streams{false};
         bool suppress_warnings{false};
+        size_t max_warnings{0};
         bool attempt_recovery{true};
         bool check_mode{false};
         std::shared_ptr<EncryptionParameters> encp;
         std::string pdf_version;
         std::map<QPDFObjGen, QPDFXRefEntry> xref_table;
+        // Various tables are indexed by object id, with potential size id + 1
+        int xref_table_max_id{std::numeric_limits<int>::max() - 1};
+        qpdf_offset_t xref_table_max_offset{0};
         std::set<int> deleted_objects;
         std::map<QPDFObjGen, ObjCache> obj_cache;
         std::set<QPDFObjGen> resolving;
         QPDFObjectHandle trailer;
         std::vector<QPDFObjectHandle> all_pages;
+        bool invalid_page_found{false};
         std::map<QPDFObjGen, int> pageobj_to_pages_pos;
         bool pushed_inherited_attributes_to_pages{false};
         bool ever_pushed_inherited_attributes_to_pages{false};

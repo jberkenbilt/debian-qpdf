@@ -1,4 +1,5 @@
-// Copyright (c) 2005-2024 Jay Berkenbilt
+// Copyright (c) 2005-2021 Jay Berkenbilt
+// Copyright (c) 2022-2025 Jay Berkenbilt and Manfred Holger
 //
 // This file is part of qpdf.
 //
@@ -191,6 +192,8 @@ class QPDFTokenizer
     // returns a tt_inline_image token.
     QPDF_DLL
     void expectInlineImage(std::shared_ptr<InputSource> input);
+    QPDF_DLL
+    void expectInlineImage(InputSource& input);
 
   private:
     friend class QPDFParser;
@@ -217,7 +220,7 @@ class QPDFTokenizer
 
     bool isSpace(char);
     bool isDelimiter(char);
-    void findEI(std::shared_ptr<InputSource> input);
+    void findEI(InputSource& input);
 
     enum state_e {
         st_top,

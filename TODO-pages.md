@@ -6,7 +6,7 @@ to another (or back to the same PDF). A secondary goal is to add more flexibilit
 which documents can be split and combined (flexible assembly).
 
 This is a work in progress. As implementation proceeds, details will become more solid. Comments are
-encouraged. Please make comments in the [QPDF pages epic
+encouraged. Please make comments in the [qpdf pages epic
 discussion](https://github.com/qpdf/qpdf/discussions/1104). As ideas are refined, they will be
 updated in this document.
 
@@ -541,11 +541,13 @@ gh search issues label:pages --repo qpdf/qpdf --limit 200 --state=open
 * Split pages based on outlines
   * Issues: #477
 * Keep relevant parts of outline hierarchy
-  * Issues: #457, #356, #343, #323
+  * Issues: #457, #356, #343, #323, #1199
   * Notes:
     * There is some helpful discussion in #343 including
       * Preserving open/closed status
       * Preserving javascript actions
+    * #1199 suggests being able to add outlines based on the file name when merging files. A related
+      idea could be merge outline hierarchies by creating a new top-level item for each merged file.
 * Split pages: write pages to memory
   * Issues: #1130
 

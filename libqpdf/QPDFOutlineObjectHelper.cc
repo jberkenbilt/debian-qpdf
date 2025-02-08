@@ -23,8 +23,9 @@ QPDFOutlineObjectHelper::QPDFOutlineObjectHelper(
         return;
     }
 
+    QPDFObjGen::set children;
     QPDFObjectHandle cur = oh.getKey("/First");
-    while (!cur.isNull()) {
+    while (!cur.isNull() && cur.isIndirect() && children.add(cur)) {
         QPDFOutlineObjectHelper new_ooh(cur, dh, 1 + depth);
         new_ooh.m->parent = std::make_shared<QPDFOutlineObjectHelper>(*this);
         m->kids.push_back(new_ooh);
@@ -58,8 +59,8 @@ QPDFOutlineObjectHelper::getDest()
         QTC::TC("qpdf", "QPDFOutlineObjectHelper action dest");
         dest = A.getKey("/D");
     }
-    if (!dest.isInitialized()) {
-        dest = QPDFObjectHandle::newNull();
+    if (!dest) {
+        return QPDFObjectHandle::newNull();
     }
 
     if (dest.isName() || dest.isString()) {

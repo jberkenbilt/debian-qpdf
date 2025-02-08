@@ -6,13 +6,18 @@ WARNING: fuzz-16214.pdf (xref stream, offset 116): Cross-reference stream data h
 WARNING: fuzz-16214.pdf: reported number of objects (6) is not one plus the highest object number (35)
 WARNING: fuzz-16214.pdf (object 14 0, offset 652): expected dictionary key but found non-name object; inserting key /QPDFFake1
 WARNING: fuzz-16214.pdf (object 14 0, offset 734): expected endobj
+WARNING: fuzz-16214.pdf (object 15 0, offset 869): unknown token while reading object; treating as string
+WARNING: fuzz-16214.pdf (object 15 0, offset 745): expected dictionary key but found non-name object; inserting key /QPDFFake1
+WARNING: fuzz-16214.pdf (object 15 0, offset 894): expected endobj
+WARNING: fuzz-16214.pdf, object 15 0 at offset 745: kid 0 (from 0) MediaBox is undefined; setting to letter / ANSI A
+WARNING: fuzz-16214.pdf, object 15 0 at offset 745: /Type key should be /Page but is not; overriding
 WARNING: fuzz-16214.pdf: file is damaged
 WARNING: fuzz-16214.pdf (object 1 0, offset 7189): expected n n obj
 WARNING: fuzz-16214.pdf: Attempting to reconstruct cross-reference table
 WARNING: fuzz-16214.pdf (offset 7207): error decoding stream data for object 2 0: stream inflate: inflate: data: invalid code lengths set
 WARNING: fuzz-16214.pdf (offset 7207): getStreamData called on unfilterable stream
-WARNING: fuzz-16214.pdf (object 11 0, offset 11551): supposed object stream 5 has wrong type
-WARNING: fuzz-16214.pdf (object 11 0, offset 11551): object stream 5 has incorrect keys
+WARNING: fuzz-16214.pdf (object 8 0, offset 7207): supposed object stream 5 has wrong type
+WARNING: fuzz-16214.pdf (object 8 0, offset 7207): object stream 5 has incorrect keys
 WARNING: fuzz-16214.pdf (object 21 0, offset 3639): expected endstream
 WARNING: fuzz-16214.pdf (object 21 0, offset 3112): attempting to recover stream length
 WARNING: fuzz-16214.pdf (object 21 0, offset 3112): recovered stream length: 340

@@ -26,6 +26,8 @@
 #include <cstdlib>
 #include <stdexcept>
 
+using namespace std::literals;
+
 QPDFWriter::ProgressReporter::~ProgressReporter() // NOLINT (modernize-use-equals-default)
 {
     // Must be explicit and not inline -- see QPDF_DLL_CLASS in README-maintainer
@@ -1010,8 +1012,9 @@ QPDFWriter::pushMD5Pipeline(PipelinePopper& pp)
 {
     if (!m->id2.empty()) {
         // Can't happen in the code
-        throw std::logic_error("Deterministic ID computation enabled after ID"
-                               " generation has already occurred.");
+        throw std::logic_error(
+            "Deterministic ID computation enabled after ID"
+            " generation has already occurred.");
     }
     qpdf_assert_debug(m->deterministic_id);
     qpdf_assert_debug(m->md5_pipeline == nullptr);
@@ -1079,8 +1082,9 @@ QPDFWriter::enqueueObject(QPDFObjectHandle object)
         // original QPDF gets destroyed, which just disconnects the QPDFObjectHandle from its owner.
         if (object.getOwningQPDF() != &(m->pdf)) {
             QTC::TC("qpdf", "QPDFWriter foreign object");
-            throw std::logic_error("QPDFObjectHandle from different QPDF found while writing.  Use "
-                                   "QPDF::copyForeignObject to add objects from another file.");
+            throw std::logic_error(
+                "QPDFObjectHandle from different QPDF found while writing.  Use "
+                "QPDF::copyForeignObject to add objects from another file.");
         }
 
         if (m->qdf_mode && object.isStreamOfType("/XRef")) {
@@ -1121,7 +1125,6 @@ QPDFWriter::enqueueObject(QPDFObjectHandle object)
         } else if (obj.renumber == -1) {
             // This can happen if a specially constructed file indicates that an object stream is
             // inside itself.
-            QTC::TC("qpdf", "QPDFWriter ignore self-referential object stream");
         }
         return;
     } else if (!m->linearized) {
@@ -1237,8 +1240,8 @@ QPDFWriter::writeTrailer(
 bool
 QPDFWriter::willFilterStream(
     QPDFObjectHandle stream,
-    bool& compress_stream,
-    bool& is_metadata,
+    bool& compress_stream, // out only
+    bool& is_metadata,     // out only
     std::shared_ptr<Buffer>* stream_data)
 {
     compress_stream = false;
@@ -1250,7 +1253,7 @@ QPDFWriter::willFilterStream(
     if (stream_dict.isDictionaryOfType("/Metadata")) {
         is_metadata = true;
     }
-    bool filter = (stream.isDataModified() || m->compress_streams || m->stream_decode_level);
+    bool filter = stream.isDataModified() || m->compress_streams || m->stream_decode_level;
     bool filter_on_write = stream.getFilterOnWrite();
     if (!filter_on_write) {
         QTC::TC("qpdf", "QPDFWriter getFilterOnWrite false");
@@ -1262,15 +1265,15 @@ QPDFWriter::willFilterStream(
         // CPU cycles uncompressing and recompressing stuff. This can be overridden with
         // setRecompressFlate(true).
         QPDFObjectHandle filter_obj = stream_dict.getKey("/Filter");
-        if ((!m->recompress_flate) && (!stream.isDataModified()) && filter_obj.isName() &&
-            ((filter_obj.getName() == "/FlateDecode") || (filter_obj.getName() == "/Fl"))) {
+        if (!m->recompress_flate && !stream.isDataModified() && filter_obj.isName() &&
+            (filter_obj.getName() == "/FlateDecode" || filter_obj.getName() == "/Fl")) {
             QTC::TC("qpdf", "QPDFWriter not recompressing /FlateDecode");
             filter = false;
         }
     }
     bool normalize = false;
     bool uncompress = false;
-    if (filter_on_write && is_metadata && ((!m->encrypted) || (m->encrypt_metadata == false))) {
+    if (filter_on_write && is_metadata && (!m->encrypted || !m->encrypt_metadata)) {
         QTC::TC("qpdf", "QPDFWriter not compressing metadata");
         filter = true;
         compress_stream = false;
@@ -1284,27 +1287,36 @@ QPDFWriter::willFilterStream(
     }
 
     bool filtered = false;
-    for (int attempt = 1; attempt <= 2; ++attempt) {
+    for (bool first_attempt: {true, false}) {
         pushPipeline(new Pl_Buffer("stream data"));
         PipelinePopper pp_stream_data(this, stream_data);
         activatePipelineStack(pp_stream_data);
         try {
             filtered = stream.pipeStreamData(
                 m->pipeline,
-                (((filter && normalize) ? qpdf_ef_normalize : 0) |
-                 ((filter && compress_stream) ? qpdf_ef_compress : 0)),
-                (filter ? (uncompress ? qpdf_dl_all : m->stream_decode_level) : qpdf_dl_none),
+                !filter ? 0
+                        : ((normalize ? qpdf_ef_normalize : 0) |
+                           (compress_stream ? qpdf_ef_compress : 0)),
+                !filter ? qpdf_dl_none : (uncompress ? qpdf_dl_all : m->stream_decode_level),
                 false,
-                (attempt == 1));
+                first_attempt);
+            if (filter && !filtered) {
+                // Try again
+                filter = false;
+                stream.setFilterOnWrite(false);
+            } else {
+                break;
+            }
         } catch (std::runtime_error& e) {
+            if (filter && first_attempt) {
+                stream.warnIfPossible("error while getting stream data: "s + e.what());
+                stream.warnIfPossible("qpdf will attempt to write the damaged stream unchanged");
+                filter = false;
+                stream.setFilterOnWrite(false);
+                continue;
+            }
             throw std::runtime_error(
                 "error while getting stream data for " + stream.unparse() + ": " + e.what());
-        }
-        if (filter && (!filtered)) {
-            // Try again
-            filter = false;
-        } else {
-            break;
         }
     }
     if (!filtered) {
@@ -1381,7 +1393,7 @@ QPDFWriter::unparseObject(
             }
         }
 
-        if (extensions.isInitialized()) {
+        if (extensions) {
             std::set<std::string> keys = extensions.getKeys();
             if (keys.count("/ADBE") > 0) {
                 have_extensions_adbe = true;
@@ -1412,7 +1424,7 @@ QPDFWriter::unparseObject(
             }
         }
 
-        if (extensions.isInitialized()) {
+        if (extensions) {
             QTC::TC("qpdf", "QPDFWriter preserve Extensions");
             QPDFObjectHandle adbe = extensions.getKey("/ADBE");
             if (adbe.isDictionary() &&
@@ -1866,9 +1878,10 @@ QPDFWriter::generateID()
         if (m->deterministic_id) {
             if (m->deterministic_id_data.empty()) {
                 QTC::TC("qpdf", "QPDFWriter deterministic with no data");
-                throw std::logic_error("INTERNAL ERROR: QPDFWriter::generateID has no data for "
-                                       "deterministic ID.  This may happen if deterministic ID and "
-                                       "file encryption are requested together.");
+                throw std::runtime_error(
+                    "INTERNAL ERROR: QPDFWriter::generateID has no data for "
+                    "deterministic ID.  This may happen if deterministic ID "
+                    "and file encryption are requested together.");
             }
             seed += m->deterministic_id_data;
         } else {
@@ -2077,8 +2090,8 @@ void
 QPDFWriter::initializeTables(size_t extra)
 {
     auto size = QIntC::to_size(QPDF::Writer::tableSize(m->pdf) + 100) + extra;
-    m->obj.initialize(size);
-    m->new_obj.initialize(size);
+    m->obj.resize(size);
+    m->new_obj.resize(size);
 }
 
 void
@@ -2116,7 +2129,7 @@ QPDFWriter::doWriteSetup()
     if (m->encrypted) {
         // Encryption has been explicitly set
         m->preserve_encryption = false;
-    } else if (m->normalize_content || m->stream_decode_level || m->pclm || m->qdf_mode) {
+    } else if (m->normalize_content || !m->compress_streams || m->pclm || m->qdf_mode) {
         // Encryption makes looking at contents pretty useless.  If the user explicitly encrypted
         // though, we still obey that.
         m->preserve_encryption = false;
@@ -2544,14 +2557,20 @@ QPDFWriter::writeLinearized()
 {
     // Optimize file and enqueue objects in order
 
-    auto skip_stream_parameters = [this](QPDFObjectHandle& stream) {
-        bool compress_stream;
-        bool is_metadata;
-        if (willFilterStream(stream, compress_stream, is_metadata, nullptr)) {
-            return 2;
-        } else {
-            return 1;
+    std::map<int, int> stream_cache;
+
+    auto skip_stream_parameters = [this, &stream_cache](QPDFObjectHandle& stream) {
+        auto& result = stream_cache[stream.getObjectID()];
+        if (result == 0) {
+            bool compress_stream;
+            bool is_metadata;
+            if (willFilterStream(stream, compress_stream, is_metadata, nullptr)) {
+                result = 2;
+            } else {
+                result = 1;
+            }
         }
+        return result;
     };
 
     QPDF::Writer::optimize(m->pdf, m->obj, skip_stream_parameters);

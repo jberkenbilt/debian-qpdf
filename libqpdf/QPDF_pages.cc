@@ -40,7 +40,7 @@ std::vector<QPDFObjectHandle> const&
 QPDF::getAllPages()
 {
     // Note that pushInheritedAttributesToPage may also be used to initialize m->all_pages.
-    if (m->all_pages.empty()) {
+    if (m->all_pages.empty() && !m->invalid_page_found) {
         m->ever_called_get_all_pages = true;
         QPDFObjGen::set visited;
         QPDFObjGen::set seen;
@@ -55,8 +55,9 @@ QPDF::getAllPages()
             // Files have been found in the wild where /Pages in the catalog points to the first
             // page. Try to work around this and similar cases with this heuristic.
             if (!warned) {
-                getRoot().warnIfPossible("document page tree root (root -> /Pages) doesn't point"
-                                         " to the root of the page tree; attempting to correct");
+                getRoot().warnIfPossible(
+                    "document page tree root (root -> /Pages) doesn't point"
+                    " to the root of the page tree; attempting to correct");
                 warned = true;
             }
             changed_pages = true;
@@ -66,9 +67,21 @@ QPDF::getAllPages()
             getRoot().replaceKey("/Pages", pages);
         }
         seen.clear();
-        if (pages.hasKey("/Kids")) {
+        if (!pages.hasKey("/Kids")) {
             // Ensure we actually found a /Pages object.
+            throw QPDFExc(
+                qpdf_e_pages, m->file->getName(), "", 0, "root of pages tree has no /Kids array");
+        }
+        try {
             getAllPagesInternal(pages, visited, seen, false);
+        } catch (...) {
+            m->all_pages.clear();
+            m->invalid_page_found = false;
+            throw;
+        }
+        if (m->invalid_page_found) {
+            flattenPagesTree();
+            m->invalid_page_found = false;
         }
     }
     return m->all_pages;
@@ -82,7 +95,7 @@ QPDF::getAllPagesInternal(
         throw QPDFExc(
             qpdf_e_pages,
             m->file->getName(),
-            m->last_object_description,
+            "object " + cur_node.getObjGen().unparse(' '),
             0,
             "Loop detected in /Pages structure (getAllPages)");
     }
@@ -98,6 +111,11 @@ QPDF::getAllPagesInternal(
     int n = kids.getArrayNItems();
     for (int i = 0; i < n; ++i) {
         auto kid = kids.getArrayItem(i);
+        if (!kid.isDictionary()) {
+            kid.warnIfPossible("Pages tree includes non-dictionary object; ignoring");
+            m->invalid_page_found = true;
+            continue;
+        }
         if (kid.hasKey("/Kids")) {
             getAllPagesInternal(kid, visited, seen, media_box);
         } else {
@@ -177,7 +195,11 @@ QPDF::flattenPagesTree()
     pages.replaceKey("/Kids", QPDFObjectHandle::newArray(m->all_pages));
     // /Count has not changed
     if (pages.getKey("/Count").getUIntValue() != len) {
-        throw std::runtime_error("/Count is wrong after flattening pages tree");
+        if (m->invalid_page_found && pages.getKey("/Count").getUIntValue() > len) {
+            pages.replaceKey("/Count", QPDFObjectHandle::newInteger(toI(len)));
+        } else {
+            throw std::runtime_error("/Count is wrong after flattening pages tree");
+        }
     }
 }
 

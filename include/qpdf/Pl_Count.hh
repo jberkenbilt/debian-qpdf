@@ -1,4 +1,5 @@
-// Copyright (c) 2005-2024 Jay Berkenbilt
+// Copyright (c) 2005-2021 Jay Berkenbilt
+// Copyright (c) 2022-2025 Jay Berkenbilt and Manfred Holger
 //
 // This file is part of qpdf.
 //
@@ -57,8 +58,8 @@ class QPDF_DLL_CLASS Pl_Count: public Pipeline
         Members(Members const&) = delete;
 
         // Must be qpdf_offset_t, not size_t, to handle writing more than size_t can handle.
-        qpdf_offset_t count;
-        unsigned char last_char;
+        qpdf_offset_t count{0};
+        unsigned char last_char{'\0'};
     };
 
     std::shared_ptr<Members> m;

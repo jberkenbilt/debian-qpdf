@@ -19,11 +19,14 @@ Pl_Buffer::~Pl_Buffer() // NOLINT (modernize-use-equals-default)
 void
 Pl_Buffer::write(unsigned char const* buf, size_t len)
 {
+    if (!len) {
+        return;
+    }
     m->data.append(reinterpret_cast<char const*>(buf), len);
     m->ready = false;
 
-    if (getNext(true)) {
-        getNext()->write(buf, len);
+    if (next()) {
+        next()->write(buf, len);
     }
 }
 
@@ -31,8 +34,8 @@ void
 Pl_Buffer::finish()
 {
     m->ready = true;
-    if (getNext(true)) {
-        getNext()->finish();
+    if (next()) {
+        next()->finish();
     }
 }
 

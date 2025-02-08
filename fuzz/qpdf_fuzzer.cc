@@ -1,11 +1,12 @@
 #include <qpdf/Buffer.hh>
 #include <qpdf/BufferInputSource.hh>
+#include <qpdf/Pl_DCT.hh>
 #include <qpdf/Pl_Discard.hh>
+#include <qpdf/Pl_Flate.hh>
+#include <qpdf/Pl_PNGFilter.hh>
+#include <qpdf/Pl_RunLength.hh>
+#include <qpdf/Pl_TIFFPredictor.hh>
 #include <qpdf/QPDF.hh>
-#include <qpdf/QPDFAcroFormDocumentHelper.hh>
-#include <qpdf/QPDFOutlineDocumentHelper.hh>
-#include <qpdf/QPDFPageDocumentHelper.hh>
-#include <qpdf/QPDFPageLabelDocumentHelper.hh>
 #include <qpdf/QPDFPageObjectHelper.hh>
 #include <qpdf/QPDFWriter.hh>
 #include <qpdf/QUtil.hh>
@@ -36,8 +37,6 @@ class FuzzHelper
     std::shared_ptr<QPDFWriter> getWriter(std::shared_ptr<QPDF>);
     void doWrite(std::shared_ptr<QPDFWriter> w);
     void testWrite();
-    void testPages();
-    void testOutlines();
     void doChecks();
 
     Buffer input_buffer;
@@ -56,6 +55,7 @@ FuzzHelper::getQpdf()
     auto is =
         std::shared_ptr<InputSource>(new BufferInputSource("fuzz input", &this->input_buffer));
     auto qpdf = QPDF::create();
+    qpdf->setMaxWarnings(200);
     qpdf->processInputSource(is);
     return qpdf;
 }
@@ -94,88 +94,31 @@ FuzzHelper::testWrite()
     w->setDeterministicID(true);
     w->setQDFMode(true);
     doWrite(w);
-
-    q = getQpdf();
-    w = getWriter(q);
-    w->setStaticID(true);
-    w->setLinearization(true);
-    w->setR6EncryptionParameters("u", "o", true, true, true, true, true, true, qpdf_r3p_full, true);
-    doWrite(w);
-
-    q = getQpdf();
-    w = getWriter(q);
-    w->setStaticID(true);
-    w->setObjectStreamMode(qpdf_o_disable);
-    w->setR3EncryptionParametersInsecure(
-        "u", "o", true, true, true, true, true, true, qpdf_r3p_full);
-    doWrite(w);
-
-    q = getQpdf();
-    w = getWriter(q);
-    w->setDeterministicID(true);
-    w->setObjectStreamMode(qpdf_o_generate);
-    w->setLinearization(true);
-    doWrite(w);
-}
-
-void
-FuzzHelper::testPages()
-{
-    // Parse all content streams, and exercise some helpers that
-    // operate on pages.
-    std::shared_ptr<QPDF> q = getQpdf();
-    QPDFPageDocumentHelper pdh(*q);
-    QPDFPageLabelDocumentHelper pldh(*q);
-    QPDFOutlineDocumentHelper odh(*q);
-    QPDFAcroFormDocumentHelper afdh(*q);
-    afdh.generateAppearancesIfNeeded();
-    pdh.flattenAnnotations();
-    DiscardContents discard_contents;
-    int pageno = 0;
-    for (auto& page: pdh.getAllPages()) {
-        ++pageno;
-        try {
-            page.coalesceContentStreams();
-            page.parseContents(&discard_contents);
-            page.getImages();
-            pldh.getLabelForPage(pageno);
-            QPDFObjectHandle page_obj(page.getObjectHandle());
-            page_obj.getJSON(JSON::LATEST, true).unparse();
-            odh.getOutlinesForPage(page_obj.getObjGen());
-
-            for (auto& aoh: afdh.getWidgetAnnotationsForPage(page)) {
-                afdh.getFieldForAnnotation(aoh);
-            }
-        } catch (QPDFExc& e) {
-            std::cerr << "page " << pageno << ": " << e.what() << std::endl;
-        }
-    }
-}
-
-void
-FuzzHelper::testOutlines()
-{
-    std::shared_ptr<QPDF> q = getQpdf();
-    std::list<std::vector<QPDFOutlineObjectHelper>> queue;
-    QPDFOutlineDocumentHelper odh(*q);
-    queue.push_back(odh.getTopLevelOutlines());
-    while (!queue.empty()) {
-        for (auto& ol: *(queue.begin())) {
-            ol.getDestPage();
-            queue.push_back(ol.getKids());
-        }
-        queue.pop_front();
-    }
 }
 
 void
 FuzzHelper::doChecks()
 {
+    // Limit the memory used to decompress JPEG files during fuzzing. Excessive memory use during
+    // fuzzing is due to corrupt JPEG data which sometimes cannot be detected before
+    // jpeg_start_decompress is called. During normal use of qpdf very large JPEGs can occasionally
+    // occur legitimately and therefore must be allowed during normal operations.
+    Pl_DCT::setMemoryLimit(100'000'000);
+    Pl_DCT::setScanLimit(50);
+
+    Pl_PNGFilter::setMemoryLimit(1'000'000);
+    Pl_RunLength::setMemoryLimit(1'000'000);
+    Pl_TIFFPredictor::setMemoryLimit(1'000'000);
+    Pl_Flate::memory_limit(200'000);
+
+    // Do not decompress corrupt data. This may cause extended runtime within jpeglib without
+    // exercising additional code paths in qpdf, and potentially causing counterproductive timeouts.
+    Pl_DCT::setThrowOnCorruptData(true);
+
     // Get as much coverage as possible in parts of the library that
     // might benefit from fuzzing.
+    std::cerr << "\ninfo: starting testWrite\n";
     testWrite();
-    testPages();
-    testOutlines();
 }
 
 void

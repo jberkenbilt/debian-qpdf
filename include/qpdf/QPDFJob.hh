@@ -1,4 +1,5 @@
-// Copyright (c) 2005-2024 Jay Berkenbilt
+// Copyright (c) 2005-2021 Jay Berkenbilt
+// Copyright (c) 2022-2025 Jay Berkenbilt and Manfred Holger
 //
 // This file is part of qpdf.
 //
@@ -692,6 +693,8 @@ class QPDFJob
         bool optimize_images{false};
         bool externalize_inline_images{false};
         bool keep_inline_images{false};
+        bool remove_info{false};
+        bool remove_metadata{false};
         bool remove_page_labels{false};
         size_t oi_min_width{DEFAULT_OI_MIN_WIDTH};
         size_t oi_min_height{DEFAULT_OI_MIN_HEIGHT};

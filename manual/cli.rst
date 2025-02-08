@@ -354,6 +354,21 @@ Related Options
    :qpdf:ref:`--job-json-file`. For more information about QPDFJob,
    see :ref:`qpdf-job`.
 
+.. qpdf:option:: --zopfli
+
+   .. help: indicate whether zopfli is enabled and active
+
+      If zopfli support is compiled in, indicate whether it is active,
+      and exit normally. Otherwise, indicate that it is not compiled
+      in, and exit with an error code. If zopfli is compiled in,
+      activate it by setting the ``QPDF_ZOPFLI`` environment variable.
+
+   If zopfli support is compiled in, indicate whether it is active,
+   and exit normally. Otherwise, indicate that it is not compiled in,
+   and exit with an error code. If zopfli is compiled in, activate it
+   by setting the ``QPDF_ZOPFLI`` environment variable. See
+   :ref:`zopfli`.
+
 .. _general-options:
 
 General Options
@@ -936,7 +951,7 @@ Related Options
 
    As a special case, streams already compressed with ``/FlateDecode``
    are not uncompressed and recompressed. You can change this behavior
-   with :qpdf:ref:`--recompress-flate`.
+   with :qpdf:ref:`--recompress-flate`. See also :ref:`small-files`.
 
 .. qpdf:option:: --stream-data=parameter
 
@@ -986,7 +1001,8 @@ Related Options
    tells :command:`qpdf` to uncompress and recompress streams
    compressed with flate. This can be useful when combined with
    :qpdf:ref:`--compression-level`. Using this option may make
-   :command:`qpdf` much slower when writing output files.
+   :command:`qpdf` much slower when writing output files. See also
+   :ref:`small-files`.
 
 .. qpdf:option:: --compression-level=level
 
@@ -1009,7 +1025,8 @@ Related Options
    :qpdf:ref:`--recompress-flate`. If your goal is to shrink the size
    of PDF files, you should also use
    :samp:`--object-streams=generate`. If you omit this option, qpdf
-   defers to the compression library's default behavior.
+   defers to the compression library's default behavior. See also
+   :ref:`small-files`.
 
 .. qpdf:option:: --normalize-content=[y|n]
 
@@ -1522,10 +1539,10 @@ Related Options
 
    .. help: begin overlay options
 
-      Overlay pages from another file on the output.
+      Overlay pages from another PDF file on the output.
       Run qpdf --help=overlay-underlay for details.
 
-   Overlay pages from another file on the output.
+   Overlay pages from another PDF file on the output.
 
    See :ref:`overlay-underlay` for details.
 
@@ -1533,10 +1550,10 @@ Related Options
 
    .. help: begin underlay options
 
-      Underlay pages from another file on the output.
+      Underlay pages from another PDF file on the output.
       Run qpdf --help=overlay-underlay for details.
 
-   Underlay pages from another file on the output.
+   Underlay pages from another PDF file on the output.
 
    See :ref:`overlay-underlay` for details.
 
@@ -1734,7 +1751,7 @@ Related Options
    and :qpdf:ref:`--oi-min-area` options. By default, inline images
    are converted to regular images and optimized as well. Use
    :qpdf:ref:`--keep-inline-images` to prevent inline images from
-   being included.
+   being included. See also :ref:`small-files`.
 
 .. qpdf:option:: --oi-min-width=width
 
@@ -1772,6 +1789,27 @@ Related Options
 
    Prevent inline images from being included in image optimization
    done by :qpdf:ref:`--optimize-images`.
+
+.. qpdf:option:: --remove-info
+
+   .. help: remove file information
+
+      Exclude file information (except modification date) from the output file.
+
+   Exclude file information (except modification date) from the output file by
+   omitting all entries (except ``/ModDate``) from the ``/Info`` dictionary in
+   the document trailer.
+   See also :qpdf:ref:`--remove-metadata`.
+
+.. qpdf:option:: --remove-metadata
+
+   .. help: remove metadata
+
+      Exclude metadata from the output file.
+
+   Exclude metadata from the output file by omitting the ``/Metadata``
+   dictionary in the document catalog.
+   See also :qpdf:ref:`--remove-info`.
 
 .. qpdf:option:: --remove-page-labels
 
@@ -1927,11 +1965,11 @@ Encryption
    --encrypt user-password owner-password key-length [options] --
 
    The first form, with flags for the passwords and bit length, was
-   introduced in qpdf 11.7.0. Only the --bits option is is mandatory.
+   introduced in qpdf 11.7.0. Only the --bits option is mandatory.
    This form allows you to use any text as the password. If passwords
    are specified, they must be given before the --bits option.
 
-   The second form has been in qpdf since the beginning and wil
+   The second form has been in qpdf since the beginning and will
    continue to be supported. Either or both of user-password and
    owner-password may be empty strings.
 
@@ -1946,7 +1984,7 @@ Encryption
    40-bit encryption is insecure, as is 128-bit encryption without
    AES. Use 256-bit encryption unless you have a specific reason to
    use an insecure format, such as testing or compatibility with very
-   old viewers. You must use the --allow-weak-crypto to create
+   old viewers. You must use the --allow-weak-crypto flag to create
    encrypted files that use insecure cryptographic algorithms. The
    --allow-weak-crypto flag appears outside of --encrypt ... --
    (before --encrypt or after --).
@@ -2016,12 +2054,12 @@ OR
    --encrypt user-password owner-password key-length [options] --
 
 The first form, with flags for the passwords and bit length, was
-introduced in qpdf 11.7.0. Only the :qpdf:ref:`--bits` option is is
+introduced in qpdf 11.7.0. Only the :qpdf:ref:`--bits` option is
 mandatory. This form allows you to use any text as the password. If
 passwords are specified, they must be given before the
 :qpdf:ref:`--bits` option.
 
-The second form has been in qpdf since the beginning and wil
+The second form has been in qpdf since the beginning and will
 continue to be supported. Either or both of user-password and
 owner-password may be empty strings.
 
@@ -2185,7 +2223,7 @@ Related Options
       Set the owner password of the encrypted file.
 
    Set the owner password of the encrypted file. Conforming readers
-   apply allow security restrictions to be changed or overridden when
+   allow security restrictions to be changed or overridden when
    files are opened with the owner password.
 
 .. qpdf:option:: --bits={48|128|256}
@@ -2801,9 +2839,9 @@ else the page references.
 Overlay and Underlay
 --------------------
 
-.. help-topic overlay-underlay: overlay/underlay pages from other files
+.. help-topic overlay-underlay: overlay/underlay pages from other PDF files
 
-   These options allow pages from another file to be overlaid or
+   These options allow pages from another PDF file to be overlaid or
    underlaid on the primary output. Overlaid pages are drawn on top of
    the destination page and may obscure the page. Underlaid pages are
    drawn below the destination page. Usage:
@@ -3920,3 +3958,86 @@ from password to encryption key entirely, allowing the raw
 encryption key to be specified directly. That behavior is useful for
 forensic purposes or for brute-force recovery of files with unknown
 passwords and has nothing to do with the document's actual passwords.
+
+.. _small-files:
+
+Optimizing File Size
+--------------------
+
+While qpdf's primary function is not to optimize the size of PDF
+files, there are a number of things you can do to make files smaller.
+Note that qpdf will not resample images or make optimizations that
+modify content with the exception of possibly recompressing images
+using DCT (JPEG) compression.
+
+The following options will give you the smallest files that qpdf can
+generate:
+
+- ``--compress-streams=y``: make sure streams are compressed (see
+  :qpdf:ref:`--compress-streams`)
+
+- ``--decode-level=generalized``: apply any non-specialized filters
+  (see :qpdf:ref:`--decode-level`)
+
+- :qpdf:ref:`--recompress-flate`: uncompress and recompress streams
+  that are already compressed with zlib (flate) compression
+
+- ``--compression-level=9``: use the highest possible compression
+  level (see :ref:`zopfli` and :qpdf:ref:`--compression-level`)
+
+- :qpdf:ref:`--optimize-images`: replace non-JPEG images with JPEG if
+  doing so reduces their size. Not all types of images are supported,
+  but qpdf will only keep the result if it is supported and reduces
+  the size. Images are not resampled, but bear in mind that JPEG is
+  lossy, so images may have artifacts. These are not usually
+  noticeable to the casual observer.
+
+- ``--object-streams=generate``: generate object streams, which means
+  that more of the PDF file's structural content will be compressed
+  (see :qpdf:ref:`--object-streams`)
+
+.. _zopfli:
+
+Zopfli Compression Algorithm
+----------------------------
+
+If qpdf is built with `zopfli <https://github.com/google/zopfli>`__
+support (see :ref:`build-zopfli`), you can have qpdf use the Zopfli
+Compression Algorithm in place of zlib. In this mode, qpdf is *much
+slower*, but produces slightly smaller compressed output. (According
+to their documentation, zopfli is about 100 times slower than zlib and
+produces output that's about 5% better than the best compression
+available with other libraries.) For this to be useful, you should run
+qpdf with options to recompress compressed streams. See
+:ref:`small-files` for tips. In order to use zopfli, in addition to
+building with zopfli support, you must set the ``QPDF_ZOPFLI``
+environment variable to some value other than ``disabled``. Note that
+:qpdf:ref:`--compression-level` has no effect when zopfli is in use,
+since zopfli always optimizes for size over everything else.
+
+Here are the supported values for ``QPDF_ZOPFLI``:
+
+.. list-table:: ``QPDF_ZOPFLI`` values
+   :widths: 20 60
+   :header-rows: 0
+
+   - - ``disabled`` or unset
+     - do not use zopfli even if available
+
+   - - ``silent``
+     - use zopfli if available; otherwise silently fall back to zlib
+
+   - - ``force``
+     - use zopfli if available; fail with an error if not available
+
+   - - any other value
+     - use zopfli if available; otherwise issue a warning and fall
+       back to zlib
+
+Note that the warning and error behavior are managed in ``QPDFJob``
+and affect the ``qpdf`` executable. For code that directly uses the
+qpdf library, the behavior is that zopfli is enabled with any value
+other than ``disabled`` but silently falls back to zlib. If you want
+your application to behave the same as the ``qpdf`` executable with
+respect to zopfli, you can call ``Pl_Flate::zopfli_check_env()``. See
+its documentation in the ``qpdf/Pl_Flate.hh`` header file.

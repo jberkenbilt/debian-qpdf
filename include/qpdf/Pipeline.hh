@@ -1,4 +1,5 @@
-// Copyright (c) 2005-2024 Jay Berkenbilt
+// Copyright (c) 2005-2021 Jay Berkenbilt
+// Copyright (c) 2022-2025 Jay Berkenbilt and Manfred Holger
 //
 // This file is part of qpdf.
 //
@@ -98,13 +99,19 @@ class QPDF_DLL_CLASS Pipeline
   protected:
     QPDF_DLL
     Pipeline* getNext(bool allow_null = false);
+    QPDF_DLL
+    Pipeline*
+    next() const noexcept
+    {
+        return next_;
+    }
     std::string identifier;
 
   private:
     Pipeline(Pipeline const&) = delete;
     Pipeline& operator=(Pipeline const&) = delete;
 
-    Pipeline* next;
+    Pipeline* next_;
 };
 
 #endif // PIPELINE_HH

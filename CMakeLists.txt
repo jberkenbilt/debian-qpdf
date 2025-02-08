@@ -7,7 +7,7 @@ cmake_minimum_required(VERSION 3.16)
 # also find the version number here. generate_auto_job also reads the
 # version from here.
 project(qpdf
-  VERSION 11.9.1
+  VERSION 11.10.0
   LANGUAGES C CXX)
 
 # Enable correct rpath handling for MacOSX
@@ -97,6 +97,8 @@ option(REQUIRE_CRYPTO_GNUTLS "Require gnutls crypto" OFF)
 set(DEFAULT_CRYPTO CACHE STRING "")
 option(DEFAULT_CRYPTO
   "Specify default crypto; otherwise chosen automatically" "")
+
+option(ZOPFLI, "Use zopfli for zlib-compatible compression")
 
 # INSTALL_MANUAL is not dependent on building docs. When creating some
 # distributions, we build the doc in one run, copy doc-dist in, and
@@ -246,6 +248,14 @@ endif()
 if(MSVC)
   list(APPEND CMAKE_REQUIRED_LINK_OPTIONS -link setargv.obj)
   list(APPEND WINDOWS_WMAIN_LINK -link wsetargv.obj)
+endif()
+if(MINGW)
+  execute_process(
+    COMMAND gcc --print-file-name=CRT_glob.o
+    OUTPUT_VARIABLE CRT_GLOB_O
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+  )
+  list(APPEND WINDOWS_WMAIN_LINK ${CRT_GLOB_O})
 endif()
 
 include(GNUInstallDirs)

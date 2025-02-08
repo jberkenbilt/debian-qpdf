@@ -331,9 +331,9 @@ QPDFFormFieldObjectHelper::setV(QPDFObjectHandle value, bool need_appearances)
         setFieldAttribute("/V", value);
     }
     if (need_appearances) {
-        QPDF& qpdf =
-            this->oh.getQPDF("QPDFFormFieldObjectHelper::setV called with need_appearances = "
-                             "true on an object that is not associated with an owning QPDF");
+        QPDF& qpdf = this->oh.getQPDF(
+            "QPDFFormFieldObjectHelper::setV called with need_appearances = "
+            "true on an object that is not associated with an owning QPDF");
         QPDFAcroFormDocumentHelper(qpdf).setNeedAppearances(true);
     }
 }
@@ -368,8 +368,9 @@ QPDFFormFieldObjectHelper::setRadioButtonValue(QPDFObjectHandle name)
 
     QPDFObjectHandle kids = this->oh.getKey("/Kids");
     if (!(isRadioButton() && parent.isNull() && kids.isArray())) {
-        this->oh.warnIfPossible("don't know how to set the value"
-                                " of this field as a radio button");
+        this->oh.warnIfPossible(
+            "don't know how to set the value"
+            " of this field as a radio button");
         return;
     }
     setFieldAttribute("/V", name);
@@ -396,7 +397,7 @@ QPDFFormFieldObjectHelper::setRadioButtonValue(QPDFObjectHandle name)
         } else {
             annot = kid;
         }
-        if (!annot.isInitialized()) {
+        if (!annot) {
             QTC::TC("qpdf", "QPDFObjectHandle broken radio button");
             this->oh.warnIfPossible("unable to set the value of this radio button");
             continue;
@@ -459,7 +460,7 @@ QPDFFormFieldObjectHelper::setCheckBoxValue(bool value)
     // Set /AS to the on value or /Off in addition to setting /V.
     QPDFObjectHandle name = QPDFObjectHandle::newName(value ? on_value : "/Off");
     setFieldAttribute("/V", name);
-    if (!annot.isInitialized()) {
+    if (!annot) {
         QTC::TC("qpdf", "QPDFObjectHandle broken checkbox");
         this->oh.warnIfPossible("unable to set the value of this checkbox");
         return;
@@ -770,9 +771,9 @@ QPDFFormFieldObjectHelper::generateTextAppearance(QPDFAnnotationObjectHelper& ao
         QTC::TC("qpdf", "QPDFFormFieldObjectHelper create AS from scratch");
         QPDFObjectHandle::Rectangle rect = aoh.getRect();
         QPDFObjectHandle::Rectangle bbox(0, 0, rect.urx - rect.llx, rect.ury - rect.lly);
-        QPDFObjectHandle dict =
-            QPDFObjectHandle::parse("<< /Resources << /ProcSet [ /PDF /Text ] >>"
-                                    " /Type /XObject /Subtype /Form >>");
+        QPDFObjectHandle dict = QPDFObjectHandle::parse(
+            "<< /Resources << /ProcSet [ /PDF /Text ] >>"
+            " /Type /XObject /Subtype /Form >>");
         dict.replaceKey("/BBox", QPDFObjectHandle::newFromRectangle(bbox));
         AS = QPDFObjectHandle::newStream(this->oh.getOwningQPDF(), "/Tx BMC\nEMC\n");
         AS.replaceDict(dict);
@@ -815,7 +816,7 @@ QPDFFormFieldObjectHelper::generateTextAppearance(QPDFAnnotationObjectHelper& ao
         QPDFObjectHandle resources = AS.getDict().getKey("/Resources");
         QPDFObjectHandle font = getFontFromResource(resources, font_name);
         bool found_font_in_dr = false;
-        if (!font.isInitialized()) {
+        if (!font) {
             QPDFObjectHandle dr = getDefaultResources();
             font = getFontFromResource(dr, font_name);
             found_font_in_dr = font.isDictionary();

@@ -67,6 +67,10 @@ Note that, in early 2024, branch coverage information is not very accurate with 
 
 Memory checks:
 
+Note: if clang++ fails to create output, it may be necessary to install a specific version of
+libstdc++-dev. For example, with clang++ version 20 on Ubuntu 24.04, `clang++ -v` indicates the
+selected GCC installation is 14, so it is necessary to install `libstdc++-14-dev`.
+
 ```
 CFLAGS="-fsanitize=address -fsanitize=undefined" \
    CXXFLAGS="-fsanitize=address -fsanitize=undefined" \
@@ -285,11 +289,21 @@ Building docs from pull requests is also enabled.
 * Avoid attaching too much metadata to objects and object handles
   since those have to get copied around a lot.
 
+* Prefer std::string_view to std::string const& and char const*.
+
+  * Where functions rely on strings being null-terminated, std::string_view may not be appropriate.
+
+  * For return values, consider whether returning a string_view is safe or whether it is more appropriate
+    to return a std::string or std::string const&, especially in the public API.
+
+  * NEVER replace a std::string const& return value with std::string_view in the public API.
+
+
 ## ZLIB COMPATIBILITY
 
 The qpdf test suite is designed to be independent of the output of any
-particular version of zlib. There are several strategies to make this
-work:
+particular version of zlib. (See also `ZOPFLI` in README.md.) There
+are several strategies to make this work:
 
 * `build-scripts/test-alt-zlib` runs in CI and runs the test suite
   with a non-default zlib. Please refer to that code for an example of
@@ -458,7 +472,7 @@ When done, the following should happen:
   * debian package -- search for copyright.*berkenbilt in debian/copyright
   * qtest-driver, TestDriver.pm in qtest source
 
-  Copyright last updated: 2024.
+  Copyright last updated: 2025.
 
 * Take a look at "External Libraries" in TODO to see if we need to
   make any changes. There is still some automation work left to do, so

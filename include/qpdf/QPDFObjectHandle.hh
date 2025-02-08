@@ -1,4 +1,5 @@
-// Copyright (c) 2005-2024 Jay Berkenbilt
+// Copyright (c) 2005-2021 Jay Berkenbilt
+// Copyright (c) 2022-2025 Jay Berkenbilt and Manfred Holger
 //
 // This file is part of qpdf.
 //
@@ -22,23 +23,27 @@
 #ifndef QPDFOBJECTHANDLE_HH
 #define QPDFOBJECTHANDLE_HH
 
-#include <qpdf/Constants.h>
-#include <qpdf/DLL.h>
-#include <qpdf/Types.h>
+#ifdef QPDF_FUTURE
+# include <qpdf/QPDFObjectHandle_future.hh>
+#else
 
-#include <functional>
-#include <map>
-#include <memory>
-#include <set>
-#include <string>
-#include <vector>
+# include <qpdf/Constants.h>
+# include <qpdf/DLL.h>
+# include <qpdf/Types.h>
 
-#include <qpdf/Buffer.hh>
-#include <qpdf/InputSource.hh>
-#include <qpdf/JSON.hh>
-#include <qpdf/PointerHolder.hh> // unused -- remove in qpdf 12 (see #785)
-#include <qpdf/QPDFObjGen.hh>
-#include <qpdf/QPDFTokenizer.hh>
+# include <functional>
+# include <map>
+# include <memory>
+# include <set>
+# include <string>
+# include <vector>
+
+# include <qpdf/Buffer.hh>
+# include <qpdf/InputSource.hh>
+# include <qpdf/JSON.hh>
+# include <qpdf/PointerHolder.hh> // unused -- remove in qpdf 12 (see #785)
+# include <qpdf/QPDFObjGen.hh>
+# include <qpdf/QPDFTokenizer.hh>
 
 class Pipeline;
 class QPDF;
@@ -291,15 +296,12 @@ class QPDFObjectHandle
     QPDF_DLL
     QPDFObjectHandle& operator=(QPDFObjectHandle const&) = default;
 
-#ifdef QPDF_FUTURE
+    // Return true if the QPDFObjectHandle is initialized. This allows object handles to be used in
+    // if statements with initializer.
     QPDF_DLL
-    QPDFObjectHandle(QPDFObjectHandle&&) = default;
-    QPDF_DLL
-    QPDFObjectHandle& operator=(QPDFObjectHandle&&) = default;
-#endif
+    explicit inline operator bool() const noexcept;
 
-    QPDF_DLL
-    inline bool isInitialized() const;
+    [[deprecated("use operator bool()")]] QPDF_DLL inline bool isInitialized() const;
 
     // This method returns true if the QPDFObjectHandle objects point to exactly the same underlying
     // object, meaning that changes to one are reflected in the other, or "if you paint one, the
@@ -1363,24 +1365,23 @@ class QPDFObjectHandle
     void writeJSON(int json_version, JSON::Writer& p, bool dereference_indirect = false);
 
   private:
-    QPDF_Array* asArray();
-    QPDF_Bool* asBool();
-    QPDF_Dictionary* asDictionary();
-    QPDF_InlineImage* asInlineImage();
-    QPDF_Integer* asInteger();
-    QPDF_Name* asName();
-    QPDF_Null* asNull();
-    QPDF_Operator* asOperator();
-    QPDF_Real* asReal();
-    QPDF_Reserved* asReserved();
-    QPDF_Stream* asStream();
-    QPDF_Stream* asStreamWithAssert();
-    QPDF_String* asString();
+    QPDF_Array* asArray() const;
+    QPDF_Bool* asBool() const;
+    QPDF_Dictionary* asDictionary() const;
+    QPDF_InlineImage* asInlineImage() const;
+    QPDF_Integer* asInteger() const;
+    QPDF_Name* asName() const;
+    QPDF_Null* asNull() const;
+    QPDF_Operator* asOperator() const;
+    QPDF_Real* asReal() const;
+    QPDF_Reserved* asReserved() const;
+    QPDF_Stream* asStream() const;
+    QPDF_Stream* asStreamWithAssert() const;
+    QPDF_String* asString() const;
 
-    void typeWarning(char const* expected_type, std::string const& warning);
-    void objectWarning(std::string const& warning);
-    void assertType(char const* type_name, bool istype);
-    inline bool dereference();
+    void typeWarning(char const* expected_type, std::string const& warning) const;
+    void objectWarning(std::string const& warning) const;
+    void assertType(char const* type_name, bool istype) const;
     void makeDirect(QPDFObjGen::set& visited, bool stop_at_streams);
     void disconnect();
     void setParsedOffset(qpdf_offset_t offset);
@@ -1400,7 +1401,7 @@ class QPDFObjectHandle
     std::shared_ptr<QPDFObject> obj;
 };
 
-#ifndef QPDF_NO_QPDF_STRING
+# ifndef QPDF_NO_QPDF_STRING
 // This is short for QPDFObjectHandle::parse, so you can do
 
 // auto oh = "<< /Key (value) >>"_qpdf;
@@ -1416,7 +1417,7 @@ QPDF_DLL
 QPDFObjectHandle operator ""_qpdf(char const* v, size_t len);
 /* clang-format on */
 
-#endif // QPDF_NO_QPDF_STRING
+# endif // QPDF_NO_QPDF_STRING
 
 class QPDFObjectHandle::QPDFDictItems
 {
@@ -1638,4 +1639,11 @@ QPDFObjectHandle::isInitialized() const
     return obj != nullptr;
 }
 
+inline QPDFObjectHandle::
+operator bool() const noexcept
+{
+    return static_cast<bool>(obj);
+}
+
+#endif // QPDF_FUTURE
 #endif // QPDFOBJECTHANDLE_HH

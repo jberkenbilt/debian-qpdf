@@ -5,7 +5,6 @@
 #include <stdexcept>
 
 Pl_QPDFTokenizer::Members::Members() :
-    filter(nullptr),
     buf("tokenizer buffer")
 {
 }
@@ -36,20 +35,17 @@ void
 Pl_QPDFTokenizer::finish()
 {
     m->buf.finish();
-    auto input = std::shared_ptr<InputSource>(
-        // line-break
-        new BufferInputSource("tokenizer data", m->buf.getBuffer(), true));
-
+    auto input = BufferInputSource("tokenizer data", m->buf.getBuffer(), true);
+    std::string empty;
     while (true) {
-        QPDFTokenizer::Token token =
-            m->tokenizer.readToken(input, "offset " + std::to_string(input->tell()), true);
+        auto token = m->tokenizer.readToken(input, empty, true);
         m->filter->handleToken(token);
         if (token.getType() == QPDFTokenizer::tt_eof) {
             break;
         } else if (token.isWord("ID")) {
             // Read the space after the ID.
             char ch = ' ';
-            input->read(&ch, 1);
+            input.read(&ch, 1);
             m->filter->handleToken(
                 // line-break
                 QPDFTokenizer::Token(QPDFTokenizer::tt_space, std::string(1, ch)));
@@ -59,8 +55,7 @@ Pl_QPDFTokenizer::finish()
     }
     m->filter->handleEOF();
     QPDFObjectHandle::TokenFilter::PipelineAccessor::setPipeline(m->filter, nullptr);
-    Pipeline* next = this->getNext(true);
-    if (next) {
-        next->finish();
+    if (next()) {
+        next()->finish();
     }
 }

@@ -1,4 +1,5 @@
-// Copyright (c) 2005-2024 Jay Berkenbilt
+// Copyright (c) 2005-2021 Jay Berkenbilt
+// Copyright (c) 2022-2025 Jay Berkenbilt and Manfred Holger
 //
 // This file is part of qpdf.
 //
@@ -64,7 +65,7 @@ class QPDF_DLL_CLASS Pl_QPDFTokenizer: public Pipeline
         Members();
         Members(Members const&) = delete;
 
-        QPDFObjectHandle::TokenFilter* filter;
+        QPDFObjectHandle::TokenFilter* filter{nullptr};
         QPDFTokenizer tokenizer;
         Pl_Buffer buf;
     };
