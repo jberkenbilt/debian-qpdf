@@ -26,24 +26,24 @@ QPDF_Array::checkOwnership(QPDFObjectHandle const& item) const
 }
 
 QPDF_Array::QPDF_Array() :
-    QPDFValue(::ot_array, "array")
+    QPDFValue(::ot_array)
 {
 }
 
 QPDF_Array::QPDF_Array(QPDF_Array const& other) :
-    QPDFValue(::ot_array, "array"),
+    QPDFValue(::ot_array),
     sp(other.sp ? std::make_unique<Sparse>(*other.sp) : nullptr)
 {
 }
 
 QPDF_Array::QPDF_Array(std::vector<QPDFObjectHandle> const& v) :
-    QPDFValue(::ot_array, "array")
+    QPDFValue(::ot_array)
 {
     setFromVector(v);
 }
 
 QPDF_Array::QPDF_Array(std::vector<std::shared_ptr<QPDFObject>>&& v, bool sparse) :
-    QPDFValue(::ot_array, "array")
+    QPDFValue(::ot_array)
 {
     if (sparse) {
         sp = std::make_unique<Sparse>();
@@ -130,8 +130,7 @@ QPDF_Array::unparse()
             for (int j = next; j < key; ++j) {
                 result += "null ";
             }
-            item.second->resolve();
-            auto og = item.second->getObjGen();
+            auto og = item.second->resolved_object()->getObjGen();
             result += og.isIndirect() ? og.unparse(' ') + " R " : item.second->unparse() + " ";
             next = ++key;
         }
@@ -140,8 +139,7 @@ QPDF_Array::unparse()
         }
     } else {
         for (auto const& item: elements) {
-            item->resolve();
-            auto og = item->getObjGen();
+            auto og = item->resolved_object()->getObjGen();
             result += og.isIndirect() ? og.unparse(' ') + " R " : item->unparse() + " ";
         }
     }
@@ -186,16 +184,16 @@ QPDF_Array::writeJSON(int json_version, JSON::Writer& p)
     p.writeEnd(']');
 }
 
-QPDFObjectHandle
+std::pair<bool, QPDFObjectHandle>
 QPDF_Array::at(int n) const noexcept
 {
     if (n < 0 || n >= size()) {
-        return {};
+        return {false, {}};
     } else if (sp) {
         auto const& iter = sp->elements.find(n);
-        return iter == sp->elements.end() ? null_oh : (*iter).second;
+        return {true, iter == sp->elements.end() ? null_oh : (*iter).second};
     } else {
-        return elements[size_t(n)];
+        return {true, elements[size_t(n)]};
     }
 }
 

@@ -1,5 +1,6 @@
 #include <qpdf/Pl_DCT.hh>
 
+#include "qpdf/QPDFLogger.hh"
 #include <qpdf/QIntC.hh>
 #include <qpdf/QTC.hh>
 
@@ -19,6 +20,10 @@ namespace
         jmp_buf jmpbuf;
         std::string msg;
     };
+
+    long memory_limit{0};
+    int scan_limit{0};
+    bool throw_on_corrupt_data{true};
 } // namespace
 
 static void
@@ -31,16 +36,41 @@ error_handler(j_common_ptr cinfo)
     longjmp(jerr->jmpbuf, 1);
 }
 
+static void
+emit_message(j_common_ptr cinfo, int msg_level)
+{
+    if (msg_level == -1) {
+        auto* jerr = reinterpret_cast<qpdf_jpeg_error_mgr*>(cinfo->err);
+        jerr->msg = "Pl_DCT::decompress: JPEG data is corrupt";
+        longjmp(jerr->jmpbuf, 1);
+    }
+}
+
+static void
+progress_monitor(j_common_ptr cinfo)
+{
+    if (cinfo->is_decompressor &&
+        reinterpret_cast<jpeg_decompress_struct*>(cinfo)->input_scan_number > scan_limit) {
+        auto* jerr = reinterpret_cast<qpdf_jpeg_error_mgr*>(cinfo->err);
+        jerr->msg = "Pl_DCT::decompress: JPEG data has too many scans";
+        longjmp(jerr->jmpbuf, 1);
+    }
+}
+
+Pl_DCT::Members::Members() :
+    action(a_decompress),
+    buf("DCT compressed image")
+{
+}
+
 Pl_DCT::Members::Members(
-    action_e action,
-    char const* buf_description,
     JDIMENSION image_width,
     JDIMENSION image_height,
     int components,
     J_COLOR_SPACE color_space,
     CompressConfig* config_callback) :
-    action(action),
-    buf(buf_description),
+    action(a_compress),
+    buf("DCT uncompressed image"),
     image_width(image_width),
     image_height(image_height),
     components(components),
@@ -51,8 +81,29 @@ Pl_DCT::Members::Members(
 
 Pl_DCT::Pl_DCT(char const* identifier, Pipeline* next) :
     Pipeline(identifier, next),
-    m(new Members(a_decompress, "DCT compressed image"))
+    m(new Members())
 {
+    if (!next) {
+        throw std::logic_error("Attempt to create Pl_DCT with nullptr as next");
+    }
+}
+
+void
+Pl_DCT::setMemoryLimit(long limit)
+{
+    memory_limit = limit;
+}
+
+void
+Pl_DCT::setScanLimit(int limit)
+{
+    scan_limit = limit;
+}
+
+void
+Pl_DCT::setThrowOnCorruptData(bool treat_as_error)
+{
+    throw_on_corrupt_data = treat_as_error;
 }
 
 Pl_DCT::Pl_DCT(
@@ -62,16 +113,9 @@ Pl_DCT::Pl_DCT(
     JDIMENSION image_height,
     int components,
     J_COLOR_SPACE color_space,
-    CompressConfig* config_callback) :
+    CompressConfig* compress_callback) :
     Pipeline(identifier, next),
-    m(new Members(
-        a_compress,
-        "DCT uncompressed image",
-        image_width,
-        image_height,
-        components,
-        color_space,
-        config_callback))
+    m(new Members(image_width, image_height, components, color_space, compress_callback))
 {
 }
 
@@ -98,7 +142,7 @@ Pl_DCT::finish()
         // Special case: empty data will never succeed and probably means we're calling finish a
         // second time from an exception handler.
         delete b;
-        this->getNext()->finish();
+        next()->finish();
         return;
     }
 
@@ -109,6 +153,9 @@ Pl_DCT::finish()
     cinfo_compress.err = jpeg_std_error(&(jerr.pub));
     cinfo_decompress.err = jpeg_std_error(&(jerr.pub));
     jerr.pub.error_exit = error_handler;
+    if (m->action == a_decompress && throw_on_corrupt_data) {
+        jerr.pub.emit_message = emit_message;
+    }
 
     bool error = false;
     // The jpeg library is a "C" library, so we use setjmp and longjmp for exception handling.
@@ -262,7 +309,7 @@ Pl_DCT::compress(void* cinfo_p, Buffer* b)
     static int const BUF_SIZE = 65536;
     auto outbuffer_ph = std::make_unique<unsigned char[]>(BUF_SIZE);
     unsigned char* outbuffer = outbuffer_ph.get();
-    jpeg_pipeline_dest(cinfo, outbuffer, BUF_SIZE, this->getNext());
+    jpeg_pipeline_dest(cinfo, outbuffer, BUF_SIZE, next());
 
     cinfo->image_width = m->image_width;
     cinfo->image_height = m->image_height;
@@ -291,7 +338,7 @@ Pl_DCT::compress(void* cinfo_p, Buffer* b)
         (void)jpeg_write_scanlines(cinfo, row_pointer, 1);
     }
     jpeg_finish_compress(cinfo);
-    this->getNext()->finish();
+    next()->finish();
 }
 
 void
@@ -307,20 +354,36 @@ Pl_DCT::decompress(void* cinfo_p, Buffer* b)
 #if ((defined(__GNUC__) && ((__GNUC__ * 100) + __GNUC_MINOR__) >= 406) || defined(__clang__))
 # pragma GCC diagnostic pop
 #endif
+
+    if (memory_limit > 0) {
+        cinfo->mem->max_memory_to_use = memory_limit;
+    }
+
     jpeg_buffer_src(cinfo, b);
 
     (void)jpeg_read_header(cinfo, TRUE);
     (void)jpeg_calc_output_dimensions(cinfo);
-
     unsigned int width = cinfo->output_width * QIntC::to_uint(cinfo->output_components);
+    if (memory_limit > 0 &&
+        width > (static_cast<unsigned long>(memory_limit) / (20U * cinfo->output_height))) {
+        // Even if jpeglib does not run out of memory, qpdf will while buffering the data before
+        // writing it. Furthermore, for very large images runtime can be significant before the
+        // first warning is encountered causing a timeout in oss-fuzz.
+        throw std::runtime_error("Pl_DCT::decompress: JPEG data large - may be too slow");
+    }
+    jpeg_progress_mgr progress_mgr;
+    if (scan_limit > 0) {
+        progress_mgr.progress_monitor = &progress_monitor;
+        cinfo->progress = &progress_mgr;
+    }
     JSAMPARRAY buffer =
         (*cinfo->mem->alloc_sarray)(reinterpret_cast<j_common_ptr>(cinfo), JPOOL_IMAGE, width, 1);
 
     (void)jpeg_start_decompress(cinfo);
     while (cinfo->output_scanline < cinfo->output_height) {
         (void)jpeg_read_scanlines(cinfo, buffer, 1);
-        this->getNext()->write(buffer[0], width * sizeof(buffer[0][0]));
+        next()->write(buffer[0], width * sizeof(buffer[0][0]));
     }
     (void)jpeg_finish_decompress(cinfo);
-    this->getNext()->finish();
+    next()->finish();
 }

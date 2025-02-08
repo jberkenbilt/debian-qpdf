@@ -6,6 +6,7 @@
 #include <iostream>
 #include <memory>
 
+#include <qpdf/Pl_Flate.hh>
 #include <qpdf/QPDFArgParser.hh>
 #include <qpdf/QPDFCryptoProvider.hh>
 #include <qpdf/QPDFLogger.hh>
@@ -105,6 +106,29 @@ ArgParser::argVersion()
 }
 
 void
+ArgParser::argZopfli()
+{
+    auto logger = QPDFLogger::defaultLogger();
+    if (Pl_Flate::zopfli_supported()) {
+        if (Pl_Flate::zopfli_enabled()) {
+            logger->info("zopfli support is enabled, and zopfli is active\n");
+        } else {
+            logger->info("zopfli support is enabled but not active\n");
+            logger->info("Set the environment variable QPDF_ZOPFLI to activate.\n");
+            logger->info("* QPDF_ZOPFLI=disabled or QPDF_ZOPFLI not set: don't use zopfli.\n");
+            logger->info("* QPDF_ZOPFLI=force: use zopfli, and fail if not available.\n");
+            logger->info(
+                "* QPDF_ZOPFLI=silent: use zopfli if available and silently fall back if not.\n");
+            logger->info(
+                "* QPDF_ZOPFLI= any other value: use zopfli if available, and warn if not.\n");
+        }
+    } else {
+        logger->error("zopfli support is not enabled\n");
+        std::exit(qpdf_exit_error);
+    }
+}
+
+void
 ArgParser::argCopyright()
 {
     // clang-format off
@@ -115,8 +139,10 @@ ArgParser::argCopyright()
         << this->ap.getProgname()
         << " version " << QPDF::QPDFVersion() << "\n"
         << "\n"
-        << "Copyright (c) 2005-2024 Jay Berkenbilt\n"
-        << "QPDF is licensed under the Apache License, Version 2.0 (the \"License\");\n"
+        << "Copyright (c) 2005-2021 Jay Berkenbilt\n"
+        << "Copyright (c) 2022-2025 Jay Berkenbilt and Manfred Holger\n"
+        << "\n"
+        << "qpdf is licensed under the Apache License, Version 2.0 (the \"License\");\n"
         << "you may not use this file except in compliance with the License.\n"
         << "You may obtain a copy of the License at\n"
         << "\n"

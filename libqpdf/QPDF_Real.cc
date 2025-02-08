@@ -4,13 +4,13 @@
 #include <qpdf/QUtil.hh>
 
 QPDF_Real::QPDF_Real(std::string const& val) :
-    QPDFValue(::ot_real, "real"),
+    QPDFValue(::ot_real),
     val(val)
 {
 }
 
 QPDF_Real::QPDF_Real(double value, int decimal_places, bool trim_trailing_zeroes) :
-    QPDFValue(::ot_real, "real"),
+    QPDFValue(::ot_real),
     val(QUtil::double_to_string(value, decimal_places, trim_trailing_zeroes))
 {
 }
@@ -51,5 +51,8 @@ QPDF_Real::writeJSON(int json_version, JSON::Writer& p)
         p << "-0." << this->val.substr(2);
     } else {
         p << this->val;
+    }
+    if (val.back() == '.') {
+        p << "0";
     }
 }

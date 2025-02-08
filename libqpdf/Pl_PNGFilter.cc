@@ -7,6 +7,11 @@
 #include <cstring>
 #include <stdexcept>
 
+namespace
+{
+    unsigned long long memory_limit{0};
+} // namespace
+
 static int
 abs_diff(int a, int b)
 {
@@ -21,13 +26,11 @@ Pl_PNGFilter::Pl_PNGFilter(
     unsigned int samples_per_pixel,
     unsigned int bits_per_sample) :
     Pipeline(identifier, next),
-    action(action),
-    cur_row(nullptr),
-    prev_row(nullptr),
-    buf1(nullptr),
-    buf2(nullptr),
-    pos(0)
+    action(action)
 {
+    if (!next) {
+        throw std::logic_error("Attempt to create Pl_PNGFilter with nullptr as next");
+    }
     if (samples_per_pixel < 1) {
         throw std::runtime_error("PNGFilter created with invalid samples_per_pixel");
     }
@@ -41,6 +44,9 @@ Pl_PNGFilter::Pl_PNGFilter(
     if ((bpr == 0) || (bpr > (UINT_MAX - 1))) {
         throw std::runtime_error("PNGFilter created with invalid columns value");
     }
+    if (memory_limit > 0 && bpr > (memory_limit / 2U)) {
+        throw std::runtime_error("PNGFilter memory limit exceeded");
+    }
     this->bytes_per_row = bpr & UINT_MAX;
     this->buf1 = QUtil::make_shared_array<unsigned char>(this->bytes_per_row + 1);
     this->buf2 = QUtil::make_shared_array<unsigned char>(this->bytes_per_row + 1);
@@ -51,6 +57,12 @@ Pl_PNGFilter::Pl_PNGFilter(
 
     // number of bytes per incoming row
     this->incoming = (action == a_encode ? this->bytes_per_row : this->bytes_per_row + 1);
+}
+
+void
+Pl_PNGFilter::setMemoryLimit(unsigned long long limit)
+{
+    memory_limit = limit;
 }
 
 void
@@ -116,7 +128,7 @@ Pl_PNGFilter::decodeRow()
         }
     }
 
-    getNext()->write(this->cur_row + 1, this->bytes_per_row);
+    next()->write(this->cur_row + 1, this->bytes_per_row);
 }
 
 void
@@ -216,14 +228,14 @@ Pl_PNGFilter::encodeRow()
 {
     // For now, hard-code to using UP filter.
     unsigned char ch = 2;
-    getNext()->write(&ch, 1);
+    next()->write(&ch, 1);
     if (this->prev_row) {
         for (unsigned int i = 0; i < this->bytes_per_row; ++i) {
             ch = static_cast<unsigned char>(this->cur_row[i] - this->prev_row[i]);
-            getNext()->write(&ch, 1);
+            next()->write(&ch, 1);
         }
     } else {
-        getNext()->write(this->cur_row, this->bytes_per_row);
+        next()->write(this->cur_row, this->bytes_per_row);
     }
 }
 
@@ -239,5 +251,5 @@ Pl_PNGFilter::finish()
     this->pos = 0;
     memset(this->cur_row, 0, this->bytes_per_row + 1);
 
-    getNext()->finish();
+    next()->finish();
 }

@@ -237,14 +237,10 @@ class QPDF::JSONReactor: public JSON::Reactor
         pdf(pdf),
         is(is),
         must_be_complete(must_be_complete),
-        descr(std::make_shared<QPDFValue::Description>(
-            QPDFValue::JSON_Descr(std::make_shared<std::string>(is->getName()), "")))
+        descr(
+            std::make_shared<QPDFValue::Description>(
+                QPDFValue::JSON_Descr(std::make_shared<std::string>(is->getName()), "")))
     {
-        for (auto& oc: pdf.m->obj_cache) {
-            if (oc.second.object->getTypeCode() == ::ot_reserved) {
-                reserved.insert(oc.first);
-            }
-        }
     }
     ~JSONReactor() override = default;
     void dictionaryStart() override;
@@ -272,10 +268,10 @@ class QPDF::JSONReactor: public JSON::Reactor
     struct StackFrame
     {
         StackFrame(state_e state) :
-            state(state){};
+            state(state) {};
         StackFrame(state_e state, QPDFObjectHandle&& object) :
             state(state),
-            object(object){};
+            object(object) {};
         state_e state;
         QPDFObjectHandle object;
     };
@@ -305,7 +301,6 @@ class QPDF::JSONReactor: public JSON::Reactor
     bool saw_data{false};
     bool saw_datafile{false};
     bool this_stream_needs_data{false};
-    std::set<QPDFObjGen> reserved;
     std::vector<StackFrame> stack;
     QPDFObjectHandle next_obj;
     state_e next_state{st_top};
@@ -314,24 +309,24 @@ class QPDF::JSONReactor: public JSON::Reactor
 void
 QPDF::JSONReactor::error(qpdf_offset_t offset, std::string const& msg)
 {
-    this->errors = true;
+    errors = true;
     std::string object = this->cur_object;
     if (is->getName() != pdf.getFilename()) {
         object += " from " + is->getName();
     }
-    this->pdf.warn(qpdf_e_json, object, offset, msg);
+    pdf.warn(qpdf_e_json, object, offset, msg);
 }
 
 bool
 QPDF::JSONReactor::anyErrors() const
 {
-    return this->errors;
+    return errors;
 }
 
 void
 QPDF::JSONReactor::containerStart()
 {
-    if (next_obj.isInitialized()) {
+    if (next_obj) {
         stack.emplace_back(next_state, std::move(next_obj));
         next_obj = QPDFObjectHandle();
     } else {
@@ -403,27 +398,15 @@ QPDF::JSONReactor::containerEnd(JSON const& value)
                     QTC::TC("qpdf", "QPDF_json data datafile both or neither");
                     error(
                         value.getStart(),
-                        "new \"stream\" must have exactly one of \"data\" or "
-                        "\"datafile\"");
+                        "new \"stream\" must have exactly one of \"data\" or \"datafile\"");
                 } else if (saw_datafile) {
                     QTC::TC("qpdf", "QPDF_json data and datafile");
                     error(
                         value.getStart(),
-                        "existing \"stream\" may at most one of \"data\" or "
-                        "\"datafile\"");
+                        "existing \"stream\" may at most one of \"data\" or \"datafile\"");
                 } else {
                     QTC::TC("qpdf", "QPDF_json no stream data in update mode");
                 }
-            }
-        }
-    } else if (from_state == st_qpdf) {
-        // Handle dangling indirect object references which the PDF spec says to treat as nulls.
-        // It's tempting to make this an error, but that would be wrong since valid input files may
-        // have these.
-        for (auto& oc: pdf.m->obj_cache) {
-            if (oc.second.object->getTypeCode() == ::ot_reserved && reserved.count(oc.first) == 0) {
-                QTC::TC("qpdf", "QPDF_json non-trivial null reserved");
-                pdf.updateCache(oc.first, QPDF_Null::create(), -1, -1);
             }
         }
     }
@@ -443,15 +426,15 @@ QPDF::JSONReactor::containerEnd(JSON const& value)
 void
 QPDF::JSONReactor::replaceObject(QPDFObjectHandle&& replacement, JSON const& value)
 {
-    if (replacement.isIndirect()) {
+    auto& tos = stack.back();
+    auto og = tos.object.getObjGen();
+    if (replacement.isIndirect() && !(replacement.isStream() && replacement.getObjGen() == og)) {
         error(
             replacement.getParsedOffset(),
             "the value of an object may not be an indirect object reference");
         return;
     }
-    auto& tos = stack.back();
-    auto og = tos.object.getObjGen();
-    this->pdf.replaceObject(og, replacement);
+    pdf.replaceObject(og, replacement);
     next_obj = pdf.getObject(og);
     setObjectDescription(tos.object, value);
 }
@@ -565,7 +548,7 @@ QPDF::JSONReactor::dictionaryItem(std::string const& key, JSON const& value)
         } else if (is_obj_key(key, obj, gen)) {
             this->cur_object = key;
             if (setNextStateIfDictionary(key, value, st_object_top)) {
-                next_obj = pdf.reserveObjectIfNotExists(QPDFObjGen(obj, gen));
+                next_obj = pdf.getObjectForJSON(obj, gen);
             }
         } else {
             QTC::TC("qpdf", "QPDF_json bad object key");
@@ -576,7 +559,7 @@ QPDF::JSONReactor::dictionaryItem(std::string const& key, JSON const& value)
             throw std::logic_error("stack empty in st_object_top");
         }
         auto& tos = stack.back();
-        if (!tos.object.isInitialized()) {
+        if (!tos.object) {
             throw std::logic_error("current object uninitialized in st_object_top");
         }
         if (key == "value") {
@@ -591,8 +574,11 @@ QPDF::JSONReactor::dictionaryItem(std::string const& key, JSON const& value)
                 if (tos.object.isStream()) {
                     QTC::TC("qpdf", "QPDF_json updating existing stream");
                 } else {
-                    this->this_stream_needs_data = true;
-                    replaceObject(pdf.reserveStream(tos.object.getObjGen()), value);
+                    this_stream_needs_data = true;
+                    replaceObject(
+                        QPDF_Stream::create(
+                            &pdf, tos.object.getObjGen(), QPDFObjectHandle::newDictionary(), 0, 0),
+                        value);
                 }
                 next_obj = tos.object;
             } else {
@@ -767,7 +753,7 @@ QPDF::JSONReactor::makeObject(JSON const& value)
         int gen = 0;
         std::string str;
         if (is_indirect_object(str_v, obj, gen)) {
-            result = pdf.reserveObjectIfNotExists(QPDFObjGen(obj, gen));
+            result = pdf.getObjectForJSON(obj, gen);
         } else if (is_unicode_string(str_v, str)) {
             result = QPDFObjectHandle::newUnicodeString(str);
         } else if (is_binary_string(str_v, str)) {
@@ -782,7 +768,7 @@ QPDF::JSONReactor::makeObject(JSON const& value)
             result = QPDFObjectHandle::newNull();
         }
     }
-    if (!result.isInitialized()) {
+    if (!result) {
         throw std::logic_error("JSONReactor::makeObject didn't initialize the object");
     }
 

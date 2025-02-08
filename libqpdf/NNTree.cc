@@ -62,8 +62,9 @@ NNTreeIterator::updateIValue(bool allow_invalid)
     }
     if (!okay) {
         if (!allow_invalid) {
-            throw std::logic_error("attempt made to dereference an invalid"
-                                   " name/number tree iterator");
+            throw std::logic_error(
+                "attempt made to dereference an invalid"
+                " name/number tree iterator");
         }
         this->ivalue.first = QPDFObjectHandle();
         this->ivalue.second = QPDFObjectHandle();
@@ -188,7 +189,7 @@ NNTreeIterator::resetLimits(QPDFObjectHandle node, std::list<PathElement>::itera
                 }
             }
         }
-        if (first.isInitialized() && last.isInitialized()) {
+        if (first && last) {
             auto limits = QPDFObjectHandle::newArray();
             limits.appendItem(first);
             limits.appendItem(last);

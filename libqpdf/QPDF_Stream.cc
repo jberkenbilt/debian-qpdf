@@ -107,12 +107,8 @@ StreamBlobProvider::operator()(Pipeline* p)
 }
 
 QPDF_Stream::QPDF_Stream(
-    QPDF* qpdf,
-    QPDFObjGen const& og,
-    QPDFObjectHandle stream_dict,
-    qpdf_offset_t offset,
-    size_t length) :
-    QPDFValue(::ot_stream, "stream"),
+    QPDF* qpdf, QPDFObjGen og, QPDFObjectHandle stream_dict, qpdf_offset_t offset, size_t length) :
+    QPDFValue(::ot_stream, qpdf, og),
     filter_on_write(true),
     stream_dict(stream_dict),
     length(length)
@@ -128,11 +124,7 @@ QPDF_Stream::QPDF_Stream(
 
 std::shared_ptr<QPDFObject>
 QPDF_Stream::create(
-    QPDF* qpdf,
-    QPDFObjGen const& og,
-    QPDFObjectHandle stream_dict,
-    qpdf_offset_t offset,
-    size_t length)
+    QPDF* qpdf, QPDFObjGen og, QPDFObjectHandle stream_dict, qpdf_offset_t offset, size_t length)
 {
     return do_create(new QPDF_Stream(qpdf, og, stream_dict, offset, length));
 }
@@ -217,8 +209,9 @@ QPDF_Stream::writeStreamJSON(
     case qpdf_sj_none:
     case qpdf_sj_inline:
         if (p != nullptr) {
-            throw std::logic_error("QPDF_Stream::writeStreamJSON: pipeline should only be supplied "
-                                   "when json_data is file");
+            throw std::logic_error(
+                "QPDF_Stream::writeStreamJSON: pipeline should only be supplied "
+                "when json_data is file");
         }
         break;
     case qpdf_sj_file:
@@ -227,8 +220,9 @@ QPDF_Stream::writeStreamJSON(
                 "QPDF_Stream::writeStreamJSON: pipeline must be supplied when json_data is file");
         }
         if (data_filename.empty()) {
-            throw std::logic_error("QPDF_Stream::writeStreamJSON: data_filename must be supplied "
-                                   "when json_data is file");
+            throw std::logic_error(
+                "QPDF_Stream::writeStreamJSON: data_filename must be supplied "
+                "when json_data is file");
         }
         break;
     }
@@ -625,13 +619,15 @@ QPDF_Stream::pipeStreamData(
         warn("content normalization encountered bad tokens");
         if (normalizer->lastTokenWasBad()) {
             QTC::TC("qpdf", "QPDF_Stream bad token at end during normalize");
-            warn("normalized content ended with a bad token; you may be able to resolve this by "
-                 "coalescing content streams in combination with normalizing content. From the "
-                 "command line, specify --coalesce-contents");
+            warn(
+                "normalized content ended with a bad token; you may be able to resolve this by "
+                "coalescing content streams in combination with normalizing content. From the "
+                "command line, specify --coalesce-contents");
         }
-        warn("Resulting stream data may be corrupted but is may still useful for manual "
-             "inspection. For more information on this warning, search for content normalization "
-             "in the manual.");
+        warn(
+            "Resulting stream data may be corrupted but is may still useful for manual "
+            "inspection. For more information on this warning, search for content normalization "
+            "in the manual.");
     }
 
     return success;
@@ -669,18 +665,17 @@ void
 QPDF_Stream::replaceFilterData(
     QPDFObjectHandle const& filter, QPDFObjectHandle const& decode_parms, size_t length)
 {
-    if (filter.isInitialized()) {
-        this->stream_dict.replaceKey("/Filter", filter);
+    if (filter) {
+        stream_dict.replaceKey("/Filter", filter);
     }
-    if (decode_parms.isInitialized()) {
-        this->stream_dict.replaceKey("/DecodeParms", decode_parms);
+    if (decode_parms) {
+        stream_dict.replaceKey("/DecodeParms", decode_parms);
     }
     if (length == 0) {
         QTC::TC("qpdf", "QPDF_Stream unknown stream length");
-        this->stream_dict.removeKey("/Length");
+        stream_dict.removeKey("/Length");
     } else {
-        this->stream_dict.replaceKey(
-            "/Length", QPDFObjectHandle::newInteger(QIntC::to_longlong(length)));
+        stream_dict.replaceKey("/Length", QPDFObjectHandle::newInteger(QIntC::to_longlong(length)));
     }
 }
 

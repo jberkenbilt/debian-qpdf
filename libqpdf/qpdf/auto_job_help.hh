@@ -73,6 +73,11 @@ default provider is shown first.
 ap.addOptionHelp("--job-json-help", "help", "show format of job JSON", R"(Describe the format of the QPDFJob JSON input used by
 --job-json-file.
 )");
+ap.addOptionHelp("--zopfli", "help", "indicate whether zopfli is enabled and active", R"(If zopfli support is compiled in, indicate whether it is active,
+and exit normally. Otherwise, indicate that it is not compiled
+in, and exit with an error code. If zopfli is compiled in,
+activate it by setting the ``QPDF_ZOPFLI`` environment variable.
+)");
 ap.addHelpTopic("general", "general options", R"(General options control qpdf's behavior in ways that are not
 directly related to the operation it is performing.
 )");
@@ -86,13 +91,13 @@ ap.addOptionHelp("--password-file", "general", "read password from a file", R"(-
 The first line of the specified file is used as the password.
 This is used in place of the --password option.
 )");
+}
+static void add_help_2(QPDFArgParser& ap)
+{
 ap.addOptionHelp("--verbose", "general", "print additional information", R"(Output additional information about various things qpdf is
 doing, including information about files created and operations
 performed.
 )");
-}
-static void add_help_2(QPDFArgParser& ap)
-{
 ap.addOptionHelp("--progress", "general", "show progress when writing", R"(Indicate progress when writing files.
 )");
 ap.addOptionHelp("--no-warn", "general", "suppress printing of warning messages", R"(Suppress printing of warning messages. If warnings were
@@ -168,14 +173,14 @@ Copy encryption details from the specified file instead of
 preserving the input file's encryption. Use --encryption-file-password
 to specify the encryption file's password.
 )");
+}
+static void add_help_3(QPDFArgParser& ap)
+{
 ap.addOptionHelp("--encryption-file-password", "transformation", "supply password for --copy-encryption", R"(--encryption-file-password=password
 
 If the file named in --copy-encryption requires a password, use
 this option to supply the password.
 )");
-}
-static void add_help_3(QPDFArgParser& ap)
-{
 ap.addOptionHelp("--qdf", "transformation", "enable viewing PDF code in a text editor", R"(Create a PDF file suitable for viewing in a text editor and even
 editing. This is for editing the PDF code, not the page contents.
 All streams that can be uncompressed are uncompressed, and
@@ -285,6 +290,9 @@ Force the output PDF file's PDF version header to be the specified
 value, even if the file uses features that may not be available
 in that version.
 )");
+}
+static void add_help_4(QPDFArgParser& ap)
+{
 ap.addHelpTopic("page-ranges", "page range syntax", R"(A full description of the page range syntax, with examples, can be
 found in the manual. In summary, a range is a comma-separated list
 of groups. A group is a number or a range of numbers separated by a
@@ -305,9 +313,6 @@ resulting set of pages, where :odd starts with the first page and
 :even starts with the second page. These are odd and even pages
 from the resulting set, not based on the original page numbers.
 )");
-}
-static void add_help_4(QPDFArgParser& ap)
-{
 ap.addHelpTopic("modification", "change parts of the PDF", R"(Modification options make systematic changes to certain parts of
 the PDF, causing the PDF to render differently from the original.
 )");
@@ -357,12 +362,12 @@ for multi-page groups.
 )");
 ap.addOptionHelp("--overlay", "modification", "begin overlay options", R"(--overlay file [options] --
 
-Overlay pages from another file on the output.
+Overlay pages from another PDF file on the output.
 Run qpdf --help=overlay-underlay for details.
 )");
 ap.addOptionHelp("--underlay", "modification", "begin underlay options", R"(--underlay file [options] --
 
-Underlay pages from another file on the output.
+Underlay pages from another PDF file on the output.
 Run qpdf --help=overlay-underlay for details.
 )");
 ap.addOptionHelp("--flatten-rotation", "modification", "remove rotation from page dictionary", R"(For each page that is rotated using the /Rotate key in the
@@ -414,6 +419,13 @@ Don't optimize images whose area in pixels is below the specified value.
 )");
 ap.addOptionHelp("--keep-inline-images", "modification", "exclude inline images from optimization", R"(Prevent inline images from being considered by --optimize-images.
 )");
+ap.addOptionHelp("--remove-info", "modification", "remove file information", R"(Exclude file information (except modification date) from the output file.
+)");
+}
+static void add_help_5(QPDFArgParser& ap)
+{
+ap.addOptionHelp("--remove-metadata", "modification", "remove metadata", R"(Exclude metadata from the output file.
+)");
 ap.addOptionHelp("--remove-page-labels", "modification", "remove explicit page numbers", R"(Exclude page labels (explicit page numbers) from the output file.
 )");
 ap.addOptionHelp("--set-page-labels", "modification", "number pages for the entire document", R"(--set-page-labels label-spec ... --
@@ -460,9 +472,6 @@ iv, then the remaining pages with Arabic numerals starting with
 1 and continuing sequentially until the end of the document. For
 additional examples, please consult the manual.
 )");
-}
-static void add_help_5(QPDFArgParser& ap)
-{
 ap.addHelpTopic("encryption", "create encrypted files", R"(Create encrypted files. Usage:
 
 --encrypt \
@@ -475,11 +484,11 @@ OR
 --encrypt user-password owner-password key-length [options] --
 
 The first form, with flags for the passwords and bit length, was
-introduced in qpdf 11.7.0. Only the --bits option is is mandatory.
+introduced in qpdf 11.7.0. Only the --bits option is mandatory.
 This form allows you to use any text as the password. If passwords
 are specified, they must be given before the --bits option.
 
-The second form has been in qpdf since the beginning and wil
+The second form has been in qpdf since the beginning and will
 continue to be supported. Either or both of user-password and
 owner-password may be empty strings.
 
@@ -494,7 +503,7 @@ Encryption options are terminated by "--" by itself.
 40-bit encryption is insecure, as is 128-bit encryption without
 AES. Use 256-bit encryption unless you have a specific reason to
 use an insecure format, such as testing or compatibility with very
-old viewers. You must use the --allow-weak-crypto to create
+old viewers. You must use the --allow-weak-crypto flag to create
 encrypted files that use insecure cryptographic algorithms. The
 --allow-weak-crypto flag appears outside of --encrypt ... --
 (before --encrypt or after --).
@@ -637,6 +646,9 @@ non-empty user passwords when using 256-bit encryption.
 ap.addOptionHelp("--force-V4", "encryption", "force V=4 in encryption dictionary", R"(This option is for testing and is never needed in practice since
 qpdf does this automatically when needed.
 )");
+}
+static void add_help_6(QPDFArgParser& ap)
+{
 ap.addOptionHelp("--force-R5", "encryption", "use unsupported R=5 encryption", R"(Use an undocumented, unsupported, deprecated encryption
 algorithm that existed only in Acrobat version IX. This option
 should not be used except for compatibility testing.
@@ -699,7 +711,7 @@ Examples:
 
 More examples are in the manual.
 )");
-ap.addHelpTopic("overlay-underlay", "overlay/underlay pages from other files", R"(These options allow pages from another file to be overlaid or
+ap.addHelpTopic("overlay-underlay", "overlay/underlay pages from other PDF files", R"(These options allow pages from another PDF file to be overlaid or
 underlaid on the primary output. Overlaid pages are drawn on top of
 the destination page and may obscure the page. Underlaid pages are
 drawn below the destination page. Usage:
@@ -725,9 +737,6 @@ appearance: first underlays, then the original page, then overlays.
 
 Run qpdf --help=page-ranges for help with page ranges.
 )");
-}
-static void add_help_6(QPDFArgParser& ap)
-{
 ap.addOptionHelp("--to", "overlay-underlay", "destination pages for underlay/overlay", R"(--to=page-range
 
 Specify the range of pages in the primary output to apply
@@ -823,6 +832,9 @@ ap.addOptionHelp("--replace", "add-attachment", "replace attachment with same ke
 be replaced by the new attachment. Otherwise, qpdf gives an
 error if an attachment with that key is already present.
 )");
+}
+static void add_help_7(QPDFArgParser& ap)
+{
 ap.addHelpTopic("copy-attachments", "copy attachments from another file", R"(The options listed below appear between --copy-attachments-from and
 its terminating "--".
 
@@ -839,9 +851,6 @@ ap.addHelpTopic("inspection", "inspect PDF files", R"(These options provide tool
 the options in this section are specified, no output file may be
 given.
 )");
-}
-static void add_help_7(QPDFArgParser& ap)
-{
 ap.addOptionHelp("--is-encrypted", "inspection", "silently test whether a file is encrypted", R"(Silently exit with a code indicating the file's encryption status:
 
 0: the file is encrypted
@@ -916,6 +925,9 @@ ap.addOptionHelp("--show-attachment", "inspection", "export an embedded file", R
 Write the contents of the specified attachment to standard
 output as binary data. Get the key with --list-attachments.
 )");
+}
+static void add_help_8(QPDFArgParser& ap)
+{
 ap.addHelpTopic("json", "JSON output for PDF information", R"(Show information about the PDF file in JSON format. Please see the
 JSON chapter in the qpdf manual for details.
 )");
@@ -932,9 +944,6 @@ Describe the format of the JSON output by writing to standard
 output a JSON object with the same keys and with values
 containing descriptive text.
 )");
-}
-static void add_help_8(QPDFArgParser& ap)
-{
 ap.addOptionHelp("--json-key", "json", "limit which keys are in JSON output", R"(--json-key=key
 
 This option is repeatable. If given, only the specified

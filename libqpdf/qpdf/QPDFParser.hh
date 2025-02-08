@@ -12,18 +12,21 @@ class QPDFParser
   public:
     QPDFParser() = delete;
     QPDFParser(
-        std::shared_ptr<InputSource> input,
+        InputSource& input,
         std::string const& object_description,
         QPDFTokenizer& tokenizer,
         QPDFObjectHandle::StringDecrypter* decrypter,
-        QPDF* context) :
+        QPDF* context,
+        bool parse_pdf) :
         input(input),
         object_description(object_description),
         tokenizer(tokenizer),
         decrypter(decrypter),
         context(context),
-        description(std::make_shared<QPDFValue::Description>(
-            std::string(input->getName() + ", " + object_description + " at offset $PO")))
+        description(
+            std::make_shared<QPDFValue::Description>(
+                std::string(input.getName() + ", " + object_description + " at offset $PO"))),
+        parse_pdf(parse_pdf)
     {
     }
     virtual ~QPDFParser() = default;
@@ -37,9 +40,9 @@ class QPDFParser
 
     struct StackFrame
     {
-        StackFrame(std::shared_ptr<InputSource> const& input, parser_state_e state) :
+        StackFrame(InputSource& input, parser_state_e state) :
             state(state),
-            offset(input->tell())
+            offset(input.tell())
         {
         }
 
@@ -70,18 +73,22 @@ class QPDFParser
     // NB the offset includes any leading whitespace.
     QPDFObjectHandle withDescription(Args&&... args);
     void setDescription(std::shared_ptr<QPDFObject>& obj, qpdf_offset_t parsed_offset);
-    std::shared_ptr<InputSource> input;
+    InputSource& input;
     std::string const& object_description;
     QPDFTokenizer& tokenizer;
     QPDFObjectHandle::StringDecrypter* decrypter;
     QPDF* context;
     std::shared_ptr<QPDFValue::Description> description;
+    bool parse_pdf;
+
     std::vector<StackFrame> stack;
     StackFrame* frame;
     // Number of recent bad tokens.
-    int bad_count = 0;
+    int bad_count{0};
+    // Number of bad tokens (remaining) before giving up.
+    int max_bad_count{15};
     // Number of good tokens since last bad token. Irrelevant if bad_count == 0.
-    int good_count = 0;
+    int good_count{0};
     // Start offset including any leading whitespace.
     qpdf_offset_t start;
     // Number of successive integer tokens.

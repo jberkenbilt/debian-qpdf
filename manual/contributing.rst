@@ -27,7 +27,7 @@ The qpdf source code is formatted using clang-format with a
 :file:`.clang-format` file at the top of the source tree. The
 :file:`format-code` script reformats all the source code in the
 repository. You must have ``clang-format`` in your path, and it must
-be at least version 18.
+be at least version 20.
 
 For emacs users, the :file:`.dir-locals.el` file configures emacs
 ``cc-mode`` for an indentation style that is similar to but not
@@ -154,7 +154,7 @@ request as submitted.
 Personal Comments
 -----------------
 
-QPDF started as a work project in 2002. The first open source release
+qpdf started as a work project in 2002. The first open source release
 was in 2008. While there have been a handful of contributors, the vast
 majority of the code was written by one person over many years as a
 side project.
