@@ -1,3 +1,9 @@
+qpdf (11.10.0-1) unstable; urgency=medium
+
+  * New upstream release.
+
+ -- Jay Berkenbilt <qjb@debian.org>  Sat, 08 Feb 2025 15:39:36 -0500
+
 qpdf (11.9.1-1) unstable; urgency=medium
 
   * New upstream release.
