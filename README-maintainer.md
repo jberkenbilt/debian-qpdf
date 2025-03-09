@@ -23,6 +23,11 @@
 
 ## ROUTINE DEVELOPMENT
 
+**When making changes that users need to know about, update the release notes
+(manual/release-notes.rst) as you go.** Major changes to the internal API can also be mentioned in
+the release notes in a section called "Internal Changes" or similar. This removes ChangeLog as a
+separate mechanism for tracking changes.
+
 **Remember to check pull requests as well as issues in github.**
 
 Include `-DCMAKE_EXPORT_COMPILE_COMMANDS=ON` with cmake if using emacs lsp mode.
@@ -536,11 +541,9 @@ When done, the following should happen:
   `make_dist` verifies this consistency, and CI fails if they are
   inconsistent.
 
-* Update release notes in manual. Look at diffs and ChangeLog.
-  Update release date in `manual/release-notes.rst`. Change "not yet
-  released" to an actual date for the release.
-
-* Add a release entry to ChangeLog: "x.y.z: release"
+* Review version control history. Update release date in
+  `manual/release-notes.rst`. Change "not yet released" to an actual
+  date for the release.
 
 * Commit changes with title "Prepare x.y.z release"
 
@@ -571,7 +574,7 @@ When done, the following should happen:
   verify the checksums from the job output, rename to remove -ci from
   the names, and extract to the release archive area.
 
-* Sign the source distribution:
+* From the release area, sign the source distribution:
 
 ```
 version=x.y.z
@@ -599,10 +602,10 @@ chmod 555 *.AppImage
   `README-what-to-download.md` separately onto the download area if
   needed.
 
-* Ensure that the main branch has been pushed to github. The
-  rev-parse command below should show the same commit hash for all its
-  arguments. Create and push a signed tag. This should be run with
-  HEAD pointing to the tip of main.
+* From the source tree, ensure that the main branch has been pushed to
+  github. The rev-parse command below should show the same commit hash
+  for all its arguments. Create and push a signed tag. This should be
+  run with HEAD pointing to the tip of main.
 
 ```
 git rev-parse qpdf/main @
@@ -635,29 +638,33 @@ url=$(gcurl -s -XPOST https://api.github.com/repos/qpdf/qpdf/releases -d'{"tag_n
 # Get upload url
 upload_url=$(gcurl -s $url | jq -r '.upload_url' | sed -E -e 's/\{.*\}//')
 echo $upload_url
+```
 
-# Upload all the files. You can add a label attribute too, which
-# overrides the name.
+* From the release area, Upload all the files.
+
+```
 for i in *; do
   mime=$(file -b --mime-type $i)
   gcurl -H "Content-Type: $mime" --data-binary @$i "$upload_url?name=$i"
 done
 ```
 
-If needed, go onto github and make any manual updates such as
-indicating a pre-release, adding release notes, etc.
+Go onto github, and make any manual updates such as indicating a
+pre-release, adding release notes, etc.
 
-Template for release notes.
-
-```
-This is qpdf version x.y.z. (Brief description)
-
-For a full list of changes from previous releases, please see the [release notes](https://qpdf.readthedocs.io/en/stable/release-notes.html). See also [README-what-to-download](./README-what-to-download.md) for details about
-the available source and binary distributions.
-```
+Here is a template for the release notes. Change
+`README-what-to-download` to just a file reference for SourceForge
+since there is no relative link target from the news area.
 
 ```
-# Publish release
+This is qpdf version x.y.z. (Brief description, summary of highlights)
+
+For a full list of changes from previous releases, please see the [release notes](https://qpdf.readthedocs.io/en/stable/release-notes.html). See also [README-what-to-download](./README-what-to-download.md) for details about the available source and binary distributions.
+```
+
+* Publish release.
+
+```
 gcurl -XPOST $url -d'{"draft": false}'
 ```
 
@@ -670,8 +677,9 @@ rsync -vrlcO ./ jay_berkenbilt,qpdf@frs.sourceforge.net:/home/frs/project/q/qp/q
 * On sourceforge, make the source package the default for all but
   Windows, and make the 64-bit msvc build the default for Windows.
 
-* Publish a news item manually on sourceforge using the release notes text. Remove the relative link
-  to README-what-to-download.md (just reference the file by name)
+* Publish a news item manually on sourceforge using the release notes
+  text. Remove the relative link to README-what-to-download.md (just
+  reference the file by name)
 
 * Upload the debian package and Ubuntu ppa backports.
 
@@ -859,6 +867,8 @@ RelWithDebInfo when using external-libs.
 
 ## ABI checks
 
+Note: the check_abi program requires [castxml](https://github.com/CastXML/CastXML) to be installed.
+
 Until the conversion of the build to cmake, we relied on running the
 test suite with old executables and a new library. When QPDFJob was
 introduced, this method got much less reliable since a lot of public
@@ -883,14 +893,12 @@ still things that could potentially break ABI, such as
 * Changes to the types of public or protected data members without
   changing the size
 
-* Changes to the meanings of parameters with changing the signature
+* Changes to the meanings of parameters without changing the signature
 
 Not breaking ABI/API still requires care.
 
 The check_abi script is responsible for performing many of these
-steps. See comments in check_abi for additional notes. Running
-"check_abi check-sizes" is run by ctest on Linux when CHECK_SIZES is
-on.
+steps. See comments in check_abi for additional notes.
 
 ## CODE FORMATTING
 

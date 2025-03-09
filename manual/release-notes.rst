@@ -1,40 +1,145 @@
+.. _ticket: https://issues.qpdf.org
+.. _shared null: https://wiki.qpdf.org/PDF-null-objects-vs-qpdf-null-objects
+
 .. _release-notes:
 
 Release Notes
 =============
 
-For a detailed list of changes, please see the file
-:file:`ChangeLog` in the source distribution.
-
-If you are a developer and want to test your code against future API
-changes that are under consideration, you can build qpdf locally and
-enable the ``FUTURE`` build option (see :ref:`build-options`).
-
-Planned changes for future 12.x (subject to change):
-  - ``QPDFObjectHandle`` will support move construction/assignment.
-    This change will be invisible to most developers but may break
-    your code if you rely on specific behavior around how many
-    references to a QPDFObjectHandle's underlying object exist. You
-    would have to write code specifically to do that, so if you're not
-    sure, then you shouldn't have to worry.
-
-  - ``Buffer`` copy constructor and assignment operator will be
-    removed. ``Buffer`` copy operations are expensive as they always
-    involve copying the buffer content. Use ``buffer2 =
-    buffer1.copy();`` or ``Buffer buffer2{buffer1.copy()};`` to make
-    it explicit that copying is intended.
-
-  - ``QIntC.hh`` contains the type ``substract``, which will be fixed
-    to ``subtract``. (Not enabled with ``FUTURE`` option.)
+This is a curated list of user-facing and developer-facing changes.
+Prior to version 12, file :file:`ChangeLog` contained more detail.
+From version 12 onward, please consult version control history for
+more detail.
 
 .. x.y.z: not yet released
+
+.. _r12-0-0:
+
+.. cSpell:ignore substract
+
+12.0.0: March 9, 2025
+  - API: breaking changes
+
+    - The header file ``qpdf/QPDFObject.hh`` now generates an error if
+      included. This is to prevent code that includes it from
+      accidentally working because an old version is installed
+      somewhere on the system. Instead of including that header,
+      include ``<qpdf/Constants.h>``, and replace ``QPDFObject::ot_``
+      with ``::ot_`` in your code.
+
+    - The deprecated ``QPDFObjectHandle::replaceOrRemoveKey`` method has been
+      removed since it was identical to ``QPDFObjectHandle::replaceKey``.
+
+    - The deprecated ``JSON::checkDictionaryKeySeen`` function has been removed.
+      If ``JSON::parse`` encounters duplicate keys the last value is silently
+      accepted instead of throwing a runtime error. This is consistent with the
+      JSON specification.
+
+    - The deprecated versionless overload of ``QPDFObjectHandle::getJSON`` has
+      been removed.
+
+    - The deprecated ``Buffer`` copy constructor and assignment operator have
+      been removed. ``Buffer`` copy operations are expensive as they always
+      involve copying the buffer content. Use ``buffer2 = buffer1.copy();`` or
+      ``Buffer buffer2{buffer1.copy()};`` to make it explicit that copying is
+      intended.
+
+    - ``QIntC.hh`` contained the typo ``substract`` in function names,
+      which has been fixed to ``subtract``.
+
+    - The protected ``QPDFObjectHelper::oh`` data member has been replaced with
+      the new accessor method ``QPDFObjectHelper::oh()``.
+
+    - Except for abstract classes and the exceptions listed below, sub-classing of
+      qpdf classes is not supported. These classes were never designed to be used as a
+      base class and will be made final in version 13. If you have a use case for
+      extending one of these classes, please open a ticket_.
+
+      Exceptions:
+
+      - ``QPDFDocumentHelper``
+      - ``QPDFObjectHelper``
+
+    - Upcasting to ``QPDFObjectHelper`` and ``QPDFDocumentHelper`` is not supported. Their
+      destructors will be made protected in version 13.
+
+    - Catching of logic errors thrown as the result of using an uninitialized
+      ``QPDFObjectHandle`` is not supported. In version 13 uninitialized object handles
+      will be treated as immutable `shared null`_ objects. Using them will no longer throw
+      any logic errors, but may where appropriate generate type warnings or exceptions.
+
+.. _r12-0-0-deprecate:
+
+    - The following are believed to be not in use and have been deprecated.
+      If you are relying on them please open a ticket_.
+
+      - All ``QPDFTokenizer`` push-mode methods.
+      - ``QPDFObjectHandle::parse`` overload taking a ``QPDFTokenizer`` parameter.
+
+  - CLI breaking Changes
+
+    - To support the future introduction of sub-commands, the use of filenames without
+      extension and path element as the first argument is no longer supported, and the
+      result may change in the future. For example, ``qpdf check out.pdf`` currently
+      copies the file ``check`` to ``out.pdf`` but may in future check ``out.pdf``.
+      Use ``qpdf ./check out.pdf`` or ``qpdf -- check out.pdf`` instead.
+
+  - Bug fixes
+
+    - In object streams, ignore objects with invalid offset. Report objects with invalid
+      id or offset.
+
+  - Library Enhancements
+
+    - ``QPDFObjectHandle`` supports move construction/assignment.
+      This change is invisible to most developers but may break
+      your code if you rely on specific behavior around how many
+      references to a QPDFObjectHandle's underlying object exist. You
+      would have to write code specifically to do that, so if you're not
+      sure, then you shouldn't have to worry.
+
+    - Most ``QPDFObjectHandle`` accessor methods are now ``const`` qualified.
+
+    - ``QPDFObjectHandle`` and all object helper classes are now explicitly convertible
+      to ``QPDFObjGen``, and therefore can be passed as parameter where a ``QPDFObjGen``
+      is required. Redundant overloaded methods have been removed.
+
+    - All object helper classes are now explicitly convertible to ``QPDFObjectHandle``.
+
+  - Build Changes
+
+    - If ``POINTERHOLDER_TRANSITION`` is not defined, it is now automatically
+      defined to ``4``, which completely removes ``PointerHolder`` from the API.
+      It is no longer included by any qpdf headers. This means code that hasn't
+      completed its ``PointerHolder`` transition will get errors unless it
+      defines ``POINTERHOLDER_TRANSITION``, and any file that uses
+      ``PointerHolder`` will have to explicitly include it rather than relying
+      on other headers to bring it along.
+
+  - Other Changes
+
+    - The internal implementation of objects has been extensively refactored, using
+      ``std::variant`` to eliminate one level of indirection. This has saved one shared pointer
+      per object with some improvement both in runtime and memory usage. A new class
+      ``BaseHandle`` has been added as common base class of both ``QPDFObjectHandle``
+      and ``QPDFObjectHelper`` to provide common functionality appropriate for all
+      object-handle-like classes such as the operator to convert to ``QPDFObjGen``.
+      ``BaseHandle`` is an implementation detail and not directly usable by library users.
+
+    - There has been significant refactoring of how qpdf internally iterates over
+      arrays and dictionaries.
+
+    - The internal mechanism used to check object sizes for binary
+      compatibility between releases has been changed. As such, the
+      ``CHECK_SIZES`` maintainer-only build option has been removed.
+
 
 11.10.1: February 15, 2025
   - Build fixes
 
-    - Fix incorrect detection of zopfli
+    - Fix incorrect detection of zopfli.
 
-    - Recognize cygwin perl as Windows when running test suite
+    - Recognize cygwin perl as Windows when running test suite.
 
 11.10.0: February 8, 2025
   - Bug fixes
@@ -92,7 +197,7 @@ Planned changes for future 12.x (subject to change):
     - Add ``QPDFObjectHandle operator bool``. The operator returns true
       if the object handle is initialized and is a replacement for the
       ``isInitialized`` method. For more details see the
-      `qpdf wiki <https://github.com/qpdf/qpdf/wiki/Use-of-default-constructed-object-handles-in-qpdf-to-indicate-failure-or-error>`__.
+      `qpdf wiki <https://wiki.qpdf.org/Use-of-default-constructed-object-handles-in-qpdf-to-indicate-failure-or-error>`__.
 
     - New C API function ``qpdf_oh_free_buffer`` to free malloc allocated
       buffers.
@@ -386,6 +491,7 @@ Planned changes for future 12.x (subject to change):
       PDF files.
 
 11.3.0: February 25, 2023
+
   - CLI Enhancements
 
     - New option :qpdf:ref:`--remove-restrictions` removes security

@@ -21,8 +21,10 @@
 #define QPDFOBJGEN_HH
 
 #include <qpdf/DLL.h>
+
 #include <iostream>
 #include <set>
+#include <string>
 
 class QPDFObjectHandle;
 class QPDFObjectHelper;
@@ -33,57 +35,53 @@ class QPDFObjectHelper;
 class QPDFObjGen
 {
   public:
-    // ABI: change to default.
-    QPDF_DLL
-    QPDFObjGen()
-    {
-    }
-    QPDF_DLL
-    explicit QPDFObjGen(int obj, int gen) :
+    QPDFObjGen() = default;
+    QPDFObjGen(int obj, int gen) :
         obj(obj),
         gen(gen)
     {
     }
-    QPDF_DLL
     bool
     operator<(QPDFObjGen const& rhs) const
     {
-        return (obj < rhs.obj) || ((obj == rhs.obj) && (gen < rhs.gen));
+        return (obj < rhs.obj) || (obj == rhs.obj && gen < rhs.gen);
     }
-    QPDF_DLL
     bool
     operator==(QPDFObjGen const& rhs) const
     {
-        return (obj == rhs.obj) && (gen == rhs.gen);
+        return obj == rhs.obj && gen == rhs.gen;
     }
-    QPDF_DLL
     bool
     operator!=(QPDFObjGen const& rhs) const
     {
-        return (obj != rhs.obj) || (gen != rhs.gen);
+        return !(*this == rhs);
     }
-    QPDF_DLL
     int
     getObj() const
     {
         return obj;
     }
-    QPDF_DLL
     int
     getGen() const
     {
         return gen;
     }
-    QPDF_DLL
     bool
     isIndirect() const
     {
         return obj != 0;
     }
-    QPDF_DLL
-    std::string unparse(char separator = ',') const;
-    QPDF_DLL
-    friend std::ostream& operator<<(std::ostream& os, const QPDFObjGen& og);
+    std::string
+    unparse(char separator = ',') const
+    {
+        return std::to_string(obj) + separator + std::to_string(gen);
+    }
+    friend std::ostream&
+    operator<<(std::ostream& os, QPDFObjGen og)
+    {
+        os << og.obj << "," << og.gen;
+        return os;
+    }
 
     // Convenience class for loop detection when processing objects.
     //
@@ -108,7 +106,6 @@ class QPDFObjGen
       public:
         // Add 'og' to the set. Return false if 'og' is already present in the set. Attempts to
         // insert QPDFObjGen(0, 0) are ignored.
-        QPDF_DLL
         bool
         add(QPDFObjGen og)
         {
@@ -121,13 +118,6 @@ class QPDFObjGen
             return true;
         }
 
-        QPDF_DLL
-        bool add(QPDFObjectHandle const& oh);
-
-        QPDF_DLL
-        bool add(QPDFObjectHelper const& oh);
-
-        QPDF_DLL
         void
         erase(QPDFObjGen og)
         {
@@ -135,12 +125,6 @@ class QPDFObjGen
                 std::set<QPDFObjGen>::erase(og);
             }
         }
-
-        QPDF_DLL
-        void erase(QPDFObjectHandle const& oh);
-
-        QPDF_DLL
-        void erase(QPDFObjectHelper const& oh);
     };
 
   private:

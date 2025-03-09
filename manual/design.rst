@@ -340,7 +340,7 @@ qpdf Object Internals
 ---------------------
 
 The internals of ``QPDFObjectHandle`` and how qpdf stores objects were
-significantly rewritten for qpdf 11. Here are some additional details.
+significantly rewritten for qpdf 11 and 12. Here are some additional details.
 
 Object Internals
 ~~~~~~~~~~~~~~~~
@@ -355,6 +355,9 @@ any changes are reflected.
 
 Objects in qpdf 11 and Newer
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+qpdf 11
+.......
 
 The object cache in ``QPDF`` contains a shared pointer to
 ``QPDFObject``. Any ``QPDFObjectHandle`` resolved from an indirect
@@ -390,6 +393,15 @@ operation also has the effect of breaking any circular references
 (which are common and, in some cases, required by the PDF
 specification), thus preventing memory leaks when ``QPDF`` objects are
 destroyed.
+
+qpdf 12
+.......
+
+In qpdf 12, the shared pointer to a ``QPDFValue`` contained in each
+``QPDFObject`` was replaced with a ``std::variant``. The base class
+``QPDFValue`` was merged into ``QPDFObject``, and its sub-classes
+became independent classes.
+
 
 Objects prior to qpdf 11
 ~~~~~~~~~~~~~~~~~~~~~~~~
@@ -860,8 +872,8 @@ modification of code.
 
 The ``POINTERHOLDER_TRANSITION`` preprocessor symbol was introduced in
 qpdf 10.6.0 to help people transition from ``PointerHolder`` to
-``std::shared_ptr``. If you don't define this, you will get a compiler
-warning. Defining it to any value will suppress the warning. An
+``std::shared_ptr``. If you don't define this, ``PointerHolder`` will
+be completely excluded from the API (starting with qpdf 12).An
 explanation appears below of the different possible values for this
 symbol and what they mean.
 
@@ -1003,7 +1015,7 @@ without consulting this manual.
      - meaning
 
    - - undefined
-     - Same as ``0`` but issues a warning
+     - Same as ``4``: ``PointerHolder`` is not defined.
 
    - - ``0``
      - Provide a backward compatible ``PointerHolder`` and suppress

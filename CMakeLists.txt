@@ -7,7 +7,7 @@ cmake_minimum_required(VERSION 3.16)
 # also find the version number here. generate_auto_job also reads the
 # version from here.
 project(qpdf
-  VERSION 11.10.1
+  VERSION 12.0.0
   LANGUAGES C CXX)
 
 # Enable correct rpath handling for MacOSX
@@ -38,9 +38,6 @@ CMAKE_DEPENDENT_OPTION(
 CMAKE_DEPENDENT_OPTION(
   WERROR "Treat compiler warnings as errors" OFF
   "NOT MAINTAINER_MODE; NOT CI_MODE" ON)
-CMAKE_DEPENDENT_OPTION(
-  CHECK_SIZES "Compare sizes.cc with classes in public API" OFF
-  "NOT MAINTAINER_MODE" ON)
 CMAKE_DEPENDENT_OPTION(
   GENERATE_AUTO_JOB "Automatically regenerate job files" OFF
   "NOT MAINTAINER_MODE" ON)
@@ -120,7 +117,6 @@ if(NOT (BUILD_STATIC_LIBS OR BUILD_SHARED_LIBS))
 endif()
 
 set(CMAKE_INCLUDE_DIRECTORIES_PROJECT_BEFORE ON)
-add_compile_definitions($<$<COMPILE_LANGUAGE:CXX>:POINTERHOLDER_TRANSITION=4>)
 
 if(ENABLE_QTC)
   set(ENABLE_QTC_ARG)

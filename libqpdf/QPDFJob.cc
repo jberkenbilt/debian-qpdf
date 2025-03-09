@@ -13,12 +13,12 @@
 #include <qpdf/Pl_StdioFile.hh>
 #include <qpdf/Pl_String.hh>
 #include <qpdf/QIntC.hh>
-#include <qpdf/QPDF.hh>
 #include <qpdf/QPDFAcroFormDocumentHelper.hh>
 #include <qpdf/QPDFCryptoProvider.hh>
 #include <qpdf/QPDFEmbeddedFileDocumentHelper.hh>
 #include <qpdf/QPDFExc.hh>
 #include <qpdf/QPDFLogger.hh>
+#include <qpdf/QPDFObjectHandle_private.hh>
 #include <qpdf/QPDFOutlineDocumentHelper.hh>
 #include <qpdf/QPDFPageDocumentHelper.hh>
 #include <qpdf/QPDFPageLabelDocumentHelper.hh>
@@ -26,10 +26,14 @@
 #include <qpdf/QPDFSystemError.hh>
 #include <qpdf/QPDFUsage.hh>
 #include <qpdf/QPDFWriter.hh>
+#include <qpdf/QPDF_private.hh>
 #include <qpdf/QTC.hh>
 #include <qpdf/QUtil.hh>
+#include <qpdf/Util.hh>
 
 #include <qpdf/auto_job_schema.hh> // JOB_SCHEMA_DATA
+
+using namespace qpdf;
 
 namespace
 {
@@ -387,7 +391,7 @@ QPDFJob::parseRotationParameter(std::string const& parameter)
         if ((first == '+') || (first == '-')) {
             relative = ((first == '+') ? 1 : -1);
             angle_str = angle_str.substr(1);
-        } else if (!QUtil::is_digit(angle_str.at(0))) {
+        } else if (!util::is_digit(angle_str.at(0))) {
             angle_str = "";
         }
     }
@@ -916,10 +920,13 @@ QPDFJob::doListAttachments(QPDF& pdf)
                     v << "    " << i2.first << " -> " << i2.second << "\n";
                 }
                 v << "  all data streams:\n";
-                for (auto const& i2: efoh->getEmbeddedFileStreams().ditems()) {
-                    auto efs = QPDFEFStreamObjectHelper(i2.second);
-                    v << "    " << i2.first << " -> "
-                      << efs.getObjectHandle().getObjGen().unparse(',') << "\n";
+                for (auto const& [key2, value2]: efoh->getEmbeddedFileStreams().as_dictionary()) {
+                    if (value2.null()) {
+                        continue;
+                    }
+                    auto efs = QPDFEFStreamObjectHelper(value2);
+                    v << "    " << key2 << " -> " << efs.getObjectHandle().getObjGen().unparse(',')
+                      << "\n";
                     v << "      creation date: " << efs.getCreationDate() << "\n"
                       << "      modification date: " << efs.getModDate() << "\n"
                       << "      mime type: " << efs.getSubtype() << "\n"
@@ -1338,9 +1345,12 @@ QPDFJob::doJSONAttachments(Pipeline* p, bool& first, QPDF& pdf)
             j_names.addDictionaryMember(i2.first, JSON::makeString(i2.second));
         }
         auto j_streams = j_details.addDictionaryMember("streams", JSON::makeDictionary());
-        for (auto const& i2: fsoh->getEmbeddedFileStreams().ditems()) {
-            auto efs = QPDFEFStreamObjectHelper(i2.second);
-            auto j_stream = j_streams.addDictionaryMember(i2.first, JSON::makeDictionary());
+        for (auto const& [key2, value2]: fsoh->getEmbeddedFileStreams().as_dictionary()) {
+            if (value2.null()) {
+                continue;
+            }
+            auto efs = QPDFEFStreamObjectHelper(value2);
+            auto j_stream = j_streams.addDictionaryMember(key2, JSON::makeDictionary());
             j_stream.addDictionaryMember(
                 "creationdate", null_or_string(to_iso8601(efs.getCreationDate())));
             j_stream.addDictionaryMember(
@@ -2347,12 +2357,10 @@ QPDFJob::shouldRemoveUnreferencedResources(QPDF& pdf)
                     return true;
                 }
             }
-            if (xobject.isDictionary()) {
-                for (auto const& k: xobject.getKeys()) {
-                    QPDFObjectHandle xobj = xobject.getKey(k);
-                    if (xobj.isFormXObject()) {
-                        queue.push_back(xobj);
-                    }
+
+            for (auto const& xobj: xobject.as_dictionary()) {
+                if (xobj.second.isFormXObject()) {
+                    queue.emplace_back(xobj.second);
                 }
             }
         }

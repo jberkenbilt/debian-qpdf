@@ -20,17 +20,7 @@
 #ifndef JSON_HH
 #define JSON_HH
 
-// This is a simple JSON serializer and parser, primarily designed for serializing QPDF Objects as
-// JSON. While it may work as a general-purpose JSON parser/serializer, there are better options.
-// JSON objects contain their data as smart pointers. When one JSON object is added to another, this
-// pointer is copied. This means you can create temporary JSON objects on the stack, add them to
-// other objects, and let them go out of scope safely. It also means that if a JSON object is added
-// in more than one place, all copies share the underlying data. This makes them similar in
-// structure and behavior to QPDFObjectHandle and may feel natural within the QPDF codebase, but it
-// is also a good reason not to use this as a general-purpose JSON package.
-
 #include <qpdf/DLL.h>
-#include <qpdf/PointerHolder.hh> // unused -- remove in qpdf 12 (see #785)
 #include <qpdf/Types.h>
 
 #include <functional>
@@ -44,12 +34,19 @@
 class Pipeline;
 class InputSource;
 
+// This is a simple JSON serializer and parser, primarily designed for serializing QPDF Objects as
+// JSON. While it may work as a general-purpose JSON parser/serializer, there are better options.
+// JSON objects contain their data as smart pointers. When one JSON object is added to another, this
+// pointer is copied. This means you can create temporary JSON objects on the stack, add them to
+// other objects, and let them go out of scope safely. It also means that if a JSON object is added
+// in more than one place, all copies share the underlying data. This makes them similar in
+// structure and behavior to QPDFObjectHandle and may feel natural within the QPDF codebase, but it
+// is also a good reason not to use this as a general-purpose JSON package.
 class JSON
 {
   public:
     static int constexpr LATEST = 2;
 
-    QPDF_DLL
     JSON() = default;
 
     QPDF_DLL
@@ -144,16 +141,11 @@ class JSON
     QPDF_DLL
     bool isDictionary() const;
 
-    // If the key is already in the dictionary, return true. Otherwise, mark it as seen and return
-    // false. This is primarily intended to be used by the parser to detect duplicate keys when the
-    // reactor blocks them from being added to the final dictionary.
-    QPDF_DLL
-    bool checkDictionaryKeySeen(std::string const& key);
-
     // Accessors. Accessor behavior:
     //
     // - If argument is wrong type, including null, return false
     // - If argument is right type, return true and initialize the value
+
     QPDF_DLL
     bool getString(std::string& utf8) const;
     QPDF_DLL
@@ -217,7 +209,6 @@ class JSON
     class QPDF_DLL_CLASS Reactor
     {
       public:
-        QPDF_DLL
         virtual ~Reactor() = default;
 
         // The start/end methods are called when parsing of a dictionary or array is started or
@@ -328,7 +319,6 @@ class JSON
         ~JSON_dictionary() override = default;
         void write(Pipeline*, size_t depth) const override;
         std::map<std::string, JSON> members;
-        std::set<std::string> parsed_keys;
     };
     struct JSON_array;
     struct JSON_string: public JSON_value
@@ -337,7 +327,6 @@ class JSON
         ~JSON_string() override = default;
         void write(Pipeline*, size_t depth) const override;
         std::string utf8;
-        std::string encoded;
     };
     struct JSON_number: public JSON_value
     {
@@ -386,7 +375,6 @@ class JSON
         friend class JSON;
 
       public:
-        QPDF_DLL
         ~Members() = default;
 
       private:

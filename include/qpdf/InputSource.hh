@@ -21,7 +21,6 @@
 #define QPDF_INPUTSOURCE_HH
 
 #include <qpdf/DLL.h>
-#include <qpdf/PointerHolder.hh> // unused -- remove in qpdf 12 (see #785)
 #include <qpdf/Types.h>
 
 #include <cstdio>
@@ -33,11 +32,8 @@
 class QPDF_DLL_CLASS InputSource
 {
   public:
-    QPDF_DLL
-    InputSource()
-    {
-    }
-    QPDF_DLL
+    InputSource() = default;
+
     virtual ~InputSource() = default;
 
     class QPDF_DLL_CLASS Finder
@@ -89,21 +85,6 @@ class QPDF_DLL_CLASS InputSource
     qpdf_offset_t last_offset{0};
 
   private:
-    class QPDF_DLL_PRIVATE Members
-    {
-        friend class InputSource;
-
-      public:
-        QPDF_DLL
-        ~Members() = default;
-
-      private:
-        Members() = default;
-        Members(Members const&) = delete;
-    };
-
-    std::shared_ptr<Members> m;
-
     // State for fast... methods
     static const qpdf_offset_t buf_size = 128;
     char buffer[buf_size];
