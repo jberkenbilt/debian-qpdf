@@ -8,6 +8,7 @@ set(TEST_PROGRAMS
   buffer
   closed_file_input_source
   concatenate
+  crypto_provider
   dct_compress
   dct_uncompress
   flate
@@ -23,6 +24,7 @@ set(TEST_PROGRAMS
   md5
   nntree
   numrange
+  obj_table
   pdf_version
   pl_function
   pointer_holder

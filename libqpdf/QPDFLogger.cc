@@ -14,19 +14,22 @@ namespace
         Pl_Track(char const* identifier, Pipeline* next) :
             Pipeline(identifier, next)
         {
+            if (!next) {
+                throw std::logic_error("Attempt to create Pl_Track with nullptr as next");
+            }
         }
 
         void
-        write(unsigned char const* data, size_t len) override
+        write(unsigned char const* data, size_t len) final
         {
-            this->used = true;
-            getNext()->write(data, len);
+            used = true;
+            next()->write(data, len);
         }
 
         void
-        finish() override
+        finish() final
         {
-            getNext()->finish();
+            next()->finish();
         }
 
         bool
@@ -197,8 +200,9 @@ QPDFLogger::setSave(std::shared_ptr<Pipeline> p, bool only_if_not_set)
     if (p == m->p_stdout) {
         auto pt = dynamic_cast<Pl_Track*>(p.get());
         if (pt->getUsed()) {
-            throw std::logic_error("QPDFLogger: called setSave on standard output after standard"
-                                   " output has already been used");
+            throw std::logic_error(
+                "QPDFLogger: called setSave on standard output after standard"
+                " output has already been used");
         }
         if (m->p_info == m->p_stdout) {
             m->p_info = m->p_stderr;

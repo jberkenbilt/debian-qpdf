@@ -1,4 +1,5 @@
-// Copyright (c) 2005-2024 Jay Berkenbilt
+// Copyright (c) 2005-2021 Jay Berkenbilt
+// Copyright (c) 2022-2025 Jay Berkenbilt and Manfred Holger
 //
 // This file is part of qpdf.
 //
@@ -26,10 +27,8 @@
 class QPDF_DLL_CLASS QPDFStreamFilter
 {
   public:
-    QPDF_DLL
     QPDFStreamFilter() = default;
 
-    QPDF_DLL
     virtual ~QPDFStreamFilter() = default;
 
     // A QPDFStreamFilter class must implement, at a minimum, setDecodeParms() and

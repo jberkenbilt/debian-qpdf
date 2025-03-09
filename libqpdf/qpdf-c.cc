@@ -955,7 +955,7 @@ qpdf_oh_is_initialized(qpdf_data qpdf, qpdf_oh oh)
 {
     QTC::TC("qpdf", "qpdf-c called qpdf_oh_is_initialized");
     return do_with_oh<QPDF_BOOL>(
-        qpdf, oh, return_false, [](QPDFObjectHandle& o) { return o.isInitialized(); });
+        qpdf, oh, return_false, [](QPDFObjectHandle& o) { return static_cast<bool>(o); });
 }
 
 QPDF_BOOL
@@ -1769,6 +1769,16 @@ qpdf_oh_get_page_content_data(qpdf_data qpdf, qpdf_oh page_oh, unsigned char** b
         o.pipePageContents(&buf);
         buf.getMallocBuffer(bufp, len);
     });
+}
+
+void
+qpdf_oh_free_buffer(unsigned char** bufp)
+{
+    QTC::TC("qpdf", "qpdf-c called qpdf_oh_free_buffer");
+    if (bufp && *bufp) {
+        free(*bufp);
+        *bufp = nullptr;
+    }
 }
 
 void

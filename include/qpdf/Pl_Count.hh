@@ -1,4 +1,5 @@
-// Copyright (c) 2005-2024 Jay Berkenbilt
+// Copyright (c) 2005-2021 Jay Berkenbilt
+// Copyright (c) 2022-2025 Jay Berkenbilt and Manfred Holger
 //
 // This file is part of qpdf.
 //
@@ -19,11 +20,10 @@
 #ifndef PL_COUNT_HH
 #define PL_COUNT_HH
 
-// This pipeline is reusable; i.e., it is safe to call write() after calling finish().
-
 #include <qpdf/Pipeline.hh>
 #include <qpdf/Types.h>
 
+// This pipeline is reusable; i.e., it is safe to call write() after calling finish().
 class QPDF_DLL_CLASS Pl_Count: public Pipeline
 {
   public:
@@ -44,24 +44,9 @@ class QPDF_DLL_CLASS Pl_Count: public Pipeline
     unsigned char getLastChar() const;
 
   private:
-    class QPDF_DLL_PRIVATE Members
-    {
-        friend class Pl_Count;
+    class Members;
 
-      public:
-        QPDF_DLL
-        ~Members() = default;
-
-      private:
-        Members();
-        Members(Members const&) = delete;
-
-        // Must be qpdf_offset_t, not size_t, to handle writing more than size_t can handle.
-        qpdf_offset_t count;
-        unsigned char last_char;
-    };
-
-    std::shared_ptr<Members> m;
+    std::unique_ptr<Members> m;
 };
 
 #endif // PL_COUNT_HH

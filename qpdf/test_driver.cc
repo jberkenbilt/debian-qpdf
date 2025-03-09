@@ -34,9 +34,6 @@
 #include <map>
 #include <sstream>
 
-#define QPDF_OBJECT_NOWARN
-#include <qpdf/QPDFObject.hh>
-
 static char const* whoami = nullptr;
 
 void
@@ -1406,8 +1403,7 @@ test_41(QPDF& pdf, char const* arg2)
 static void
 test_42(QPDF& pdf, char const* arg2)
 {
-    // Access objects as wrong type. This test case is crafted to
-    // work with object-types.pdf.
+    // Access objects as wrong type. This test case is crafted to work with object-types.pdf.
     QPDFObjectHandle qtest = pdf.getTrailer().getKey("/QTest");
     QPDFObjectHandle array = qtest.getKey("/Dictionary").getKey("/Key2");
     QPDFObjectHandle dictionary = qtest.getKey("/Dictionary");
@@ -1428,7 +1424,7 @@ test_42(QPDF& pdf, char const* arg2)
         assert(i == ai.end());
         ++i;
         assert(i == ai.end());
-        assert(!i_value.isInitialized());
+        assert(!i_value);
         --i;
         assert(i_value.getName() == "/Item2");
         assert(i->getName() == "/Item2");
@@ -1444,7 +1440,7 @@ test_42(QPDF& pdf, char const* arg2)
         ++i;
         ++i;
         assert(i == di.end());
-        assert(!i_value.second.isInitialized());
+        assert(!i_value.second);
     }
     assert("" == qtest.getStringValue());
     array.getArrayItem(-1).assertNull();
@@ -1540,12 +1536,35 @@ test_42(QPDF& pdf, char const* arg2)
     assert(!"42"_qpdf.isMatrix());
     m1 = "42"_qpdf.getArrayAsMatrix();
     assert(m1.a == 0 && m1.b == 0 && m1.c == 0 && m1.d == 0 && m1.e == 0 && m1.f == 0);
+
     // Uninitialized
     QPDFObjectHandle uninitialized;
-    assert(!uninitialized.isInitialized());
+    assert(!uninitialized);
     assert(!uninitialized.isInteger());
     assert(!uninitialized.isDictionary());
     assert(!uninitialized.isScalar());
+
+    // Reference
+    auto indirect = pdf.newIndirectNull();
+    QPDFObjGen indirect_og{indirect.getObjGen()};
+    pdf.replaceObject(indirect, array);
+    assert(array.isIndirect());
+    assert(indirect.isArray());
+    assert(array.getObjGen() == indirect_og);
+    assert(array.isArray());
+    assert(indirect.isArray());
+    assert(indirect.unparse() == indirect_og.unparse(' ') + " R");
+
+    auto pl1 = Pl_Buffer("");
+    array.writeJSON(2, &pl1, true);
+    pl1.finish();
+    assert(pl1.getString() == std::string("\"" + indirect_og.unparse(' ') + " R\""));
+
+    array.setArrayItem(1, "42"_qpdf);
+    assert(indirect.getArrayItem(1).getIntValue() == 42);
+
+    pdf.replaceObject(indirect, "42"_qpdf);
+    assert(array.isInteger());
 }
 
 static void
@@ -1633,7 +1652,7 @@ test_45(QPDF& pdf, char const* arg2)
 {
     // Decode obfuscated files. This is here to help test with
     // files that trigger anti-virus warnings. See comments in
-    // qpdf.test for details.
+    // specific-bugs.test for details.
     QPDFWriter w(pdf, "a.pdf");
     w.setStaticID(true);
     w.write();
@@ -1692,7 +1711,7 @@ test_46(QPDF& pdf, char const* arg2)
     assert(iter1_val.first == 2);
     ++iter1;
     assert(iter1 == new1.end());
-    assert(!iter1_val.second.isInitialized());
+    assert(!iter1_val.second);
     ++iter1;
     assert(iter1->first == 1);
     --iter1;
@@ -1842,7 +1861,7 @@ test_48(QPDF& pdf, char const* arg2)
     assert(iter1_val.first == "2");
     ++iter1;
     assert(iter1 == new1.end());
-    assert(!iter1_val.second.isInitialized());
+    assert(!iter1_val.second);
     ++iter1;
     assert(iter1->first == "1");
     --iter1;
@@ -2496,7 +2515,7 @@ test_73(QPDF& pdf, char const* arg2)
     }
 
     pdf.closeInputSource();
-    pdf.getRoot().getKey("/Pages").unparseResolved();
+    pdf.getObject(4, 0).unparseResolved();
 }
 
 static void
@@ -3453,6 +3472,16 @@ test_98(QPDF& pdf, char const* arg2)
         "}");
 }
 
+static void
+test_99(QPDF& pdf, char const* arg2)
+{
+    // Designed for no-space-compressed-object.pdf
+    QPDFObjectHandle qtest = pdf.getRoot().getKey("/QTest");
+    for (int i = 0; i < qtest.getArrayNItems(); ++i) {
+        std::cout << qtest.getArrayItem(i).unparseResolved() << std::endl;
+    }
+}
+
 void
 runtest(int n, char const* filename1, char const* arg2)
 {
@@ -3479,10 +3508,6 @@ runtest(int n, char const* filename1, char const* arg2)
         QPDFObjectHandle uninitialized;
         assert(uninitialized.getTypeCode() == ::ot_uninitialized);
         assert(strcmp(uninitialized.getTypeName(), "uninitialized") == 0);
-
-        // ABI: until QPDF 12, spot check deprecated constants
-        assert(QPDFObject::ot_dictionary == ::ot_dictionary);
-        assert(QPDFObject::ot_uninitialized == ::ot_uninitialized);
     }
 
     QPDF pdf;
@@ -3554,7 +3579,7 @@ runtest(int n, char const* filename1, char const* arg2)
         {78, test_78}, {79, test_79}, {80, test_80}, {81, test_81}, {82, test_82}, {83, test_83},
         {84, test_84}, {85, test_85}, {86, test_86}, {87, test_87}, {88, test_88}, {89, test_89},
         {90, test_90}, {91, test_91}, {92, test_92}, {93, test_93}, {94, test_94}, {95, test_95},
-        {96, test_96}, {97, test_97}, {98, test_98}};
+        {96, test_96}, {97, test_97}, {98, test_98}, {99, test_99}};
 
     auto fn = test_functions.find(n);
     if (fn == test_functions.end()) {

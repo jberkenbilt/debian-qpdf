@@ -7,7 +7,7 @@ cmake_minimum_required(VERSION 3.16)
 # also find the version number here. generate_auto_job also reads the
 # version from here.
 project(qpdf
-  VERSION 11.9.0
+  VERSION 12.0.0
   LANGUAGES C CXX)
 
 # Enable correct rpath handling for MacOSX
@@ -38,9 +38,6 @@ CMAKE_DEPENDENT_OPTION(
 CMAKE_DEPENDENT_OPTION(
   WERROR "Treat compiler warnings as errors" OFF
   "NOT MAINTAINER_MODE; NOT CI_MODE" ON)
-CMAKE_DEPENDENT_OPTION(
-  CHECK_SIZES "Compare sizes.cc with classes in public API" OFF
-  "NOT MAINTAINER_MODE" ON)
 CMAKE_DEPENDENT_OPTION(
   GENERATE_AUTO_JOB "Automatically regenerate job files" OFF
   "NOT MAINTAINER_MODE" ON)
@@ -98,6 +95,8 @@ set(DEFAULT_CRYPTO CACHE STRING "")
 option(DEFAULT_CRYPTO
   "Specify default crypto; otherwise chosen automatically" "")
 
+option(ZOPFLI, "Use zopfli for zlib-compatible compression")
+
 # INSTALL_MANUAL is not dependent on building docs. When creating some
 # distributions, we build the doc in one run, copy doc-dist in, and
 # install it elsewhere.
@@ -118,7 +117,6 @@ if(NOT (BUILD_STATIC_LIBS OR BUILD_SHARED_LIBS))
 endif()
 
 set(CMAKE_INCLUDE_DIRECTORIES_PROJECT_BEFORE ON)
-add_compile_definitions($<$<COMPILE_LANGUAGE:CXX>:POINTERHOLDER_TRANSITION=4>)
 
 if(ENABLE_QTC)
   set(ENABLE_QTC_ARG)
@@ -246,6 +244,14 @@ endif()
 if(MSVC)
   list(APPEND CMAKE_REQUIRED_LINK_OPTIONS -link setargv.obj)
   list(APPEND WINDOWS_WMAIN_LINK -link wsetargv.obj)
+endif()
+if(MINGW)
+  execute_process(
+    COMMAND gcc --print-file-name=CRT_glob.o
+    OUTPUT_VARIABLE CRT_GLOB_O
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+  )
+  list(APPEND WINDOWS_WMAIN_LINK ${CRT_GLOB_O})
 endif()
 
 include(GNUInstallDirs)

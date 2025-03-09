@@ -3,7 +3,7 @@
 .\" Edits will be automatically overwritten if the build is
 .\" run in maintainer mode.
 .\"
-.TH QPDF "1" "" "qpdf version 11.9.0" "User Commands"
+.TH QPDF "1" "" "qpdf version 12.0.0" "User Commands"
 .SH NAME
 qpdf \- PDF transformation software
 .SH SYNOPSIS
@@ -115,6 +115,12 @@ default provider is shown first.
 .B --job-json-help \-\- show format of job JSON
 Describe the format of the QPDFJob JSON input used by
 --job-json-file.
+.TP
+.B --zopfli \-\- indicate whether zopfli is enabled and active
+If zopfli support is compiled in, indicate whether it is active,
+and exit normally. Otherwise, indicate that it is not compiled
+in, and exit with an error code. If zopfli is compiled in,
+activate it by setting the ``QPDF_ZOPFLI`` environment variable.
 .SH GENERAL (general options)
 General options control qpdf's behavior in ways that are not
 directly related to the operation it is performing.
@@ -463,13 +469,13 @@ for multi-page groups.
 .B --overlay \-\- begin overlay options
 --overlay file [options] --
 
-Overlay pages from another file on the output.
+Overlay pages from another PDF file on the output.
 Run qpdf --help=overlay-underlay for details.
 .TP
 .B --underlay \-\- begin underlay options
 --underlay file [options] --
 
-Underlay pages from another file on the output.
+Underlay pages from another PDF file on the output.
 Run qpdf --help=overlay-underlay for details.
 .TP
 .B --flatten-rotation \-\- remove rotation from page dictionary
@@ -529,6 +535,12 @@ Don't optimize images whose area in pixels is below the specified value.
 .TP
 .B --keep-inline-images \-\- exclude inline images from optimization
 Prevent inline images from being considered by --optimize-images.
+.TP
+.B --remove-info \-\- remove file information
+Exclude file information (except modification date) from the output file.
+.TP
+.B --remove-metadata \-\- remove metadata
+Exclude metadata from the output file.
 .TP
 .B --remove-page-labels \-\- remove explicit page numbers
 Exclude page labels (explicit page numbers) from the output file.
@@ -594,11 +606,11 @@ OR
 --encrypt user-password owner-password key-length [options] --
 
 The first form, with flags for the passwords and bit length, was
-introduced in qpdf 11.7.0. Only the --bits option is is mandatory.
+introduced in qpdf 11.7.0. Only the --bits option is mandatory.
 This form allows you to use any text as the password. If passwords
 are specified, they must be given before the --bits option.
 
-The second form has been in qpdf since the beginning and wil
+The second form has been in qpdf since the beginning and will
 continue to be supported. Either or both of user-password and
 owner-password may be empty strings.
 
@@ -613,7 +625,7 @@ Encryption options are terminated by "--" by itself.
 40-bit encryption is insecure, as is 128-bit encryption without
 AES. Use 256-bit encryption unless you have a specific reason to
 use an insecure format, such as testing or compatibility with very
-old viewers. You must use the --allow-weak-crypto to create
+old viewers. You must use the --allow-weak-crypto flag to create
 encrypted files that use insecure cryptographic algorithms. The
 --allow-weak-crypto flag appears outside of --encrypt ... --
 (before --encrypt or after --).
@@ -837,8 +849,8 @@ to out.pdf. Use password "x" to open b.pdf:
   qpdf --empty --pages a.pdf b.pdf --password=x z-1 c.pdf 3,6
 
 More examples are in the manual.
-.SH OVERLAY-UNDERLAY (overlay/underlay pages from other files)
-These options allow pages from another file to be overlaid or
+.SH OVERLAY-UNDERLAY (overlay/underlay pages from other PDF files)
+These options allow pages from another PDF file to be overlaid or
 underlaid on the primary output. Overlaid pages are drawn on top of
 the destination page and may obscure the page. Underlaid pages are
 drawn below the destination page. Usage:

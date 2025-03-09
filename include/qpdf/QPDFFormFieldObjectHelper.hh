@@ -1,4 +1,5 @@
-// Copyright (c) 2005-2024 Jay Berkenbilt
+// Copyright (c) 2005-2021 Jay Berkenbilt
+// Copyright (c) 2022-2025 Jay Berkenbilt and Manfred Holger
 //
 // This file is part of qpdf.
 //
@@ -19,9 +20,6 @@
 #ifndef QPDFFORMFIELDOBJECTHELPER_HH
 #define QPDFFORMFIELDOBJECTHELPER_HH
 
-// This object helper helps with form fields for interactive forms. Please see comments in
-// QPDFAcroFormDocumentHelper.hh for additional details.
-
 #include <qpdf/QPDFObjectHelper.hh>
 
 #include <qpdf/DLL.h>
@@ -29,6 +27,8 @@
 
 class QPDFAnnotationObjectHelper;
 
+// This object helper helps with form fields for interactive forms. Please see comments in
+// QPDFAcroFormDocumentHelper.hh for additional details.
 class QPDFFormFieldObjectHelper: public QPDFObjectHelper
 {
   public:
@@ -36,7 +36,7 @@ class QPDFFormFieldObjectHelper: public QPDFObjectHelper
     QPDFFormFieldObjectHelper();
     QPDF_DLL
     QPDFFormFieldObjectHelper(QPDFObjectHandle);
-    QPDF_DLL
+
     ~QPDFFormFieldObjectHelper() override = default;
 
     QPDF_DLL
@@ -198,7 +198,6 @@ class QPDFFormFieldObjectHelper: public QPDFObjectHelper
         friend class QPDFFormFieldObjectHelper;
 
       public:
-        QPDF_DLL
         ~Members() = default;
 
       private:

@@ -3,6 +3,11 @@
 
 set(FUZZERS
   qpdf_fuzzer
+  qpdf_crypt_fuzzer
+  qpdf_crypt_insecure_fuzzer
+  qpdf_lin_fuzzer
+  qpdf_pages_fuzzer
+  qpdf_outlines_fuzzer
   ascii85_fuzzer
   dct_fuzzer
   flate_fuzzer
@@ -98,6 +103,9 @@ set(CORPUS_OTHER
   16172.fuzz
   16301.fuzz
   16953.fuzz
+  17630.fuzz
+  17630a.fuzz
+  17630b.fuzz
   18241.fuzz
   18247.fuzz
   23172.fuzz
@@ -114,6 +122,40 @@ set(CORPUS_OTHER
   65681.fuzz
   65773.fuzz
   65777.fuzz
+  68374.fuzz
+  68377.fuzz
+  68668.fuzz
+  68915.fuzz
+  69857.fuzz
+  69913.fuzz
+  69969.fuzz
+  69977.fuzz
+  69977a.fuzz
+  69977b.fuzz
+  69977c.fuzz
+  69977d.fuzz
+  69977e.fuzz
+  70055.fuzz
+  70245.fuzz
+  70306.fuzz
+  70306a.fuzz
+  70306b.fuzz
+  71624.fuzz
+  71689.fuzz
+  99999d.fuzz
+  99999e.fuzz
+  369662293.fuzz
+  369662293a.fuzz
+  376305073.fuzz
+  376305073a.fuzz
+  377977949.fuzz
+  388571629.fuzz
+  389339260.fuzz
+  389974979.fuzz
+  391974927.fuzz
+  394129398.fuzz
+  394463491.fuzz
+  398060137.fuzz
 )
 
 set(CORPUS_DIR ${CMAKE_CURRENT_BINARY_DIR}/qpdf_corpus)
@@ -150,10 +192,11 @@ add_test(
   --color ${QTEST_COLOR}
   --show-on-failure ${SHOW_FAILED_TEST_OUTPUT})
 
+# cSpell:ignore qpdg
 if(OSS_FUZZ)
   list(APPEND SEED_CORPUS_ZIPS)
   foreach(F ${FUZZERS})
-    if(F STREQUAL qpdf_fuzzer)
+    if((F STRGREATER qpdf_) AND (F STRLESS qpdg))
       set(SEED_DIR ${CORPUS_DIR})
     else()
       set(SEED_DIR ${CMAKE_CURRENT_SOURCE_DIR}/${F}_seed_corpus)

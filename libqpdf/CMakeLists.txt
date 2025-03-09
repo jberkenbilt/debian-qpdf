@@ -76,7 +76,6 @@ set(libqpdf_SOURCES
   QPDFObject.cc
   QPDFObjectHandle.cc
   QPDFObjectHelper.cc
-  QPDFObjGen.cc
   QPDFOutlineDocumentHelper.cc
   QPDFOutlineObjectHelper.cc
   QPDFPageDocumentHelper.cc
@@ -87,23 +86,12 @@ set(libqpdf_SOURCES
   QPDFSystemError.cc
   QPDFTokenizer.cc
   QPDFUsage.cc
-  QPDFValue.cc
   QPDFWriter.cc
   QPDFXRefEntry.cc
   QPDF_Array.cc
-  QPDF_Bool.cc
-  QPDF_Destroyed.cc
   QPDF_Dictionary.cc
-  QPDF_InlineImage.cc
-  QPDF_Integer.cc
-  QPDF_Name.cc
-  QPDF_Null.cc
-  QPDF_Operator.cc
-  QPDF_Real.cc
-  QPDF_Reserved.cc
   QPDF_Stream.cc
   QPDF_String.cc
-  QPDF_Unresolved.cc
   QPDF_encryption.cc
   QPDF_json.cc
   QPDF_linearization.cc
@@ -158,7 +146,8 @@ if(NOT EXTERNAL_LIBS)
     list(APPEND dep_link_libraries ${pc_zlib_LIBRARIES})
   else()
     find_path(ZLIB_H_PATH zlib.h)
-    find_library(ZLIB_LIB_PATH z zlib)
+    # cSpell:ignore zlibd
+    find_library(ZLIB_LIB_PATH NAMES z zd zlib zlibd)
     if(ZLIB_H_PATH AND ZLIB_LIB_PATH)
       list(APPEND dep_include_directories ${ZLIB_H_PATH})
       list(APPEND dep_link_libraries ${ZLIB_LIB_PATH})
@@ -187,6 +176,18 @@ if(NOT EXTERNAL_LIBS)
       message(SEND_ERROR "libjpeg not found")
       set(ANYTHING_MISSING 1)
     endif()
+  endif()
+endif()
+
+if(ZOPFLI)
+  find_path(ZOPFLI_H_PATH NAMES zopfli.h PATH_SUFFIXES zopfli)
+  find_library(ZOPFLI_LIB_PATH NAMES zopfli)
+  if(ZOPFLI_H_PATH AND ZOPFLI_LIB_PATH)
+    list(APPEND dep_include_directories ${ZOPFLI_H_PATH})
+    list(APPEND dep_link_libraries ${ZOPFLI_LIB_PATH})
+  else()
+    message(SEND_ERROR "zopfli not found")
+    set(ANYTHING_MISSING 1)
   endif()
 endif()
 
@@ -597,14 +598,4 @@ if(INSTALL_CMAKE_PACKAGE)
     ${CMAKE_CURRENT_BINARY_DIR}/qpdfConfig.cmake
     COMPONENT ${COMPONENT_DEV}
     DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/qpdf)
-endif()
-
-if(CHECK_SIZES AND BUILD_SHARED_LIBS AND (CMAKE_SYSTEM_NAME STREQUAL "Linux"))
-  # We can only do this check on a system with ELF shared libraries.
-  # Since this is a maintainer-only option, testing for Linux is a
-  # close enough approximation.
-  add_test(
-    NAME check-sizes
-    COMMAND ${qpdf_SOURCE_DIR}/check_abi check-sizes
-    --lib $<TARGET_FILE:libqpdf>)
 endif()

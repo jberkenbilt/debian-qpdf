@@ -1,4 +1,5 @@
-// Copyright (c) 2005-2024 Jay Berkenbilt
+// Copyright (c) 2005-2021 Jay Berkenbilt
+// Copyright (c) 2022-2025 Jay Berkenbilt and Manfred Holger
 //
 // This file is part of qpdf.
 //
@@ -27,16 +28,15 @@
 
 #include <qpdf/DLL.h>
 
-// This is an object helper for name trees. See section 7.9.6 in the PDF spec (ISO 32000) for a
-// description of name trees. When looking up items in the name tree, use UTF-8 strings. All names
-// are normalized for lookup purposes.
-
-// See examples/pdf-name-number-tree.cc for a demonstration of using QPDFNameTreeObjectHelper.
-
 class NNTreeImpl;
 class NNTreeIterator;
 class NNTreeDetails;
 
+// This is an object helper for name trees. See section 7.9.6 in the PDF spec (ISO 32000) for a
+// description of name trees. When looking up items in the name tree, use UTF-8 strings. All names
+// are normalized for lookup purposes.
+//
+// See examples/pdf-name-number-tree.cc for a demonstration of using QPDFNameTreeObjectHelper.
 class QPDF_DLL_CLASS QPDFNameTreeObjectHelper: public QPDFObjectHelper
 {
   public:
@@ -77,7 +77,6 @@ class QPDF_DLL_CLASS QPDFNameTreeObjectHelper: public QPDFObjectHelper
         bool valid() const;
         QPDF_DLL
         iterator& operator++();
-        QPDF_DLL
         iterator
         operator++(int)
         {
@@ -87,7 +86,6 @@ class QPDF_DLL_CLASS QPDFNameTreeObjectHelper: public QPDFObjectHelper
         }
         QPDF_DLL
         iterator& operator--();
-        QPDF_DLL
         iterator
         operator--(int)
         {
@@ -101,7 +99,6 @@ class QPDF_DLL_CLASS QPDFNameTreeObjectHelper: public QPDFObjectHelper
         pointer operator->();
         QPDF_DLL
         bool operator==(iterator const& other) const;
-        QPDF_DLL
         bool
         operator!=(iterator const& other) const
         {
@@ -171,7 +168,6 @@ class QPDF_DLL_CLASS QPDFNameTreeObjectHelper: public QPDFObjectHelper
         friend class QPDFNameTreeObjectHelper;
 
       public:
-        QPDF_DLL
         ~Members() = default;
 
       private:

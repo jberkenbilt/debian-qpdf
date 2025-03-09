@@ -1,4 +1,5 @@
-// Copyright (c) 2005-2024 Jay Berkenbilt
+// Copyright (c) 2005-2021 Jay Berkenbilt
+// Copyright (c) 2022-2025 Jay Berkenbilt and Manfred Holger
 //
 // This file is part of qpdf.
 //
@@ -34,13 +35,12 @@
 // section 12.3.3 of the PDF spec (ISO-32000). With the help of QPDFOutlineObjectHelper, the
 // outlines tree is traversed, and a bidirectional map is made between pages and outlines. See also
 // QPDFOutlineObjectHelper.
-
 class QPDFOutlineDocumentHelper: public QPDFDocumentHelper
 {
   public:
     QPDF_DLL
     QPDFOutlineDocumentHelper(QPDF&);
-    QPDF_DLL
+
     ~QPDFOutlineDocumentHelper() override = default;
 
     QPDF_DLL
@@ -57,16 +57,14 @@ class QPDFOutlineDocumentHelper: public QPDFDocumentHelper
 
     // Return a list outlines that are known to target the specified page.
     QPDF_DLL
-    std::vector<QPDFOutlineObjectHelper> getOutlinesForPage(QPDFObjGen const&);
+    std::vector<QPDFOutlineObjectHelper> getOutlinesForPage(QPDFObjGen);
 
     class Accessor
     {
         friend class QPDFOutlineObjectHelper;
 
-        // ABI: remove  QPDF_DLL and pass og by value.
-        QPDF_DLL
         static bool
-        checkSeen(QPDFOutlineDocumentHelper& dh, QPDFObjGen const& og)
+        checkSeen(QPDFOutlineDocumentHelper& dh, QPDFObjGen og)
         {
             return !dh.m->seen.add(og);
         }
@@ -80,7 +78,6 @@ class QPDFOutlineDocumentHelper: public QPDFDocumentHelper
         friend class QPDFOutlineDocumentHelper;
 
       public:
-        QPDF_DLL
         ~Members() = default;
 
       private:

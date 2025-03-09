@@ -1,4 +1,5 @@
-// Copyright (c) 2005-2024 Jay Berkenbilt
+// Copyright (c) 2005-2021 Jay Berkenbilt
+// Copyright (c) 2022-2025 Jay Berkenbilt and Manfred Holger
 //
 // This file is part of qpdf.
 //
@@ -30,15 +31,14 @@
 
 class QPDFAcroFormDocumentHelper;
 
+// This is a helper class for page objects, but as of qpdf 10.1, many of the methods also work
+// for form XObjects. When this is the case, it is noted in the comment.
 class QPDFPageObjectHelper: public QPDFObjectHelper
 {
-    // This is a helper class for page objects, but as of qpdf 10.1, many of the methods also work
-    // for form XObjects. When this is the case, it is noted in the comment.
-
   public:
     QPDF_DLL
     QPDFPageObjectHelper(QPDFObjectHandle);
-    QPDF_DLL
+
     ~QPDFPageObjectHelper() override = default;
 
     // PAGE ATTRIBUTES
@@ -410,7 +410,6 @@ class QPDFPageObjectHelper: public QPDFObjectHelper
         friend class QPDFPageObjectHelper;
 
       public:
-        QPDF_DLL
         ~Members() = default;
 
       private:

@@ -1,4 +1,5 @@
-// Copyright (c) 2005-2024 Jay Berkenbilt
+// Copyright (c) 2005-2021 Jay Berkenbilt
+// Copyright (c) 2022-2025 Jay Berkenbilt and Manfred Holger
 //
 // This file is part of qpdf.
 //
@@ -30,7 +31,6 @@
 // (a, b, c, d, e, f) = │ c d 0 │
 //                      │ e f 1 │
 //                      └       ┘
-
 class QPDFMatrix
 {
   public:
@@ -78,12 +78,9 @@ class QPDFMatrix
     // operator== tests for exact equality, not considering deltas for floating point.
     QPDF_DLL
     bool operator==(QPDFMatrix const& rhs) const;
+
     QPDF_DLL
-    bool
-    operator!=(QPDFMatrix const& rhs) const
-    {
-        return !operator==(rhs);
-    }
+    bool operator!=(QPDFMatrix const& rhs) const;
 
     double a;
     double b;

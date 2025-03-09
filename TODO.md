@@ -2,7 +2,8 @@ Contents
 ========
 
 - [Always](#always)
-- [Next](#always)
+- [In Progress](#in-progress)
+- [Next](#next)
 - [Possible future JSON enhancements](#possible-future-json-enhancements)
 - [QPDFJob](#qpdfjob)
 - [Documentation](#documentation)
@@ -25,6 +26,28 @@ Always
   addition to regular issues.
 * When close to release, make sure external-libs is building and follow instructions in
   ../external-libs/README
+
+In Progress
+===========
+
+Modernize qpdf
+--------------
+
+Update code to make use of the facilities provided by C++17. In particular, replace early qpdf C-style code
+with modern equivalent. Key updates are:
+
+* use the standard library where appropriate
+* replace C-strings with std::string or std::string_view
+* replace raw pointer with smart pointers or standard library containers
+* replace std::string const& with std::string_view where appropriate
+* replace std::shared_ptr with std::unique_ptr or references to the underlying object where appropriate
+
+Next steps are:
+
+* review function signatures in the public API
+* replace code that uses QUtil::make_shared_cstr etc
+
+Except for the above, prefer to make modernization changes as part of other updates.
 
 Next
 ====
@@ -99,7 +122,7 @@ Documentation
 
 * Do a full pass through the documentation.
 
-  * Make sure `qpdf` is consistent. Use QPDF when just referring to the package.
+  * Make sure `qpdf` is consistent. Use qpdf when just referring to the package.
   * Make sure markup is consistent
   * Autogenerate where possible
   * Consider which parts might be good candidates for moving to the wiki.
@@ -178,8 +201,7 @@ Fuzz Errors
 
 * https://bugs.chromium.org/p/oss-fuzz/issues/detail?id=<N>
 
-* Ignoring these:
-  * Out of memory in dct: 35001, 32516
+* See also [discussion](https://github.com/qpdf/qpdf-dev/discussions/6).
 
 External Libraries
 ==================
@@ -337,7 +359,7 @@ so, I find it useful to make reference to them in this list.
   an object. I think qpdf must handle generations correctly, but make sure to test this carefully.
 
   Note that there's nothing that says an indirect object in one update can't refer to an object that
-  doesn't appear until a later update. This means that QPDF has to hang onto indirect nulls,
+  doesn't appear until a later update. This means that qpdf has to hang onto indirect nulls,
   including when they appear as dictionary values. In this case, QPDF_Dictionary::getKeys() ignores
   all keys with null values, and hasKey() returns false for keys that have null values. QPDF_Dictionary
   already handles the special case of keys that are indirect nulls, which is used to reserve foreign
@@ -372,6 +394,8 @@ so, I find it useful to make reference to them in this list.
 * In libtests, separate executables that need the object library from those that strictly use public
   API. Move as many of the test drivers from the qpdf directory into the latter category as long as
   doing so isn't too troublesome from a coverage standpoint.
+
+* Refactor pages tree. See [discussion](https://github.com/qpdf/qpdf-dev/discussions/10).
 
 * Consider generating a non-flat pages tree before creating output to better handle files with lots
   of pages. If there are more than 256 pages, add a second layer with the second layer nodes having
@@ -431,7 +455,7 @@ so, I find it useful to make reference to them in this list.
 
 * Support for handling file names with Unicode characters in Windows is incomplete. qpdf seems to
   support them okay from a functionality standpoint, and the right thing happens if you pass in
-  UTF-8 encoded filenames to QPDF library routines in Windows (they are converted internally to
+  UTF-8 encoded filenames to qpdf library routines in Windows (they are converted internally to
   wchar_t*), but file names are encoded in UTF-8 on output, which doesn't produce nice error
   messages or output on Windows in some cases.
 
@@ -439,10 +463,10 @@ so, I find it useful to make reference to them in this list.
   which includes machine-readable dump of table D.2 in the ISO-32000 PDF spec. This shows the
   mapping between Unicode, StandardEncoding, WinAnsiEncoding, MacRomanEncoding, and PDFDocEncoding.
 
-* Some test cases on bad files fail because qpdf is unable to find the root dictionary when it fails
-  to read the trailer. Recovery could find the root dictionary and even the info dictionary in other
-  ways. In particular, issue-202.pdf can be opened by evince, and there's no real reason that qpdf
-  couldn't be made to be able to recover that file as well.
+* Some test cases on bad files failed because qpdf was unable to find the root dictionary when it
+  failed to read the trailer. Ths was fixed in https://github.com/qpdf/qpdf/pull/1343 . A similar
+  issue with a similar solution exists for failure to find the pages tree
+  (see https://github.com/qpdf/qpdf/issues/1362).
 
 * Audit every place where qpdf allocates memory to see whether there are cases where malicious
   inputs could cause qpdf to attempt to grab very large amounts of memory. Certainly there are cases
@@ -475,10 +499,10 @@ so, I find it useful to make reference to them in this list.
   ../misc/digital-signatures/digitally-signed-pdf-xfa.pdf. If digital signatures are implemented,
   update the docs on crypto providers, which mention that this may happen in the future.
 
-* Qpdf does not honor /EFF when adding new file attachments. When it encrypts, it never generates
+* qpdf does not honor /EFF when adding new file attachments. When it encrypts, it never generates
   streams with explicit crypt filters. Prior to 10.2, there was an incorrect attempt to treat /EFF
   as a default value for decrypting file attachment streams, but it is not supposed to mean that.
-  Instead, it is intended for conforming writers to obey this when adding new attachments. Qpdf is
+  Instead, it is intended for conforming writers to obey this when adding new attachments. qpdf is
   not a conforming writer in that respect.
 
 * The whole xref handling code in the QPDF object allows the same object with more than one
@@ -509,6 +533,10 @@ so, I find it useful to make reference to them in this list.
 * Look at places in the code where object traversal is being done and, where possible, try to avoid
   it entirely or at least avoid ever traversing the same objects multiple times.
 
+* The CLI warrants a thorough review, including the introduction of proper sub-commands. Add warnings
+  for file names without extension or path element as first parameter
+  (see https://github.com/qpdf/qpdf/pull/1381).
+
 ----------------------------------------------------------------------
 
 ### HISTORICAL NOTES
@@ -524,7 +552,7 @@ As described in https://github.com/qpdf/qpdf/issues/401, there was great perform
 between qpdf 7.1.1 and 9.1.1. Doing a bisect between dac65a21fb4fa5f871e31c314280b75adde89a6c and
 release-qpdf-7.1.1, I found several commits that damaged performance. I fixed some of them to
 improve performance by about 70% (as measured by saying that old times were 170% of new times). The
-remaining commits that broke performance either can't be correct because they would re-introduce an
+remaining commits that broke performance either can't be corrected because they would re-introduce an
 old bug or aren't worth correcting because of the high value they offer relative to a relatively low
 penalty. For historical reference, here are the commits. The numbers are the time in seconds on the
 machine I happened to be using of splitting the first 100 pages of PDF32000_2008.pdf 20 times and
@@ -560,6 +588,8 @@ time but subsequent implementations of std::shared_ptr became much more efficien
 
 QPDFPagesTree
 =============
+
+See also [discussion](https://github.com/qpdf/qpdf-dev/discussions/10).
 
 On a few occasions, I have considered implementing a QPDFPagesTree object that would allow the
 document's original page tree structure to be preserved. See comments at the top QPDF_pages.cc for
@@ -658,7 +688,7 @@ Rejected Ideas
   QPDFObjectHandle::getOwningQPDF() return a std::weak_ptr<QPDF>. Prior to #726 (
   QPDFObject/QPDFValue split, released in qpdf 11.0.0), getOwningQPDF() could return an invalid
   pointer if the owning QPDF disappeared, but this is no longer the case, which removes the main
-  motivation. QPDF 11 added QPDF::create() anyway though.
+  motivation. qpdf 11 added QPDF::create() anyway though.
 
   Removing raw QPDF* would look something like this. Note that you can't use std::make_shared<T>
   unless T has a public constructor.

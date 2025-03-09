@@ -1,4 +1,5 @@
-// Copyright (c) 2005-2024 Jay Berkenbilt
+// Copyright (c) 2005-2021 Jay Berkenbilt
+// Copyright (c) 2022-2025 Jay Berkenbilt and Manfred Holger
 //
 // This file is part of qpdf.
 //
@@ -24,8 +25,7 @@
 class QPDF_DLL_CLASS FileInputSource: public InputSource
 {
   public:
-    QPDF_DLL
-    FileInputSource();
+    FileInputSource() = default;
     QPDF_DLL
     FileInputSource(char const* filename);
     QPDF_DLL
@@ -34,6 +34,10 @@ class QPDF_DLL_CLASS FileInputSource: public InputSource
     void setFilename(char const* filename);
     QPDF_DLL
     void setFile(char const* description, FILE* filep, bool close_file);
+
+    FileInputSource(FileInputSource const&) = delete;
+    FileInputSource& operator=(FileInputSource const&) = delete;
+
     QPDF_DLL
     ~FileInputSource() override;
     QPDF_DLL
@@ -52,12 +56,9 @@ class QPDF_DLL_CLASS FileInputSource: public InputSource
     void unreadCh(char ch) override;
 
   private:
-    FileInputSource(FileInputSource const&) = delete;
-    FileInputSource& operator=(FileInputSource const&) = delete;
-
-    bool close_file;
+    bool close_file{false};
     std::string filename;
-    FILE* file;
+    FILE* file{nullptr};
 };
 
 #endif // QPDF_FILEINPUTSOURCE_HH

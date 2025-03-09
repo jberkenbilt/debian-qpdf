@@ -1,4 +1,5 @@
-// Copyright (c) 2005-2024 Jay Berkenbilt
+// Copyright (c) 2005-2021 Jay Berkenbilt
+// Copyright (c) 2022-2025 Jay Berkenbilt and Manfred Holger
 //
 // This file is part of qpdf.
 //
@@ -31,6 +32,11 @@ class QPDF_DLL_CLASS Pl_RunLength: public Pipeline
     QPDF_DLL
     ~Pl_RunLength() override;
 
+    // Limit the memory used.
+    // NB This is a static option affecting all Pl_RunLength instances.
+    QPDF_DLL
+    static void setMemoryLimit(unsigned long long limit);
+
     QPDF_DLL
     void write(unsigned char const* data, size_t len) override;
     QPDF_DLL
@@ -46,25 +52,9 @@ class QPDF_DLL_CLASS Pl_RunLength: public Pipeline
 
     enum state_e { st_top, st_copying, st_run };
 
-    class QPDF_DLL_PRIVATE Members
-    {
-        friend class Pl_RunLength;
+    class Members;
 
-      public:
-        QPDF_DLL
-        ~Members() = default;
-
-      private:
-        Members(action_e);
-        Members(Members const&) = delete;
-
-        action_e action;
-        state_e state;
-        unsigned char buf[128];
-        unsigned int length;
-    };
-
-    std::shared_ptr<Members> m;
+    std::unique_ptr<Members> m;
 };
 
 #endif // PL_RUNLENGTH_HH

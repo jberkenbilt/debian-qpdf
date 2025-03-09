@@ -1,4 +1,5 @@
-// Copyright (c) 2005-2024 Jay Berkenbilt
+// Copyright (c) 2005-2021 Jay Berkenbilt
+// Copyright (c) 2022-2025 Jay Berkenbilt and Manfred Holger
 //
 // This file is part of qpdf.
 //
@@ -29,7 +30,7 @@ class QPDFAnnotationObjectHelper: public QPDFObjectHelper
   public:
     QPDF_DLL
     QPDFAnnotationObjectHelper(QPDFObjectHandle);
-    QPDF_DLL
+
     ~QPDFAnnotationObjectHelper() override = default;
 
     // This class provides helper methods for annotations. More functionality will likely be added
@@ -91,7 +92,6 @@ class QPDFAnnotationObjectHelper: public QPDFObjectHelper
         friend class QPDFAnnotationObjectHelper;
 
       public:
-        QPDF_DLL
         ~Members() = default;
 
       private:

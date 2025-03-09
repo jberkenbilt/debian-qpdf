@@ -8,6 +8,7 @@
 #include <qpdf/QIntC.hh>
 #include <qpdf/QPDFSystemError.hh>
 #include <qpdf/QTC.hh>
+#include <qpdf/Util.hh>
 
 #include <cerrno>
 #include <cstdlib>
@@ -36,6 +37,8 @@
 #ifdef HAVE_MALLOC_INFO
 # include <malloc.h>
 #endif
+
+using namespace qpdf;
 
 // First element is 24
 static unsigned short pdf_doc_low_to_unicode[] = {
@@ -396,7 +399,7 @@ unsigned long long
 QUtil::string_to_ull(char const* str)
 {
     char const* p = str;
-    while (*p && is_space(*p)) {
+    while (*p && util::is_space(*p)) {
         ++p;
     }
     if (*p == '-') {
@@ -739,7 +742,7 @@ QUtil::hex_decode(std::string const& input)
     bool first = true;
     char decoded;
     for (auto ch: input) {
-        ch = hex_decode_char(ch);
+        ch = util::hex_decode_char(ch);
         if (ch < '\20') {
             if (first) {
                 decoded = static_cast<char>(ch << 4);
@@ -959,9 +962,10 @@ QUtil::qpdf_time_to_iso8601(QPDFTime const& qtm)
 bool
 QUtil::pdf_time_to_qpdf_time(std::string const& str, QPDFTime* qtm)
 {
-    static std::regex pdf_date("^D:([0-9]{4})([0-9]{2})([0-9]{2})"
-                               "([0-9]{2})([0-9]{2})([0-9]{2})"
-                               "(?:(Z?)|([\\+\\-])([0-9]{2})'([0-9]{2})')$");
+    static std::regex pdf_date(
+        "^D:([0-9]{4})([0-9]{2})([0-9]{2})"
+        "([0-9]{2})([0-9]{2})([0-9]{2})"
+        "(?:(Z?)|([\\+\\-])([0-9]{2})'([0-9]{2})')$");
     std::smatch m;
     if (!std::regex_match(str, m, pdf_date)) {
         return false;
@@ -1899,7 +1903,8 @@ call_main_from_wmain(
     // strings for compatibility with other systems. That way the rest of qpdf.cc can just act like
     // arguments are UTF-8.
 
-    std::vector<std::unique_ptr<char[]>> utf8_argv;
+    std::vector<std::string> utf8_argv;
+    utf8_argv.reserve(QIntC::to_size(argc));
     for (int i = 0; i < argc; ++i) {
         std::string utf16;
         for (size_t j = 0; j < std::wcslen(argv[i]); ++j) {
@@ -1907,17 +1912,16 @@ call_main_from_wmain(
             utf16.append(1, static_cast<char>(QIntC::to_uchar(codepoint >> 8)));
             utf16.append(1, static_cast<char>(QIntC::to_uchar(codepoint & 0xff)));
         }
-        std::string utf8 = QUtil::utf16_to_utf8(utf16);
-        utf8_argv.push_back(QUtil::make_unique_cstr(utf8));
+        utf8_argv.emplace_back(QUtil::utf16_to_utf8(utf16));
     }
-    auto utf8_argv_sp = std::make_unique<char*[]>(1 + utf8_argv.size());
-    char** new_argv = utf8_argv_sp.get();
-    for (size_t i = 0; i < utf8_argv.size(); ++i) {
-        new_argv[i] = utf8_argv.at(i).get();
+    std::vector<char*> new_argv;
+    new_argv.reserve(utf8_argv.size() + 1U);
+    for (auto const& arg: utf8_argv) {
+        new_argv.emplace_back(const_cast<char*>(arg.data()));
     }
     argc = QIntC::to_int(utf8_argv.size());
-    new_argv[argc] = nullptr;
-    return realmain(argc, new_argv);
+    new_argv.emplace_back(nullptr);
+    return realmain(argc, new_argv.data());
 }
 
 int
@@ -2000,4 +2004,64 @@ QUtil::get_max_memory_usage()
 #else
     return 0;
 #endif
+}
+
+char
+QUtil::hex_decode_char(char digit)
+{
+    return util::hex_decode_char(digit);
+}
+
+std::string
+QUtil::hex_encode_char(char c)
+{
+    return util::hex_encode_char(c);
+}
+
+bool
+QUtil::is_number(char const* p)
+{
+    // No longer used by qpdf.
+
+    // ^[\+\-]?(\.\d*|\d+(\.\d*)?)$
+    if (!*p) {
+        return false;
+    }
+    if ((*p == '-') || (*p == '+')) {
+        ++p;
+    }
+    bool found_dot = false;
+    bool found_digit = false;
+    for (; *p; ++p) {
+        if (*p == '.') {
+            if (found_dot) {
+                // only one dot
+                return false;
+            }
+            found_dot = true;
+        } else if (util::is_digit(*p)) {
+            found_digit = true;
+        } else {
+            return false;
+        }
+    }
+    return found_digit;
+}
+
+bool
+QUtil::is_space(char c)
+{
+    return util::is_space(c);
+}
+
+bool
+QUtil::is_digit(char c)
+{
+    return util::is_digit(c);
+}
+
+bool
+QUtil::is_hex_digit(char c)
+{
+    return util::is_hex_digit(c);
 }

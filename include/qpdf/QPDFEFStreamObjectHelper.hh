@@ -1,4 +1,5 @@
-// Copyright (c) 2005-2024 Jay Berkenbilt
+// Copyright (c) 2005-2021 Jay Berkenbilt
+// Copyright (c) 2022-2025 Jay Berkenbilt and Manfred Holger
 //
 // This file is part of qpdf.
 //
@@ -28,13 +29,12 @@
 
 // This class provides a higher level interface around Embedded File Streams, which are discussed in
 // section 7.11.4 of the ISO-32000 PDF specification.
-
 class QPDFEFStreamObjectHelper: public QPDFObjectHelper
 {
   public:
     QPDF_DLL
     QPDFEFStreamObjectHelper(QPDFObjectHandle);
-    QPDF_DLL
+
     ~QPDFEFStreamObjectHelper() override = default;
 
     // Date parameters are strings that conform to the PDF spec for date/time strings, which is
@@ -97,7 +97,6 @@ class QPDFEFStreamObjectHelper: public QPDFObjectHelper
         friend class QPDFEFStreamObjectHelper;
 
       public:
-        QPDF_DLL
         ~Members() = default;
 
       private:

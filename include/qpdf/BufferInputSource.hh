@@ -1,4 +1,5 @@
-// Copyright (c) 2005-2024 Jay Berkenbilt
+// Copyright (c) 2005-2021 Jay Berkenbilt
+// Copyright (c) 2022-2025 Jay Berkenbilt and Manfred Holger
 //
 // This file is part of qpdf.
 //
@@ -29,6 +30,8 @@ class QPDF_DLL_CLASS BufferInputSource: public InputSource
     // Otherwise, the caller owns the memory.
     QPDF_DLL
     BufferInputSource(std::string const& description, Buffer* buf, bool own_memory = false);
+
+    // NB This overload copies the string contents.
     QPDF_DLL
     BufferInputSource(std::string const& description, std::string const& contents);
     QPDF_DLL

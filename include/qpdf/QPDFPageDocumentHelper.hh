@@ -1,4 +1,5 @@
-// Copyright (c) 2005-2024 Jay Berkenbilt
+// Copyright (c) 2005-2021 Jay Berkenbilt
+// Copyright (c) 2022-2025 Jay Berkenbilt and Manfred Holger
 //
 // This file is part of qpdf.
 //
@@ -36,7 +37,7 @@ class QPDFPageDocumentHelper: public QPDFDocumentHelper
   public:
     QPDF_DLL
     QPDFPageDocumentHelper(QPDF&);
-    QPDF_DLL
+
     ~QPDFPageDocumentHelper() override = default;
 
     // Traverse page tree, and return all /Page objects wrapped in QPDFPageObjectHelper objects.
@@ -116,7 +117,6 @@ class QPDFPageDocumentHelper: public QPDFDocumentHelper
         friend class QPDFPageDocumentHelper;
 
       public:
-        QPDF_DLL
         ~Members() = default;
 
       private:

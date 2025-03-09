@@ -1,4 +1,5 @@
-// Copyright (c) 2005-2024 Jay Berkenbilt
+// Copyright (c) 2005-2021 Jay Berkenbilt
+// Copyright (c) 2022-2025 Jay Berkenbilt and Manfred Holger
 //
 // This file is part of qpdf.
 //
@@ -30,7 +31,6 @@
 // This class is part of qpdf's pluggable crypto provider support. Most users won't need to know or
 // care about this class, but you can use it if you want to supply your own crypto implementation.
 // See also comments in QPDFCryptoImpl.hh.
-
 class QPDFCryptoProvider
 {
   public:
@@ -45,10 +45,21 @@ class QPDFCryptoProvider
     QPDF_DLL
     static std::shared_ptr<QPDFCryptoImpl> getImpl(std::string const& name);
 
+    typedef std::function<std::shared_ptr<QPDFCryptoImpl>()> provider_fn;
+
+    // Register a crypto implementation with the given name. The provider function must return
+    // a shared pointer to an instance of the implementation class, which must be derived from
+    // QPDFCryptoImpl.
+    QPDF_DLL static void registerImpl(std::string const& name, provider_fn f);
+
     // Register the given type (T) as a crypto implementation. T must be derived from QPDFCryptoImpl
     // and must have a constructor that takes no arguments.
     template <typename T>
-    QPDF_DLL static void registerImpl(std::string const& name);
+    static void
+    registerImpl(std::string const& name)
+    {
+        registerImpl(name, std::make_shared<T>);
+    }
 
     // Set the crypto provider registered with the given name as the default crypto implementation.
     QPDF_DLL
@@ -71,8 +82,7 @@ class QPDFCryptoProvider
     static QPDFCryptoProvider& getInstance();
 
     std::shared_ptr<QPDFCryptoImpl> getImpl_internal(std::string const& name) const;
-    template <typename T>
-    void registerImpl_internal(std::string const& name);
+    void registerImpl_internal(std::string const& name, provider_fn f);
     void setDefaultProvider_internal(std::string const& name);
 
     class Members
@@ -81,14 +91,12 @@ class QPDFCryptoProvider
 
       public:
         Members() = default;
-        QPDF_DLL
         ~Members() = default;
 
       private:
         Members(Members const&) = delete;
         Members& operator=(Members const&) = delete;
 
-        typedef std::function<std::shared_ptr<QPDFCryptoImpl>()> provider_fn;
         std::string default_provider;
         std::map<std::string, provider_fn> providers;
     };

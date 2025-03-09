@@ -1,4 +1,5 @@
-// Copyright (c) 2005-2024 Jay Berkenbilt
+// Copyright (c) 2005-2021 Jay Berkenbilt
+// Copyright (c) 2022-2025 Jay Berkenbilt and Manfred Holger
 //
 // This file is part of qpdf.
 //
@@ -33,6 +34,23 @@ class QPDF_DLL_CLASS Pl_DCT: public Pipeline
     // Constructor for decompressing image data
     QPDF_DLL
     Pl_DCT(char const* identifier, Pipeline* next);
+
+    // Limit the memory used by jpeglib when decompressing data.
+    // NB This is a static option affecting all Pl_DCT instances.
+    QPDF_DLL
+    static void setMemoryLimit(long limit);
+
+    // Limit the number of scans used by jpeglib when decompressing progressive jpegs.
+    // NB This is a static option affecting all Pl_DCT instances.
+    QPDF_DLL
+    static void setScanLimit(int limit);
+
+    // Treat corrupt data as a runtime error rather than attempting to decompress regardless. This
+    // is the qpdf default behaviour. To attempt to decompress corrupt data set 'treat_as_error' to
+    // false.
+    // NB This is a static option affecting all Pl_DCT instances.
+    QPDF_DLL
+    static void setThrowOnCorruptData(bool treat_as_error);
 
     class QPDF_DLL_CLASS CompressConfig
     {
@@ -71,38 +89,9 @@ class QPDF_DLL_CLASS Pl_DCT: public Pipeline
 
     enum action_e { a_compress, a_decompress };
 
-    class QPDF_DLL_PRIVATE Members
-    {
-        friend class Pl_DCT;
+    class Members;
 
-      public:
-        QPDF_DLL
-        ~Members() = default;
-
-      private:
-        Members(
-            action_e action,
-            char const* buf_description,
-            JDIMENSION image_width = 0,
-            JDIMENSION image_height = 0,
-            int components = 1,
-            J_COLOR_SPACE color_space = JCS_GRAYSCALE,
-            CompressConfig* config_callback = nullptr);
-        Members(Members const&) = delete;
-
-        action_e action;
-        Pl_Buffer buf;
-
-        // Used for compression
-        JDIMENSION image_width;
-        JDIMENSION image_height;
-        int components;
-        J_COLOR_SPACE color_space;
-
-        CompressConfig* config_callback;
-    };
-
-    std::shared_ptr<Members> m;
+    std::unique_ptr<Members> m;
 };
 
 #endif // PL_DCT_HH

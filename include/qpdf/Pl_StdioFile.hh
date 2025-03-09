@@ -1,4 +1,5 @@
-// Copyright (c) 2005-2024 Jay Berkenbilt
+// Copyright (c) 2005-2021 Jay Berkenbilt
+// Copyright (c) 2022-2025 Jay Berkenbilt and Manfred Holger
 //
 // This file is part of qpdf.
 //
@@ -28,7 +29,6 @@
 //
 // This pipeline is reusable.
 //
-
 class QPDF_DLL_CLASS Pl_StdioFile: public Pipeline
 {
   public:
@@ -44,22 +44,10 @@ class QPDF_DLL_CLASS Pl_StdioFile: public Pipeline
     void finish() override;
 
   private:
-    class QPDF_DLL_PRIVATE Members
-    {
-        friend class Pl_StdioFile;
+    class Members;
+    ;
 
-      public:
-        QPDF_DLL
-        ~Members() = default;
-
-      private:
-        Members(FILE*);
-        Members(Members const&) = delete;
-
-        FILE* file;
-    };
-
-    std::shared_ptr<Members> m;
+    std::unique_ptr<Members> m;
 };
 
 #endif // PL_STDIOFILE_HH

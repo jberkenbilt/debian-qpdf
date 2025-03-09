@@ -1,42 +1,243 @@
+.. _ticket: https://issues.qpdf.org
+.. _shared null: https://wiki.qpdf.org/PDF-null-objects-vs-qpdf-null-objects
+
 .. _release-notes:
 
 Release Notes
 =============
 
-For a detailed list of changes, please see the file
-:file:`ChangeLog` in the source distribution.
-
-If you are a developer and want to test your code against future API
-changes that are under consideration, you can build qpdf locally and
-enable the ``FUTURE`` build option (see :ref:`build-options`).
-
-Planned changes for future 12.x (subject to change):
-  - ``QPDFObjectHandle`` will support move construction/assignment.
-    This change will be invisible to most developers but may break
-    your code if you rely on specific behavior around how many
-    references to a QPDFObjectHandle's underlying object exist. You
-    would have to write code specifically to do that, so if you're not
-    sure, then you shouldn't have to worry.
-
-  - ``QPDFObjectHandle`` will be implicitly convertible to ``bool``
-    with undefined objects evaluating to ``false``. This can simplify
-    error handling and will facilitate use of ``QPDFObjectHandle``
-    with some newer standard library constructs. This change won't
-    affect any existing code unless you have written your own
-    conversion methods to/from ``QPDFObjectHandle``. In that case,
-    it's possible that the new qpdf-provided conversion may override
-    your conversion.
-
-  - ``Buffer`` copy constructor and assignment operator will be
-    removed. ``Buffer`` copy operations are expensive as they always
-    involve copying the buffer content. Use ``buffer2 =
-    buffer1.copy();`` or ``Buffer buffer2{buffer1.copy()};`` to make
-    it explicit that copying is intended.
-
-  - ``QIntC.hh`` contains the type ``substract``, which will be fixed
-    to ``subtract``. (Not enabled with ``FUTURE`` option.)
+This is a curated list of user-facing and developer-facing changes.
+Prior to version 12, file :file:`ChangeLog` contained more detail.
+From version 12 onward, please consult version control history for
+more detail.
 
 .. x.y.z: not yet released
+
+.. _r12-0-0:
+
+.. cSpell:ignore substract
+
+12.0.0: March 9, 2025
+  - API: breaking changes
+
+    - The header file ``qpdf/QPDFObject.hh`` now generates an error if
+      included. This is to prevent code that includes it from
+      accidentally working because an old version is installed
+      somewhere on the system. Instead of including that header,
+      include ``<qpdf/Constants.h>``, and replace ``QPDFObject::ot_``
+      with ``::ot_`` in your code.
+
+    - The deprecated ``QPDFObjectHandle::replaceOrRemoveKey`` method has been
+      removed since it was identical to ``QPDFObjectHandle::replaceKey``.
+
+    - The deprecated ``JSON::checkDictionaryKeySeen`` function has been removed.
+      If ``JSON::parse`` encounters duplicate keys the last value is silently
+      accepted instead of throwing a runtime error. This is consistent with the
+      JSON specification.
+
+    - The deprecated versionless overload of ``QPDFObjectHandle::getJSON`` has
+      been removed.
+
+    - The deprecated ``Buffer`` copy constructor and assignment operator have
+      been removed. ``Buffer`` copy operations are expensive as they always
+      involve copying the buffer content. Use ``buffer2 = buffer1.copy();`` or
+      ``Buffer buffer2{buffer1.copy()};`` to make it explicit that copying is
+      intended.
+
+    - ``QIntC.hh`` contained the typo ``substract`` in function names,
+      which has been fixed to ``subtract``.
+
+    - The protected ``QPDFObjectHelper::oh`` data member has been replaced with
+      the new accessor method ``QPDFObjectHelper::oh()``.
+
+    - Except for abstract classes and the exceptions listed below, sub-classing of
+      qpdf classes is not supported. These classes were never designed to be used as a
+      base class and will be made final in version 13. If you have a use case for
+      extending one of these classes, please open a ticket_.
+
+      Exceptions:
+
+      - ``QPDFDocumentHelper``
+      - ``QPDFObjectHelper``
+
+    - Upcasting to ``QPDFObjectHelper`` and ``QPDFDocumentHelper`` is not supported. Their
+      destructors will be made protected in version 13.
+
+    - Catching of logic errors thrown as the result of using an uninitialized
+      ``QPDFObjectHandle`` is not supported. In version 13 uninitialized object handles
+      will be treated as immutable `shared null`_ objects. Using them will no longer throw
+      any logic errors, but may where appropriate generate type warnings or exceptions.
+
+.. _r12-0-0-deprecate:
+
+    - The following are believed to be not in use and have been deprecated.
+      If you are relying on them please open a ticket_.
+
+      - All ``QPDFTokenizer`` push-mode methods.
+      - ``QPDFObjectHandle::parse`` overload taking a ``QPDFTokenizer`` parameter.
+
+  - CLI breaking Changes
+
+    - To support the future introduction of sub-commands, the use of filenames without
+      extension and path element as the first argument is no longer supported, and the
+      result may change in the future. For example, ``qpdf check out.pdf`` currently
+      copies the file ``check`` to ``out.pdf`` but may in future check ``out.pdf``.
+      Use ``qpdf ./check out.pdf`` or ``qpdf -- check out.pdf`` instead.
+
+  - Bug fixes
+
+    - In object streams, ignore objects with invalid offset. Report objects with invalid
+      id or offset.
+
+  - Library Enhancements
+
+    - ``QPDFObjectHandle`` supports move construction/assignment.
+      This change is invisible to most developers but may break
+      your code if you rely on specific behavior around how many
+      references to a QPDFObjectHandle's underlying object exist. You
+      would have to write code specifically to do that, so if you're not
+      sure, then you shouldn't have to worry.
+
+    - Most ``QPDFObjectHandle`` accessor methods are now ``const`` qualified.
+
+    - ``QPDFObjectHandle`` and all object helper classes are now explicitly convertible
+      to ``QPDFObjGen``, and therefore can be passed as parameter where a ``QPDFObjGen``
+      is required. Redundant overloaded methods have been removed.
+
+    - All object helper classes are now explicitly convertible to ``QPDFObjectHandle``.
+
+  - Build Changes
+
+    - If ``POINTERHOLDER_TRANSITION`` is not defined, it is now automatically
+      defined to ``4``, which completely removes ``PointerHolder`` from the API.
+      It is no longer included by any qpdf headers. This means code that hasn't
+      completed its ``PointerHolder`` transition will get errors unless it
+      defines ``POINTERHOLDER_TRANSITION``, and any file that uses
+      ``PointerHolder`` will have to explicitly include it rather than relying
+      on other headers to bring it along.
+
+  - Other Changes
+
+    - The internal implementation of objects has been extensively refactored, using
+      ``std::variant`` to eliminate one level of indirection. This has saved one shared pointer
+      per object with some improvement both in runtime and memory usage. A new class
+      ``BaseHandle`` has been added as common base class of both ``QPDFObjectHandle``
+      and ``QPDFObjectHelper`` to provide common functionality appropriate for all
+      object-handle-like classes such as the operator to convert to ``QPDFObjGen``.
+      ``BaseHandle`` is an implementation detail and not directly usable by library users.
+
+    - There has been significant refactoring of how qpdf internally iterates over
+      arrays and dictionaries.
+
+    - The internal mechanism used to check object sizes for binary
+      compatibility between releases has been changed. As such, the
+      ``CHECK_SIZES`` maintainer-only build option has been removed.
+
+
+11.10.1: February 15, 2025
+  - Build fixes
+
+    - Fix incorrect detection of zopfli.
+
+    - Recognize cygwin perl as Windows when running test suite.
+
+11.10.0: February 8, 2025
+  - Bug fixes
+
+    - Detect and break loops in the outline (bookmark) tree.
+
+    - Correctly handle outline (bookmark) items where the
+      destination is given as a dictionary with '/D' entry.
+
+    - When loading object streams, ignore any objects not included
+      in the xref table. The PDF specification requires any object
+      that is not present in the xref table to be treated as the
+      null object.
+
+    - When writing real numbers as JSON ensure they do not end in
+      a trailing decimal point. Numbers with trailing '.' are valid
+      PDF format but are not valid in JSON.
+
+    - When ``QPDF::getObject``, ``getObjectByObjGen`` or
+      ``getObjectByID`` are called with a ``QPDFObjGen`` that does
+      not exists in the xref and object tables return a direct null.
+      Previously the methods inserted an indirect reference to the
+      null object in the object table, potentially hiding a valid
+      object with the same object id.
+
+    - Fix handling of certain deleted objects in hybrid reference
+      files. Previously qpdf would incorrectly load a deleted
+      object if it was present in a cross-reference stream specified
+      by the /XRefStm entry.
+
+    - Default the stream decode level to ``generalized``. Previously
+      the decode level incorrectly defaulted to ``none``, affecting
+      both the :qpdf:ref:`--decode-level` CLI option and the
+      ``QPDFWriter::setDecodeLevel`` method.
+
+    - Reject CLI flags with parameters. Previously the parameter
+      was simply ignored (e.g. ``--encrypt=n`` was treated as ``--encrypt``).
+
+  - CLI Enhancements
+
+    - The :command:`fix-qdf` command now allows an output file to be
+      specified as an optional second argument. This is useful for
+      environments in which writing a binary file to standard output
+      doesn't work (such as PowerShell 5).
+
+    - New :qpdf:ref:`--remove-metadata` and :qpdf:ref:`--remove-info`
+      options to exclude document metadata and information from the
+      output PDF.
+
+  - Library Enhancements
+
+    - qpdf can now be built with zopfli support. For details, see
+      :ref:`zopfli`.
+
+    - Add ``QPDFObjectHandle operator bool``. The operator returns true
+      if the object handle is initialized and is a replacement for the
+      ``isInitialized`` method. For more details see the
+      `qpdf wiki <https://wiki.qpdf.org/Use-of-default-constructed-object-handles-in-qpdf-to-indicate-failure-or-error>`__.
+
+    - New C API function ``qpdf_oh_free_buffer`` to free malloc allocated
+      buffers.
+
+  - Other enhancements
+
+    - There has been some refactoring of the processing of xref tables
+      during the loading of PDF files, including the reconstruction of
+      xref tables of damaged files. As part of this additional
+      validations have been added. As a result, some damaged files will
+      produce errors during loading rather than during later processing
+      or writing. Repair of damaged files has been improved.
+
+    - As part of the additional validations during the loading of PDF
+      files, non-dictionary objects are now automatically removed from
+      pages tree.
+
+    - The handling of corrupt filtered streams has changed. If a
+      compressed stream cannot be successfully uncompressed, qpdf will
+      now write the raw (encoded) stream even if decode-level
+      generalized or specialized is set. The result of attempting to
+      decode a corrupt stream is generally unusable and can be
+      extremely large.
+
+11.9.1: June 7, 2024
+  - Bug Fixes
+
+    - Rework one piece of linearization to avoid potential stack
+      overflow on very complex files
+
+  - Build Improvements
+
+    - Add a CLion build configuration for building with static
+      libraries with Visual C++ on Windows. This configuration works
+      "out of the box" with CLion, Visual C++, and the external
+      libraries binary distribution without any additional external
+      tools.
+
+    - Tweak use of ``std::string_view`` to handle upcoming changes to
+      the C++ standard.
 
 11.9.0: February 24, 2024
   - CLI Enhancements
@@ -111,14 +312,14 @@ Planned changes for future 12.x (subject to change):
       reference streams, linearization hint streams, and object
       streams. This has been fixed.
 
-    - Fix to QPDF JSON: the syntax ``"n:/pdf-syntax"`` is now accepted
+    - Fix to qpdf JSON: the syntax ``"n:/pdf-syntax"`` is now accepted
       as an alternative way to represent names. This can be used for
       any name (e.g. ``"n:/text#2fplain"``), but it is necessary when
       the name contains binary characters. For example, ``/one#a0two``
       must be represented as ``"n:/one#a0two"`` since the single byte
       ``a0`` is not valid in JSON.
 
-    - QPDF JSON will convert floating numbers that appear in the JSON
+    - qpdf JSON will convert floating numbers that appear in the JSON
       in scientific notation to fixed-point notation since PDF doesn't
       accept scientific notation.
 
@@ -290,6 +491,7 @@ Planned changes for future 12.x (subject to change):
       PDF files.
 
 11.3.0: February 25, 2023
+
   - CLI Enhancements
 
     - New option :qpdf:ref:`--remove-restrictions` removes security
@@ -1514,7 +1716,7 @@ Planned changes for future 12.x (subject to change):
       environment, such as a docker container. The zip file is also
       known to work as a layer in AWS Lambda.
 
-    - QPDF's automated build has been migrated from Azure Pipelines
+    - qpdf's automated build has been migrated from Azure Pipelines
       to GitHub Actions.
 
   - Windows-specific Changes
@@ -1899,7 +2101,7 @@ Planned changes for future 12.x (subject to change):
       tell ``QPDFWriter`` to uncompress and recompress streams
       already compressed with ``/FlateDecode``.
 
-    - The underlying implementation of QPDF arrays has been enhanced
+    - The underlying implementation of qpdf arrays has been enhanced
       to be much more memory efficient when dealing with arrays with
       lots of nulls. This enables qpdf to use drastically less memory
       for certain types of files.
@@ -1962,11 +2164,11 @@ Planned changes for future 12.x (subject to change):
       If you see this, please report a bug at
       https://github.com/qpdf/qpdf/issues/.
 
-    - QPDF is now compiled with integer conversion and sign
+    - qpdf is now compiled with integer conversion and sign
       conversion warnings enabled. Numerous changes were made to the
       library to make this safe.
 
-    - QPDF's :command:`make install` target explicitly
+    - qpdf's :command:`make install` target explicitly
       specifies the mode to use when installing files instead of
       relying the user's umask. It was previously doing this for some
       files but not others.
@@ -1978,7 +2180,7 @@ Planned changes for future 12.x (subject to change):
 
   - Other Notes
 
-    - QPDF has been fully integrated into `Google's OSS-Fuzz
+    - qpdf has been fully integrated into `Google's OSS-Fuzz
       project <https://github.com/google/oss-fuzz>`__. This project
       exercises code with randomly mutated inputs and is great for
       discovering hidden security crashes and security issues.
@@ -2162,7 +2364,7 @@ Planned changes for future 12.x (subject to change):
 
     - Add method ``QUtil::possible_repaired_encodings()`` to generate
       a list of strings that represent other ways the given string
-      could have been encoded. This is the method the QPDF CLI uses
+      could have been encoded. This is the method the qpdf CLI uses
       to generate the strings it tries when recovering incorrectly
       encoded Unicode passwords.
 
@@ -2327,7 +2529,7 @@ Planned changes for future 12.x (subject to change):
 
   - Bug Fixes and Enhancements
 
-    - QPDF now automatically detects and recovers from dangling
+    - qpdf now automatically detects and recovers from dangling
       references. If a PDF file contained an indirect reference to a
       non-existent object, which is valid, when adding a new object
       to the file, it was possible for the new object to take the
@@ -2645,7 +2847,7 @@ Planned changes for future 12.x (subject to change):
 8.0.0: February 25, 2018
   - Packaging and Distribution Changes
 
-    - QPDF is now distributed as an
+    - qpdf is now distributed as an
       `AppImage <https://appimage.org/>`__ in addition to all the
       other ways it is distributed. The AppImage can be found in the
       download area with the other packages. Thanks to Kurt Pfeifle
@@ -2735,14 +2937,14 @@ Planned changes for future 12.x (subject to change):
 7.0.0: September 15, 2017
   - Packaging and Distribution Changes
 
-    - QPDF's primary license is now `version 2.0 of the Apache
+    - qpdf's primary license is now `version 2.0 of the Apache
       License <http://www.apache.org/licenses/LICENSE-2.0>`__ rather
       than version 2.0 of the Artistic License. You may still, at
       your option, consider qpdf to be licensed with version 2.0 of
       the Artistic license.
 
-    - QPDF no longer has a dependency on the PCRE (Perl-Compatible
-      Regular Expression) library. QPDF now has an added dependency
+    - qpdf no longer has a dependency on the PCRE (Perl-Compatible
+      Regular Expression) library. qpdf now has an added dependency
       on the JPEG library.
 
   - Bug Fixes
@@ -2754,7 +2956,7 @@ Planned changes for future 12.x (subject to change):
 
   - New Features
 
-    - QPDF now supports reading and writing streams encoded with JPEG
+    - qpdf now supports reading and writing streams encoded with JPEG
       or RunLength encoding. Library API enhancements and
       command-line options have been added to control this behavior.
       See command-line options
@@ -2763,9 +2965,9 @@ Planned changes for future 12.x (subject to change):
       ``QPDFWriter::setCompressStreams`` and
       ``QPDFWriter::setDecodeLevel``.
 
-    - QPDF is much better at recovering from broken files. In most
+    - qpdf is much better at recovering from broken files. In most
       cases, qpdf will skip invalid objects and will preserve broken
-      stream data by not attempting to filter broken streams. QPDF is
+      stream data by not attempting to filter broken streams. qpdf is
       now able to recover or at least not crash on dozens of broken
       test files I have received over the past few years.
 
@@ -3373,7 +3575,7 @@ Planned changes for future 12.x (subject to change):
     and ``std::cerr`` with other streams for generation of diagnostic
     messages and error messages. This can be useful for GUIs or other
     applications that want to capture any output generated by the
-    library to present to the user in some other way. Note that QPDF
+    library to present to the user in some other way. Note that qpdf
     does not write to ``std::cout`` (or the specified output stream)
     except where explicitly mentioned in
     :file:`QPDF.hh`, and that the only use of the
@@ -3516,7 +3718,7 @@ Planned changes for future 12.x (subject to change):
 
   - *Non-compatible API changes:*
 
-    - QPDF's exception handling mechanism now uses
+    - qpdf's exception handling mechanism now uses
       ``std::logic_error`` for internal errors and
       ``std::runtime_error`` for runtime errors in favor of the now
       removed ``QEXC`` classes used in previous versions. The ``QEXC``

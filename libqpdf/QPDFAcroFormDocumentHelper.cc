@@ -1,10 +1,13 @@
 #include <qpdf/QPDFAcroFormDocumentHelper.hh>
 
 #include <qpdf/Pl_Buffer.hh>
+#include <qpdf/QPDFObjectHandle_private.hh>
 #include <qpdf/QPDFPageDocumentHelper.hh>
 #include <qpdf/QTC.hh>
 #include <qpdf/QUtil.hh>
 #include <qpdf/ResourceFinder.hh>
+
+using namespace qpdf;
 
 QPDFAcroFormDocumentHelper::Members::Members() :
     cache_valid(false)
@@ -238,24 +241,23 @@ QPDFAcroFormDocumentHelper::analyze()
         return;
     }
     m->cache_valid = true;
-    QPDFObjectHandle acroform = this->qpdf.getRoot().getKey("/AcroForm");
+    QPDFObjectHandle acroform = qpdf.getRoot().getKey("/AcroForm");
     if (!(acroform.isDictionary() && acroform.hasKey("/Fields"))) {
         return;
     }
     QPDFObjectHandle fields = acroform.getKey("/Fields");
-    if (!fields.isArray()) {
+    if (auto fa = fields.as_array(strict)) {
+        // Traverse /AcroForm to find annotations and map them bidirectionally to fields.
+
+        QPDFObjGen::set visited;
+        QPDFObjectHandle null(QPDFObjectHandle::newNull());
+        for (auto const& field: fa) {
+            traverseField(field, null, 0, visited);
+        }
+    } else {
         QTC::TC("qpdf", "QPDFAcroFormDocumentHelper fields not array");
         acroform.warnIfPossible("/Fields key of /AcroForm dictionary is not an array; ignoring");
         fields = QPDFObjectHandle::newArray();
-    }
-
-    // Traverse /AcroForm to find annotations and map them bidirectionally to fields.
-
-    QPDFObjGen::set visited;
-    int nfields = fields.getArrayNItems();
-    QPDFObjectHandle null(QPDFObjectHandle::newNull());
-    for (int i = 0; i < nfields; ++i) {
-        traverseField(fields.getArrayItem(i), null, 0, visited);
     }
 
     // All Widget annotations should have been encountered by traversing /AcroForm, but in case any
@@ -276,8 +278,9 @@ QPDFAcroFormDocumentHelper::analyze()
                 // case such as a PDF creator adding a self-contained annotation (merged with the
                 // field dictionary) to the page's /Annots array and forgetting to also put it in
                 // /AcroForm.
-                annot.warnIfPossible("this widget annotation is not"
-                                     " reachable from /AcroForm in the document catalog");
+                annot.warnIfPossible(
+                    "this widget annotation is not"
+                    " reachable from /AcroForm in the document catalog");
                 m->annotation_to_field[og] = QPDFFormFieldObjectHelper(annot);
                 m->field_to_annotations[og].emplace_back(annot);
             }
@@ -296,14 +299,16 @@ QPDFAcroFormDocumentHelper::traverseField(
     }
     if (!field.isIndirect()) {
         QTC::TC("qpdf", "QPDFAcroFormDocumentHelper direct field");
-        field.warnIfPossible("encountered a direct object as a field or annotation while "
-                             "traversing /AcroForm; ignoring field or annotation");
+        field.warnIfPossible(
+            "encountered a direct object as a field or annotation while "
+            "traversing /AcroForm; ignoring field or annotation");
         return;
     }
     if (!field.isDictionary()) {
         QTC::TC("qpdf", "QPDFAcroFormDocumentHelper non-dictionary field");
-        field.warnIfPossible("encountered a non-dictionary as a field or annotation while"
-                             " traversing /AcroForm; ignoring field or annotation");
+        field.warnIfPossible(
+            "encountered a non-dictionary as a field or annotation while"
+            " traversing /AcroForm; ignoring field or annotation");
         return;
     }
     QPDFObjGen og(field.getObjGen());
@@ -321,12 +326,10 @@ QPDFAcroFormDocumentHelper::traverseField(
 
     bool is_annotation = false;
     bool is_field = (0 == depth);
-    QPDFObjectHandle kids = field.getKey("/Kids");
-    if (kids.isArray()) {
+    if (auto a = field.getKey("/Kids").as_array(strict)) {
         is_field = true;
-        int nkids = kids.getArrayNItems();
-        for (int k = 0; k < nkids; ++k) {
-            traverseField(kids.getArrayItem(k), field, 1 + depth, visited);
+        for (auto const& item: a) {
+            traverseField(item, field, 1 + depth, visited);
         }
     } else {
         if (field.hasKey("/Parent")) {
@@ -972,17 +975,14 @@ QPDFAcroFormDocumentHelper::transformAnnotations(
         auto replace_stream = [](auto& dict, auto& key, auto& old) {
             return dict.replaceKeyAndGetNew(key, old.copyStream());
         };
-        if (apdict.isDictionary()) {
-            for (auto& ap: apdict.ditems()) {
-                if (ap.second.isStream()) {
-                    streams.push_back(replace_stream(apdict, ap.first, ap.second));
-                } else if (ap.second.isDictionary()) {
-                    for (auto& ap2: ap.second.ditems()) {
-                        if (ap2.second.isStream()) {
-                            streams.push_back(
-                                // line-break
-                                replace_stream(ap.second, ap2.first, ap2.second));
-                        }
+
+        for (auto& [key1, value1]: apdict.as_dictionary()) {
+            if (value1.isStream()) {
+                streams.emplace_back(replace_stream(apdict, key1, value1));
+            } else {
+                for (auto& [key2, value2]: value1.as_dictionary()) {
+                    if (value2.isStream()) {
+                        streams.emplace_back(replace_stream(value1, key2, value2));
                     }
                 }
             }

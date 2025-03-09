@@ -1,4 +1,5 @@
-// Copyright (c) 2005-2024 Jay Berkenbilt
+// Copyright (c) 2005-2021 Jay Berkenbilt
+// Copyright (c) 2022-2025 Jay Berkenbilt and Manfred Holger
 //
 // This file is part of qpdf.
 //
@@ -43,7 +44,7 @@ class QPDFPageLabelDocumentHelper: public QPDFDocumentHelper
   public:
     QPDF_DLL
     QPDFPageLabelDocumentHelper(QPDF&);
-    QPDF_DLL
+
     ~QPDFPageLabelDocumentHelper() override = default;
 
     QPDF_DLL
@@ -81,7 +82,6 @@ class QPDFPageLabelDocumentHelper: public QPDFDocumentHelper
         friend class QPDFPageLabelDocumentHelper;
 
       public:
-        QPDF_DLL
         ~Members() = default;
 
       private:

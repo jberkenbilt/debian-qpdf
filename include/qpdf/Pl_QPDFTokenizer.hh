@@ -1,4 +1,5 @@
-// Copyright (c) 2005-2024 Jay Berkenbilt
+// Copyright (c) 2005-2021 Jay Berkenbilt
+// Copyright (c) 2022-2025 Jay Berkenbilt and Manfred Holger
 //
 // This file is part of qpdf.
 //
@@ -22,7 +23,6 @@
 #include <qpdf/Pipeline.hh>
 
 #include <qpdf/Pl_Buffer.hh>
-#include <qpdf/PointerHolder.hh> // unused -- remove in qpdf 12 (see #785)
 #include <qpdf/QPDFObjectHandle.hh>
 #include <qpdf/QPDFTokenizer.hh>
 
@@ -31,11 +31,10 @@
 // Tokenize the incoming text using QPDFTokenizer and pass the tokens in turn to a
 // QPDFObjectHandle::TokenFilter object. All bytes of incoming content will be included in exactly
 // one token and passed downstream.
-
+//
 // This is a very low-level interface for working with token filters. Most code will want to use
 // QPDFObjectHandle::filterPageContents or QPDFObjectHandle::addTokenFilter. See QPDFObjectHandle.hh
 // for details.
-
 class QPDF_DLL_CLASS Pl_QPDFTokenizer: public Pipeline
 {
   public:
@@ -52,23 +51,9 @@ class QPDF_DLL_CLASS Pl_QPDFTokenizer: public Pipeline
     void finish() override;
 
   private:
-    class QPDF_DLL_PRIVATE Members
-    {
-        friend class Pl_QPDFTokenizer;
+    class Members;
 
-      public:
-        QPDF_DLL
-        ~Members() = default;
-
-      private:
-        Members();
-        Members(Members const&) = delete;
-
-        QPDFObjectHandle::TokenFilter* filter;
-        QPDFTokenizer tokenizer;
-        Pl_Buffer buf;
-    };
-    std::shared_ptr<Members> m;
+    std::unique_ptr<Members> m;
 };
 
 #endif // PL_QPDFTOKENIZER_HH

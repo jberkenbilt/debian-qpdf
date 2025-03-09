@@ -1,6 +1,6 @@
 .. _installing:
 
-Building and Installing QPDF
+Building and Installing qpdf
 ============================
 
 This chapter describes how to build and install qpdf.
@@ -29,6 +29,9 @@ Basic Dependencies
   to be able to use the gnutls crypto provider and/or `openssl
   <https://openssl.org/>`__ to be able to use the openssl crypto
   provider
+
+- If the ``ZOPFLI`` build option is specified (off by default), the
+  `zopfli <https://github.com/google/zopfli>`__ library.
 
 The qpdf source tree includes a few automatically generated files. The
 code generator uses Python 3. Automatic code generation is off by
@@ -76,6 +79,13 @@ comparison tests by setting an environment variable. This change was
 made because developers have to set the environment variable
 themselves now rather than setting it through the build. Either way,
 they are off by default.
+
+Maintainer Dependencies
+~~~~~~~~~~~~~~~~~~~~~~~
+
+- To run ABI checks as a maintainer, you need `castxml
+  <https://github.com/CastXML/CastXML>`__, which is used by
+  ``check_abi`` to generate sizes of all public classes.
 
 Additional Requirements on Windows
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -283,7 +293,7 @@ FUTURE
   breaking and are subject to change, which means code linked against
   a qpdf built with this option may not be binary compatible with
   installed qpdf libraries. Set this if you want to test your code
-  with proposed QPDF API changes and provide feedback prior to the
+  with proposed qpdf API changes and provide feedback prior to the
   inclusion of those changes in a release. Packagers should never
   distribute packages built with this option.
 
@@ -291,16 +301,12 @@ QTEST_COLOR
   Turn this on or off to control whether qtest uses color in its
   output.
 
+ZOPFLI
+  Use the `zopfli <https://github.com/google/zopfli>`__ library for
+  zlib-compatible compression. See :ref:`zopfli`.
+
 Options for Working on qpdf
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-CHECK_SIZES
-  The source file :file:`qpdf/sizes.cc` is used to display the sizes
-  of all objects in the public API. Consistency of its output between
-  releases is used as part of the check against accidental breakage of
-  the binary interface (ABI). Turning this on causes a test to be run
-  that ensures an exact match between classes in ``sizes.cc`` and
-  classes in the library's public API. This option requires Python 3.
 
 ENABLE_COVERAGE
   Compile with ``--coverage``. See README-maintainer.md for
@@ -353,8 +359,6 @@ MAINTAINER_MODE
   maintaining qpdf. In turns on the following:
 
   - ``BUILD_DOC``
-
-  - ``CHECK_SIZES``
 
   - ``ENABLE_QTC``
 
@@ -647,6 +651,18 @@ provide their own implementations for basic filters like
 Implementing the registration functions and internal storage of
 registered providers was also easier using C++-11's functional
 interfaces, which was another reason to require C++-11 at this time.
+
+.. _build-zopfli:
+
+Building with zopfli support
+----------------------------
+
+.. cSpell:ignore DZOPFLI
+
+If you compile with ``-DZOPFLI-ON`` and have the `zopfli
+<https://github.com/google/zopfli>`__ development files available,
+qpdf will be built with zopfli support. See :ref:`zopfli` for
+information about using zopfli with qpdf.
 
 .. _autoconf-to-cmake:
 

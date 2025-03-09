@@ -3,7 +3,7 @@
 
 #include <qpdf/assert_debug.h>
 
-#include <qpdf/QPDF.hh>
+#include <qpdf/QPDF_private.hh>
 
 #include <qpdf/QPDFExc.hh>
 
@@ -952,8 +952,7 @@ QPDF::initializeEncryption()
 }
 
 std::string
-QPDF::getKeyForObject(
-    std::shared_ptr<EncryptionParameters> encp, QPDFObjGen const& og, bool use_aes)
+QPDF::getKeyForObject(std::shared_ptr<EncryptionParameters> encp, QPDFObjGen og, bool use_aes)
 {
     if (!encp->encrypted) {
         throw std::logic_error("request for encryption key in non-encrypted PDF");
@@ -974,7 +973,7 @@ QPDF::getKeyForObject(
 }
 
 void
-QPDF::decryptString(std::string& str, QPDFObjGen const& og)
+QPDF::decryptString(std::string& str, QPDFObjGen og)
 {
     if (!og.isIndirect()) {
         return;
@@ -997,8 +996,9 @@ QPDF::decryptString(std::string& str, QPDFObjGen const& og)
             break;
 
         default:
-            warn(damagedPDF("unknown encryption filter for strings (check /StrF in "
-                            "/Encrypt dictionary); strings may be decrypted improperly"));
+            warn(damagedPDF(
+                "unknown encryption filter for strings (check /StrF in "
+                "/Encrypt dictionary); strings may be decrypted improperly"));
             // To avoid repeated warnings, reset cf_string.  Assume we'd want to use AES if V == 4.
             m->encp->cf_string = e_aes;
             use_aes = true;
@@ -1047,7 +1047,7 @@ QPDF::decryptStream(
     std::shared_ptr<InputSource> file,
     QPDF& qpdf_for_warning,
     Pipeline*& pipeline,
-    QPDFObjGen const& og,
+    QPDFObjGen og,
     QPDFObjectHandle& stream_dict,
     std::unique_ptr<Pipeline>& decrypt_pipeline)
 {

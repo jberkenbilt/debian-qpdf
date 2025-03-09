@@ -4,6 +4,9 @@ QPDF err wrong objid/generation 0
 QPDF check objid 1
 QPDF check generation 1
 QPDF check obj 1
+QPDF object stream offsets not increasing 0
+QPDF ignore self-referential object stream 0
+QPDF object stream contains id < 1 0
 QPDF hint table length indirect 0
 QPDF hint table length direct 0
 QPDF P absent in lindict 0
@@ -277,7 +280,6 @@ QPDF ignore first extra space in xref entry 0
 QPDF ignore second extra space in xref entry 0
 QPDF ignore length error xref entry 0
 QPDF_encryption pad short parameter 0
-QPDFWriter ignore self-referential object stream 0
 QPDFObjectHandle found old angle 1
 QPDF_Stream special filters 3
 QPDFTokenizer block long token 0
@@ -356,6 +358,7 @@ QPDFOutlineObjectHelper action dest 0
 QPDFOutlineObjectHelper named dest 0
 QPDFOutlineDocumentHelper name named dest 0
 QPDFOutlineDocumentHelper string named dest 0
+QPDFOutlineDocumentHelper named dest dictionary 0
 QPDFOutlineObjectHelper loop 0
 QPDFObjectHandle merge top type mismatch 0
 QPDFObjectHandle merge shallow copy 0
@@ -600,7 +603,8 @@ QPDFAcroFormDocumentHelper AP parse error 0
 QPDFJob copy fields not this file 0
 QPDFJob copy fields non-first from orig 0
 QPDF resolve duplicated page in insert 0
-QPDFWriter preserve object streams 1
+QPDFWriter preserve object streams 0
+QPDFWriter preserve object streams preserve unreferenced 0
 QPDFWriter exclude from object stream 0
 QPDF_pages findPage not found 0
 QPDFObjectHandle check ownership 0
@@ -627,6 +631,7 @@ qpdf-c stream data filtered set 1
 qpdf-c stream data buf set 1
 qpdf-c called qpdf_oh_get_page_content_data 0
 qpdf-c called qpdf_oh_replace_stream_data 0
+qpdf-c called qpdf_oh_free_buffer 0
 qpdf-c silence oh errors 0
 qpdf-c called qpdf_oh_get_binary_string_value 0
 qpdf-c called qpdf_oh_get_binary_utf8_value 0
@@ -673,7 +678,6 @@ QPDF_json ignore second-level key 0
 QPDF_json ignore unknown key in object_top 0
 QPDF_json ignore unknown key in trailer 0
 QPDF_json ignore unknown key in stream 0
-QPDF_json non-trivial null reserved 0
 QPDF_json data and datafile 0
 QPDF_json no stream data in update mode 0
 QPDF_json updating existing stream 0

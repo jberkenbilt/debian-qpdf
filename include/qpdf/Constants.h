@@ -1,4 +1,5 @@
-/* Copyright (c) 2005-2024 Jay Berkenbilt
+/* Copyright (c) 2005-2021 Jay Berkenbilt
+ * Copyright (c) 2022-2025 Jay Berkenbilt and Manfred Holger
  *
  * This file is part of qpdf.
  *
@@ -125,6 +126,7 @@ enum qpdf_object_type_e {
     /* Object types internal to qpdf */
     ot_unresolved,
     ot_destroyed,
+    ot_reference,
 };
 
 /* Write Parameters. See QPDFWriter.hh for details. */

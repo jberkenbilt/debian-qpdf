@@ -1,4 +1,5 @@
-// Copyright (c) 2005-2024 Jay Berkenbilt
+// Copyright (c) 2005-2021 Jay Berkenbilt
+// Copyright (c) 2022-2025 Jay Berkenbilt and Manfred Holger
 //
 // This file is part of qpdf.
 //
@@ -26,15 +27,14 @@
 
 #include <qpdf/DLL.h>
 
-// This is an object helper for number trees. See section 7.9.7 in the PDF spec (ISO 32000) for a
-// description of number trees.
-
-// See examples/pdf-name-number-tree.cc for a demonstration of using QPDFNumberTreeObjectHelper.
-
 class NNTreeImpl;
 class NNTreeIterator;
 class NNTreeDetails;
 
+// This is an object helper for number trees. See section 7.9.7 in the PDF spec (ISO 32000) for a
+// description of number trees.
+//
+// See examples/pdf-name-number-tree.cc for a demonstration of using QPDFNumberTreeObjectHelper.
 class QPDF_DLL_CLASS QPDFNumberTreeObjectHelper: public QPDFObjectHelper
 {
   public:
@@ -92,7 +92,6 @@ class QPDF_DLL_CLASS QPDFNumberTreeObjectHelper: public QPDFObjectHelper
         bool valid() const;
         QPDF_DLL
         iterator& operator++();
-        QPDF_DLL
         iterator
         operator++(int)
         {
@@ -102,7 +101,6 @@ class QPDF_DLL_CLASS QPDFNumberTreeObjectHelper: public QPDFObjectHelper
         }
         QPDF_DLL
         iterator& operator--();
-        QPDF_DLL
         iterator
         operator--(int)
         {
@@ -116,7 +114,6 @@ class QPDF_DLL_CLASS QPDFNumberTreeObjectHelper: public QPDFObjectHelper
         pointer operator->();
         QPDF_DLL
         bool operator==(iterator const& other) const;
-        QPDF_DLL
         bool
         operator!=(iterator const& other) const
         {
@@ -188,7 +185,6 @@ class QPDF_DLL_CLASS QPDFNumberTreeObjectHelper: public QPDFObjectHelper
         typedef QPDFNumberTreeObjectHelper::numtree_number numtree_number;
 
       public:
-        QPDF_DLL
         ~Members() = default;
 
       private:

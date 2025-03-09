@@ -1,4 +1,5 @@
-// Copyright (c) 2005-2024 Jay Berkenbilt
+// Copyright (c) 2005-2021 Jay Berkenbilt
+// Copyright (c) 2022-2025 Jay Berkenbilt and Manfred Holger
 //
 // This file is part of qpdf.
 //
@@ -29,7 +30,6 @@ class QPDF_DLL_CLASS QPDFUsage: public std::runtime_error
   public:
     QPDF_DLL
     QPDFUsage(std::string const& msg);
-    QPDF_DLL
     ~QPDFUsage() noexcept override = default;
 };
 

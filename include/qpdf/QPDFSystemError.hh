@@ -1,4 +1,5 @@
-// Copyright (c) 2005-2024 Jay Berkenbilt
+// Copyright (c) 2005-2021 Jay Berkenbilt
+// Copyright (c) 2022-2025 Jay Berkenbilt and Manfred Holger
 //
 // This file is part of qpdf.
 //
@@ -31,7 +32,7 @@ class QPDF_DLL_CLASS QPDFSystemError: public std::runtime_error
   public:
     QPDF_DLL
     QPDFSystemError(std::string const& description, int system_errno);
-    QPDF_DLL
+
     ~QPDFSystemError() noexcept override = default;
 
     // To get a complete error string, call what(), provided by std::exception.  The accessors below
