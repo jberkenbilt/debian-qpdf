@@ -76,7 +76,6 @@ set(libqpdf_SOURCES
   QPDFObject.cc
   QPDFObjectHandle.cc
   QPDFObjectHelper.cc
-  QPDFObjGen.cc
   QPDFOutlineDocumentHelper.cc
   QPDFOutlineObjectHelper.cc
   QPDFPageDocumentHelper.cc
@@ -87,23 +86,12 @@ set(libqpdf_SOURCES
   QPDFSystemError.cc
   QPDFTokenizer.cc
   QPDFUsage.cc
-  QPDFValue.cc
   QPDFWriter.cc
   QPDFXRefEntry.cc
   QPDF_Array.cc
-  QPDF_Bool.cc
-  QPDF_Destroyed.cc
   QPDF_Dictionary.cc
-  QPDF_InlineImage.cc
-  QPDF_Integer.cc
-  QPDF_Name.cc
-  QPDF_Null.cc
-  QPDF_Operator.cc
-  QPDF_Real.cc
-  QPDF_Reserved.cc
   QPDF_Stream.cc
   QPDF_String.cc
-  QPDF_Unresolved.cc
   QPDF_encryption.cc
   QPDF_json.cc
   QPDF_linearization.cc
@@ -610,14 +598,4 @@ if(INSTALL_CMAKE_PACKAGE)
     ${CMAKE_CURRENT_BINARY_DIR}/qpdfConfig.cmake
     COMPONENT ${COMPONENT_DEV}
     DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/qpdf)
-endif()
-
-if(CHECK_SIZES AND BUILD_SHARED_LIBS AND (CMAKE_SYSTEM_NAME STREQUAL "Linux"))
-  # We can only do this check on a system with ELF shared libraries.
-  # Since this is a maintainer-only option, testing for Linux is a
-  # close enough approximation.
-  add_test(
-    NAME check-sizes
-    COMMAND ${qpdf_SOURCE_DIR}/check_abi check-sizes
-    --lib $<TARGET_FILE:libqpdf>)
 endif()

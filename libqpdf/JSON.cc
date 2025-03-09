@@ -8,8 +8,12 @@
 #include <qpdf/Pl_String.hh>
 #include <qpdf/QTC.hh>
 #include <qpdf/QUtil.hh>
+#include <qpdf/Util.hh>
+
 #include <cstring>
 #include <stdexcept>
+
+using namespace qpdf;
 
 JSON::Members::Members(std::unique_ptr<JSON_value> value) :
     value(std::move(value))
@@ -120,15 +124,14 @@ JSON::JSON_array::write(Pipeline* p, size_t depth) const
 
 JSON::JSON_string::JSON_string(std::string const& utf8) :
     JSON_value(vt_string),
-    utf8(utf8),
-    encoded(Writer::encode_string(utf8))
+    utf8(utf8)
 {
 }
 
 void
 JSON::JSON_string::write(Pipeline* p, size_t) const
 {
-    *p << std::string("\"") + encoded + "\"";
+    *p << std::string("\"") + Writer::encode_string(utf8) + "\"";
 }
 
 JSON::JSON_number::JSON_number(long long value) :
@@ -285,16 +288,6 @@ JSON::addDictionaryMember(std::string const& key, JSON const& val)
     } else {
         throw std::runtime_error("JSON::addDictionaryMember called on non-dictionary");
     }
-}
-
-bool
-JSON::checkDictionaryKeySeen(std::string const& key)
-{
-    if (auto* obj = m ? dynamic_cast<JSON_dictionary*>(m->value.get()) : nullptr) {
-        return !obj->parsed_keys.insert(key).second;
-    }
-    throw std::logic_error("JSON::checkDictionaryKey called on non-dictionary");
-    return false; // unreachable
 }
 
 JSON
@@ -772,7 +765,7 @@ JSONParser::tokenError()
         QTC::TC("libtests", "JSON parse unexpected sign");
         throw std::runtime_error(
             "JSON: offset " + std::to_string(offset) + ": numeric literal: unexpected sign");
-    } else if (QUtil::is_space(*p) || strchr("{}[]:,", *p)) {
+    } else if (util::is_space(*p) || strchr("{}[]:,", *p)) {
         QTC::TC("libtests", "JSON parse incomplete number");
         throw std::runtime_error(
             "JSON: offset " + std::to_string(offset) + ": numeric literal: incomplete number");
@@ -1089,7 +1082,7 @@ JSONParser::getToken()
 
             case ls_u4:
                 using ui = unsigned int;
-                if (ui val = ui(QUtil::hex_decode_char(*p)); val < 16) {
+                if (ui val = ui(util::hex_decode_char(*p)); val < 16) {
                     u_value = 16 * u_value + val;
                 } else {
                     tokenError();
@@ -1266,11 +1259,6 @@ JSONParser::handleToken()
         break;
 
     case ps_dict_after_colon:
-        if (tos.checkDictionaryKeySeen(dict_key)) {
-            QTC::TC("libtests", "JSON parse duplicate key");
-            throw std::runtime_error(
-                "JSON: offset " + std::to_string(dict_key_offset) + ": duplicated dictionary key");
-        }
         if (!reactor || !reactor->dictionaryItem(dict_key, item)) {
             tos.addDictionaryMember(dict_key, item);
         }

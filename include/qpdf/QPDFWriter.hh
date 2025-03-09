@@ -17,9 +17,6 @@
 // License. At your option, you may continue to consider qpdf to be licensed under those terms.
 // Please see the manual for additional information.
 
-// This class implements a simple writer for saving QPDF objects to new PDF files.  See comments
-// through the header file for additional details.
-
 #ifndef QPDFWRITER_HH
 #define QPDFWRITER_HH
 
@@ -42,7 +39,6 @@
 #include <qpdf/PDFVersion.hh>
 #include <qpdf/Pipeline.hh>
 #include <qpdf/Pl_Buffer.hh>
-#include <qpdf/PointerHolder.hh> // unused -- remove in qpdf 12 (see #785)
 #include <qpdf/QPDFObjGen.hh>
 #include <qpdf/QPDFObjectHandle.hh>
 #include <qpdf/QPDFXRefEntry.hh>
@@ -51,6 +47,8 @@ class QPDF;
 class Pl_Count;
 class Pl_MD5;
 
+// This class implements a simple writer for saving QPDF objects to new PDF files.  See comments
+// through the header file for additional details.
 class QPDFWriter
 {
   public:
@@ -71,7 +69,6 @@ class QPDFWriter
     QPDF_DLL
     QPDFWriter(QPDF& pdf, char const* description, FILE* file, bool close_file);
 
-    QPDF_DLL
     ~QPDFWriter() = default;
 
     class QPDF_DLL_CLASS ProgressReporter
@@ -485,7 +482,7 @@ class QPDFWriter
     void writeStringQDF(std::string_view str);
     void writeStringNoQDF(std::string_view str);
     void writePad(size_t nspaces);
-    void assignCompressedObjectNumbers(QPDFObjGen const& og);
+    void assignCompressedObjectNumbers(QPDFObjGen og);
     void enqueueObject(QPDFObjectHandle object);
     void writeObjectStreamOffsets(std::vector<qpdf_offset_t>& offsets, int first_obj);
     void writeObjectStream(QPDFObjectHandle object);

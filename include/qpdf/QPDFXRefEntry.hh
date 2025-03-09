@@ -37,14 +37,12 @@ class QPDFXRefEntry
     QPDF_DLL
     QPDFXRefEntry(int type, qpdf_offset_t field1, int field2);
     // Create a type 1 "uncompressed" entry.
-    QPDF_DLL
     QPDFXRefEntry(qpdf_offset_t offset) :
         type(1),
         field1(offset)
     {
     }
     // Create a type 2 "compressed" entry.
-    QPDF_DLL
     QPDFXRefEntry(int stream_number, int index) :
         type(2),
         field1(stream_number),
@@ -64,6 +62,9 @@ class QPDFXRefEntry
   private:
     // This class does not use the Members pattern to avoid a memory allocation for every one of
     // these. A lot of these get created.
+
+    // The layout can be changed to reduce the size from 24 to 16 bytes. However, this would have a
+    // definite runtime cost.
     int type{0};
     qpdf_offset_t field1{0};
     int field2{0};
