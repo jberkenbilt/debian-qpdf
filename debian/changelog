@@ -1,3 +1,12 @@
+qpdf (12.0.0-1) experimental; urgency=medium
+
+  * New upstream release.
+  * Bump soname to 30. Remove t64 transition material since libqpdf30 was
+    introduced after the t64 transition.
+  * Standards version updated to 4.7.2; no changes needed.
+
+ -- Jay Berkenbilt <qjb@debian.org>  Sun, 09 Mar 2025 12:57:51 -0400
+
 qpdf (11.10.1-1) unstable; urgency=medium
 
   * New upstream release.
