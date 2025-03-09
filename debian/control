@@ -1,7 +1,7 @@
 Source: qpdf
 Section: libs
 Priority: optional
-Build-Depends: dpkg-dev (>= 1.22.5), cmake (>= 3.16~), debhelper (>> 10.3~),
+Build-Depends: cmake (>= 3.16~), debhelper (>> 10.3~),
  libjpeg-dev, zlib1g-dev, libgnutls28-dev,
 Build-Depends-Indep:
  python3-sphinx, python3-sphinx-rtd-theme (>= 1~),

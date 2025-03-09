@@ -1,3 +1,12 @@
+qpdf (12.0.0-1~bpo22.04.1~ppa1) jammy; urgency=medium
+
+  * Backport to jammy without time_64 abi. The PPA is not built for
+    32-bit architectures, so this doesn't matter.
+  * Note: versions not backported to jammy are omitted from changelog for
+    backport.
+
+ -- Jay Berkenbilt <qjb@debian.org>  Sun, 09 Mar 2025 14:08:45 -0400
+
 qpdf (12.0.0-1) experimental; urgency=medium
 
   * New upstream release.
