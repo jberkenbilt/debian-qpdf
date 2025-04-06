@@ -45,6 +45,7 @@ namespace
             size_t oi_min_width,
             size_t oi_min_height,
             size_t oi_min_area,
+            int quality,
             QPDFObjectHandle& image);
         ~ImageOptimizer() override = default;
         void provideStreamData(QPDFObjGen const&, Pipeline* pipeline) override;
@@ -56,7 +57,9 @@ namespace
         size_t oi_min_width;
         size_t oi_min_height;
         size_t oi_min_area;
+        qpdf_stream_decode_level_e decode_level{qpdf_dl_specialized};
         QPDFObjectHandle image;
+        std::shared_ptr<Pl_DCT::CompressConfig> config;
     };
 
     class DiscardContents: public QPDFObjectHandle::ParserCallbacks
@@ -108,6 +111,7 @@ ImageOptimizer::ImageOptimizer(
     size_t oi_min_width,
     size_t oi_min_height,
     size_t oi_min_area,
+    int quality,
     QPDFObjectHandle& image) :
     o(o),
     oi_min_width(oi_min_width),
@@ -115,6 +119,12 @@ ImageOptimizer::ImageOptimizer(
     oi_min_area(oi_min_area),
     image(image)
 {
+    if (quality >= 0) {
+        // Recompress existing jpeg.
+        decode_level = qpdf_dl_all;
+        config = Pl_DCT::make_compress_config(
+            [quality](jpeg_compress_struct* cinfo) { jpeg_set_quality(cinfo, quality, false); });
+    }
 }
 
 std::shared_ptr<Pipeline>
@@ -195,14 +205,15 @@ ImageOptimizer::makePipeline(std::string const& description, Pipeline* next)
         return result;
     }
 
-    result = std::make_shared<Pl_DCT>("jpg", next, w, h, components, cs);
+    result = std::make_shared<Pl_DCT>("jpg", next, w, h, components, cs, config.get());
     return result;
 }
 
 bool
 ImageOptimizer::evaluate(std::string const& description)
 {
-    if (!image.pipeStreamData(nullptr, 0, qpdf_dl_specialized, true)) {
+    // Note: passing nullptr as pipeline (first argument) just tests whether we can filter.
+    if (!image.pipeStreamData(nullptr, 0, decode_level, true)) {
         QTC::TC("qpdf", "QPDFJob image optimize no pipeline");
         o.doIfVerbose([&](Pipeline& v, std::string const& prefix) {
             v << prefix << ": " << description
@@ -217,7 +228,7 @@ ImageOptimizer::evaluate(std::string const& description)
         // message issued by makePipeline
         return false;
     }
-    if (!image.pipeStreamData(p.get(), 0, qpdf_dl_specialized)) {
+    if (!image.pipeStreamData(p.get(), 0, decode_level)) {
         return false;
     }
     long long orig_length = image.getDict().getKey("/Length").getIntValue();
@@ -247,7 +258,7 @@ ImageOptimizer::provideStreamData(QPDFObjGen const&, Pipeline* pipeline)
         pipeline->finish();
         return;
     }
-    image.pipeStreamData(p.get(), 0, qpdf_dl_specialized, false, false);
+    image.pipeStreamData(p.get(), 0, decode_level, false, false);
 }
 
 QPDFJob::PageSpec::PageSpec(
@@ -398,24 +409,19 @@ QPDFJob::parseRotationParameter(std::string const& parameter)
     if (range.empty()) {
         range = "1-z";
     }
-    bool range_valid = false;
     try {
         QUtil::parse_numrange(range.c_str(), 0);
-        range_valid = true;
     } catch (std::runtime_error const&) {
-        // ignore
-    }
-    if (range_valid &&
-        ((angle_str == "0") || (angle_str == "90") || (angle_str == "180") ||
-         (angle_str == "270"))) {
-        int angle = QUtil::string_to_int(angle_str.c_str());
-        if (relative == -1) {
-            angle = -angle;
-        }
-        m->rotations[range] = RotationSpec(angle, (relative != 0));
-    } else {
         usage("invalid parameter to rotate: " + parameter);
     }
+    int angle = QUtil::string_to_int(angle_str.c_str()) % 360;
+    if (angle % 90 != 0) {
+        usage("invalid parameter to rotate (angle must be a multiple of 90): " + parameter);
+    }
+    if (relative == -1) {
+        angle = -angle;
+    }
+    m->rotations[range] = RotationSpec(angle, (relative != 0));
 }
 
 std::vector<int>
@@ -489,6 +495,10 @@ QPDFJob::createQPDF()
     }
     if (m->remove_metadata) {
         pdf.getRoot().removeKey("/Metadata");
+    }
+    if (m->remove_structure) {
+        pdf.getRoot().removeKey("/StructTreeRoot");
+        pdf.getRoot().removeKey("/MarkInfo");
     }
 
     for (auto& foreign: page_heap) {
@@ -618,9 +628,7 @@ QPDFJob::checkConfiguration()
         usage("no output file may be given for this option");
     }
     if (m->check_requires_password && m->check_is_encrypted) {
-        usage(
-            "--requires-password and --is-encrypted may not be given"
-            " together");
+        usage("--requires-password and --is-encrypted may not be given together");
     }
 
     if (m->encrypt && (!m->allow_insecure) &&
@@ -2197,7 +2205,12 @@ QPDFJob::handleTransformations(QPDF& pdf)
                 [this, pageno, &pdf](
                     QPDFObjectHandle& obj, QPDFObjectHandle& xobj_dict, std::string const& key) {
                     auto io = std::make_unique<ImageOptimizer>(
-                        *this, m->oi_min_width, m->oi_min_height, m->oi_min_area, obj);
+                        *this,
+                        m->oi_min_width,
+                        m->oi_min_height,
+                        m->oi_min_area,
+                        m->jpeg_quality,
+                        obj);
                     if (io->evaluate("image " + key + " on page " + std::to_string(pageno))) {
                         QPDFObjectHandle new_image = pdf.newStream();
                         new_image.replaceDict(obj.getDict().shallowCopy());
@@ -3142,9 +3155,7 @@ QPDFJob::writeJSON(QPDF& pdf)
         fp = std::make_shared<Pl_StdioFile>("json output", fc->f);
     } else if ((m->json_stream_data == qpdf_sj_file) && m->json_stream_prefix.empty()) {
         QTC::TC("qpdf", "QPDFJob need json-stream-prefix for stdout");
-        usage(
-            "please specify --json-stream-prefix since the input file "
-            "name is unknown");
+        usage("please specify --json-stream-prefix since the input file name is unknown");
     } else {
         QTC::TC("qpdf", "QPDFJob write json to stdout");
         m->log->saveToStandardOutput(true);

@@ -104,6 +104,7 @@ static constexpr char const* JOB_SCHEMA_DATA = R"({
   "suppressRecovery": "suppress error recovery",
   "coalesceContents": "combine content streams",
   "compressionLevel": "set compression level for flate",
+  "jpegQuality": "set jpeg quality level for jpeg",
   "externalizeInlineImages": "convert inline to regular images",
   "iiMinBytes": "set minimum size for externalizeInlineImages",
   "removeUnreferencedResources": "remove unreferenced page resources",
@@ -148,8 +149,11 @@ static constexpr char const* JOB_SCHEMA_DATA = R"({
   "removeInfo": "remove file information",
   "removeMetadata": "remove metadata",
   "removePageLabels": "remove explicit page numbers",
+  "removeStructure": "remove metadata",
   "reportMemoryUsage": "best effort report of memory usage",
-  "rotate": "rotate pages",
+  "rotate": [
+    "rotate pages"
+  ],
   "setPageLabels": [
     "number pages for the entire document"
   ],
