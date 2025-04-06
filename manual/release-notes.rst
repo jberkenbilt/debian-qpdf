@@ -13,12 +13,84 @@ more detail.
 
 .. x.y.z: not yet released
 
-.. _r12-0-0:
+12.1.0: April 6, 2025
+  - Upcoming C++ Version Change
+
+    - This is expected to be the last minor release of qpdf to work
+      with C++-17. We will be switching to C++-20 for 12.2.0.
+
+  - Bug fixes
+
+    - In ``QPDF::isLinearized`` return false if the first object in the file is
+      not a linearization parameter dictionary or its ``/L`` entry is not an
+      integer object. Previously the method returned false if the first
+      dictionary object was not a linearization parameter dictionary.
+
+    - Fix parsing of object streams containing objects not separated by
+      white-space. Pre-2020 editions of the PDF specification incorrectly
+      stated that white-space was required between objects. qpdf relied on this
+      when parsing object streams.
+
+    - Fix two object stream error/warning messages that reported the wrong
+      object id.
+
+    - Accept an array for ``rotate`` in qpdf job JSON since it is a
+      repeatable option.
+
+    - When reading an encrypted PDF with cleartext metadata, only
+      expect top-level /Metadata to be clear-text. When writing an
+      encrypted PDF with cleartext metadata, only leave top-level
+      unencrypted. qpdf has always incorrectly handled all
+      ``/Metadata`` streams as special with cleartext metadata.
+
+  - Library Enhancements
+
+    - Add function ``Pl_DCT::make_compress_config`` to return a
+      ``Pl_DCT::CompressConfig`` unique pointer to a
+      ``CompressConfig`` from a ``std::function`` for a more modern
+      configuration option.
+
+  - CLI Enhancements
+
+    - New :qpdf:ref:`--remove-structure` option to exclude the document
+      structure tree from the output PDF.
+
+    - New :qpdf:ref:`--jpeg-quality` option to set jpeg quality used
+      with :qpdf:ref:`--optimize-images`.
+
+  - Other enhancements
+
+    - There have been further enhancements to how files with damaged xref
+      tables are recovered.
+
+  - Build changes
+
+    - The file ``.idea/cmake.xml`` has been removed. Instead of
+      shipping with some CMake profiles in the CLion-specific
+      configuration, we now include a ``CMakePresets.json``. There is
+      information about using it in ``README-maintainer.md``. For
+      most users, running ``cmake`` in the normal way is fine.
+      Suggestions are welcome. None of the official builds use cmake
+      presets at the time of initial introduction.
+
+  - Other changes
+
+    - The ``QPDF::optimize`` method is believed to be not in use and has been
+      deprecated. If you are relying on it please open a ticket_.
+
+    - The parsing of object streams including the creation of error/warning
+      messages and object descriptions has been refactored with some
+      improvement both in runtime and memory usage.
+
+    - There has been some refactoring of QPDFWriter including how object
+      streams are written with some performance improvement.
 
 .. cSpell:ignore substract
 
+.. _r12-0-0:
+
 12.0.0: March 9, 2025
-  - API: breaking changes
+  - API breaking changes
 
     - The header file ``qpdf/QPDFObject.hh`` now generates an error if
       included. This is to prevent code that includes it from
