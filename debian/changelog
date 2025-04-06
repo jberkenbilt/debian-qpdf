@@ -1,3 +1,15 @@
+qpdf (12.1.0-1) unstable; urgency=medium
+
+  * New upstream release.
+
+ -- Jay Berkenbilt <qjb@debian.org>  Sun, 06 Apr 2025 17:18:26 -0400
+
+qpdf (12.0.0-2) unstable; urgency=medium
+
+  * Upload to unstable.
+
+ -- Jay Berkenbilt <qjb@debian.org>  Mon, 10 Mar 2025 07:07:30 -0400
+
 qpdf (12.0.0-1~bpo20.04.1~ppa1) focal; urgency=medium
 
   * Backport to focal without qpdf-doc package or t64; not built for

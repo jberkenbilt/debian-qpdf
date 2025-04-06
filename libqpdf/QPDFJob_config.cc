@@ -140,6 +140,13 @@ QPDFJob::Config::compressionLevel(std::string const& parameter)
 }
 
 QPDFJob::Config*
+QPDFJob::Config::jpegQuality(std::string const& parameter)
+{
+    o.m->jpeg_quality = QUtil::string_to_int(parameter.c_str());
+    return this;
+}
+
+QPDFJob::Config*
 QPDFJob::Config::copyEncryption(std::string const& parameter)
 {
     o.m->encryption_file = parameter;
@@ -528,6 +535,13 @@ QPDFJob::Config*
 QPDFJob::Config::removePageLabels()
 {
     o.m->remove_page_labels = true;
+    return this;
+}
+
+QPDFJob::Config*
+QPDFJob::Config::removeStructure()
+{
+    o.m->remove_structure = true;
     return this;
 }
 

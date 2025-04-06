@@ -134,6 +134,7 @@ options:
       - remove-info
       - remove-metadata
       - remove-page-labels
+      - remove-structure
       - replace-input
       - report-memory-usage
       - requires-password
@@ -159,6 +160,7 @@ options:
       - split-pages
     required_parameter:
       compression-level: level
+      jpeg-quality: level
       copy-encryption: file
       encryption-file-password: password
       force-version: version
@@ -412,6 +414,7 @@ json:
   suppress-recovery:
   coalesce-contents:
   compression-level:
+  jpeg-quality:
   externalize-inline-images:
   ii-min-bytes:
   remove-unreferenced-resources:
@@ -446,8 +449,10 @@ json:
   remove-info:
   remove-metadata:
   remove-page-labels:
+  remove-structure:
   report-memory-usage:
   rotate:
+    - null
   set-page-labels:
     - null
   overlay:
