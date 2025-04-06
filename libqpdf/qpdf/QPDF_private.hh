@@ -3,6 +3,7 @@
 
 #include <qpdf/QPDF.hh>
 
+#include <qpdf/QPDFObject_private.hh>
 #include <qpdf/QPDFTokenizer_private.hh>
 
 // Writer class is restricted to QPDFWriter so that only it can call certain methods.
@@ -38,7 +39,7 @@ class QPDF::Writer
         QPDF& qpdf,
         QPDFWriter::NewObjTable const& new_obj,
         QPDFWriter::ObjTable const& obj,
-        std::shared_ptr<Buffer>& hint_stream,
+        std::string& hint_stream,
         int& S,
         int& O,
         bool compressed)
@@ -142,12 +143,13 @@ class QPDF::Pipe
         qpdf_offset_t offset,
         size_t length,
         QPDFObjectHandle dict,
+        bool is_root_metadata,
         Pipeline* pipeline,
         bool suppress_warnings,
         bool will_retry)
     {
         return qpdf->pipeStreamData(
-            og, offset, length, dict, pipeline, suppress_warnings, will_retry);
+            og, offset, length, dict, is_root_metadata, pipeline, suppress_warnings, will_retry);
     }
 };
 
@@ -215,7 +217,8 @@ class QPDF::ForeignStreamData
         QPDFObjGen foreign_og,
         qpdf_offset_t offset,
         size_t length,
-        QPDFObjectHandle local_dict);
+        QPDFObjectHandle local_dict,
+        bool is_root_metadata);
 
   private:
     std::shared_ptr<EncryptionParameters> encp;
@@ -224,6 +227,7 @@ class QPDF::ForeignStreamData
     qpdf_offset_t offset;
     size_t length;
     QPDFObjectHandle local_dict;
+    bool is_root_metadata{false};
 };
 
 class QPDF::CopiedStreamDataProvider: public QPDFObjectHandle::StreamDataProvider
@@ -457,6 +461,7 @@ class QPDF::Members
     qpdf::Tokenizer tokenizer;
     std::shared_ptr<InputSource> file;
     std::string last_object_description;
+    std::shared_ptr<QPDFObject::Description> last_ostream_description;
     bool provided_password_is_hex_key{false};
     bool ignore_xref_streams{false};
     bool suppress_warnings{false};

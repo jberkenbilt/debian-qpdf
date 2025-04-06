@@ -634,6 +634,7 @@ class QPDFJob
         bool recompress_flate{false};
         bool recompress_flate_set{false};
         int compression_level{-1};
+        int jpeg_quality{-1};
         qpdf_stream_decode_level_e decode_level{qpdf_dl_generalized};
         bool decode_level_set{false};
         bool normalize_set{false};
@@ -696,6 +697,7 @@ class QPDFJob
         bool remove_info{false};
         bool remove_metadata{false};
         bool remove_page_labels{false};
+        bool remove_structure{false};
         size_t oi_min_width{DEFAULT_OI_MIN_WIDTH};
         size_t oi_min_height{DEFAULT_OI_MIN_HEIGHT};
         size_t oi_min_area{DEFAULT_OI_MIN_AREA};

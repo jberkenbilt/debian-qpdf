@@ -45,9 +45,15 @@
 #include <qpdf/QPDFWriter.hh>
 #include <qpdf/QPDFXRefEntry.hh>
 
+namespace qpdf::is
+{
+    class OffsetBuffer;
+}
+
 class QPDF_Stream;
 class BitStream;
 class BitWriter;
+class BufferInputSource;
 class QPDFLogger;
 class QPDFParser;
 
@@ -668,8 +674,7 @@ class QPDF
     // /Length, /Filter, and /DecodeParms; 1 if it should discard /Length, and 0 if it should
     // preserve all keys. This is used by QPDFWriter to avoid creation of dangling objects for
     // stream dictionary keys it will be regenerating.
-    QPDF_DLL
-    void optimize(
+    [[deprecated("Unused - see release notes for qpdf 12.1.0")]] QPDF_DLL void optimize(
         std::map<int, int> const& object_stream_data,
         bool allow_changes = true,
         std::function<int(QPDFObjectHandle&)> skip_stream_parameters = nullptr);
@@ -762,7 +767,7 @@ class QPDF
     void setTrailer(QPDFObjectHandle obj);
     void read_xref(qpdf_offset_t offset);
     bool resolveXRefTable();
-    void reconstruct_xref(QPDFExc& e);
+    void reconstruct_xref(QPDFExc& e, bool found_startxref = true);
     bool parse_xrefFirst(std::string const& line, int& obj, int& num, int& bytes);
     bool read_xrefEntry(qpdf_offset_t& f1, int& f2, char& type);
     bool read_bad_xrefEntry(qpdf_offset_t& f1, int& f2, char& type);
@@ -779,13 +784,12 @@ class QPDF
         std::function<QPDFExc(std::string_view)> damaged);
     void insertXrefEntry(int obj, int f0, qpdf_offset_t f1, int f2);
     void insertFreeXrefEntry(QPDFObjGen);
-    void insertReconstructedXrefEntry(int obj, qpdf_offset_t f1, int f2);
     void setLastObjectDescription(std::string const& description, QPDFObjGen og);
     QPDFObjectHandle readTrailer();
     QPDFObjectHandle readObject(std::string const& description, QPDFObjGen og);
     void readStream(QPDFObjectHandle& object, QPDFObjGen og, qpdf_offset_t offset);
     void validateStreamLineEnd(QPDFObjectHandle& object, QPDFObjGen og, qpdf_offset_t offset);
-    QPDFObjectHandle readObjectInStream(std::shared_ptr<InputSource>& input, int obj);
+    QPDFObjectHandle readObjectInStream(qpdf::is::OffsetBuffer& input, int stream_id, int obj_id);
     size_t recoverStreamLength(
         std::shared_ptr<InputSource> input, QPDFObjGen og, qpdf_offset_t stream_offset);
     QPDFTokenizer::Token readToken(InputSource&, size_t max_len = 0);
@@ -831,6 +835,7 @@ class QPDF
         qpdf_offset_t offset,
         size_t length,
         QPDFObjectHandle dict,
+        bool is_root_metadata,
         Pipeline* pipeline,
         bool suppress_warnings,
         bool will_retry);
@@ -844,6 +849,7 @@ class QPDF
         qpdf_offset_t offset,
         size_t length,
         QPDFObjectHandle dict,
+        bool is_root_metadata,
         Pipeline* pipeline,
         bool suppress_warnings,
         bool will_retry);
@@ -874,7 +880,7 @@ class QPDF
     void generateHintStream(
         QPDFWriter::NewObjTable const& new_obj,
         QPDFWriter::ObjTable const& obj,
-        std::shared_ptr<Buffer>& hint_stream,
+        std::string& hint_stream,
         int& S,
         int& O,
         bool compressed);
@@ -916,6 +922,7 @@ class QPDF
         Pipeline*& pipeline,
         QPDFObjGen og,
         QPDFObjectHandle& stream_dict,
+        bool is_root_metadata,
         std::unique_ptr<Pipeline>& heap);
 
     // Methods to support object copying
