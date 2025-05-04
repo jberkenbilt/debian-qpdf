@@ -248,6 +248,12 @@ QPDFFormFieldObjectHelper::isCheckbox()
 }
 
 bool
+QPDFFormFieldObjectHelper::isChecked()
+{
+    return isCheckbox() && getValue().isName() && (getValue().getName() != "/Off");
+}
+
+bool
 QPDFFormFieldObjectHelper::isRadioButton()
 {
     return ((getFieldType() == "/Btn") && ((getFlags() & ff_btn_radio) == ff_btn_radio));
@@ -275,6 +281,11 @@ QPDFFormFieldObjectHelper::getChoices()
     for (auto const& item: getInheritableFieldValue("/Opt").as_array()) {
         if (item.isString()) {
             result.emplace_back(item.getUTF8Value());
+        } else if (item.isArray() && item.getArrayNItems() == 2) {
+            auto display = item.getArrayItem(1);
+            if (display.isString()) {
+                result.emplace_back(display.getUTF8Value());
+            }
         }
     }
     return result;
@@ -585,17 +596,16 @@ ValueSetter::writeAppearance()
             int wanted_first = QIntC::to_int(found_idx) - 1;
             int wanted_last = QIntC::to_int(found_idx + max_rows) - 2;
             QTC::TC("qpdf", "QPDFFormFieldObjectHelper list found");
-            while (wanted_first < 0) {
+            if (wanted_first < 0) {
                 QTC::TC("qpdf", "QPDFFormFieldObjectHelper list first too low");
-                ++wanted_first;
-                ++wanted_last;
+                wanted_last -= wanted_first;
+                wanted_first = 0;
             }
-            while (wanted_last >= QIntC::to_int(nopt)) {
+            if (wanted_last >= QIntC::to_int(nopt)) {
                 QTC::TC("qpdf", "QPDFFormFieldObjectHelper list last too high");
-                if (wanted_first > 0) {
-                    --wanted_first;
-                }
-                --wanted_last;
+                auto diff = wanted_last - QIntC::to_int(nopt) + 1;
+                wanted_first = std::max(0, wanted_first - diff);
+                wanted_last -= diff;
             }
             highlight = true;
             highlight_idx = found_idx - QIntC::to_size(wanted_first);
