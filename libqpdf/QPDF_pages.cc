@@ -109,6 +109,14 @@ QPDF::getAllPagesInternal(
         QTC::TC("qpdf", "QPDF inherit mediabox", media_box ? 0 : 1);
     }
     auto kids = cur_node.getKey("/Kids");
+    if (!visited.add(kids)) {
+        throw QPDFExc(
+            qpdf_e_pages,
+            m->file->getName(),
+            "object " + cur_node.getObjGen().unparse(' '),
+            0,
+            "Loop detected in /Pages structure (getAllPages)");
+    }
     int i = -1;
     for (auto& kid: kids.as_array()) {
         ++i;
@@ -138,12 +146,21 @@ QPDF::getAllPagesInternal(
                 // Make a copy of the page. This does the same as shallowCopyPage in
                 // QPDFPageObjectHelper.
                 QTC::TC("qpdf", "QPDF resolve duplicated page object");
-                cur_node.warnIfPossible(
-                    "kid " + std::to_string(i) +
-                    " (from 0) appears more than once in the pages tree;"
-                    " creating a new page object as a copy");
-                kid = makeIndirectObject(QPDFObjectHandle(kid).shallowCopy());
-                seen.add(kid);
+                if (!m->in_xref_reconstruction) {
+                    cur_node.warnIfPossible(
+                        "kid " + std::to_string(i) +
+                        " (from 0) appears more than once in the pages tree;"
+                        " creating a new page object as a copy");
+                    kid = makeIndirectObject(QPDFObjectHandle(kid).shallowCopy());
+                    seen.add(kid);
+                } else {
+                    cur_node.warnIfPossible(
+                        "kid " + std::to_string(i) +
+                        " (from 0) appears more than once in the pages tree; ignoring duplicate");
+                    m->invalid_page_found = true;
+                    kid = QPDFObjectHandle::newNull();
+                    continue;
+                }
             }
             if (!kid.isDictionaryOfType("/Page")) {
                 kid.warnIfPossible("/Type key should be /Page but is not; overriding");

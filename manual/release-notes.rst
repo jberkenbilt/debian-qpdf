@@ -13,12 +13,57 @@ more detail.
 
 .. x.y.z: not yet released
 
-12.1.0: April 6, 2025
+12.2.0: May 4, 2025
   - Upcoming C++ Version Change
 
     - This is expected to be the last minor release of qpdf to work
-      with C++-17. We will be switching to C++-20 for 12.2.0.
+      with C++-17. We will be switching to C++-20 for 12.3.0.
 
+  - Bug fixes
+
+    - In ``QPDF::getAllPages`` detect shared ``/Kids`` arrays to avoid stack
+      overflows in (specially constructed) damaged input files.
+
+    - Fix severe performance issues in ``QPDFFormFieldObjectHelper`` with some
+      (specially constructed) damaged input files.
+
+    - Add missing ``QPDFFormFieldObjectHelper::isChecked`` implementation.
+
+    - Fix bug in ``QPDFNameTreeObjectHelper`` / ``QPDFNumberTreeObjectHelper``.
+      Under certain conditions tree insertions resulted in a ``/Range`` entry
+      being written to the tree root node, which is not permitted. One of the
+      possible consequences is that some readers would not recognize
+      embedded / attached files.
+
+    - In ``QPDFFormFieldObjectHelper::getChoices`` return the display string
+      if an ``/Opt`` entry is a pair of export value and display string rather
+      than a single string representing both values. Previously no value was
+      returned if the entry was not a single string.
+
+  - Build fixes
+
+    - Improve experience for local development on Windows. Perl is no
+      longer required to build when using MinGW. qpdf should build
+      "out of the box" on Windows with an IDE such as JetBrains CLion
+      that bundles mingw or that uses an installation of Visual
+      Studio. Perl and a POSIX-like environment such as msys2 is still
+      required to run tests.
+
+    - Fix Android build issues.
+
+    - Fix incorrect use of jpeg library introduced with the
+      ``--jpeg-quality`` feature introduced in 12.1.0. This was
+      causing build failures on some platforms.
+
+  - Other enhancements
+
+    - More sanity checks have been added when files with damaged xref tables
+      are recovered in order to avoid long runtimes and large memory use.
+      Objects with with very large arrays or dictionaries (more than 5000
+      elements) and duplicate pages are ignored as they are almost certainly
+      invalid.
+
+12.1.0: April 6, 2025
   - Bug fixes
 
     - In ``QPDF::isLinearized`` return false if the first object in the file is
