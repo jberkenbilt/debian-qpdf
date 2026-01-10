@@ -1,5 +1,5 @@
 // Copyright (c) 2005-2021 Jay Berkenbilt
-// Copyright (c) 2022-2025 Jay Berkenbilt and Manfred Holger
+// Copyright (c) 2022-2026 Jay Berkenbilt and Manfred Holger
 //
 // This file is part of qpdf.
 //
@@ -22,6 +22,8 @@
 
 #include <qpdf/Buffer.hh>
 #include <qpdf/InputSource.hh>
+
+#include <memory>
 
 class QPDF_DLL_CLASS BufferInputSource: public InputSource
 {
@@ -52,11 +54,17 @@ class QPDF_DLL_CLASS BufferInputSource: public InputSource
     void unreadCh(char ch) override;
 
   private:
+#ifndef QPDF_FUTURE
     bool own_memory;
     std::string description;
     Buffer* buf;
     qpdf_offset_t cur_offset;
     qpdf_offset_t max_offset;
+#else
+    class Members;
+
+    std::unique_ptr<Members> m;
+#endif
 };
 
 #endif // QPDF_BUFFERINPUTSOURCE_HH

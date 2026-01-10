@@ -5,12 +5,6 @@
 
 using namespace qpdf;
 
-ContentNormalizer::ContentNormalizer() :
-    any_bad_tokens(false),
-    last_token_was_bad(false)
-{
-}
-
 void
 ContentNormalizer::handleToken(QPDFTokenizer::Token const& token)
 {
@@ -70,16 +64,4 @@ ContentNormalizer::handleToken(QPDFTokenizer::Token const& token)
     if (value.find('\r') != std::string::npos || value.find('\n') != std::string::npos) {
         write("\n");
     }
-}
-
-bool
-ContentNormalizer::anyBadTokens() const
-{
-    return this->any_bad_tokens;
-}
-
-bool
-ContentNormalizer::lastTokenWasBad() const
-{
-    return this->last_token_was_bad;
 }

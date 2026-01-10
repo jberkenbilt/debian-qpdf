@@ -6,11 +6,14 @@
 
 #include <qpdf/QIntC.hh>
 #include <qpdf/QUtil.hh>
+#include <qpdf/Util.hh>
 #include <qpdf/qpdf-config.h>
 
 #ifdef ZOPFLI
 # include <zopfli.h>
 #endif
+
+using namespace qpdf;
 
 namespace
 {
@@ -29,12 +32,11 @@ Pl_Flate::Members::Members(size_t out_bufsize, action_e action) :
     // Indirect through zdata to reach the z_stream so we don't have to include zlib.h in
     // Pl_Flate.hh.  This means people using shared library versions of qpdf don't have to have zlib
     // development files available, which particularly helps in a Windows environment.
-    this->zdata = new z_stream;
+    zdata = new z_stream;
 
-    if (out_bufsize > UINT_MAX) {
-        throw std::runtime_error(
-            "Pl_Flate: zlib doesn't support buffer sizes larger than unsigned int");
-    }
+    util::no_ci_rt_error_if(
+        out_bufsize > UINT_MAX,
+        "Pl_Flate: zlib doesn't support buffer sizes larger than unsigned int");
 
     z_stream& zstream = *(static_cast<z_stream*>(this->zdata));
     zstream.zalloc = nullptr;
@@ -52,8 +54,8 @@ Pl_Flate::Members::Members(size_t out_bufsize, action_e action) :
 
 Pl_Flate::Members::~Members()
 {
-    if (this->initialized) {
-        z_stream& zstream = *(static_cast<z_stream*>(this->zdata));
+    if (initialized) {
+        z_stream& zstream = *(static_cast<z_stream*>(zdata));
         if (action == a_deflate) {
             deflateEnd(&zstream);
         } else {
@@ -62,7 +64,7 @@ Pl_Flate::Members::~Members()
     }
 
     delete static_cast<z_stream*>(this->zdata);
-    this->zdata = nullptr;
+    zdata = nullptr;
 }
 
 Pl_Flate::Pl_Flate(
@@ -70,9 +72,7 @@ Pl_Flate::Pl_Flate(
     Pipeline(identifier, next),
     m(std::make_unique<Members>(QIntC::to_size(out_bufsize_int), action))
 {
-    if (!next) {
-        throw std::logic_error("Attempt to create Pl_Flate with nullptr as next");
-    }
+    util::assertion(next, "Attempt to create Pl_Flate with nullptr as next");
 }
 
 // Must be explicit and not inline -- see QPDF_DLL_CLASS in README-maintainer
@@ -99,7 +99,7 @@ Pl_Flate::setWarnCallback(std::function<void(char const*, int)> callback)
 void
 Pl_Flate::warn(char const* msg, int code)
 {
-    if (m->callback != nullptr) {
+    if (m->callback) {
         m->callback(msg, code);
     }
 }
@@ -107,10 +107,8 @@ Pl_Flate::warn(char const* msg, int code)
 void
 Pl_Flate::write(unsigned char const* data, size_t len)
 {
-    if (m->outbuf == nullptr) {
-        throw std::logic_error(
-            this->identifier + ": Pl_Flate: write() called after finish() called");
-    }
+    util::assertion(
+        m->outbuf.get(), identifier + ": Pl_Flate: write() called after finish() called");
     if (m->zopfli_buf) {
         m->zopfli_buf->append(reinterpret_cast<char const*>(data), len);
         return;
@@ -131,9 +129,8 @@ Pl_Flate::write(unsigned char const* data, size_t len)
 void
 Pl_Flate::handleData(unsigned char const* data, size_t len, int flush)
 {
-    if (len > UINT_MAX) {
-        throw std::runtime_error("Pl_Flate: zlib doesn't support data blocks larger than int");
-    }
+    util::no_ci_rt_error_if(
+        len > UINT_MAX, "Pl_Flate: zlib doesn't support data blocks larger than int");
     z_stream& zstream = *(static_cast<z_stream*>(m->zdata));
     // zlib is known not to modify the data pointed to by next_in but doesn't declare the field
     // value const unless compiled to do so.
@@ -184,7 +181,7 @@ Pl_Flate::handleData(unsigned char const* data, size_t len, int flush)
             // this error (including at least one in qpdf's test suite). In some cases, we want to
             // know about this, because it indicates incorrect compression, so call a callback if
             // provided.
-            this->warn("input stream is complete but output may still be valid", err);
+            warn("input stream is complete but output may still be valid", err);
             done = true;
             break;
 
@@ -215,8 +212,7 @@ Pl_Flate::handleData(unsigned char const* data, size_t len, int flush)
             break;
 
         default:
-            this->checkError("data", err);
-            break;
+            checkError("data", err);
         }
     }
 }
@@ -271,7 +267,7 @@ Pl_Flate::checkError(char const* prefix, int error_code)
     z_stream& zstream = *(static_cast<z_stream*>(m->zdata));
     if (error_code != Z_OK) {
         char const* action_str = (m->action == a_deflate ? "deflate" : "inflate");
-        std::string msg = this->identifier + ": " + action_str + ": " + prefix + ": ";
+        std::string msg = identifier + ": " + action_str + ": " + prefix + ": ";
 
         if (zstream.msg) {
             msg += zstream.msg;

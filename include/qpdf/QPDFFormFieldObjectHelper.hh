@@ -1,5 +1,5 @@
 // Copyright (c) 2005-2021 Jay Berkenbilt
-// Copyright (c) 2022-2025 Jay Berkenbilt and Manfred Holger
+// Copyright (c) 2022-2026 Jay Berkenbilt and Manfred Holger
 //
 // This file is part of qpdf.
 //
@@ -111,7 +111,7 @@ class QPDFFormFieldObjectHelper: public QPDFObjectHelper
     std::string getDefaultAppearance();
 
     // Return the default resource dictionary for the field. This comes not from the field but from
-    // the document-level /AcroForm dictionary. While several PDF generates put a /DR key in the
+    // the document-level /AcroForm dictionary. While several PDF generators put a /DR key in the
     // form field's dictionary, experimentation suggests that many popular readers, including Adobe
     // Acrobat and Acrobat Reader, ignore any /DR item on the field.
     QPDF_DLL
@@ -144,7 +144,7 @@ class QPDFFormFieldObjectHelper: public QPDFObjectHelper
     // Returns true if field is of type /Btn and flags indicate that it is a pushbutton
     QPDF_DLL
     bool isPushbutton();
-    // Returns true if fields if of type /Ch
+    // Returns true if field is of type /Ch
     QPDF_DLL
     bool isChoice();
     // Returns choices display values as UTF-8 strings
@@ -187,23 +187,7 @@ class QPDFFormFieldObjectHelper: public QPDFObjectHelper
     void generateAppearance(QPDFAnnotationObjectHelper&);
 
   private:
-    QPDFObjectHandle getFieldFromAcroForm(std::string const& name);
-    void setRadioButtonValue(QPDFObjectHandle name);
-    void setCheckBoxValue(bool value);
-    void generateTextAppearance(QPDFAnnotationObjectHelper&);
-    QPDFObjectHandle getFontFromResource(QPDFObjectHandle resources, std::string const& font_name);
-
-    class Members
-    {
-        friend class QPDFFormFieldObjectHelper;
-
-      public:
-        ~Members() = default;
-
-      private:
-        Members() = default;
-        Members(Members const&) = delete;
-    };
+    class Members;
 
     std::shared_ptr<Members> m;
 };

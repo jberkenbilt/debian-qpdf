@@ -3,7 +3,7 @@
 .\" Edits will be automatically overwritten if the build is
 .\" run in maintainer mode.
 .\"
-.TH QPDF "1" "" "qpdf version 12.2.0" "User Commands"
+.TH QPDF "1" "" "qpdf version 12.3.0" "User Commands"
 .SH NAME
 qpdf \- PDF transformation software
 .SH SYNOPSIS
@@ -78,7 +78,7 @@ Use exit status 0 instead of 3 when warnings are present. When
 combined with --no-warn, warnings are completely ignored.
 .SH COMPLETION (shell completion)
 Shell completion is supported with bash and zsh. Use
-eval $(qpdf --completion-bash) or eval $(qpdf --completion-zsh)
+eval "$(qpdf --completion-bash)" or eval "$(qpdf --completion-zsh)"
 to enable. The QPDF_EXECUTABLE environment variable overrides the
 path to qpdf that these commands output.
 .PP
@@ -544,6 +544,12 @@ Don't optimize images whose area in pixels is below the specified value.
 .TP
 .B --keep-inline-images \-\- exclude inline images from optimization
 Prevent inline images from being considered by --optimize-images.
+.TP
+.B --remove-acroform \-\- remove the interactive form dictionary
+Exclude the interactive form dictionary from the output file. This
+option only removes the interactive form dictionary from the
+document catalog. It does not remove form field dictionaries or
+widget annotations. See the manual for more detail.
 .TP
 .B --remove-info \-\- remove file information
 Exclude file information (except modification date) from the output file.
@@ -1191,6 +1197,59 @@ how to use this option.
 Update a PDF file from a JSON file. Please see the "qpdf JSON"
 chapter of the manual for information about how to use this
 option.
+.SH GLOBAL (options for changing the behaviour of qpdf)
+The options below modify the overall behaviour of qpdf. This includes modifying
+implementation limits and changing modes of operation.
+.PP
+Related Options:
+.TP
+.B --global \-\- begin setting global options and limits
+--global [options] --
+
+Begin setting global options and limits.
+.TP
+.B --no-default-limits \-\- disable optional default limits
+Disables all optional default limits. Explicitly set limits are unaffected. Some
+limits, especially limits designed to prevent stack overflow, cannot be removed
+with this option but can be modified. Where this is the case it is mentioned
+in the entry for the relevant option.
+.TP
+.B --parser-max-nesting \-\- set the maximum nesting level while parsing objects
+--parser-max-nesting=n
+
+Set the maximum nesting level while parsing objects. The maximum nesting level
+is not disabled by --no-default-limits. Defaults to 499.
+.TP
+.B --parser-max-errors \-\- set the maximum number of errors while parsing
+--parser-max-errors=n
+
+Set the maximum number of errors allowed while parsing an indirect object.
+A value of 0 means that no maximum is imposed. Defaults to 15.
+.TP
+.B --parser-max-container-size \-\- set the maximum container size while parsing
+--parser-max-container-size=n
+
+Set the maximum number of top-level objects allowed in a container while
+parsing. The limit applies when the PDF document's xref table is undamaged
+and the object itself can be parsed without errors. The default limit
+is 4,294,967,295. See also --parser-max-container-size-damaged.
+.TP
+.B --parser-max-container-size-damaged \-\- set the maximum container size while parsing damaged files
+--parser-max-container-size-damaged=n
+
+Set the maximum number of top-level objects allowed in a container while
+parsing. The limit applies when the PDF document's xref table is damaged
+or the object itself is damaged. The limit also applies when parsing
+xref streams. The default limit is 5,000.
+See also --parser-max-container-size.
+.TP
+.B --max-stream-filters \-\- set the maximum number of filters allowed when filtering streams
+--max-stream-filters=n
+
+An excessive number of stream filters is usually a sign that a file
+is damaged or specially constructed. If the maximum is exceeded for
+a stream the stream is treated as unfilterable.
+The default limit is 25.
 .SH TESTING (options for testing or debugging)
 The options below are useful when writing automated test code that
 includes files created by qpdf or when testing qpdf itself.

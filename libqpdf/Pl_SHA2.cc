@@ -2,11 +2,12 @@
 
 #include <qpdf/QPDFCryptoProvider.hh>
 #include <qpdf/QUtil.hh>
-#include <stdexcept>
+#include <qpdf/Util.hh>
+
+using namespace qpdf;
 
 Pl_SHA2::Pl_SHA2(int bits, Pipeline* next) :
-    Pipeline("sha2", next),
-    in_progress(false)
+    Pipeline("sha2", next)
 {
     if (bits) {
         resetBits(bits);
@@ -16,8 +17,8 @@ Pl_SHA2::Pl_SHA2(int bits, Pipeline* next) :
 void
 Pl_SHA2::write(unsigned char const* buf, size_t len)
 {
-    if (!this->in_progress) {
-        this->in_progress = true;
+    if (!in_progress) {
+        in_progress = true;
     }
 
     // Write in chunks in case len is too big to fit in an int. Assume int is at least 32 bits.
@@ -26,7 +27,7 @@ Pl_SHA2::write(unsigned char const* buf, size_t len)
     unsigned char const* data = buf;
     while (bytes_left > 0) {
         size_t bytes = (bytes_left >= max_bytes ? max_bytes : bytes_left);
-        this->crypto->SHA2_update(data, bytes);
+        crypto->SHA2_update(data, bytes);
         bytes_left -= bytes;
         data += bytes;
     }
@@ -42,34 +43,28 @@ Pl_SHA2::finish()
     if (next()) {
         next()->finish();
     }
-    this->crypto->SHA2_finalize();
-    this->in_progress = false;
+    crypto->SHA2_finalize();
+    in_progress = false;
 }
 
 void
 Pl_SHA2::resetBits(int bits)
 {
-    if (this->in_progress) {
-        throw std::logic_error("bit reset requested for in-progress SHA2 Pipeline");
-    }
-    this->crypto = QPDFCryptoProvider::getImpl();
-    this->crypto->SHA2_init(bits);
+    util::assertion(!in_progress, "bit reset requested for in-progress SHA2 Pipeline");
+    crypto = QPDFCryptoProvider::getImpl();
+    crypto->SHA2_init(bits);
 }
 
 std::string
 Pl_SHA2::getRawDigest()
 {
-    if (this->in_progress) {
-        throw std::logic_error("digest requested for in-progress SHA2 Pipeline");
-    }
-    return this->crypto->SHA2_digest();
+    util::assertion(!in_progress, "digest requested for in-progress SHA2 Pipeline");
+    return crypto->SHA2_digest();
 }
 
 std::string
 Pl_SHA2::getHexDigest()
 {
-    if (this->in_progress) {
-        throw std::logic_error("digest requested for in-progress SHA2 Pipeline");
-    }
+    util::assertion(!in_progress, "digest requested for in-progress SHA2 Pipeline");
     return QUtil::hex_encode(getRawDigest());
 }

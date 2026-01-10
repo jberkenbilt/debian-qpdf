@@ -11,15 +11,15 @@
 static void
 usage()
 {
-    std::cerr << "Usage: aes options hex-key infile outfile" << std::endl
-              << "  -cbc         -- disable CBC mode" << std::endl
-              << "  +cbc         -- enable CBC mode" << std::endl
-              << "  -encrypt     -- encrypt" << std::endl
-              << "  -decrypt     -- decrypt CBC mode" << std::endl
-              << "  -zero-iv     -- use zero initialization vector" << std::endl
-              << "  -static-iv   -- use static initialization vector" << std::endl
-              << "  -no-padding  -- disable padding" << std::endl
-              << "Options must precede key and file names." << std::endl;
+    std::cerr << "Usage: aes options hex-key infile outfile" << '\n'
+              << "  -cbc         -- disable CBC mode" << '\n'
+              << "  +cbc         -- enable CBC mode" << '\n'
+              << "  -encrypt     -- encrypt" << '\n'
+              << "  -decrypt     -- decrypt CBC mode" << '\n'
+              << "  -zero-iv     -- use zero initialization vector" << '\n'
+              << "  -static-iv   -- use static initialization vector" << '\n'
+              << "  -no-padding  -- disable padding" << '\n'
+              << "Options must precede key and file names." << '\n';
     exit(2);
 }
 
@@ -84,8 +84,9 @@ main(int argc, char* argv[])
         key[i / 2] = static_cast<unsigned char>(val);
     }
 
+    std::string keystr(reinterpret_cast<char const*>(key), keylen);
     auto* out = new Pl_StdioFile("stdout", outfile);
-    auto* aes = new Pl_AES_PDF("aes_128_cbc", out, encrypt, key, keylen);
+    auto* aes = new Pl_AES_PDF("aes_128_cbc", out, encrypt, keystr);
     delete[] key;
     key = nullptr;
     if (!cbc_mode) {

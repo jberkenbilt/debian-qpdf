@@ -12,22 +12,10 @@
 #include <qpdf/QPDFPageDocumentHelper.hh>
 #include <qpdf/QPDFPageLabelDocumentHelper.hh>
 #include <qpdf/QPDFPageObjectHelper.hh>
-#include <qpdf/QUtil.hh>
-#include <cstdlib>
 
-class DiscardContents: public QPDFObjectHandle::ParserCallbacks
-{
-  public:
-    ~DiscardContents() override = default;
-    void
-    handleObject(QPDFObjectHandle) override
-    {
-    }
-    void
-    handleEOF() override
-    {
-    }
-};
+#include <chrono>
+#include <cstdlib>
+#include <iostream>
 
 class FuzzHelper
 {
@@ -40,13 +28,27 @@ class FuzzHelper
     void testPages();
     void doChecks();
 
+    void
+    info(std::string const& msg, int pageno = 0) const
+    {
+        const std::chrono::duration<double> elapsed{std::chrono::steady_clock::now() - start};
+
+        std::cerr << elapsed.count() << " info - " << msg;
+        if (pageno > 0) {
+            std::cerr << " page " << pageno;
+        }
+        std::cerr << '\n';
+    }
+
     Buffer input_buffer;
     Pl_Discard discard;
+    const std::chrono::time_point<std::chrono::steady_clock> start;
 };
 
 FuzzHelper::FuzzHelper(unsigned char const* data, size_t size) :
     // We do not modify data, so it is safe to remove the const for Buffer
-    input_buffer(const_cast<unsigned char*>(data), size)
+    input_buffer(const_cast<unsigned char*>(data), size),
+    start(std::chrono::steady_clock::now())
 {
 }
 
@@ -67,24 +69,33 @@ FuzzHelper::testPages()
     // Parse all content streams, and exercise some helpers that
     // operate on pages.
     std::shared_ptr<QPDF> q = getQpdf();
+    info("getQpdf done");
     QPDFPageDocumentHelper pdh(*q);
     QPDFPageLabelDocumentHelper pldh(*q);
     QPDFOutlineDocumentHelper odh(*q);
     QPDFAcroFormDocumentHelper afdh(*q);
     afdh.generateAppearancesIfNeeded();
+    info("generateAppearancesIfNeeded done");
     pdh.flattenAnnotations();
-    DiscardContents discard_contents;
+    info("flattenAnnotations done");
     int pageno = 0;
     for (auto& page: pdh.getAllPages()) {
         ++pageno;
         try {
+            info("start page", pageno);
             page.coalesceContentStreams();
-            page.parseContents(&discard_contents);
+            info("coalesceContentStreams done");
+            page.parseContents(nullptr);
+            info("parseContents done");
             page.getImages();
+            info("getImages done");
             pldh.getLabelForPage(pageno);
+            info("getLabelForPage done");
             QPDFObjectHandle page_obj(page.getObjectHandle());
             page_obj.getJSON(JSON::LATEST, true).unparse();
+            info("getJSON done");
             odh.getOutlinesForPage(page_obj);
+            info("getOutlinesForPage done");
 
             for (auto& aoh: afdh.getWidgetAnnotationsForPage(page)) {
                 afdh.getFieldForAnnotation(aoh);
@@ -132,9 +143,9 @@ FuzzHelper::run()
     try {
         doChecks();
     } catch (QPDFExc const& e) {
-        std::cerr << "QPDFExc: " << e.what() << std::endl;
+        std::cerr << "QPDFExc: " << e.what() << '\n';
     } catch (std::runtime_error const& e) {
-        std::cerr << "runtime_error: " << e.what() << std::endl;
+        std::cerr << "runtime_error: " << e.what() << '\n';
     }
 }
 

@@ -7,11 +7,41 @@
 #include <qpdf/QPDF_private.hh>
 #include <qpdf/QUtil.hh>
 
+#include <concepts>
+#include <utility>
+
+using namespace std::literals;
+
 namespace qpdf
 {
     class Array final: public BaseHandle
     {
       public:
+        Array() = default;
+
+        explicit Array(std::vector<QPDFObjectHandle> const& items);
+
+        explicit Array(std::vector<QPDFObjectHandle>&& items);
+
+        Array(Array const& other) :
+            BaseHandle(other.obj)
+        {
+        }
+
+        static Array empty();
+
+        Array&
+        operator=(Array const& other)
+        {
+            if (obj != other.obj) {
+                obj = other.obj;
+            }
+            return *this;
+        }
+
+        Array(Array&&) = default;
+        Array& operator=(Array&&) = default;
+
         explicit Array(std::shared_ptr<QPDFObject> const& obj) :
             BaseHandle(obj)
         {
@@ -21,6 +51,34 @@ namespace qpdf
             BaseHandle(std::move(obj))
         {
         }
+
+        Array(QPDFObjectHandle const& oh) :
+            BaseHandle(oh.resolved_type_code() == ::ot_array ? oh : QPDFObjectHandle())
+        {
+        }
+
+        Array&
+        operator=(QPDFObjectHandle const& oh)
+        {
+            assign(::ot_array, oh);
+            return *this;
+        }
+
+        Array(QPDFObjectHandle&& oh) :
+            BaseHandle(oh.resolved_type_code() == ::ot_array ? std::move(oh) : QPDFObjectHandle())
+        {
+        }
+
+        Array&
+        operator=(QPDFObjectHandle&& oh)
+        {
+            assign(::ot_array, std::move(oh));
+            return *this;
+        }
+
+        QPDFObjectHandle const& operator[](size_t n) const;
+
+        QPDFObjectHandle const& operator[](int n) const;
 
         using iterator = std::vector<QPDFObjectHandle>::iterator;
         using const_iterator = std::vector<QPDFObjectHandle>::const_iterator;
@@ -38,11 +96,16 @@ namespace qpdf
 
         const_reverse_iterator crend();
 
-        int size() const;
-        std::pair<bool, QPDFObjectHandle> at(int n) const;
-        bool setAt(int at, QPDFObjectHandle const& oh);
+        // Return the number of elements in the array. Return 0 if the object is not an array.
+        size_t size() const;
+        QPDFObjectHandle get(size_t n) const;
+        QPDFObjectHandle get(int n) const;
+        bool set(size_t at, QPDFObjectHandle const& oh);
+        bool set(int at, QPDFObjectHandle const& oh);
+        bool insert(size_t at, QPDFObjectHandle const& item);
         bool insert(int at, QPDFObjectHandle const& item);
         void push_back(QPDFObjectHandle const& item);
+        bool erase(size_t at);
         bool erase(int at);
 
         std::vector<QPDFObjectHandle> getAsVector() const;
@@ -61,6 +124,11 @@ namespace qpdf
     class BaseDictionary: public BaseHandle
     {
       public:
+        // The following methods are not part of the public API.
+        std::set<std::string> getKeys();
+        std::map<std::string, QPDFObjectHandle> const& getAsMap() const;
+        void replace(std::string const& key, QPDFObjectHandle value);
+
         using iterator = std::map<std::string, QPDFObjectHandle>::iterator;
         using const_iterator = std::map<std::string, QPDFObjectHandle>::const_iterator;
         using reverse_iterator = std::map<std::string, QPDFObjectHandle>::reverse_iterator;
@@ -139,42 +207,221 @@ namespace qpdf
             return {};
         }
 
-        // The following methods are not part of the public API.
-        bool hasKey(std::string const& key) const;
-        QPDFObjectHandle getKey(std::string const& key) const;
-        std::set<std::string> getKeys();
-        std::map<std::string, QPDFObjectHandle> const& getAsMap() const;
-        void removeKey(std::string const& key);
-        void replaceKey(std::string const& key, QPDFObjectHandle value);
-
       protected:
         BaseDictionary() = default;
-        BaseDictionary(std::shared_ptr<QPDFObject> const& obj) :
-            BaseHandle(obj) {};
-        BaseDictionary(std::shared_ptr<QPDFObject>&& obj) :
-            BaseHandle(std::move(obj)) {};
+
+        explicit BaseDictionary(std::map<std::string, QPDFObjectHandle> const& dict) :
+            BaseHandle(QPDFObject::create<QPDF_Dictionary>(dict))
+        {
+        }
+
+        explicit BaseDictionary(std::map<std::string, QPDFObjectHandle>&& dict) :
+            BaseHandle(QPDFObject::create<QPDF_Dictionary>(std::move(dict)))
+        {
+        }
+
+        explicit BaseDictionary(std::shared_ptr<QPDFObject> const& obj) :
+            BaseHandle(obj)
+        {
+        }
+        explicit BaseDictionary(std::shared_ptr<QPDFObject>&& obj) :
+            BaseHandle(std::move(obj))
+        {
+        }
         BaseDictionary(BaseDictionary const&) = default;
         BaseDictionary& operator=(BaseDictionary const&) = default;
         BaseDictionary(BaseDictionary&&) = default;
         BaseDictionary& operator=(BaseDictionary&&) = default;
+
+        explicit BaseDictionary(QPDFObjectHandle const& oh) :
+            BaseHandle(oh.resolved_type_code() == ::ot_dictionary ? oh : QPDFObjectHandle())
+        {
+        }
+
+        explicit BaseDictionary(QPDFObjectHandle&& oh) :
+            BaseHandle(
+                oh.resolved_type_code() == ::ot_dictionary ? std::move(oh) : QPDFObjectHandle())
+        {
+        }
         ~BaseDictionary() = default;
 
         QPDF_Dictionary* dict() const;
     };
 
+    // Dictionary only defines con/destructors. All other methods are inherited from BaseDictionary.
     class Dictionary final: public BaseDictionary
     {
       public:
-        explicit Dictionary(std::shared_ptr<QPDFObject> const& obj) :
-            BaseDictionary(obj)
+        Dictionary() = default;
+        explicit Dictionary(std::map<std::string, QPDFObjectHandle>&& dict);
+        explicit Dictionary(std::shared_ptr<QPDFObject> const& obj);
+
+        static Dictionary empty();
+
+        Dictionary(Dictionary const&) = default;
+        Dictionary& operator=(Dictionary const&) = default;
+        Dictionary(Dictionary&&) = default;
+        Dictionary& operator=(Dictionary&&) = default;
+
+        Dictionary(QPDFObjectHandle const& oh) :
+            BaseDictionary(oh)
         {
         }
 
-        explicit Dictionary(std::shared_ptr<QPDFObject>&& obj) :
-            BaseDictionary(std::move(obj))
+        Dictionary&
+        operator=(QPDFObjectHandle const& oh)
+        {
+            assign(::ot_dictionary, oh);
+            return *this;
+        }
+
+        Dictionary(QPDFObjectHandle&& oh) :
+            BaseDictionary(std::move(oh))
         {
         }
+
+        Dictionary&
+        operator=(QPDFObjectHandle&& oh)
+        {
+            assign(::ot_dictionary, std::move(oh));
+            return *this;
+        }
+
+        ~Dictionary() = default;
     };
+
+    class Integer final: public BaseHandle
+    {
+      public:
+        Integer() = default;
+        Integer(Integer const&) = default;
+        Integer(Integer&&) = default;
+        Integer& operator=(Integer const&) = default;
+        Integer& operator=(Integer&&) = default;
+        ~Integer() = default;
+
+        explicit Integer(long long value);
+
+        explicit Integer(std::integral auto value) :
+            Integer(static_cast<long long>(value))
+        {
+            if constexpr (std::cmp_greater(
+                              std::numeric_limits<decltype(value)>::max(),
+                              std::numeric_limits<long long>::max())) {
+                if (std::cmp_greater(value, std::numeric_limits<long long>::max())) {
+                    throw std::overflow_error("overflow constructing Integer");
+                }
+            }
+        }
+
+        Integer(QPDFObjectHandle const& oh) :
+            BaseHandle(oh.type_code() == ::ot_integer ? oh : QPDFObjectHandle())
+        {
+        }
+
+        Integer(QPDFObjectHandle&& oh) :
+            BaseHandle(oh.type_code() == ::ot_integer ? std::move(oh) : QPDFObjectHandle())
+        {
+        }
+
+        explicit
+        operator bool() const
+        {
+            return obj != nullptr;
+        }
+
+        // Return the integer value. If the object is not a valid Integer, throw a
+        // std::invalid_argument exception. If the object is out of range for the target type,
+        // throw a std::overflow_error or std::underflow_error exception.
+        template <std::integral T>
+        operator T() const
+        {
+            auto v = value();
+
+            if (std::cmp_greater(v, std::numeric_limits<T>::max())) {
+                throw std::overflow_error("Integer conversion overflow");
+            }
+            if (std::cmp_less(v, std::numeric_limits<T>::min())) {
+                throw std::underflow_error("Integer conversion underflow");
+            }
+            return static_cast<T>(v);
+        }
+
+        // Return the integer value. If the object is not a valid integer, throw a
+        // std::invalid_argument exception.
+        int64_t value() const;
+
+        // Return the integer value. If the object is not a valid integer, throw a
+        // std::invalid_argument exception. If the object is out of range for the target type,
+        // replicate the existing QPDFObjectHandle behavior.
+        template <std::integral T>
+        T
+        value() const
+        {
+            try {
+                return static_cast<T>(*this);
+            } catch (std::underflow_error&) {
+                if constexpr (std::is_same_v<T, int>) {
+                    warn("requested value of integer is too small; returning INT_MIN");
+                } else if constexpr (std::is_same_v<T, unsigned int>) {
+                    warn("unsigned integer value request for negative number; returning 0");
+                } else if constexpr (std::is_same_v<T, unsigned long long>) {
+                    warn("unsigned value request for negative number; returning 0");
+                } else {
+                    warn(
+                        "underflow while converting integer object; returning smallest possible "
+                        "value");
+                }
+                return std::numeric_limits<T>::min();
+            } catch (std::overflow_error&) {
+                if constexpr (std::is_same_v<T, int>) {
+                    warn("requested value of integer is too big; returning INT_MAX");
+                } else if constexpr (std::is_same_v<T, unsigned int>) {
+                    warn("requested value of unsigned integer is too big; returning UINT_MAX");
+                } else {
+                    warn(
+                        "overflow while converting integer object; returning largest possible "
+                        "value");
+                }
+                return std::numeric_limits<T>::max();
+            }
+        }
+
+        // Return true if object value is equal to the 'rhs' value. Return false if the object is
+        // not a valid Integer.
+        friend bool
+        operator==(Integer const& lhs, std::integral auto rhs)
+        {
+            return lhs && std::cmp_equal(lhs.value(), rhs);
+        }
+
+        // Compare the object value to the 'rhs' value. Throw a std::invalid_argument exception if
+        // the object is not a valid Integer.
+        friend std::strong_ordering
+        operator<=>(Integer const& lhs, std::integral auto rhs)
+        {
+            if (!lhs) {
+                throw lhs.invalid_error("Integer");
+            }
+            if (std::cmp_less(lhs.value(), rhs)) {
+                return std::strong_ordering::less;
+            }
+            return std::cmp_greater(lhs.value(), rhs) ? std::strong_ordering::greater
+                                                      : std::strong_ordering::equal;
+        }
+    }; // class Integer
+
+    bool
+    operator==(std::integral auto lhs, Integer const& rhs)
+    {
+        return rhs == lhs;
+    }
+
+    std::strong_ordering
+    operator<=>(std::integral auto lhs, Integer const& rhs)
+    {
+        return rhs <=> lhs;
+    }
 
     class Name final: public BaseHandle
     {
@@ -186,7 +433,79 @@ namespace qpdf
         // escaping. Return {false, false} if the name is not valid utf-8, otherwise return {true,
         // true} if no characters require or {true, false} if escaping is required.
         static std::pair<bool, bool> analyzeJSONEncoding(std::string const& name);
+
+        Name() = default;
+        Name(Name const&) = default;
+        Name(Name&&) = default;
+        Name& operator=(Name const&) = default;
+        Name& operator=(Name&&) = default;
+        ~Name() = default;
+
+        explicit Name(std::string const&);
+        explicit Name(std::string&&);
+
+        Name(QPDFObjectHandle const& oh) :
+            BaseHandle(oh.type_code() == ::ot_name ? oh : QPDFObjectHandle())
+        {
+        }
+
+        Name(QPDFObjectHandle&& oh) :
+            BaseHandle(oh.type_code() == ::ot_name ? std::move(oh) : QPDFObjectHandle())
+        {
+        }
+
+        // Return the name value. If the object is not a valid Name, throw a std::invalid_argument
+        // exception.
+        operator std::string() const&
+        {
+            return value();
+        }
+
+        // Return the name value. If the object is not a valid name, throw a std::invalid_argument
+        // exception.
+        std::string const& value() const;
+
+        // Return true if object value is equal to the 'rhs' value. Return false if the object is
+        // not a valid Name.
+        friend bool
+        operator==(Name const& lhs, std::string_view rhs)
+        {
+            return lhs && lhs.value() == rhs;
+        }
     };
+
+    class Null final: public BaseHandle
+    {
+      public:
+        // Unlike other types, the Null default constructor creates a valid null object.
+        Null() :
+            BaseHandle(QPDFObject::create<QPDF_Null>())
+        {
+        }
+
+        Null(Null const&) = default;
+        Null(Null&&) = default;
+        Null& operator=(Null const&) = default;
+        Null& operator=(Null&&) = default;
+        ~Null() = default;
+
+        // For legacy support, return a Null object to be used as a temporary return value.
+        static QPDFObjectHandle
+        temp()
+        {
+            return temp_.oh();
+        }
+
+        // For legacy support, return an explicit temporary Null object if oh is null.
+        static QPDFObjectHandle
+        if_null(QPDFObjectHandle oh)
+        {
+            return oh ? std::move(oh) : Null::temp();
+        }
+
+      private:
+        static const Null temp_;
+    }; // class Null
 
     class Stream final: public BaseHandle
     {
@@ -201,6 +520,23 @@ namespace qpdf
         {
         }
 
+        Stream() = default;
+        Stream(Stream const&) = default;
+        Stream(Stream&&) = default;
+        Stream& operator=(Stream const&) = default;
+        Stream& operator=(Stream&&) = default;
+        ~Stream() = default;
+
+        Stream(QPDFObjectHandle const& oh) :
+            BaseHandle(oh.type_code() == ::ot_stream ? oh : QPDFObjectHandle())
+        {
+        }
+
+        Stream(QPDFObjectHandle&& oh) :
+            BaseHandle(oh.type_code() == ::ot_stream ? std::move(oh) : QPDFObjectHandle())
+        {
+        }
+
         Stream(
             QPDF& qpdf,
             QPDFObjGen og,
@@ -208,10 +544,14 @@ namespace qpdf
             qpdf_offset_t offset,
             size_t length);
 
-        QPDFObjectHandle
+        Stream copy();
+
+        void copy_data_to(Stream& target);
+
+        Dictionary
         getDict() const
         {
-            return stream()->stream_dict;
+            return {stream()->stream_dict};
         }
         bool
         isDataModified() const
@@ -254,8 +594,12 @@ namespace qpdf
             qpdf_stream_decode_level_e decode_level,
             bool suppress_warnings,
             bool will_retry);
-        std::shared_ptr<Buffer> getStreamData(qpdf_stream_decode_level_e level);
-        std::shared_ptr<Buffer> getRawStreamData();
+        std::string getStreamData(qpdf_stream_decode_level_e level);
+        std::string getRawStreamData();
+        void replaceStreamData(
+            std::string&& data,
+            QPDFObjectHandle const& filter,
+            QPDFObjectHandle const& decode_parms);
         void replaceStreamData(
             std::shared_ptr<Buffer> data,
             QPDFObjectHandle const& filter,
@@ -312,18 +656,64 @@ namespace qpdf
             return nullptr; // unreachable
         }
         bool filterable(
-            std::vector<std::shared_ptr<QPDFStreamFilter>>& filters,
-            bool& specialized_compression,
-            bool& lossy_compression);
+            qpdf_stream_decode_level_e decode_level,
+            std::vector<std::shared_ptr<QPDFStreamFilter>>& filters);
         void replaceFilterData(
             QPDFObjectHandle const& filter, QPDFObjectHandle const& decode_parms, size_t length);
 
         void warn(std::string const& message);
 
         static std::map<std::string, std::string> filter_abbreviations;
-        static std::map<std::string, std::function<std::shared_ptr<QPDFStreamFilter>()>>
-            filter_factories;
-    };
+    }; // class Stream
+
+    class String final: public BaseHandle
+    {
+      public:
+        String() = default;
+        String(String const&) = default;
+        String(String&&) = default;
+        String& operator=(String const&) = default;
+        String& operator=(String&&) = default;
+        ~String() = default;
+
+        explicit String(std::string const&);
+        explicit String(std::string&&);
+
+        String(QPDFObjectHandle const& oh) :
+            BaseHandle(oh.type_code() == ::ot_string ? oh : QPDFObjectHandle())
+        {
+        }
+
+        String(QPDFObjectHandle&& oh) :
+            BaseHandle(oh.type_code() == ::ot_string ? std::move(oh) : QPDFObjectHandle())
+        {
+        }
+
+        static String utf16(std::string const&);
+
+        // Return the string value. If the object is not a valid string, throw a
+        // std::invalid_argument exception.
+        operator std::string() const&
+        {
+            return value();
+        }
+
+        // Return the string value. If the object is not a valid string, throw a
+        // std::invalid_argument exception.
+        std::string const& value() const;
+
+        // Return the string value. If the object is not a valid string, throw a
+        // std::invalid_argument exception.
+        std::string utf8_value() const;
+
+        // Return true if object value is equal to the 'rhs' value. Return false if the object is
+        // not a valid String.
+        friend bool
+        operator==(String const& lhs, std::string_view rhs)
+        {
+            return lhs && lhs.value() == rhs;
+        }
+    }; // class String
 
     template <typename T>
     T*
@@ -336,13 +726,51 @@ namespace qpdf
             return &std::get<T>(obj->value);
         }
         if (std::holds_alternative<QPDF_Unresolved>(obj->value)) {
-            return BaseHandle(QPDF::Resolver::resolved(obj->qpdf, obj->og)).as<T>();
+            return BaseHandle(QPDF::Doc::Resolver::resolved(obj->qpdf, obj->og)).as<T>();
         }
         if (std::holds_alternative<QPDF_Reference>(obj->value)) {
             // see comment in QPDF_Reference.
             return BaseHandle(std::get<QPDF_Reference>(obj->value).obj).as<T>();
         }
         return nullptr;
+    }
+
+    inline BaseHandle::BaseHandle(QPDFObjectHandle const& oh) :
+        obj(oh.obj)
+    {
+    }
+
+    inline BaseHandle::BaseHandle(QPDFObjectHandle&& oh) :
+        obj(std::move(oh.obj))
+    {
+    }
+
+    inline std::shared_ptr<QPDFObject> const&
+    BaseHandle::obj_sp() const
+    {
+        return obj;
+    }
+
+    inline QPDFObjectHandle
+    BaseHandle::oh() const
+    {
+        return {obj};
+    }
+
+    inline void
+    BaseHandle::assign(qpdf_object_type_e required, BaseHandle const& other)
+    {
+        if (obj != other.obj) {
+            obj = other.resolved_type_code() == required ? other.obj : nullptr;
+        }
+    }
+
+    inline void
+    BaseHandle::assign(qpdf_object_type_e required, BaseHandle&& other)
+    {
+        if (obj != other.obj) {
+            obj = other.resolved_type_code() == required ? std::move(other.obj) : nullptr;
+        }
     }
 
     inline QPDFObjGen
@@ -357,10 +785,65 @@ namespace qpdf
         return obj ? obj->og.isIndirect() : false;
     }
 
+    inline void
+    BaseHandle::no_ci_stop_if(bool condition, std::string const& message) const
+    {
+        if (condition) {
+            if (qpdf()) {
+                throw QPDFExc(qpdf_e_damaged_pdf, "", description(), 0, message);
+            }
+            throw std::runtime_error(message);
+        }
+    }
+
+    inline void
+    BaseHandle::no_ci_stop_damaged_if(bool condition, std::string const& message) const
+    {
+        if (condition) {
+            throw std::runtime_error(message);
+        }
+    }
+
+    inline void
+    BaseHandle::no_ci_warn_if(bool condition, std::string const& warning) const
+    {
+        if (condition) {
+            warn(warning);
+        }
+    }
+
+    /// @brief Retrieves the QPDFObjectHandle const& associated with the given key.
+    ///
+    /// This method provides a convenience alternative to the direct use of the subscript operator
+    /// "(*this)[key]" or "oh()[key]" in derived classes, enabling a simplified and readable way to
+    /// access object handles by key.
+    ///
+    /// @param key The string key used to look up the corresponding QPDFObjectHandle.
+    /// @return A constant reference to the QPDFObjectHandle associated with the specified key.
+    inline QPDFObjectHandle const&
+    BaseHandle::get(std::string const& key) const
+    {
+        return (*this)[key];
+    }
+
     inline bool
     BaseHandle::null() const
     {
         return !obj || type_code() == ::ot_null;
+    }
+
+    inline void
+    BaseHandle::nullify()
+    {
+        if (obj) {
+            obj = QPDFObject::create<QPDF_Null>();
+        }
+    }
+
+    inline qpdf_offset_t
+    BaseHandle::offset() const
+    {
+        return obj ? obj->parsed_offset : -1;
     }
 
     inline QPDF*
@@ -382,7 +865,7 @@ namespace qpdf
             return ::ot_uninitialized;
         }
         if (raw_type_code() == ::ot_unresolved) {
-            return QPDF::Resolver::resolved(obj->qpdf, obj->og)->getTypeCode();
+            return QPDF::Doc::Resolver::resolved(obj->qpdf, obj->og)->getTypeCode();
         }
         return raw_type_code();
     }
@@ -394,7 +877,7 @@ namespace qpdf
             return ::ot_uninitialized;
         }
         if (raw_type_code() == ::ot_unresolved) {
-            return QPDF::Resolver::resolved(obj->qpdf, obj->og)->getTypeCode();
+            return QPDF::Doc::Resolver::resolved(obj->qpdf, obj->og)->getTypeCode();
         }
         if (raw_type_code() == ::ot_reference) {
             return std::get<QPDF_Reference>(obj->value).obj->getTypeCode();
@@ -434,7 +917,7 @@ inline qpdf_object_type_e
 QPDFObject::getResolvedTypeCode() const
 {
     if (getTypeCode() == ::ot_unresolved) {
-        return QPDF::Resolver::resolved(qpdf, og)->getTypeCode();
+        return QPDF::Doc::Resolver::resolved(qpdf, og)->getTypeCode();
     }
     if (getTypeCode() == ::ot_reference) {
         return std::get<QPDF_Reference>(value).obj->getTypeCode();

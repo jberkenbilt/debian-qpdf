@@ -1,5 +1,5 @@
 // Copyright (c) 2005-2021 Jay Berkenbilt
-// Copyright (c) 2022-2025 Jay Berkenbilt and Manfred Holger
+// Copyright (c) 2022-2026 Jay Berkenbilt and Manfred Holger
 //
 // This file is part of qpdf.
 //
@@ -92,17 +92,7 @@ class QPDFEFStreamObjectHelper: public QPDFObjectHelper
     void setParam(std::string const& pkey, QPDFObjectHandle const&);
     static QPDFEFStreamObjectHelper newFromStream(QPDFObjectHandle stream);
 
-    class Members
-    {
-        friend class QPDFEFStreamObjectHelper;
-
-      public:
-        ~Members() = default;
-
-      private:
-        Members() = default;
-        Members(Members const&) = delete;
-    };
+    class Members;
 
     std::shared_ptr<Members> m;
 };

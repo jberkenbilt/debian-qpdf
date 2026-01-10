@@ -12,6 +12,8 @@
 #include <qpdf/QUtil.hh>
 #include <qpdf/ResourceFinder.hh>
 
+using namespace std::literals;
+
 namespace
 {
     class ContentProvider: public QPDFObjectHandle::StreamDataProvider
@@ -118,7 +120,7 @@ InlineImageTracker::convertIIDict(QPDFObjectHandle odict)
                         QTC::TC("qpdf", "QPDFPageObjectHelper colorspace lookup");
                         value = colorspace.getKey(name);
                     } else {
-                        resources.warnIfPossible("unable to resolve colorspace " + name);
+                        resources.warn("unable to resolve colorspace " + name);
                     }
                     name.clear();
                 }
@@ -177,13 +179,13 @@ InlineImageTracker::handleToken(QPDFTokenizer::Token const& token)
         if (token.getType() == QPDFTokenizer::tt_inline_image) {
             std::string image_data(token.getValue());
             size_t len = image_data.length();
-            if (len >= this->min_size) {
+            if (len >= min_size) {
                 QTC::TC("qpdf", "QPDFPageObjectHelper externalize inline image");
                 QPDFObjectHandle dict = convertIIDict(QPDFObjectHandle::parse(dict_str));
                 dict.replaceKey("/Length", QPDFObjectHandle::newInteger(QIntC::to_longlong(len)));
-                std::string name = resources.getUniqueResourceName("/IIm", this->min_suffix);
+                std::string name = resources.getUniqueResourceName("/IIm", min_suffix);
                 QPDFObjectHandle image = QPDFObjectHandle::newStream(
-                    this->qpdf, std::make_shared<Buffer>(std::move(image_data)));
+                    qpdf, std::make_shared<Buffer>(std::move(image_data)));
                 image.replaceDict(dict);
                 resources.getKey("/XObject").replaceKey(name, image);
                 write(name);
@@ -236,15 +238,14 @@ QPDFPageObjectHelper::getAttribute(
     auto dict = is_form_xobject ? oh().getDict() : oh();
     auto result = dict.getKey(name);
 
-    if (!is_form_xobject && result.isNull() &&
+    if (!is_form_xobject && result.null() &&
         (name == "/MediaBox" || name == "/CropBox" || name == "/Resources" || name == "/Rotate")) {
         QPDFObjectHandle node = dict;
         QPDFObjGen::set seen{};
         while (seen.add(node) && node.hasKey("/Parent")) {
             node = node.getKey("/Parent");
             result = node.getKey(name);
-            if (!result.isNull()) {
-                QTC::TC("qpdf", "QPDFPageObjectHelper non-trivial inheritance");
+            if (!result.null()) {
                 inherited = true;
                 break;
             }
@@ -254,10 +255,9 @@ QPDFPageObjectHelper::getAttribute(
         QTC::TC("qpdf", "QPDFPageObjectHelper copy shared attribute", is_form_xobject ? 0 : 1);
         result = dict.replaceKeyAndGetNew(name, result.shallowCopy());
     }
-    if (result.isNull() && get_fallback) {
+    if (result.null() && get_fallback) {
         result = get_fallback();
-        if (copy_if_fallback && !result.isNull()) {
-            QTC::TC("qpdf", "QPDFPageObjectHelper copied fallback");
+        if (copy_if_fallback && !result.null()) {
             result = dict.replaceKeyAndGetNew(name, result.shallowCopy());
         } else {
             QTC::TC("qpdf", "QPDFPageObjectHelper used fallback without copying");
@@ -278,7 +278,7 @@ QPDFPageObjectHelper::getCropBox(bool copy_if_shared, bool copy_if_fallback)
     return getAttribute(
         "/CropBox",
         copy_if_shared,
-        [this, copy_if_shared]() { return this->getMediaBox(copy_if_shared); },
+        [this, copy_if_shared]() { return getMediaBox(copy_if_shared); },
         copy_if_fallback);
 }
 
@@ -289,7 +289,7 @@ QPDFPageObjectHelper::getTrimBox(bool copy_if_shared, bool copy_if_fallback)
         "/TrimBox",
         copy_if_shared,
         [this, copy_if_shared, copy_if_fallback]() {
-            return this->getCropBox(copy_if_shared, copy_if_fallback);
+            return getCropBox(copy_if_shared, copy_if_fallback);
         },
         copy_if_fallback);
 }
@@ -301,7 +301,7 @@ QPDFPageObjectHelper::getArtBox(bool copy_if_shared, bool copy_if_fallback)
         "/ArtBox",
         copy_if_shared,
         [this, copy_if_shared, copy_if_fallback]() {
-            return this->getCropBox(copy_if_shared, copy_if_fallback);
+            return getCropBox(copy_if_shared, copy_if_fallback);
         },
         copy_if_fallback);
 }
@@ -313,7 +313,7 @@ QPDFPageObjectHelper::getBleedBox(bool copy_if_shared, bool copy_if_fallback)
         "/BleedBox",
         copy_if_shared,
         [this, copy_if_shared, copy_if_fallback]() {
-            return this->getCropBox(copy_if_shared, copy_if_fallback);
+            return getCropBox(copy_if_shared, copy_if_fallback);
         },
         copy_if_fallback);
 }
@@ -406,7 +406,7 @@ QPDFPageObjectHelper::externalizeInlineImages(size_t min_size, bool shallow)
         QPDFObjectHandle resources = getAttribute("/Resources", true);
         // Calling mergeResources also ensures that /XObject becomes direct and is not shared with
         // other pages.
-        resources.mergeResources("<< /XObject << >> >>"_qpdf);
+        resources.mergeResources(Dictionary({{"/XObject", Dictionary::empty()}}));
         InlineImageTracker iit(oh().getOwningQPDF(), min_size, resources);
         Pl_Buffer b("new page content");
         bool filtered = false;
@@ -414,8 +414,8 @@ QPDFPageObjectHelper::externalizeInlineImages(size_t min_size, bool shallow)
             filterContents(&iit, &b);
             filtered = true;
         } catch (std::exception& e) {
-            oh().warnIfPossible(
-                std::string("Unable to filter content stream: ") + e.what() +
+            warn(
+                "Unable to filter content stream: "s + e.what() +
                 "; not attempting to externalize inline images from this stream");
         }
         if (filtered && iit.any_images) {
@@ -443,14 +443,9 @@ std::vector<QPDFAnnotationObjectHelper>
 QPDFPageObjectHelper::getAnnotations(std::string const& only_subtype)
 {
     std::vector<QPDFAnnotationObjectHelper> result;
-    QPDFObjectHandle annots = oh().getKey("/Annots");
-    if (annots.isArray()) {
-        int nannots = annots.getArrayNItems();
-        for (int i = 0; i < nannots; ++i) {
-            QPDFObjectHandle annot = annots.getArrayItem(i);
-            if (annot.isDictionaryOfType("", only_subtype)) {
-                result.emplace_back(annot);
-            }
+    for (auto const& annot: oh().getKey("/Annots").as_array()) {
+        if (annot.isDictionaryOfType("", only_subtype)) {
+            result.emplace_back(annot);
         }
     }
     return result;
@@ -543,27 +538,27 @@ bool
 QPDFPageObjectHelper::removeUnreferencedResourcesHelper(
     QPDFPageObjectHelper ph, std::set<std::string>& unresolved)
 {
-    bool is_page = (!ph.oh().isFormXObject());
+    const bool is_page = !ph.oh().isFormXObject();
     if (!is_page) {
         QTC::TC("qpdf", "QPDFPageObjectHelper filter form xobject");
     }
 
     ResourceFinder rf;
     try {
-        auto q = ph.oh().getOwningQPDF();
+        auto q = ph.qpdf();
         size_t before_nw = (q ? q->numWarnings() : 0);
         ph.parseContents(&rf);
         size_t after_nw = (q ? q->numWarnings() : 0);
         if (after_nw > before_nw) {
-            ph.oh().warnIfPossible(
+            ph.warn(
                 "Bad token found while scanning content stream; "
                 "not attempting to remove unreferenced objects from this object");
             return false;
         }
     } catch (std::exception& e) {
         QTC::TC("qpdf", "QPDFPageObjectHelper bad token finding names");
-        ph.oh().warnIfPossible(
-            std::string("Unable to parse content stream: ") + e.what() +
+        ph.warn(
+            "Unable to parse content stream: "s + e.what() +
             "; not attempting to remove unreferenced objects from this object");
         return false;
     }
@@ -575,25 +570,27 @@ QPDFPageObjectHelper::removeUnreferencedResourcesHelper(
     QPDFObjectHandle resources = ph.getAttribute("/Resources", true);
     std::vector<QPDFObjectHandle> rdicts;
     std::set<std::string> known_names;
-    std::vector<std::string> to_filter = {"/Font", "/XObject"};
     if (resources.isDictionary()) {
-        for (auto const& iter: to_filter) {
+        for (auto const& iter: {"/Font", "/XObject"}) {
             QPDFObjectHandle dict = resources.getKey(iter);
             if (dict.isDictionary()) {
                 dict = resources.replaceKeyAndGetNew(iter, dict.shallowCopy());
                 rdicts.push_back(dict);
-                auto keys = dict.getKeys();
-                known_names.insert(keys.begin(), keys.end());
+                known_names.merge(dict.getKeys());
             }
         }
     }
 
     std::set<std::string> local_unresolved;
-    auto names_by_rtype = rf.getNamesByResourceType();
-    for (auto const& i1: to_filter) {
-        for (auto const& n_iter: names_by_rtype[i1]) {
+    auto const& names_by_rtype = rf.getNamesByResourceType();
+    for (auto const& i1: {"/Font", "/XObject"}) {
+        auto it = names_by_rtype.find(i1);
+        if (it == names_by_rtype.end()) {
+            continue;
+        }
+        for (auto const& n_iter: it->second) {
             std::string const& name = n_iter.first;
-            if (!known_names.count(name)) {
+            if (!known_names.contains(name)) {
                 unresolved.insert(name);
                 local_unresolved.insert(name);
             }
@@ -610,7 +607,7 @@ QPDFPageObjectHelper::removeUnreferencedResourcesHelper(
     // unresolved names, and for page objects, we avoid removing any such names found in nested form
     // XObjects.
 
-    if ((!local_unresolved.empty()) && resources.isDictionary()) {
+    if (!local_unresolved.empty() && resources.isDictionary()) {
         // It's not worth issuing a warning for this case. From qpdf 10.3, we are hopefully only
         // looking at names that are referencing fonts and XObjects, but until we're certain that we
         // know the meaning of every name in a content stream, we don't want to give warnings that
@@ -624,10 +621,10 @@ QPDFPageObjectHelper::removeUnreferencedResourcesHelper(
 
     for (auto& dict: rdicts) {
         for (auto const& key: dict.getKeys()) {
-            if (is_page && unresolved.count(key)) {
+            if (is_page && unresolved.contains(key)) {
                 // This name is referenced by some nested form xobject, so don't remove it.
                 QTC::TC("qpdf", "QPDFPageObjectHelper resolving unresolved");
-            } else if (!rf.getNames().count(key)) {
+            } else if (!rf.getNames().contains(key)) {
                 dict.removeKey(key);
             }
         }
@@ -671,7 +668,7 @@ QPDFPageObjectHelper::getMatrixForTransformations(bool invert)
     }
     QPDFObjectHandle rotate_obj = getAttribute("/Rotate", false);
     QPDFObjectHandle scale_obj = getAttribute("/UserUnit", false);
-    if (!(rotate_obj.isNull() && scale_obj.isNull())) {
+    if (!(rotate_obj.null() && scale_obj.null())) {
         QPDFObjectHandle::Rectangle rect = bbox.getArrayAsRectangle();
         double width = rect.urx - rect.llx;
         double height = rect.ury - rect.lly;
@@ -717,8 +714,7 @@ QPDFPageObjectHelper::getFormXObjectForPage(bool handle_transformations)
     newdict.replaceKey("/Group", getAttribute("/Group", false).shallowCopy());
     QPDFObjectHandle bbox = getTrimBox(false).shallowCopy();
     if (!bbox.isRectangle()) {
-        oh().warnIfPossible(
-            "bounding box is invalid; form XObject created from page will not work");
+        warn("bounding box is invalid; form XObject created from page will not work");
     }
     newdict.replaceKey("/BBox", bbox);
     auto provider =
@@ -726,7 +722,7 @@ QPDFPageObjectHelper::getFormXObjectForPage(bool handle_transformations)
     result.replaceStreamData(provider, QPDFObjectHandle::newNull(), QPDFObjectHandle::newNull());
     QPDFObjectHandle rotate_obj = getAttribute("/Rotate", false);
     QPDFObjectHandle scale_obj = getAttribute("/UserUnit", false);
-    if (handle_transformations && (!(rotate_obj.isNull() && scale_obj.isNull()))) {
+    if (handle_transformations && !(rotate_obj.null() && scale_obj.null())) {
         newdict.replaceKey("/Matrix", QPDFObjectHandle::newArray(getMatrixForTransformations()));
     }
 
@@ -965,8 +961,7 @@ QPDFPageObjectHelper::flattenRotation(QPDFAcroFormDocumentHelper* afdh)
     oh().addPageContents(qpdf.newStream("\nQ\n"), false);
     oh().removeKey("/Rotate");
     QPDFObjectHandle rotate_obj = getAttribute("/Rotate", false);
-    if (!rotate_obj.isNull()) {
-        QTC::TC("qpdf", "QPDFPageObjectHelper flatten inherit rotate");
+    if (!rotate_obj.null()) {
         oh().replaceKey("/Rotate", QPDFObjectHandle::newInteger(0));
     }
 

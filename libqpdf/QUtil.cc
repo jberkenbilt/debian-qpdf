@@ -2,6 +2,7 @@
 #include <qpdf/qpdf-config.h>
 
 #include <qpdf/QUtil.hh>
+#include <qpdf/Util.hh>
 
 #include <qpdf/CryptoRandomDataProvider.hh>
 #include <qpdf/Pipeline.hh>
@@ -39,6 +40,7 @@
 #endif
 
 using namespace qpdf;
+using namespace std::literals;
 
 // First element is 24
 static unsigned short pdf_doc_low_to_unicode[] = {
@@ -1131,6 +1133,14 @@ QUtil::initializeWithRandomBytes(unsigned char* data, size_t len)
     getRandomDataProvider()->provideRandomData(data, len);
 }
 
+std::string
+util::random_string(size_t len)
+{
+    std::string result(len, '\0');
+    QUtil::initializeWithRandomBytes(reinterpret_cast<unsigned char*>(result.data()), len);
+    return result;
+}
+
 long
 QUtil::random()
 {
@@ -1395,7 +1405,7 @@ QUtil::parse_numrange(char const* range, int max)
                 work = last_group;
                 last_group.clear();
                 for (auto n: work) {
-                    if (exclusions.count(n) == 0) {
+                    if (!exclusions.contains(n)) {
                         last_group.emplace_back(n);
                     }
                 }
@@ -1679,19 +1689,13 @@ QUtil::utf8_to_pdf_doc(std::string const& utf8, std::string& pdfdoc, char unknow
 bool
 QUtil::is_utf16(std::string const& val)
 {
-    return (
-        (val.length() >= 2) &&
-        (((val.at(0) == '\xfe') && (val.at(1) == '\xff')) ||
-         ((val.at(0) == '\xff') && (val.at(1) == '\xfe'))));
+    return util::is_utf16(val);
 }
 
 bool
 QUtil::is_explicit_utf8(std::string const& val)
 {
-    // QPDF_String.cc knows that this is a 3-byte sequence.
-    return (
-        (val.length() >= 3) && (val.at(0) == '\xef') && (val.at(1) == '\xbb') &&
-        (val.at(2) == '\xbf'));
+    return util::is_explicit_utf8(val);
 }
 
 std::string
@@ -1886,7 +1890,7 @@ QUtil::possible_repaired_encodings(std::string supplied)
     std::vector<std::string> t;
     std::set<std::string> seen;
     for (auto const& iter: result) {
-        if (!seen.count(iter)) {
+        if (!seen.contains(iter)) {
             seen.insert(iter);
             t.push_back(iter);
         }
@@ -1988,7 +1992,7 @@ QUtil::get_max_memory_usage()
                     attrs[m2->str(1)] = m2->str(2);
                 }
                 if (tag == "total") {
-                    if (attrs.count("size") > 0) {
+                    if (attrs.contains("size")) {
                         result += QIntC::to_size(QUtil::string_to_ull(attrs["size"].c_str()));
                     }
                 } else if (tag == "system" && attrs["type"] == "max") {
@@ -2064,4 +2068,16 @@ bool
 QUtil::is_hex_digit(char c)
 {
     return util::is_hex_digit(c);
+}
+
+void
+QUtil::handle_result_code(qpdf_result_e result, std::string_view context)
+{
+    if (result == qpdf_r_ok) {
+        return;
+    }
+    qpdf::util::assertion(
+        result == qpdf_r_bad_parameter,
+        "unexpected result code received from function in "s.append(context));
+    throw std::logic_error("invalid parameter supplied to function in "s.append(context));
 }

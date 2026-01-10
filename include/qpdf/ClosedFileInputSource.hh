@@ -1,5 +1,5 @@
 // Copyright (c) 2005-2021 Jay Berkenbilt
-// Copyright (c) 2022-2025 Jay Berkenbilt and Manfred Holger
+// Copyright (c) 2022-2026 Jay Berkenbilt and Manfred Holger
 //
 // This file is part of qpdf.
 //
@@ -69,9 +69,9 @@ class QPDF_DLL_CLASS ClosedFileInputSource: public InputSource
     void after();
 
     std::string filename;
-    qpdf_offset_t offset;
+    qpdf_offset_t offset{0};
     std::shared_ptr<FileInputSource> fis;
-    bool stay_open;
+    bool stay_open{false};
 };
 
 #endif // QPDF_CLOSEDFILEINPUTSOURCE_HH
