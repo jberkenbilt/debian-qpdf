@@ -1,5 +1,5 @@
 // Copyright (c) 2005-2021 Jay Berkenbilt
-// Copyright (c) 2022-2025 Jay Berkenbilt and Manfred Holger
+// Copyright (c) 2022-2026 Jay Berkenbilt and Manfred Holger
 //
 // This file is part of qpdf.
 //
@@ -68,6 +68,21 @@
 class QPDFAcroFormDocumentHelper: public QPDFDocumentHelper
 {
   public:
+    // Get a shared document helper for a given QPDF object.
+    //
+    // Retrieving a document helper for a QPDF object rather than creating a new one avoids repeated
+    // validation of the Acroform structure, which can be expensive.
+    QPDF_DLL
+    static QPDFAcroFormDocumentHelper& get(QPDF& qpdf);
+
+    // Re-validate the AcroForm structure. This is useful if you have modified the structure of the
+    // AcroForm dictionary in a way that would invalidate the cache.
+    //
+    // If repair is true, the document will be repaired if possible if the validation encounters
+    // errors.
+    QPDF_DLL
+    void validate(bool repair = true);
+
     QPDF_DLL
     QPDFAcroFormDocumentHelper(QPDF&);
 
@@ -210,39 +225,8 @@ class QPDFAcroFormDocumentHelper: public QPDFDocumentHelper
         std::set<QPDFObjGen>* new_fields = nullptr);
 
   private:
-    void analyze();
-    void traverseField(
-        QPDFObjectHandle field, QPDFObjectHandle parent, int depth, QPDFObjGen::set& visited);
-    QPDFObjectHandle getOrCreateAcroForm();
-    void adjustInheritedFields(
-        QPDFObjectHandle obj,
-        bool override_da,
-        std::string const& from_default_da,
-        bool override_q,
-        int from_default_q);
-    void adjustDefaultAppearances(
-        QPDFObjectHandle obj,
-        std::map<std::string, std::map<std::string, std::string>> const& dr_map);
-    void adjustAppearanceStream(
-        QPDFObjectHandle stream, std::map<std::string, std::map<std::string, std::string>> dr_map);
-
-    class Members
-    {
-        friend class QPDFAcroFormDocumentHelper;
-
-      public:
-        ~Members() = default;
-
-      private:
-        Members();
-        Members(Members const&) = delete;
-
-        bool cache_valid;
-        std::map<QPDFObjGen, std::vector<QPDFAnnotationObjectHelper>> field_to_annotations;
-        std::map<QPDFObjGen, QPDFFormFieldObjectHelper> annotation_to_field;
-        std::map<QPDFObjGen, std::string> field_to_name;
-        std::map<std::string, std::set<QPDFObjGen>> name_to_fields;
-    };
+    friend class QPDF::Doc;
+    class Members;
 
     std::shared_ptr<Members> m;
 };

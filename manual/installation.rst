@@ -3,7 +3,10 @@
 Building and Installing qpdf
 ============================
 
-This chapter describes how to build and install qpdf.
+This chapter describes how to build and install qpdf. For information
+about installing a pre-built copy of qpdf, see
+[README.md](https://github.com/qpdf/qpdf/blob/main/README.md), the
+top-level README.md in the repository and source distribution.
 
 .. _prerequisites:
 
@@ -16,7 +19,7 @@ need to build qpdf in various circumstances.
 Basic Dependencies
 ~~~~~~~~~~~~~~~~~~
 
-- A C++ compiler that supports C++-17
+- A C++ compiler that supports C++-20
 
 - `CMake <https://www.cmake.org>`__ version 3.16 or later
 
@@ -659,7 +662,7 @@ Building with zopfli support
 
 .. cSpell:ignore DZOPFLI
 
-If you compile with ``-DZOPFLI-ON`` and have the `zopfli
+If you compile with ``-DZOPFLI=ON`` and have the `zopfli
 <https://github.com/google/zopfli>`__ development files available,
 qpdf will be built with zopfli support. See :ref:`zopfli` for
 information about using zopfli with qpdf.

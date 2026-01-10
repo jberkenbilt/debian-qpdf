@@ -56,6 +56,7 @@ my @badfiles = ("not a PDF file",                       # 1
                 "space before xref",                    # 37
                 "startxref to space then eof",          # 38
                 "stream lenth revocery overlapping",    # 39
+                "xref stream no entry for self",        # 40
                 );
 
 $n_tests += @badfiles + 8;
@@ -66,7 +67,7 @@ $n_tests += @badfiles + 8;
 # have error conditions that used to be fatal but are now considered
 # non-fatal.
 my %badtest_overrides = ();
-for(6, 12..15, 17, 18..32, 34..37, 39)
+for(6, 12..15, 17, 18..32, 34..37, 39, 40)
 {
     $badtest_overrides{$_} = 0;
 }
@@ -109,17 +110,12 @@ $td->runtest("C API: no recovery",
              {$td->FILE => "c-no-recovery.out",
               $td->EXIT_STATUS => 0},
              $td->NORMALIZE_NEWLINES);
-
-$td->runtest("integer type checks",
-             {$td->COMMAND => "test_driver 62 minimal.pdf"},
-             {$td->FILE => "test62.out", $td->EXIT_STATUS => 0},
-             $td->NORMALIZE_NEWLINES);
 $td->runtest("getValueAs... accessor checks",
              {$td->COMMAND => "test_driver 85 -"},
              {$td->FILE => "test85.out", $td->EXIT_STATUS => 0},
              $td->NORMALIZE_NEWLINES);
 
-$n_tests += @badfiles + 11;
+$n_tests += @badfiles + 10;
 
 # Recovery tests.  These are mostly after-the-fact -- when recovery
 # was implemented, some degree of recovery was possible on many of the

@@ -44,7 +44,6 @@ set(libqpdf_SOURCES
   Pl_Flate.cc
   Pl_Function.cc
   Pl_LZWDecoder.cc
-  Pl_MD5.cc
   Pl_OStream.cc
   Pl_PNGFilter.cc
   Pl_QPDFTokenizer.cc
@@ -71,14 +70,11 @@ set(libqpdf_SOURCES
   QPDFJob_json.cc
   QPDFLogger.cc
   QPDFMatrix.cc
-  QPDFNameTreeObjectHelper.cc
-  QPDFNumberTreeObjectHelper.cc
   QPDFObject.cc
   QPDFObjectHandle.cc
   QPDFObjectHelper.cc
   QPDFOutlineDocumentHelper.cc
   QPDFOutlineObjectHelper.cc
-  QPDFPageDocumentHelper.cc
   QPDFPageLabelDocumentHelper.cc
   QPDFPageObjectHelper.cc
   QPDFParser.cc
@@ -87,7 +83,6 @@ set(libqpdf_SOURCES
   QPDFTokenizer.cc
   QPDFUsage.cc
   QPDFWriter.cc
-  QPDFXRefEntry.cc
   QPDF_Array.cc
   QPDF_Dictionary.cc
   QPDF_Stream.cc
@@ -96,7 +91,6 @@ set(libqpdf_SOURCES
   QPDF_json.cc
   QPDF_linearization.cc
   QPDF_objects.cc
-  QPDF_optimization.cc
   QPDF_pages.cc
   QTC.cc
   QUtil.cc
@@ -104,6 +98,7 @@ set(libqpdf_SOURCES
   ResourceFinder.cc
   SecureRandomDataProvider.cc
   SF_FlateLzwDecode.cc
+  global.cc
   qpdf-c.cc
   qpdfjob-c.cc
   qpdflogger-c.cc)

@@ -1,5 +1,5 @@
 // Copyright (c) 2005-2021 Jay Berkenbilt
-// Copyright (c) 2022-2025 Jay Berkenbilt and Manfred Holger
+// Copyright (c) 2022-2026 Jay Berkenbilt and Manfred Holger
 //
 // This file is part of qpdf.
 //
@@ -25,6 +25,7 @@
 #include <cstddef>
 #include <memory>
 #include <string>
+#include <string_view>
 
 class Buffer
 {
@@ -66,10 +67,33 @@ class Buffer
     QPDF_DLL
     Buffer copy() const;
 
+    // Move the content of the Buffer. After calling this method, the Buffer will be empty if the
+    // buffer owns its memory. Otherwise, the Buffer will be unchanged.
+    QPDF_DLL
+    std::string move();
+
+    // Return a string_view to the data.
+    QPDF_DLL
+    std::string_view view() const;
+
+    // Return a pointer to the data. NB: Unlike getBuffer, this method returns a valid pointer even
+    // if the Buffer is empty.
+    QPDF_DLL
+    char const* data() const;
+
+    // Return a pointer to the data. NB: Unlike getBuffer, this method returns a valid pointer even
+    // if the Buffer is empty.
+    QPDF_DLL
+    char* data();
+
+    QPDF_DLL
+    bool empty() const;
+
+    QPDF_DLL
+    size_t size() const;
+
   private:
     class Members;
-
-    void copy(Buffer const&);
 
     std::unique_ptr<Members> m;
 };

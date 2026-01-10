@@ -1,4 +1,4 @@
-#include <qpdf/QPDFJob.hh>
+#include <qpdf/QPDFJob_private.hh>
 
 #include <qpdf/JSONHandler.hh>
 #include <qpdf/QPDFUsage.hh>
@@ -9,8 +9,6 @@
 #include <memory>
 #include <sstream>
 #include <stdexcept>
-
-static JSON JOB_SCHEMA = JSON::parse(QPDFJob::job_json_schema(1).c_str());
 
 namespace
 {
@@ -65,6 +63,7 @@ namespace
         std::shared_ptr<QPDFJob::Config> c_main;
         std::shared_ptr<QPDFJob::CopyAttConfig> c_copy_att;
         std::shared_ptr<QPDFJob::AttConfig> c_att;
+        std::shared_ptr<QPDFJob::GlobalConfig> c_global;
         std::shared_ptr<QPDFJob::PagesConfig> c_pages;
         std::shared_ptr<QPDFJob::UOConfig> c_uo;
         std::shared_ptr<QPDFJob::EncConfig> c_enc;
@@ -622,15 +621,29 @@ Handlers::beginSetPageLabelsArray(JSON)
 }
 
 void
+Handlers::beginGlobal(JSON)
+{
+    c_global = c_main->global();
+}
+
+void
+Handlers::endGlobal()
+{
+    c_global->endGlobal();
+    c_global = nullptr;
+}
+
+void
 QPDFJob::initializeFromJson(std::string const& json, bool partial)
 {
     std::list<std::string> errors;
+    static const JSON schema = JSON::parse(job_json_schema(1).data());
     JSON j = JSON::parse(json);
-    if (!j.checkSchema(JOB_SCHEMA, JSON::f_optional, errors)) {
+    if (!j.checkSchema(schema, JSON::f_optional, errors)) {
         std::ostringstream msg;
         msg << m->message_prefix << ": job json has errors:";
         for (auto const& error: errors) {
-            msg << std::endl << "  " << error;
+            msg << "\n  " << error;
         }
         throw std::runtime_error(msg.str());
     }

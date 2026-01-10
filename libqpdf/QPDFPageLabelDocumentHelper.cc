@@ -1,38 +1,61 @@
 #include <qpdf/QPDFPageLabelDocumentHelper.hh>
 
-#include <qpdf/QTC.hh>
+#include <qpdf/QPDFNumberTreeObjectHelper.hh>
+#include <qpdf/QPDFObjectHandle_private.hh>
+#include <qpdf/QPDF_private.hh>
+
+using namespace qpdf;
+
+class QPDFPageLabelDocumentHelper::Members
+{
+  public:
+    Members() = default;
+    Members(Members const&) = delete;
+    ~Members() = default;
+
+    std::unique_ptr<QPDFNumberTreeObjectHelper> labels;
+};
 
 QPDFPageLabelDocumentHelper::QPDFPageLabelDocumentHelper(QPDF& qpdf) :
     QPDFDocumentHelper(qpdf),
-    m(new Members())
+    m(std::make_shared<Members>())
 {
-    QPDFObjectHandle root = qpdf.getRoot();
-    if (root.hasKey("/PageLabels")) {
-        m->labels =
-            std::make_shared<QPDFNumberTreeObjectHelper>(root.getKey("/PageLabels"), this->qpdf);
+    validate();
+}
+
+QPDFPageLabelDocumentHelper&
+QPDFPageLabelDocumentHelper::get(QPDF& qpdf)
+{
+    return qpdf.doc().page_labels();
+}
+
+void
+QPDFPageLabelDocumentHelper::validate(bool repair)
+{
+    m->labels = nullptr;
+    if (Dictionary labels = qpdf.getRoot()["/PageLabels"]) {
+        m->labels = std::make_unique<QPDFNumberTreeObjectHelper>(
+            labels, qpdf, [](QPDFObjectHandle const& o) -> bool { return o.isDictionary(); }, true);
+        m->labels->validate(repair);
     }
 }
 
 bool
 QPDFPageLabelDocumentHelper::hasPageLabels()
 {
-    return nullptr != m->labels;
+    return m->labels != nullptr;
 }
 
 QPDFObjectHandle
 QPDFPageLabelDocumentHelper::getLabelForPage(long long page_idx)
 {
-    QPDFObjectHandle result(QPDFObjectHandle::newNull());
     if (!hasPageLabels()) {
-        return result;
+        return QPDFObjectHandle::newNull();
     }
     QPDFNumberTreeObjectHelper::numtree_number offset = 0;
     QPDFObjectHandle label;
     if (!m->labels->findObjectAtOrBelow(page_idx, label, offset)) {
-        return result;
-    }
-    if (!label.isDictionary()) {
-        return result;
+        return QPDFObjectHandle::newNull();
     }
     QPDFObjectHandle S = label.getKey("/S");   // type (D, R, r, A, a)
     QPDFObjectHandle P = label.getKey("/P");   // prefix
@@ -43,7 +66,7 @@ QPDFPageLabelDocumentHelper::getLabelForPage(long long page_idx)
     }
     QIntC::range_check(start, offset);
     start += offset;
-    result = QPDFObjectHandle::newDictionary();
+    auto result = QPDFObjectHandle::newDictionary();
     result.replaceKey("/S", S);
     result.replaceKey("/P", P);
     result.replaceKey("/St", QPDFObjectHandle::newInteger(start));
@@ -62,7 +85,7 @@ QPDFPageLabelDocumentHelper::getLabelsForPageRange(
     // prior entry. If there is no entry for the first page, fabricate one that would match how the
     // page would look in a new file in which it also didn't have an explicit label.
     QPDFObjectHandle label = getLabelForPage(start_idx);
-    if (label.isNull()) {
+    if (label.null()) {
         label = QPDFObjectHandle::newDictionary();
         label.replaceKey("/St", QPDFObjectHandle::newInteger(1 + new_start_idx));
     }
@@ -81,21 +104,20 @@ QPDFPageLabelDocumentHelper::getLabelsForPageRange(
                 label.getKey("/St").getIntValue() - last.getKey("/St").getIntValue();
             long long int idx_delta = new_start_idx - last_idx.getIntValue();
             if (st_delta == idx_delta) {
-                QTC::TC("qpdf", "QPDFPageLabelDocumentHelper skip first");
                 skip_first = true;
             }
         }
     }
     if (!skip_first) {
-        new_labels.push_back(QPDFObjectHandle::newInteger(new_start_idx));
-        new_labels.push_back(label);
+        new_labels.emplace_back(QPDFObjectHandle::newInteger(new_start_idx));
+        new_labels.emplace_back(label);
     }
 
     long long int idx_offset = new_start_idx - start_idx;
     for (long long i = start_idx + 1; i <= end_idx; ++i) {
         if (m->labels->hasIndex(i) && (label = getLabelForPage(i)).isDictionary()) {
-            new_labels.push_back(QPDFObjectHandle::newInteger(i + idx_offset));
-            new_labels.push_back(label);
+            new_labels.emplace_back(QPDFObjectHandle::newInteger(i + idx_offset));
+            new_labels.emplace_back(label);
         }
     }
 }
@@ -109,19 +131,19 @@ QPDFPageLabelDocumentHelper::pageLabelDict(
     case pl_none:
         break;
     case pl_digits:
-        num.replaceKey("/S", "/D"_qpdf);
+        num.replaceKey("/S", Name("/D"));
         break;
     case pl_alpha_lower:
-        num.replaceKey("/S", "/a"_qpdf);
+        num.replaceKey("/S", Name("/a"));
         break;
     case pl_alpha_upper:
-        num.replaceKey("/S", "/A"_qpdf);
+        num.replaceKey("/S", Name("/A"));
         break;
     case pl_roman_lower:
-        num.replaceKey("/S", "/r"_qpdf);
+        num.replaceKey("/S", Name("/r"));
         break;
     case pl_roman_upper:
-        num.replaceKey("/S", "/R"_qpdf);
+        num.replaceKey("/S", Name("/R"));
         break;
     }
     if (!prefix.empty()) {

@@ -5,11 +5,12 @@
 // include/qpdf/QPDFObject.hh. See comments there for an explanation.
 
 #include <qpdf/Constants.h>
+#include <qpdf/Types.h>
+
 #include <qpdf/JSON.hh>
 #include <qpdf/JSON_writer.hh>
 #include <qpdf/QPDF.hh>
 #include <qpdf/QPDFObjGen.hh>
-#include <qpdf/Types.h>
 
 #include <map>
 #include <memory>
@@ -27,7 +28,15 @@ namespace qpdf
     class Array;
     class BaseDictionary;
     class Dictionary;
+    class Integer;
+    class Name;
     class Stream;
+    class String;
+
+    namespace impl
+    {
+        class Writer;
+    }
 } // namespace qpdf
 
 class QPDF_Array final
@@ -35,8 +44,8 @@ class QPDF_Array final
   private:
     struct Sparse
     {
-        int size{0};
-        std::map<int, QPDFObjectHandle> elements;
+        size_t size{0};
+        std::map<size_t, QPDFObjectHandle> elements;
     };
 
   public:
@@ -65,10 +74,10 @@ class QPDF_Array final
     {
     }
 
-    int
+    size_t
     size() const
     {
-        return sp ? sp->size : int(elements.size());
+        return sp ? sp->size : elements.size();
     }
 
     std::unique_ptr<Sparse> sp;
@@ -123,6 +132,7 @@ class QPDF_Integer final
 {
     friend class QPDFObject;
     friend class qpdf::BaseHandle;
+    friend class qpdf::Integer;
     friend class QPDFObjectHandle;
 
     QPDF_Integer(long long val) :
@@ -136,6 +146,7 @@ class QPDF_Name final
 {
     friend class QPDFObject;
     friend class qpdf::BaseHandle;
+    friend class qpdf::Name;
 
     explicit QPDF_Name(std::string name) :
         name(std::move(name))
@@ -226,6 +237,9 @@ class QPDF_Stream final
         std::shared_ptr<Buffer> stream_data;
         std::shared_ptr<QPDFObjectHandle::StreamDataProvider> stream_provider;
         std::vector<std::shared_ptr<QPDFObjectHandle::TokenFilter>> token_filters;
+        std::string expand_filter_name(std::string const& name) const;
+        std::function<std::shared_ptr<QPDFStreamFilter>()>
+        filter_factory(std::string const& name) const;
     };
 
     friend class QPDFObject;
@@ -249,20 +263,24 @@ class QPDF_String final
 {
     friend class QPDFObject;
     friend class qpdf::BaseHandle;
-    friend class QPDFWriter;
+    friend class qpdf::String;
+    friend class qpdf::impl::Writer;
 
   public:
-    static std::shared_ptr<QPDFObject> create_utf16(std::string const& utf8_val);
     std::string unparse(bool force_binary = false);
     void writeJSON(int json_version, JSON::Writer& p);
-    std::string getUTF8Val() const;
 
   private:
-    QPDF_String(std::string val) :
+    QPDF_String(std::string const& val) :
+        val(val)
+    {
+    }
+    QPDF_String(std::string&& val) :
         val(std::move(val))
     {
     }
     bool useHexString() const;
+
     std::string val;
 };
 
@@ -430,18 +448,6 @@ class QPDFObject
         if (parsed_offset < 0) {
             parsed_offset = offset;
         }
-    }
-    bool
-    getDescription(QPDF*& a_qpdf, std::string& description)
-    {
-        a_qpdf = qpdf;
-        description = getDescription();
-        return qpdf != nullptr;
-    }
-    qpdf_offset_t
-    getParsedOffset()
-    {
-        return parsed_offset;
     }
     QPDF*
     getQPDF()

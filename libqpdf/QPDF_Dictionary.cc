@@ -2,6 +2,7 @@
 
 #include <qpdf/QPDFObject_private.hh>
 #include <qpdf/QTC.hh>
+#include <qpdf/Util.hh>
 
 using namespace std::literals;
 using namespace qpdf;
@@ -16,26 +17,81 @@ BaseDictionary::dict() const
     return nullptr; // unreachable
 }
 
-bool
-BaseDictionary::hasKey(std::string const& key) const
+QPDFObjectHandle const&
+BaseHandle::operator[](std::string const& key) const
 {
-    auto d = dict();
-    return d->items.count(key) > 0 && !d->items[key].isNull();
+    if (auto d = as<QPDF_Dictionary>()) {
+        auto it = d->items.find(key);
+        if (it != d->items.end()) {
+            return it->second;
+        }
+    }
+    static const QPDFObjectHandle null_obj;
+    return null_obj;
 }
 
-QPDFObjectHandle
-BaseDictionary::getKey(std::string const& key) const
+/// Retrieves a reference to the QPDFObjectHandle associated with the given key in the
+/// dictionary object contained within this instance.
+///
+/// If the current object is not of dictionary type, a `std::runtime_error` is thrown.
+/// According to the PDF specification, missing keys in the dictionary are treated as
+/// keys with a `null` value. This behavior is reflected in this function's implementation,
+/// where a missing key will still return a reference to a newly inserted null value entry.
+///
+/// @param key The key for which the corresponding value in the dictionary is retrieved.
+/// @return A reference to the QPDFObjectHandle associated with the specified key.
+/// @throws std::runtime_error if the current object is not a dictionary.
+QPDFObjectHandle&
+BaseHandle::at(std::string const& key) const
 {
-    auto d = dict();
-
-    // PDF spec says fetching a non-existent key from a dictionary returns the null object.
-    auto item = d->items.find(key);
-    if (item != d->items.end()) {
-        // May be a null object
-        return item->second;
+    auto d = as<QPDF_Dictionary>();
+    if (!d) {
+        throw std::runtime_error("Expected a dictionary but found a non-dictionary object");
     }
-    static auto constexpr msg = " -> dictionary key $VD"sv;
-    return QPDF_Null::create(obj, msg, key);
+    return d->items[key];
+}
+
+/// @brief Checks if the specified key exists in the object.
+///
+/// This method determines whether the given key is present in the object by verifying if the
+/// associated value is non-null.
+///
+/// @param key The key to look for in the object.
+/// @return True if the key exists and its associated value is non-null. Otherwise, returns false.
+bool
+BaseHandle::contains(std::string const& key) const
+{
+    return !(*this)[key].null();
+}
+
+/// @brief Retrieves the value associated with the given key from a dictionary.
+///
+/// This method attempts to find the value corresponding to the specified key for objects that can
+/// be interpreted as dictionaries.
+///
+/// - If the object is a dictionary and the specified key exists, it returns a reference
+///   to the associated value.
+/// - If the object is not a dictionary or the specified key does not exist, it returns
+///   a reference to a static uninitialized object handle.
+///
+/// @note Modifying the uninitialized object returned when the key is not found is strictly
+/// prohibited.
+///
+/// @param key The key whose associated value should be retrieved.
+/// @return A reference to the associated value if the key is found or a reference to a static
+/// uninitialized object if the key is not found.
+QPDFObjectHandle&
+BaseHandle::find(std::string const& key) const
+{
+    static const QPDFObjectHandle null_obj;
+    qpdf_invariant(!null_obj);
+    if (auto d = as<QPDF_Dictionary>()) {
+        auto it = d->items.find(key);
+        if (it != d->items.end()) {
+            return it->second;
+        }
+    }
+    return const_cast<QPDFObjectHandle&>(null_obj);
 }
 
 std::set<std::string>
@@ -43,7 +99,7 @@ BaseDictionary::getKeys()
 {
     std::set<std::string> result;
     for (auto& iter: dict()->items) {
-        if (!iter.second.isNull()) {
+        if (!iter.second.null()) {
             result.insert(iter.first);
         }
     }
@@ -56,26 +112,83 @@ BaseDictionary::getAsMap() const
     return dict()->items;
 }
 
-void
-BaseDictionary::removeKey(std::string const& key)
+size_t
+BaseHandle::erase(const std::string& key)
 {
     // no-op if key does not exist
-    dict()->items.erase(key);
+    if (auto d = as<QPDF_Dictionary>()) {
+        return d->items.erase(key);
+    }
+    return 0;
 }
 
-void
-BaseDictionary::replaceKey(std::string const& key, QPDFObjectHandle value)
+/// @brief Replaces or removes the value associated with the given key in a dictionary.
+///
+/// If the current object is a dictionary, this method updates the value at the specified key.
+/// If the value is a direct null object, the key is removed from the dictionary (since the PDF
+/// specification doesn't distinguish between keys with null values and missing keys). Indirect
+/// null values are preserved as they represent dangling references, which are permitted by the
+/// specification.
+///
+/// @param key The key for which the value should be replaced.
+/// @param value The new value to associate with the key. If this is a direct null, the key is
+///              removed instead.
+/// @return Returns true if the operation was performed (i.e., the current object is a dictionary).
+///         Returns false if the current object is not a dictionary.
+bool
+BaseHandle::replace(std::string const& key, QPDFObjectHandle value)
 {
-    auto d = dict();
-    if (value.isNull() && !value.isIndirect()) {
-        // The PDF spec doesn't distinguish between keys with null values and missing keys.
-        // Allow indirect nulls which are equivalent to a dangling reference, which is
-        // permitted by the spec.
-        d->items.erase(key);
-    } else {
-        // add or replace value
-        d->items[key] = value;
+    if (auto d = as<QPDF_Dictionary>()) {
+        if (value.null() && !value.indirect()) {
+            // The PDF spec doesn't distinguish between keys with null values and missing keys.
+            // Allow indirect nulls which are equivalent to a dangling reference, which is permitted
+            // by the spec.
+            d->items.erase(key);
+        } else {
+            // add or replace value
+            d->items[key] = value;
+        }
+        return true;
     }
+    return false;
+}
+
+/// @brief Replaces or removes the value associated with the given key in a dictionary.
+///
+/// This method provides a stricter version of `BaseHandle::replace()` that throws an exception
+/// if the current object is not a dictionary, instead of silently returning false. It delegates
+/// to `BaseHandle::replace()` for the actual replacement logic.
+///
+/// If the value is a direct null object, the key is removed from the dictionary (since the PDF
+/// specification doesn't distinguish between keys with null values and missing keys). Indirect
+/// null values are preserved as they represent dangling references.
+///
+/// @param key The key for which the value should be replaced.
+/// @param value The new value to associate with the key. If this is a direct null, the key is
+///              removed instead.
+/// @throws std::runtime_error if the current object is not a dictionary.
+void
+BaseDictionary::replace(std::string const& key, QPDFObjectHandle value)
+{
+    if (!BaseHandle::replace(key, value)) {
+        (void)dict();
+    }
+}
+
+Dictionary::Dictionary(std::map<std::string, QPDFObjectHandle>&& dict) :
+    BaseDictionary(std::move(dict))
+{
+}
+
+Dictionary::Dictionary(std::shared_ptr<QPDFObject> const& obj) :
+    BaseDictionary(obj)
+{
+}
+
+Dictionary
+Dictionary::empty()
+{
+    return Dictionary(std::map<std::string, QPDFObjectHandle>());
 }
 
 void
@@ -84,7 +197,6 @@ QPDFObjectHandle::checkOwnership(QPDFObjectHandle const& item) const
     auto qpdf = getOwningQPDF();
     auto item_qpdf = item.getOwningQPDF();
     if (qpdf && item_qpdf && qpdf != item_qpdf) {
-        QTC::TC("qpdf", "QPDFObjectHandle check ownership");
         throw std::logic_error(
             "Attempting to add an object from a different QPDF. Use "
             "QPDF::copyForeignObject to add objects from another file.");
@@ -94,9 +206,8 @@ QPDFObjectHandle::checkOwnership(QPDFObjectHandle const& item) const
 bool
 QPDFObjectHandle::hasKey(std::string const& key) const
 {
-    auto dict = as_dictionary(strict);
-    if (dict) {
-        return dict.hasKey(key);
+    if (Dictionary dict = *this) {
+        return dict.contains(key);
     } else {
         typeWarning("dictionary", "returning false for a key containment request");
         QTC::TC("qpdf", "QPDFObjectHandle dictionary false for hasKey");
@@ -107,11 +218,14 @@ QPDFObjectHandle::hasKey(std::string const& key) const
 QPDFObjectHandle
 QPDFObjectHandle::getKey(std::string const& key) const
 {
-    if (auto dict = as_dictionary(strict)) {
-        return dict.getKey(key);
+    if (auto result = get(key)) {
+        return result;
+    }
+    if (isDictionary()) {
+        static auto constexpr msg = " -> dictionary key $VD"sv;
+        return QPDF_Null::create(obj, msg, key);
     }
     typeWarning("dictionary", "returning null for attempted key retrieval");
-    QTC::TC("qpdf", "QPDFObjectHandle dictionary null for getKey");
     static auto constexpr msg = " -> null returned from getting key $VD from non-Dictionary"sv;
     return QPDF_Null::create(obj, msg, "");
 }
@@ -149,11 +263,10 @@ QPDFObjectHandle::replaceKey(std::string const& key, QPDFObjectHandle const& val
 {
     if (auto dict = as_dictionary(strict)) {
         checkOwnership(value);
-        dict.replaceKey(key, value);
+        dict.replace(key, value);
         return;
     }
     typeWarning("dictionary", "ignoring key replacement request");
-    QTC::TC("qpdf", "QPDFObjectHandle dictionary ignoring replaceKey");
 }
 
 QPDFObjectHandle
@@ -174,21 +287,16 @@ QPDFObjectHandle::replaceKeyAndGetOld(std::string const& key, QPDFObjectHandle c
 void
 QPDFObjectHandle::removeKey(std::string const& key)
 {
-    if (auto dict = as_dictionary(strict)) {
-        dict.removeKey(key);
+    if (erase(key) || isDictionary()) {
         return;
     }
     typeWarning("dictionary", "ignoring key removal request");
-    QTC::TC("qpdf", "QPDFObjectHandle dictionary ignoring removeKey");
 }
 
 QPDFObjectHandle
 QPDFObjectHandle::removeKeyAndGetOld(std::string const& key)
 {
-    auto result = QPDFObjectHandle::newNull();
-    if (auto dict = as_dictionary(strict)) {
-        result = dict.getKey(key);
-    }
-    removeKey(key);
-    return result;
+    auto result = get(key);
+    erase(key);
+    return result ? result : newNull();
 }

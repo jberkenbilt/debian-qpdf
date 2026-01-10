@@ -12,20 +12,6 @@
 #include <qpdf/QUtil.hh>
 #include <cstdlib>
 
-class DiscardContents: public QPDFObjectHandle::ParserCallbacks
-{
-  public:
-    ~DiscardContents() override = default;
-    void
-    handleObject(QPDFObjectHandle) override
-    {
-    }
-    void
-    handleEOF() override
-    {
-    }
-};
-
 class FuzzHelper
 {
   public:
@@ -75,9 +61,9 @@ FuzzHelper::doWrite(std::shared_ptr<QPDFWriter> w)
     try {
         w->write();
     } catch (QPDFExc const& e) {
-        std::cerr << e.what() << std::endl;
+        std::cerr << e.what() << '\n';
     } catch (std::runtime_error const& e) {
-        std::cerr << e.what() << std::endl;
+        std::cerr << e.what() << '\n';
     }
 }
 
@@ -133,9 +119,9 @@ FuzzHelper::run()
     try {
         doChecks();
     } catch (QPDFExc const& e) {
-        std::cerr << "QPDFExc: " << e.what() << std::endl;
+        std::cerr << "QPDFExc: " << e.what() << '\n';
     } catch (std::runtime_error const& e) {
-        std::cerr << "runtime_error: " << e.what() << std::endl;
+        std::cerr << "runtime_error: " << e.what() << '\n';
     }
 }
 

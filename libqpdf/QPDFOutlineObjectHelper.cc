@@ -1,5 +1,6 @@
 #include <qpdf/QPDFOutlineObjectHelper.hh>
 
+#include <qpdf/QPDFObjectHandle_private.hh>
 #include <qpdf/QPDFOutlineDocumentHelper.hh>
 #include <qpdf/QTC.hh>
 
@@ -19,16 +20,20 @@ QPDFOutlineObjectHelper::QPDFOutlineObjectHelper(
         return;
     }
     if (QPDFOutlineDocumentHelper::Accessor::checkSeen(m->dh, a_oh.getObjGen())) {
-        QTC::TC("qpdf", "QPDFOutlineObjectHelper loop");
+        a_oh.warn("Loop detected loop in /Outlines tree");
         return;
     }
 
     QPDFObjGen::set children;
     QPDFObjectHandle cur = a_oh.getKey("/First");
-    while (!cur.isNull() && cur.isIndirect() && children.add(cur)) {
+    while (!cur.null() && cur.isIndirect()) {
+        if (!children.add(cur)) {
+            cur.warn("Loop detected loop in /Outlines tree");
+            break;
+        }
         QPDFOutlineObjectHelper new_ooh(cur, dh, 1 + depth);
         new_ooh.m->parent = std::make_shared<QPDFOutlineObjectHelper>(*this);
-        m->kids.push_back(new_ooh);
+        m->kids.emplace_back(new_ooh);
         cur = cur.getKey("/Next");
     }
 }
@@ -48,26 +53,19 @@ QPDFOutlineObjectHelper::getKids()
 QPDFObjectHandle
 QPDFOutlineObjectHelper::getDest()
 {
-    QPDFObjectHandle dest;
-    QPDFObjectHandle A;
-    if (oh().hasKey("/Dest")) {
-        QTC::TC("qpdf", "QPDFOutlineObjectHelper direct dest");
-        dest = oh().getKey("/Dest");
-    } else if (
-        (A = oh().getKey("/A")).isDictionary() && A.getKey("/S").isName() &&
-        (A.getKey("/S").getName() == "/GoTo") && A.hasKey("/D")) {
-        QTC::TC("qpdf", "QPDFOutlineObjectHelper action dest");
-        dest = A.getKey("/D");
+    auto dest = get("/Dest");
+    if (dest.null()) {
+        auto const& A = get("/A");
+        if (Name(A["/S"]) == "/GoTo") {
+            dest = A["/D"];
+        }
     }
-    if (!dest) {
+    if (dest.null()) {
         return QPDFObjectHandle::newNull();
     }
-
     if (dest.isName() || dest.isString()) {
-        QTC::TC("qpdf", "QPDFOutlineObjectHelper named dest");
-        dest = m->dh.resolveNamedDest(dest);
+        return m->dh.resolveNamedDest(dest);
     }
-
     return dest;
 }
 
@@ -75,7 +73,7 @@ QPDFObjectHandle
 QPDFOutlineObjectHelper::getDestPage()
 {
     QPDFObjectHandle dest = getDest();
-    if ((dest.isArray()) && (dest.getArrayNItems() > 0)) {
+    if (!dest.empty() && dest.isArray()) {
         return dest.getArrayItem(0);
     }
     return QPDFObjectHandle::newNull();

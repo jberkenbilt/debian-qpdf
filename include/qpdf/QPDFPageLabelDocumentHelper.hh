@@ -1,5 +1,5 @@
 // Copyright (c) 2005-2021 Jay Berkenbilt
-// Copyright (c) 2022-2025 Jay Berkenbilt and Manfred Holger
+// Copyright (c) 2022-2026 Jay Berkenbilt and Manfred Holger
 //
 // This file is part of qpdf.
 //
@@ -22,11 +22,10 @@
 
 #include <qpdf/QPDFDocumentHelper.hh>
 
-#include <qpdf/QPDF.hh>
-#include <qpdf/QPDFNumberTreeObjectHelper.hh>
-#include <vector>
-
 #include <qpdf/DLL.h>
+#include <qpdf/QPDF.hh>
+
+#include <vector>
 
 // Page labels are discussed in the PDF spec (ISO-32000) in section 12.4.2.
 //
@@ -42,6 +41,21 @@
 class QPDFPageLabelDocumentHelper: public QPDFDocumentHelper
 {
   public:
+    // Get a shared document helper for a given QPDF object.
+    //
+    // Retrieving a document helper for a QPDF object rather than creating a new one avoids repeated
+    // validation of the PageLabels structure, which can be expensive.
+    QPDF_DLL
+    static QPDFPageLabelDocumentHelper& get(QPDF& qpdf);
+
+    // Re-validate the PageLabels structure. This is useful if you have modified the structure of
+    // the PageLabels dictionary in a way that could have invalidated the structure.
+    //
+    // If repair is true, the document will be repaired if possible if the validation encounters
+    // errors.
+    QPDF_DLL
+    void validate(bool repair = true);
+
     QPDF_DLL
     QPDFPageLabelDocumentHelper(QPDF&);
 
@@ -77,19 +91,7 @@ class QPDFPageLabelDocumentHelper: public QPDFDocumentHelper
         std::vector<QPDFObjectHandle>& new_labels);
 
   private:
-    class Members
-    {
-        friend class QPDFPageLabelDocumentHelper;
-
-      public:
-        ~Members() = default;
-
-      private:
-        Members() = default;
-        Members(Members const&) = delete;
-
-        std::shared_ptr<QPDFNumberTreeObjectHelper> labels;
-    };
+    class Members;
 
     std::shared_ptr<Members> m;
 };

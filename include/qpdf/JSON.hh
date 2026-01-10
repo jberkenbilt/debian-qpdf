@@ -1,5 +1,5 @@
 // Copyright (c) 2005-2021 Jay Berkenbilt
-// Copyright (c) 2022-2025 Jay Berkenbilt and Manfred Holger
+// Copyright (c) 2022-2026 Jay Berkenbilt and Manfred Holger
 //
 // This file is part of qpdf.
 //
@@ -363,7 +363,7 @@ class JSON
 
     JSON(std::unique_ptr<JSON_value>);
 
-    static bool checkSchemaInternal(
+    static void checkSchemaInternal(
         JSON_value* this_v,
         JSON_value* sch_v,
         unsigned long flags,

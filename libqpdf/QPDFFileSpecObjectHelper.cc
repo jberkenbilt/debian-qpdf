@@ -1,47 +1,52 @@
 #include <qpdf/QPDFFileSpecObjectHelper.hh>
 
 #include <qpdf/QPDF.hh>
+#include <qpdf/QPDFObjectHandle_private.hh>
 #include <qpdf/QTC.hh>
 #include <qpdf/QUtil.hh>
 
+#include <array>
 #include <string>
-#include <vector>
+
+using namespace std::literals;
+using namespace qpdf;
+
+class QPDFFileSpecObjectHelper::Members
+{
+};
 
 QPDFFileSpecObjectHelper::QPDFFileSpecObjectHelper(QPDFObjectHandle oh) :
     QPDFObjectHelper(oh)
 {
     if (!oh.isDictionary()) {
-        oh.warnIfPossible("Embedded file object is not a dictionary");
+        warn("Embedded file object is not a dictionary");
         return;
     }
     if (!oh.isDictionaryOfType("/Filespec")) {
-        oh.warnIfPossible("Embedded file object's type is not /Filespec");
+        warn("Embedded file object's type is not /Filespec");
     }
 }
 
-static std::vector<std::string> name_keys = {"/UF", "/F", "/Unix", "/DOS", "/Mac"};
+static const std::array<std::string, 5> name_keys = {"/UF"s, "/F"s, "/Unix"s, "/DOS"s, "/Mac"s};
 
 std::string
 QPDFFileSpecObjectHelper::getDescription()
 {
-    std::string result;
-    auto desc = oh().getKey("/Desc");
-    if (desc.isString()) {
-        result = desc.getUTF8Value();
+    if (String Desc = oh().getKey("/Desc")) {
+        return Desc.utf8_value();
     }
-    return result;
+    return {};
 }
 
 std::string
 QPDFFileSpecObjectHelper::getFilename()
 {
     for (auto const& i: name_keys) {
-        auto k = oh().getKey(i);
-        if (k.isString()) {
-            return k.getUTF8Value();
+        if (String k = get(i)) {
+            return k.utf8_value();
         }
     }
-    return "";
+    return {};
 }
 
 std::map<std::string, std::string>
@@ -49,9 +54,8 @@ QPDFFileSpecObjectHelper::getFilenames()
 {
     std::map<std::string, std::string> result;
     for (auto const& i: name_keys) {
-        auto k = oh().getKey(i);
-        if (k.isString()) {
-            result[i] = k.getUTF8Value();
+        if (String k = get(i)) {
+            result[i] = k.utf8_value();
         }
     }
     return result;
@@ -60,20 +64,19 @@ QPDFFileSpecObjectHelper::getFilenames()
 QPDFObjectHandle
 QPDFFileSpecObjectHelper::getEmbeddedFileStream(std::string const& key)
 {
-    auto ef = oh().getKey("/EF");
-    if (!ef.isDictionary()) {
-        return QPDFObjectHandle::newNull();
-    }
-    if (!key.empty()) {
-        return ef.getKey(key);
-    }
-    for (auto const& i: name_keys) {
-        auto k = ef.getKey(i);
-        if (k.isStream()) {
-            return k;
+    if (Dictionary EF = get("/EF")) {
+        if (!key.empty() && EF.contains(key)) {
+            if (auto result = EF[key]) {
+                return result;
+            }
+        }
+        for (auto const& i: name_keys) {
+            if (Stream k = EF[i]) {
+                return k;
+            }
         }
     }
-    return QPDFObjectHandle::newNull();
+    return Null::temp();
 }
 
 QPDFObjectHandle
@@ -96,21 +99,18 @@ QPDFFileSpecObjectHelper
 QPDFFileSpecObjectHelper::createFileSpec(
     QPDF& qpdf, std::string const& filename, QPDFEFStreamObjectHelper efsoh)
 {
-    auto oh = qpdf.makeIndirectObject(QPDFObjectHandle::newDictionary());
-    oh.replaceKey("/Type", QPDFObjectHandle::newName("/Filespec"));
-    QPDFFileSpecObjectHelper result(oh);
-    result.setFilename(filename);
-    auto ef = QPDFObjectHandle::newDictionary();
-    ef.replaceKey("/F", efsoh.getObjectHandle());
-    ef.replaceKey("/UF", efsoh.getObjectHandle());
-    oh.replaceKey("/EF", ef);
-    return result;
+    auto UF = String::utf16(filename);
+    return {qpdf.makeIndirectObject(Dictionary(
+        {{"/Type", Name("/Filespec")},
+         {"/F", UF},
+         {"/UF", UF},
+         {"/EF", Dictionary({{"/F", efsoh}, {"/UF", efsoh}})}}))};
 }
 
 QPDFFileSpecObjectHelper&
 QPDFFileSpecObjectHelper::setDescription(std::string const& desc)
 {
-    oh().replaceKey("/Desc", QPDFObjectHandle::newUnicodeString(desc));
+    oh().replaceKey("/Desc", String::utf16(desc));
     return *this;
 }
 
@@ -118,14 +118,12 @@ QPDFFileSpecObjectHelper&
 QPDFFileSpecObjectHelper::setFilename(
     std::string const& unicode_name, std::string const& compat_name)
 {
-    auto uf = QPDFObjectHandle::newUnicodeString(unicode_name);
+    auto uf = String::utf16(unicode_name);
     oh().replaceKey("/UF", uf);
     if (compat_name.empty()) {
-        QTC::TC("qpdf", "QPDFFileSpecObjectHelper empty compat_name");
         oh().replaceKey("/F", uf);
     } else {
-        QTC::TC("qpdf", "QPDFFileSpecObjectHelper non-empty compat_name");
-        oh().replaceKey("/F", QPDFObjectHandle::newString(compat_name));
+        oh().replaceKey("/F", String(compat_name));
     }
     return *this;
 }

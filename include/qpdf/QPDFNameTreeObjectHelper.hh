@@ -1,5 +1,5 @@
 // Copyright (c) 2005-2021 Jay Berkenbilt
-// Copyright (c) 2022-2025 Jay Berkenbilt and Manfred Holger
+// Copyright (c) 2022-2026 Jay Berkenbilt and Manfred Holger
 //
 // This file is part of qpdf.
 //
@@ -44,6 +44,19 @@ class QPDF_DLL_CLASS QPDFNameTreeObjectHelper: public QPDFObjectHelper
     // indirect objects.
     QPDF_DLL
     QPDFNameTreeObjectHelper(QPDFObjectHandle, QPDF&, bool auto_repair = true);
+
+    QPDF_DLL
+    QPDFNameTreeObjectHelper(
+        QPDFObjectHandle,
+        QPDF&,
+        std::function<bool(QPDFObjectHandle const&)> value_validator,
+        bool auto_repair);
+
+    // Validate the name tree. Returns true if the tree is valid.
+    //
+    // If the tree is not valid and auto_repair is true, attempt to repair the tree.
+    QPDF_DLL
+    bool validate(bool repair = true);
 
     // Create an empty name tree
     QPDF_DLL
@@ -163,19 +176,7 @@ class QPDF_DLL_CLASS QPDFNameTreeObjectHelper: public QPDFObjectHelper
     void setSplitThreshold(int);
 
   private:
-    class QPDF_DLL_PRIVATE Members
-    {
-        friend class QPDFNameTreeObjectHelper;
-
-      public:
-        ~Members() = default;
-
-      private:
-        Members(QPDFObjectHandle& oh, QPDF&, bool auto_repair);
-        Members(Members const&) = delete;
-
-        std::shared_ptr<NNTreeImpl> impl;
-    };
+    class QPDF_DLL_PRIVATE Members;
 
     std::shared_ptr<Members> m;
 };

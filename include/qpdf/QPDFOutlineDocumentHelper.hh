@@ -1,5 +1,5 @@
 // Copyright (c) 2005-2021 Jay Berkenbilt
-// Copyright (c) 2022-2025 Jay Berkenbilt and Manfred Holger
+// Copyright (c) 2022-2026 Jay Berkenbilt and Manfred Holger
 //
 // This file is part of qpdf.
 //
@@ -38,6 +38,21 @@
 class QPDFOutlineDocumentHelper: public QPDFDocumentHelper
 {
   public:
+    // Get a shared document helper for a given QPDF object.
+    //
+    // Retrieving a document helper for a QPDF object rather than creating a new one avoids repeated
+    // validation of the Acroform structure, which can be expensive.
+    QPDF_DLL
+    static QPDFOutlineDocumentHelper& get(QPDF& qpdf);
+
+    // Re-validate the Outlines structure. This is useful if you have modified the structure of the
+    // Outlines dictionary in a way that would invalidate the cache.
+    //
+    // If repair is true, the document will be repaired if possible if the validation encounters
+    // errors.
+    QPDF_DLL
+    void validate(bool repair = true);
+
     QPDF_DLL
     QPDFOutlineDocumentHelper(QPDF&);
 
@@ -63,33 +78,13 @@ class QPDFOutlineDocumentHelper: public QPDFDocumentHelper
     {
         friend class QPDFOutlineObjectHelper;
 
-        static bool
-        checkSeen(QPDFOutlineDocumentHelper& dh, QPDFObjGen og)
-        {
-            return !dh.m->seen.add(og);
-        }
+        static bool checkSeen(QPDFOutlineDocumentHelper& dh, QPDFObjGen og);
     };
 
   private:
     void initializeByPage();
 
-    class Members
-    {
-        friend class QPDFOutlineDocumentHelper;
-
-      public:
-        ~Members() = default;
-
-      private:
-        Members() = default;
-        Members(Members const&) = delete;
-
-        std::vector<QPDFOutlineObjectHelper> outlines;
-        QPDFObjGen::set seen;
-        QPDFObjectHandle dest_dict;
-        std::shared_ptr<QPDFNameTreeObjectHelper> names_dest;
-        std::map<QPDFObjGen, std::vector<QPDFOutlineObjectHelper>> by_page;
-    };
+    class Members;
 
     std::shared_ptr<Members> m;
 };
