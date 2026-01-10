@@ -1,5 +1,5 @@
 // Copyright (c) 2005-2021 Jay Berkenbilt
-// Copyright (c) 2022-2025 Jay Berkenbilt and Manfred Holger
+// Copyright (c) 2022-2026 Jay Berkenbilt and Manfred Holger
 //
 // This file is part of qpdf.
 //
@@ -43,7 +43,6 @@
 #include <qpdf/QPDFTokenizer.hh>
 
 class Pipeline;
-class QPDF;
 class QPDF_Array;
 class QPDF_Bool;
 class QPDF_Dictionary;
@@ -1321,21 +1320,6 @@ class QPDFObjectHandle: public qpdf::BaseHandle
     {
         return obj;
     }
-    std::shared_ptr<QPDFObject>
-    getObj() const
-    {
-        return obj;
-    }
-    QPDFObject*
-    getObjectPtr()
-    {
-        return obj.get();
-    }
-    QPDFObject* const
-    getObjectPtr() const
-    {
-        return obj.get();
-    }
 
     void writeJSON(int json_version, JSON::Writer& p, bool dereference_indirect = false) const;
 
@@ -1351,13 +1335,12 @@ class QPDFObjectHandle: public qpdf::BaseHandle
     void setParsedOffset(qpdf_offset_t offset);
     void parseContentStream_internal(std::string const& description, ParserCallbacks* callbacks);
     static void parseContentStream_data(
-        std::shared_ptr<Buffer>,
+        std::string_view stream_data,
         std::string const& description,
         ParserCallbacks* callbacks,
         QPDF* context);
     std::vector<QPDFObjectHandle>
     arrayOrStreamToStreamArray(std::string const& description, std::string& all_description);
-    static void warn(QPDF*, QPDFExc const&);
     void checkOwnership(QPDFObjectHandle const&) const;
 };
 

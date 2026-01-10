@@ -1,5 +1,5 @@
 // Copyright (c) 2005-2021 Jay Berkenbilt
-// Copyright (c) 2022-2025 Jay Berkenbilt and Manfred Holger
+// Copyright (c) 2022-2026 Jay Berkenbilt and Manfred Holger
 //
 // This file is part of qpdf.
 //
@@ -20,9 +20,19 @@
 #ifndef QPDFWRITER_HH
 #define QPDFWRITER_HH
 
+#include <qpdf/Constants.h>
 #include <qpdf/DLL.h>
 #include <qpdf/Types.h>
 
+#include <qpdf/Buffer.hh>
+#include <qpdf/PDFVersion.hh>
+#include <qpdf/Pipeline.hh>
+#include <qpdf/Pl_Buffer.hh>
+#include <qpdf/QPDFObjGen.hh>
+#include <qpdf/QPDFObjectHandle.hh>
+#include <qpdf/QPDFXRefEntry.hh>
+
+#include <bitset>
 #include <cstdio>
 #include <functional>
 #include <list>
@@ -33,24 +43,12 @@
 #include <string_view>
 #include <vector>
 
-#include <qpdf/Constants.h>
-
-#include <qpdf/Buffer.hh>
-#include <qpdf/PDFVersion.hh>
-#include <qpdf/Pipeline.hh>
-#include <qpdf/Pl_Buffer.hh>
-#include <qpdf/QPDFObjGen.hh>
-#include <qpdf/QPDFObjectHandle.hh>
-#include <qpdf/QPDFXRefEntry.hh>
-
-namespace qpdf::pl
+namespace qpdf
 {
-    struct Link;
+    class Writer;
 }
 
 class QPDF;
-class Pl_Count;
-class Pl_MD5;
 
 // This class implements a simple writer for saving QPDF objects to new PDF files.  See comments
 // through the header file for additional details.
@@ -447,179 +445,10 @@ class QPDFWriter
     class NewObjTable;
 
   private:
-    // flags used by unparseObject
-    static int const f_stream = 1 << 0;
-    static int const f_filtered = 1 << 1;
-    static int const f_in_ostream = 1 << 2;
-    static int const f_hex_string = 1 << 3;
-    static int const f_no_encryption = 1 << 4;
-
-    enum trailer_e { t_normal, t_lin_first, t_lin_second };
-
-    // An reference to a PipelinePopper instance is passed into activatePipelineStack. When the
-    // PipelinePopper goes out of scope, the pipeline stack is popped. PipelinePopper's destructor
-    // calls finish on the current pipeline and pops the pipeline stack until the top of stack is a
-    // previous active top of stack, and restores the pipeline to that point. It deletes any
-    // pipelines that it pops. If the bp argument is non-null and any of the stack items are of type
-    // Pl_Buffer, the buffer is retrieved.
-    class PipelinePopper
-    {
-        friend class QPDFWriter;
-
-      public:
-        PipelinePopper(QPDFWriter* qw) :
-            qw(qw)
-        {
-        }
-        ~PipelinePopper();
-
-      private:
-        QPDFWriter* qw{nullptr};
-        unsigned long stack_id{0};
-    };
-
-    unsigned int bytesNeeded(long long n);
-    void writeBinary(unsigned long long val, unsigned int bytes);
-    void writeString(std::string_view str);
-    void writeStringQDF(std::string_view str);
-    void writeStringNoQDF(std::string_view str);
-    void writePad(size_t nspaces);
-    void assignCompressedObjectNumbers(QPDFObjGen og);
-    void enqueueObject(QPDFObjectHandle object);
-    void writeObjectStreamOffsets(std::vector<qpdf_offset_t>& offsets, int first_obj);
-    void writeObjectStream(QPDFObjectHandle object);
-    void writeObject(QPDFObjectHandle object, int object_stream_index = -1);
-    void writeTrailer(
-        trailer_e which, int size, bool xref_stream, qpdf_offset_t prev, int linearization_pass);
-    bool willFilterStream(
-        QPDFObjectHandle stream,
-        bool& compress_stream,
-        bool& is_metadata,
-        std::string* stream_data);
-    void unparseObject(
-        QPDFObjectHandle object,
-        int level,
-        int flags,
-        // for stream dictionaries
-        size_t stream_length = 0,
-        bool compress = false);
-    void unparseChild(QPDFObjectHandle child, int level, int flags);
-    void initializeSpecialStreams();
-    void preserveObjectStreams();
-    void generateObjectStreams();
-    std::string getOriginalID1();
-    void generateID();
-    void interpretR3EncryptionParameters(
-        std::set<int>& bits_to_clear,
-        char const* user_password,
-        char const* owner_password,
-        bool allow_accessibility,
-        bool allow_extract,
-        bool allow_assemble,
-        bool allow_annotate_and_form,
-        bool allow_form_filling,
-        bool allow_modify_other,
-        qpdf_r3_print_e print,
-        qpdf_r3_modify_e modify);
-    void disableIncompatibleEncryption(int major, int minor, int extension_level);
-    void parseVersion(std::string const& version, int& major, int& minor) const;
-    int compareVersions(int major1, int minor1, int major2, int minor2) const;
-    void setEncryptionParameters(
-        char const* user_password,
-        char const* owner_password,
-        int V,
-        int R,
-        int key_len,
-        std::set<int>& bits_to_clear);
-    void setEncryptionParametersInternal(
-        int V,
-        int R,
-        int key_len,
-        int P,
-        std::string const& O,
-        std::string const& U,
-        std::string const& OE,
-        std::string const& UE,
-        std::string const& Perms,
-        std::string const& id1,
-        std::string const& user_password,
-        std::string const& encryption_key);
-    void setDataKey(int objid);
-    int openObject(int objid = 0);
-    void closeObject(int objid);
-    QPDFObjectHandle getTrimmedTrailer();
-    void prepareFileForWrite();
-    void enqueueObjectsStandard();
-    void enqueueObjectsPCLm();
-    void indicateProgress(bool decrement, bool finished);
-    void writeStandard();
-    void writeLinearized();
-    void enqueuePart(std::vector<QPDFObjectHandle>& part);
-    void writeEncryptionDictionary();
-    void initializeTables(size_t extra = 0);
-    void doWriteSetup();
-    void writeHeader();
-    void writeHintStream(int hint_id);
-    qpdf_offset_t writeXRefTable(trailer_e which, int first, int last, int size);
-    qpdf_offset_t writeXRefTable(
-        trailer_e which,
-        int first,
-        int last,
-        int size,
-        // for linearization
-        qpdf_offset_t prev,
-        bool suppress_offsets,
-        int hint_id,
-        qpdf_offset_t hint_offset,
-        qpdf_offset_t hint_length,
-        int linearization_pass);
-    qpdf_offset_t writeXRefStream(
-        int objid,
-        int max_id,
-        qpdf_offset_t max_offset,
-        trailer_e which,
-        int first,
-        int last,
-        int size);
-    qpdf_offset_t writeXRefStream(
-        int objid,
-        int max_id,
-        qpdf_offset_t max_offset,
-        trailer_e which,
-        int first,
-        int last,
-        int size,
-        // for linearization
-        qpdf_offset_t prev,
-        int hint_id,
-        qpdf_offset_t hint_offset,
-        qpdf_offset_t hint_length,
-        bool skip_compression,
-        int linearization_pass);
-    size_t calculateXrefStreamPadding(qpdf_offset_t xref_bytes);
-
-    // When filtering subsections, push additional pipelines to the stack. When ready to switch,
-    // activate the pipeline stack. When the passed in PipelinePopper goes out of scope, the stack
-    // is popped.
-    Pipeline* pushPipeline(Pipeline*);
-    void activatePipelineStack(PipelinePopper& pp, std::string& str);
-    void activatePipelineStack(PipelinePopper& pp, std::unique_ptr<qpdf::pl::Link> link);
-    void activatePipelineStack(
-        PipelinePopper& pp,
-        bool discard = false,
-        std::string* str = nullptr,
-        std::unique_ptr<qpdf::pl::Link> link = nullptr);
-    void initializePipelineStack(Pipeline*);
-
-    void adjustAESStreamLength(size_t& length);
-    void pushEncryptionFilter(PipelinePopper&);
-    void pushMD5Pipeline(PipelinePopper&);
-    void computeDeterministicIDData();
+    friend class qpdf::Writer;
 
     class Members;
 
-    // Keep all member variables inside the Members object, which we dynamically allocate. This
-    // makes it possible to add new private members without breaking binary compatibility.
     std::shared_ptr<Members> m;
 };
 

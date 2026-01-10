@@ -1,5 +1,5 @@
 // Copyright (c) 2005-2021 Jay Berkenbilt
-// Copyright (c) 2022-2025 Jay Berkenbilt and Manfred Holger
+// Copyright (c) 2022-2026 Jay Berkenbilt and Manfred Holger
 //
 // This file is part of qpdf.
 //
@@ -36,6 +36,21 @@
 class QPDFEmbeddedFileDocumentHelper: public QPDFDocumentHelper
 {
   public:
+    // Get a shared document helper for a given QPDF object.
+    //
+    // Retrieving a document helper for a QPDF object rather than creating a new one avoids repeated
+    // validation of the EmbeddedFiles structure, which can be expensive.
+    QPDF_DLL
+    static QPDFEmbeddedFileDocumentHelper& get(QPDF& qpdf);
+
+    // Re-validate the EmbeddedFiles structure. This is useful if you have modified the structure of
+    // the EmbeddedFiles dictionary in a way that would invalidate the cache.
+    //
+    // If repair is true, the document will be repaired if possible if the validation encounters
+    // errors.
+    QPDF_DLL
+    void validate(bool repair = true);
+
     QPDF_DLL
     QPDFEmbeddedFileDocumentHelper(QPDF&);
 
@@ -67,19 +82,7 @@ class QPDFEmbeddedFileDocumentHelper: public QPDFDocumentHelper
   private:
     void initEmbeddedFiles();
 
-    class Members
-    {
-        friend class QPDFEmbeddedFileDocumentHelper;
-
-      public:
-        ~Members() = default;
-
-      private:
-        Members() = default;
-        Members(Members const&) = delete;
-
-        std::shared_ptr<QPDFNameTreeObjectHelper> embedded_files;
-    };
+    class Members;
 
     std::shared_ptr<Members> m;
 };

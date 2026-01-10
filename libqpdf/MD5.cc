@@ -1,5 +1,7 @@
 #include <qpdf/MD5.hh>
 
+#include <qpdf/Pl_MD5.hh>
+
 #include <qpdf/QIntC.hh>
 #include <qpdf/QPDFCryptoProvider.hh>
 #include <qpdf/QUtil.hh>
@@ -14,14 +16,14 @@ MD5::MD5()
 void
 MD5::init()
 {
-    this->crypto = QPDFCryptoProvider::getImpl();
-    this->crypto->MD5_init();
+    crypto = QPDFCryptoProvider::getImpl();
+    crypto->MD5_init();
 }
 
 void
 MD5::finalize()
 {
-    this->crypto->MD5_finalize();
+    crypto->MD5_finalize();
 }
 
 void
@@ -43,12 +45,6 @@ void
 MD5::appendString(char const* input_string)
 {
     encodeDataIncrementally(input_string, strlen(input_string));
-}
-
-void
-MD5::encodeDataIncrementally(char const* data, size_t len)
-{
-    this->crypto->MD5_update(QUtil::unsigned_char_pointer(data), len);
 }
 
 void
@@ -84,14 +80,32 @@ MD5::encodeFile(char const* filename, qpdf_offset_t up_to_offset)
     }
     (void)fclose(file);
 
-    this->crypto->MD5_finalize();
+    crypto->MD5_finalize();
 }
 
 void
 MD5::digest(Digest result)
 {
-    this->crypto->MD5_finalize();
-    this->crypto->MD5_digest(result);
+    crypto->MD5_finalize();
+    crypto->MD5_digest(result);
+}
+
+std::string
+MD5::digest()
+{
+    Digest digest_val;
+    digest(digest_val);
+    return {reinterpret_cast<char*>(digest_val), 16};
+}
+
+std::string
+MD5::digest(std::string_view data)
+{
+    MD5 m;
+    m.encodeDataIncrementally(data.data(), data.size());
+    Digest digest_val;
+    m.digest(digest_val);
+    return {reinterpret_cast<char*>(digest_val), 16};
 }
 
 void
@@ -110,7 +124,7 @@ MD5::print()
 std::string
 MD5::unparse()
 {
-    this->crypto->MD5_finalize();
+    crypto->MD5_finalize();
     Digest digest_val;
     digest(digest_val);
     return QUtil::hex_encode(std::string(reinterpret_cast<char*>(digest_val), 16));
@@ -150,4 +164,30 @@ MD5::checkFileChecksum(char const* const checksum, char const* filename, qpdf_of
         // Ignore -- return false
     }
     return result;
+}
+
+void
+Pl_MD5::write(unsigned char const* buf, size_t len)
+{
+    if (enabled) {
+        if (!in_progress) {
+            md5.reset();
+            in_progress = true;
+        }
+
+        // Write in chunks in case len is too big to fit in an int. Assume int is at least 32 bits.
+        static size_t const max_bytes = 1 << 30;
+        size_t bytes_left = len;
+        unsigned char const* data = buf;
+        while (bytes_left > 0) {
+            size_t bytes = (bytes_left >= max_bytes ? max_bytes : bytes_left);
+            md5.encodeDataIncrementally(reinterpret_cast<char const*>(data), bytes);
+            bytes_left -= bytes;
+            data += bytes;
+        }
+    }
+
+    if (next()) {
+        next()->write(buf, len);
+    }
 }

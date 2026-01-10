@@ -20,7 +20,7 @@ other_tests()
     memcpy(data.get(), "potato", 6);
     r.process(data.get(), 6, data.get());
     assert(memcmp(data.get(), "\xa5\x6f\xe7\x27\x2b\x5c", 6) == 0);
-    std::cout << "passed" << std::endl;
+    std::cout << "passed" << '\n';
 }
 
 int
@@ -32,7 +32,7 @@ main(int argc, char* argv[])
     }
 
     if (argc != 4) {
-        std::cerr << "Usage: rc4 hex-key infile outfile" << std::endl;
+        std::cerr << "Usage: rc4 hex-key infile outfile" << '\n';
         exit(2);
     }
 
@@ -58,7 +58,8 @@ main(int argc, char* argv[])
     FILE* outfile = QUtil::safe_fopen(outfilename, "wb");
     auto* out = new Pl_StdioFile("stdout", outfile);
     // Use a small buffer size (64) for testing
-    auto* rc4 = new Pl_RC4("rc4", out, key, QIntC::to_int(keylen), 64U);
+    std::string keystr(reinterpret_cast<char const*>(key), keylen);
+    auto* rc4 = new Pl_RC4("rc4", out, keystr, 64U);
     delete[] key;
 
     // 64 < buffer size < 512, buffer_size is not a power of 2 for testing

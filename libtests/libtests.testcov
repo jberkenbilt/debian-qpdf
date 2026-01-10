@@ -1,9 +1,6 @@
 ignored-scope: qpdf
 Pl_LZWDecoder intermediate reset 0
-Pl_LZWDecoder last was table size 0
 Pl_ASCII85Decoder ignore space 0
-Pl_ASCII85Decoder read z 0
-Pl_ASCII85Decoder no-op flush 0
 Pl_ASCII85Decoder partial flush 1
 bits leftover 1
 bits bit_offset 2
@@ -34,29 +31,16 @@ Pl_PNGFilter decodeUp 0
 Pl_PNGFilter decodeAverage 0
 Pl_PNGFilter decodePaeth 0
 Pl_TIFFPredictor processRow 1
-JSON wanted dictionary 0
-JSON key missing in object 0
-JSON key extra in object 0
 QPDFArgParser read args from stdin 0
 QPDFArgParser read args from file 0
 QPDFArgParser required choices 0
 QPDFArgParser required parameter 0
-QPDFArgParser select unregistered table 0
-QPDFArgParser register registered table 0
-QPDFArgParser duplicate handler 0
 QPDFArgParser missing -- 0
 QPDFArgParser single dash 0
 QPDFArgParser help option 0
 QPDFArgParser positional 0
 QPDFArgParser unrecognized 0
 QPDFArgParser complete choices 0
-QPDFArgParser add reserved help topic 0
-QPDFArgParser add existing topic 0
-QPDFArgParser add to unknown topic 0
-QPDFArgParser duplicate option help 0
-QPDFArgParser bad option for help 0
-QPDFArgParser bad topic for help 0
-QPDFArgParser invalid choice handler to unknown 0
 JSON parse junk after object 0
 JSON parse invalid keyword 0
 JSON parse expected colon 0
@@ -85,10 +69,7 @@ JSON parse ls premature end of input 0
 JSON parse bad hex after u 0
 JSONHandler unhandled value 0
 JSONHandler unexpected key 0
-JSON schema other type 0
 JSON optional key 0
 JSON 16 high high 0
 JSON 16 low not after high 0
 JSON 16 dangling high 0
-JSON schema array for single item 0
-JSON schema array length mismatch 0

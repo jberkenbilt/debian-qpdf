@@ -1,5 +1,5 @@
 // Copyright (c) 2005-2021 Jay Berkenbilt
-// Copyright (c) 2022-2025 Jay Berkenbilt and Manfred Holger
+// Copyright (c) 2022-2026 Jay Berkenbilt and Manfred Holger
 //
 // This file is part of qpdf.
 //
@@ -45,8 +45,6 @@ class QPDF_DLL_CLASS Pl_StdioFile: public Pipeline
 
   private:
     class Members;
-    ;
-
     std::unique_ptr<Members> m;
 };
 

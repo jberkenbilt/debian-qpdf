@@ -1,5 +1,11 @@
 #include <qpdf/QPDFEmbeddedFileDocumentHelper.hh>
 
+#include <qpdf/QPDFNameTreeObjectHelper.hh>
+#include <qpdf/QPDFObjectHandle_private.hh>
+#include <qpdf/QPDF_private.hh>
+
+using namespace qpdf;
+
 // File attachments are stored in the /EmbeddedFiles (name tree) key of the /Names dictionary from
 // the document catalog. Each entry points to a /FileSpec, which in turn points to one more Embedded
 // File Streams. Note that file specs can appear in other places as well, such as file attachment
@@ -30,16 +36,43 @@
 //   >>
 // >>
 
+class QPDFEmbeddedFileDocumentHelper::Members
+{
+  public:
+    Members() = default;
+    Members(Members const&) = delete;
+    ~Members() = default;
+
+    std::unique_ptr<QPDFNameTreeObjectHelper> embedded_files;
+};
+
 QPDFEmbeddedFileDocumentHelper::QPDFEmbeddedFileDocumentHelper(QPDF& qpdf) :
     QPDFDocumentHelper(qpdf),
-    m(new Members())
+    m(std::make_shared<Members>())
 {
-    auto root = qpdf.getRoot();
-    auto names = root.getKey("/Names");
+    validate();
+}
+
+QPDFEmbeddedFileDocumentHelper&
+QPDFEmbeddedFileDocumentHelper::get(QPDF& qpdf)
+{
+    return qpdf.doc().embedded_files();
+}
+
+void
+QPDFEmbeddedFileDocumentHelper::validate(bool repair)
+{
+    m->embedded_files.reset();
+    auto names = qpdf.getRoot().getKey("/Names");
     if (names.isDictionary()) {
         auto embedded_files = names.getKey("/EmbeddedFiles");
         if (embedded_files.isDictionary()) {
-            m->embedded_files = std::make_shared<QPDFNameTreeObjectHelper>(embedded_files, qpdf);
+            m->embedded_files = std::make_unique<QPDFNameTreeObjectHelper>(
+                embedded_files,
+                qpdf,
+                [](QPDFObjectHandle const& o) -> bool { return o.isDictionary(); },
+                true);
+            m->embedded_files->validate(repair);
         }
     }
 }
@@ -63,9 +96,10 @@ QPDFEmbeddedFileDocumentHelper::initEmbeddedFiles()
     }
     auto embedded_files = names.getKey("/EmbeddedFiles");
     if (!embedded_files.isDictionary()) {
-        auto nth = QPDFNameTreeObjectHelper::newEmpty(this->qpdf);
+        auto nth = QPDFNameTreeObjectHelper::newEmpty(qpdf);
         names.replaceKey("/EmbeddedFiles", nth.getObjectHandle());
-        m->embedded_files = std::make_shared<QPDFNameTreeObjectHelper>(nth);
+        m->embedded_files = std::make_unique<QPDFNameTreeObjectHelper>(
+            nth, qpdf, [](QPDFObjectHandle const& o) -> bool { return o.isDictionary(); }, true);
     }
 }
 
@@ -112,11 +146,10 @@ QPDFEmbeddedFileDocumentHelper::removeEmbeddedFile(std::string const& name)
     if (iter == m->embedded_files->end()) {
         return false;
     }
-    auto oh = iter->second;
-    iter.remove();
-    if (oh.isIndirect()) {
-        this->qpdf.replaceObject(oh.getObjGen(), QPDFObjectHandle::newNull());
+    if (iter->second.indirect()) {
+        qpdf.replaceObject(iter->second, Null());
     }
+    iter.remove();
 
     return true;
 }

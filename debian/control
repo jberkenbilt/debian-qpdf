@@ -8,7 +8,7 @@ Build-Depends-Indep:
  libjs-sphinxdoc (>= 4.3.2~),
  texlive, texlive-latex-extra, latexmk, tex-gyre
 Maintainer: Jay Berkenbilt <qjb@debian.org>
-Standards-Version: 4.7.2
+Standards-Version: 4.7.3
 Homepage: https://qpdf.sourceforge.io
 
 Package: libqpdf30

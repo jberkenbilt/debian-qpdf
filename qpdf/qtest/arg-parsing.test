@@ -15,7 +15,7 @@ cleanup();
 
 my $td = new TestDriver('arg-parsing');
 
-my $n_tests = 26;
+my $n_tests = 33;
 
 $td->runtest("required argument",
              {$td->COMMAND => "qpdf --password minimal.pdf"},
@@ -138,6 +138,26 @@ $td->runtest("missing key length",
              {$td->REGEXP => ".*encryption key length is required",
                   $td->EXIT_STATUS => 2},
              $td->NORMALIZE_NEWLINES);
+$td->runtest("encrypt and deterministic-id 1",
+             {$td->COMMAND => "qpdf --deterministic-id --encrypt --"},
+             {$td->REGEXP => ".*the deterministic-id option is incompatible with encrypted output files",
+                  $td->EXIT_STATUS => 2},
+             $td->NORMALIZE_NEWLINES);
+$td->runtest("encrypt and deterministic-id 2",
+             {$td->COMMAND => "qpdf --deterministic-id --encrypt --bits=256 -- --deterministic-id"},
+             {$td->REGEXP => ".*the deterministic-id option is incompatible with encrypted output files",
+                  $td->EXIT_STATUS => 2},
+             $td->NORMALIZE_NEWLINES);
+$td->runtest("copy-encryption and deterministic-id 1",
+             {$td->COMMAND => "qpdf --deterministic-id --copy-encryption=missing.pdf"},
+             {$td->REGEXP => ".*the deterministic-id option is incompatible with encrypted output files",
+                  $td->EXIT_STATUS => 2},
+             $td->NORMALIZE_NEWLINES);
+$td->runtest("copy-encryption and deterministic-id 2",
+             {$td->COMMAND => "qpdf --copy-encryption=missing.pdf --deterministic-id"},
+             {$td->REGEXP => ".*the deterministic-id option is incompatible with encrypted output files",
+                  $td->EXIT_STATUS => 2},
+             $td->NORMALIZE_NEWLINES);
 
 # Disallow mixing positional and flag-style encryption arguments.
 my @bad_enc = (
@@ -154,6 +174,25 @@ foreach my $arg (@bad_enc)
                       $td->EXIT_STATUS => 2},
                  $td->NORMALIZE_NEWLINES);
 }
+
+$td->runtest("bad compression-level",
+             {$td->COMMAND => "qpdf --compression-level=false minimal.pdf"},
+             {$td->REGEXP => "invalid compression-level: must be a number between 1 and 9",
+                  $td->EXIT_STATUS => 2},
+             $td->NORMALIZE_NEWLINES);
+
+$td->runtest("bad jpeg-quality",
+             {$td->COMMAND => "qpdf --jpeg-quality=101 minimal.pdf"},
+             {$td->REGEXP => "invalid jpeg-quality: must be a number between 0 and 100",
+                  $td->EXIT_STATUS => 2},
+             $td->NORMALIZE_NEWLINES);
+
+$td->runtest("bad objects-container-max-container-size",
+             {$td->COMMAND => "qpdf --global --parser-max-container-size=-1 -- minimal.pdf"},
+             {$td->REGEXP =>
+                "invalid parser-max-container-size: must be a number between 0 and 4294967295",
+                  $td->EXIT_STATUS => 2},
+             $td->NORMALIZE_NEWLINES);
 
 cleanup();
 $td->report($n_tests);

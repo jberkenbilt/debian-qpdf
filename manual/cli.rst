@@ -244,14 +244,14 @@ Shell Completion
 .. help-topic completion: shell completion
 
    Shell completion is supported with bash and zsh. Use
-   eval $(qpdf --completion-bash) or eval $(qpdf --completion-zsh)
+   eval "$(qpdf --completion-bash)" or eval "$(qpdf --completion-zsh)"
    to enable. The QPDF_EXECUTABLE environment variable overrides the
    path to qpdf that these commands output.
 
 :command:`qpdf` provides its own completion support for zsh and bash.
-You can enable bash completion with :command:`eval $(qpdf
---completion-bash)` and zsh completion with :command:`eval $(qpdf
---completion-zsh)`. If :command:`qpdf` is not in your path, you should
+You can enable bash completion with :command:`eval "$(qpdf
+--completion-bash)"` and zsh completion with :command:`eval "$(qpdf
+--completion-zsh)"`. If :command:`qpdf` is not in your path, you should
 use an absolute path to qpdf in the above invocation. If you invoke it
 with a relative path, it will warn you, and the completion won't work
 if you're in a different directory.
@@ -1641,6 +1641,14 @@ Related Options
    appearances with some limitations. See the
    :qpdf:ref:`--generate-appearances` option for details.
 
+   In some damaged files with interactive form fields the form fields
+   in the document's AcroForm structure may be out-of-sync with the
+   corresponding widget annotations on the page. In this case, some
+   viewers may after flattening show some field values twice with
+   a slight offset. In this situation it may help to remove the
+   AcroForm entry in the document catalog using the
+   :qpdf:ref:`--remove-acroform` option after flattening.
+
 .. qpdf:option:: --rotate=[+|-]angle[:page-range]
 
    .. help: rotate pages
@@ -1668,7 +1676,7 @@ Related Options
    If neither ``+`` or ``-`` is prepended, the rotation angle is set
    exactly. You almost always want ``+`` or ``-`` since, without
    inspecting the actual PDF code, it is impossible to know whether a
-   page that appears to be rotate is rotated "naturally" or has been
+   page that appears to be rotated is rotated "naturally" or has been
    rotated by specifying rotation. For example, if a page appears to
    contain a portrait-mode image rotated by 90 degrees so that the top
    of the image is on the right edge of the page, there is no way to
@@ -1809,6 +1817,30 @@ Related Options
 
    Prevent inline images from being included in image optimization
    done by :qpdf:ref:`--optimize-images`.
+
+.. qpdf:option:: --remove-acroform
+
+   .. help: remove the interactive form dictionary
+
+      Exclude the interactive form dictionary from the output file. This
+      option only removes the interactive form dictionary from the
+      document catalog. It does not remove form field dictionaries or
+      widget annotations. See the manual for more detail.
+
+Exclude the interactive form dictionary from the output file. This
+option only removes the interactive form dictionary from the
+document catalog. It does not remove form field dictionaries or the
+associated widget annotations.
+
+In some damaged files with interactive form fields the form fields
+in the document's AcroForm structure may be out-of-sync with the
+corresponding widget annotations on the page. In this case,
+different viewers may display different field values, and after flattening
+annotations with the :qpdf:ref:`--flatten-annotations` option,
+some viewers may show some field values twice with
+a slight offset. In this situation it may help to remove the
+AcroForm entry in the document catalog using this option. **Users should
+check the output file carefully after using this option**.
 
 .. qpdf:option:: --remove-info
 
@@ -3761,6 +3793,127 @@ Related Options
    This option updates a PDF file from the specified qpdf JSON file.
    For a information about how to use this option, please see
    :ref:`json`.
+
+.. _global-options:
+
+Global Options
+--------------
+
+.. help-topic global: options for changing the behaviour of qpdf
+
+   The options below modify the overall behaviour of qpdf. This includes modifying
+   implementation limits and changing modes of operation.
+
+The options below modify the overall behaviour of qpdf. This includes modifying implementation
+limits and changing modes of operation.
+
+Related Options
+~~~~~~~~~~~~~~~
+
+.. qpdf:option:: --global [options] --
+
+   .. help: begin setting global options and limits
+
+      Begin setting global options and limits.
+
+Begin setting global options and limits.
+
+
+Global Limits
+~~~~~~~~~~~~~
+
+qpdf uses a number of global limits to protect itself from damaged and specially constructed PDF
+files. Without these limits such files can cause qpdf to crash and/or to consume excessive
+processor and memory resources. Very few legitimate PDF files exceed these limits, however
+where necessary the limits can be modified or entirely removed by the following options.
+
+.. qpdf:option:: --no-default-limits
+
+   .. help: disable optional default limits
+
+      Disables all optional default limits. Explicitly set limits are unaffected. Some
+      limits, especially limits designed to prevent stack overflow, cannot be removed
+      with this option but can be modified. Where this is the case it is mentioned
+      in the entry for the relevant option.
+
+Disables all optional default limits. Explicitly set limits are unaffected. Some limits,
+especially limits designed to prevent stack overflow, cannot be removed with this option
+but can be modified. Where this is the case it is mentioned in the entry for the relevant
+option.
+
+Parser Limits
+.............
+
+.. qpdf:option:: --parser-max-nesting=n
+
+   .. help: set the maximum nesting level while parsing objects
+
+      Set the maximum nesting level while parsing objects. The maximum nesting level
+      is not disabled by --no-default-limits. Defaults to 499.
+
+Set the maximum nesting level while parsing objects. The maximum nesting level is not
+disabled by :qpdf:ref:`--no-default-limits`. Defaults to 499.
+
+.. qpdf:option:: --parser-max-errors=n
+
+   .. help: set the maximum number of errors while parsing
+
+      Set the maximum number of errors allowed while parsing an indirect object.
+      A value of 0 means that no maximum is imposed. Defaults to 15.
+
+Set the maximum number of errors allowed while parsing an indirect object.
+A value of 0 means that no maximum is imposed. Defaults to 15.
+
+.. qpdf:option:: --parser-max-container-size=n
+
+   .. help: set the maximum container size while parsing
+
+      Set the maximum number of top-level objects allowed in a container while
+      parsing. The limit applies when the PDF document's xref table is undamaged
+      and the object itself can be parsed without errors. The default limit
+      is 4,294,967,295. See also --parser-max-container-size-damaged.
+
+
+Set the maximum number of top-level objects allowed in a container while
+parsing. The limit applies when the PDF document's xref table is undamaged
+and the object itself can be parsed without errors. The default limit
+is 4,294,967,295. See also :qpdf:ref:`--parser-max-container-size-damaged`.
+
+.. qpdf:option:: --parser-max-container-size-damaged=n
+
+   .. help: set the maximum container size while parsing damaged files
+
+      Set the maximum number of top-level objects allowed in a container while
+      parsing. The limit applies when the PDF document's xref table is damaged
+      or the object itself is damaged. The limit also applies when parsing
+      xref streams. The default limit is 5,000.
+      See also --parser-max-container-size.
+
+
+Set the maximum number of top-level objects allowed in a container while
+parsing. The limit applies when the PDF document's xref table is damaged
+or the object itself is damaged. The limit also applies when parsing
+xref streams. The default limit is 5,000.
+See also :qpdf:ref:`--parser-max-container-size`.
+
+
+Stream and Filter Limits
+.........................
+
+.. qpdf:option:: --max-stream-filters=n
+
+   .. help: set the maximum number of filters allowed when filtering streams
+
+      An excessive number of stream filters is usually a sign that a file
+      is damaged or specially constructed. If the maximum is exceeded for
+      a stream the stream is treated as unfilterable.
+      The default limit is 25.
+
+Set the maximum number of filters allowed when filtering streams. An excessive
+number of stream filters is usually a sign that a file is damaged or specially
+constructed. If the maximum is exceeded for a stream the stream is treated as
+unfilterable. The default limit is 25.
+
 
 .. _test-options:
 

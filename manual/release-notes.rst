@@ -13,11 +13,161 @@ more detail.
 
 .. x.y.z: not yet released
 
+12.3.0: January 10, 2026
+  - Release changes
+
+    - Starting with version 12.3.0, we use
+      `cosign <https://docs.sigstore.dev/cosign/>`__, rather than GPG,
+      to sign releases. See the top-level README.md for instructions.
+      We will continue to use GPG for the 12.x series. Starting with
+      qpdf version 13, only cosign will be used.
+
+  - Build changes
+
+    - A C++20 compiler is now required to build or test qpdf. All public
+      header files remain C++17 compatible.
+
+    - The AppImage and Linux standalone binary distributions are now
+      built with Ubuntu 22.04 to support C++20, which means they will
+      not work on some older Linux distributions. If you need support
+      for an older distribution, please use version 12.2.0 or below.
+
+  - Bug fixes
+
+    - Always set the ``is_different`` flag in
+      ``QPDFFormFieldObjectHelper::getTopLevelField``. Previously the
+      flag was only set to true if the field is not a top-level field,
+      and remained unchanged otherwise.
+
+    - When parsing qpdf JSON input files allow empty name objects. These are
+      allowed by the PDF specification but were previously rejected.
+
+    - ``QPDFAcroFormDocumentHelper::fixCopiedAnnotations`` now correctly
+      updates any annotation's ``/P`` entries to point to the owning page.
+
+  - Library Enhancements
+
+    - Add ``QPDFNameTreeObjectHelper`` and ``QPDFNumberTreeObjectHelper``
+      constructor overloads that allow a function to be passed to
+      validate the values in the tree.
+
+    - Add new ``QPDFNameTreeObjectHelper`` and ``QPDFNumberTreeObjectHelper``
+      ``validate`` method to validate and optionally repair the name/number
+      tree.
+
+    - Add new ``get`` and ``validate`` methods to all DocumentHelper classes.
+      The ``get`` method retrieves a shared DocumentHelper, avoiding the the
+      overhead of repeatedly validating the underlying document structure
+      and/or building internal caches. If the underlying document structure
+      is directly modified (without the use of DocumentHelpers), the
+      ``validate`` methods revalidate the structure and resynchronize any
+      internal caches.
+
+    - Add new ``Buffer`` methods ``move``, ``view``, ``data``, ``size`` and
+      ``empty``. The new methods present the ``Buffer`` as a ``char`` (rather
+      than ``unsigned char``) container and facilitate the efficient moving
+      of its content into a ``std::string``.
+
+    - Add various new functions in the ``qpdf::`global`` namespace to access
+      and set/modify global settings and limits. See :ref:`global-options`
+      and header file ``qpdf/global.hh`` for further detail.
+
+    - Add new C-API functions ``qpdf_global_get_uint32`` and
+      ``qpdf_global_set_uint32`` to access and set/modify various global
+      settings and limits.
+
+  - Build fixes
+
+    - Attempt to detect if any > C++17 changes snuck into any public
+      headers and check all private headers compile stand-alone.
+
+  - CLI Enhancements
+
+    - Disallow option :qpdf:ref:`--deterministic-id` to be used together
+      with the incompatible options :qpdf:ref:`--encrypt` or
+      :qpdf:ref:`--copy-encryption`.
+
+    - Option :qpdf:ref:`--check` now includes additional basic checks of the
+      AcroForm, Dests, Outlines, and PageLabels structures.
+
+    - Add new option :qpdf:ref:`--global` to set or modify various global
+      options and limits. See :ref:`global-options` for further detail.
+
+    - Fix completion scripts and handling to avoid leaking arguments
+      into the environment during completion and to correctly handle
+      ``bashcompinit`` for zsh users.
+
+    - Add new :qpdf:ref:`--remove-acroform` option to exclude the AcroForm
+      dictionary from the output PDF. This option can be useful particularly
+      when the :qpdf:ref:`--flatten-annotations` option is used on damaged
+      PDF files.
+
+  - Other enhancements
+
+    - Add new ``inspection mode`` to help with the inspection and manual repair
+      of damaged PDF files. In this mode some of the exceptions thrown if a PDF
+      file is damaged and unrepairable are replaced with warnings and some automatic
+      repairs are suppressed. Only a very limited range of operations are supported.
+      Inspection mode is selected with the new function
+      ``qpdf::global::options::inspection_mode``. For more detail see
+      :ref:`inspection-mode`.
+
+    - ``QPDFWriter`` will no longer add filters when writing empty streams.
+
+    - More sanity checks have been added when files with damaged xref tables
+      are recovered.
+
+  - Other changes
+
+    - There has been significant internal refactoring affecting most parts of
+      qpdf's code base.
+
+    - By default, streams with more than 25 filters are now treated as unfilterable.
+      A large number of filters typically occur in damaged or specially constructed
+      files and can cause excessive use of resources and/or stack overflows. The
+      limit can be changed if necessary with the new :qpdf:ref:`--max-stream-filters`
+      CLI option or the new ``qpdf::global::max_stream_filters`` function.
+
+    - When running in a FIPS environment using the GnuTLS crypto provider,
+      calls to GnuTLS now use 'LAX' mode as the use of weak algorithms is
+      required to decrypt existing files and is specified by the PDF standards
+      for purposes unrelated to encryption. It is up to users to ensure
+      they comply with FIPS where required.
+
+    - Calling ``QPDF::getRoot`` on a file with invalid trailer now throws a
+      ``damaged_pdf`` error with message "unable to find /Root dictionary"
+      rather than an internal error.
+
+    - Invalid root object `/Type` entries are now unconditionally repaired [#inspect]_.
+      Previously they were only repaired if the :qpdf:ref:`--check` option was used.
+
+    - Setting :qpdf:ref:`--compress-streams` to ``n`` or
+      ``QPDFWriter::setCompressStreams(false)`` no longer automatically
+      causes the output file to be decrypted. Set :qpdf:ref:`--decrypt` if this
+      is the intended behaviour.
+
+    - There has been some refactoring of stream filtering. These are optimized
+      for the common case where no user provided stream filters are
+      registered by calling ``QPDF::registerStreamFilter``. If you are
+      providing your own stream filters please open a ticket_.
+
+.. _r12-3-0-deprecate:
+
+    - The following are believed to be not in use and have been deprecated.
+      If you are relying on them please open a ticket_.
+
+      - QPDF::compute_encryption_key
+
+      - All QPDF::EncryptionData methods. These methods are not exported in the
+        shared library and are only useable in statically linked programs.
+
+.. [#inspect] not in :ref:`inspection-mode`
+
 12.2.0: May 4, 2025
   - Upcoming C++ Version Change
 
     - This is expected to be the last minor release of qpdf to work
-      with C++-17. We will be switching to C++-20 for 12.3.0.
+      with C++17. We will be switching to C++20 for 12.3.0.
 
   - Bug fixes
 

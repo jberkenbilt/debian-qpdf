@@ -90,6 +90,14 @@ static constexpr char const* JOB_SCHEMA_DATA = R"({
   ],
   "jsonStreamData": "how to handle streams in json output",
   "jsonStreamPrefix": "prefix for json stream data files",
+  "global": {
+    "noDefaultLimits": "disable optional default limits",
+    "parserMaxContainerSize": "set the maximum container size while parsing",
+    "parserMaxContainerSizeDamaged": "set the maximum container size while parsing damaged files",
+    "parserMaxErrors": "set the maximum number of errors while parsing",
+    "parserMaxNesting": "set the maximum nesting level while parsing objects",
+    "maxStreamFilters": "set the maximum number of filters allowed when filtering streams"
+  },
   "updateFromJson": "update a PDF from qpdf JSON",
   "allowWeakCrypto": "allow insecure cryptographic algorithms",
   "keepFilesOpen": "manage keeping multiple files open",
@@ -146,6 +154,7 @@ static constexpr char const* JOB_SCHEMA_DATA = R"({
       "range": "page range"
     }
   ],
+  "removeAcroform": "remove the interactive form dictionary",
   "removeInfo": "remove file information",
   "removeMetadata": "remove metadata",
   "removePageLabels": "remove explicit page numbers",

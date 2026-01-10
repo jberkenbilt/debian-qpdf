@@ -1,9 +1,11 @@
 #include <qpdf/QPDFAnnotationObjectHelper.hh>
 
-#include <qpdf/QPDF.hh>
 #include <qpdf/QPDFMatrix.hh>
+#include <qpdf/QPDFObjectHandle_private.hh>
 #include <qpdf/QTC.hh>
 #include <qpdf/QUtil.hh>
+
+using namespace qpdf;
 
 QPDFAnnotationObjectHelper::QPDFAnnotationObjectHelper(QPDFObjectHandle oh) :
     QPDFObjectHelper(oh)
@@ -31,19 +33,15 @@ QPDFAnnotationObjectHelper::getAppearanceDictionary()
 std::string
 QPDFAnnotationObjectHelper::getAppearanceState()
 {
-    if (oh().getKey("/AS").isName()) {
-        QTC::TC("qpdf", "QPDFAnnotationObjectHelper AS present");
-        return oh().getKey("/AS").getName();
-    }
-    QTC::TC("qpdf", "QPDFAnnotationObjectHelper AS absent");
-    return "";
+    Name AS = get("/AS");
+    return AS ? AS.value() : "";
 }
 
 int
 QPDFAnnotationObjectHelper::getFlags()
 {
-    QPDFObjectHandle flags_obj = oh().getKey("/F");
-    return flags_obj.isInteger() ? flags_obj.getIntValueAsInt() : 0;
+    Integer flags_obj = get("/F");
+    return flags_obj ? flags_obj : 0;
 }
 
 QPDFObjectHandle
@@ -58,20 +56,16 @@ QPDFAnnotationObjectHelper::getAppearanceStream(std::string const& which, std::s
             // appearance stream when /AP is a dictionary, but files have been seen in the wild
             // where Appearance State is `/N` and `/AP` is a stream. Therefore, if `which` points to
             // a stream, disregard state and just use the stream. See qpdf issue #949 for details.
-            QTC::TC("qpdf", "QPDFAnnotationObjectHelper AP stream");
             return ap_sub;
         }
-        if (ap_sub.isDictionary() && (!desired_state.empty())) {
-            QTC::TC("qpdf", "QPDFAnnotationObjectHelper AP dictionary");
+        if (ap_sub.isDictionary() && !desired_state.empty()) {
             QPDFObjectHandle ap_sub_val = ap_sub.getKey(desired_state);
             if (ap_sub_val.isStream()) {
-                QTC::TC("qpdf", "QPDFAnnotationObjectHelper AP sub stream");
                 return ap_sub_val;
             }
         }
     }
-    QTC::TC("qpdf", "QPDFAnnotationObjectHelper AP null");
-    return QPDFObjectHandle::newNull();
+    return Null::temp();
 }
 
 std::string

@@ -45,11 +45,11 @@ ap.addHelpTopic("exit-status", "meanings of qpdf's exit codes", R"(Meaning of ex
 ap.addOptionHelp("--warning-exit-0", "exit-status", "exit 0 even with warnings", R"(Use exit status 0 instead of 3 when warnings are present. When
 combined with --no-warn, warnings are completely ignored.
 )");
-ap.addHelpTopic("completion", "shell completion", R"(Shell completion is supported with bash and zsh. Use
-eval $(qpdf --completion-bash) or eval $(qpdf --completion-zsh)
+ap.addHelpTopic("completion", "shell completion", R"/(Shell completion is supported with bash and zsh. Use
+eval "$(qpdf --completion-bash)" or eval "$(qpdf --completion-zsh)"
 to enable. The QPDF_EXECUTABLE environment variable overrides the
 path to qpdf that these commands output.
-)");
+)/");
 ap.addOptionHelp("--completion-bash", "completion", "enable bash completion", R"(Output a command that enables bash completion
 )");
 ap.addOptionHelp("--completion-zsh", "completion", "enable zsh completion", R"(Output a command that enables zsh completion
@@ -430,6 +430,11 @@ ap.addOptionHelp("--keep-inline-images", "modification", "exclude inline images 
 }
 static void add_help_5(QPDFArgParser& ap)
 {
+ap.addOptionHelp("--remove-acroform", "modification", "remove the interactive form dictionary", R"(Exclude the interactive form dictionary from the output file. This
+option only removes the interactive form dictionary from the
+document catalog. It does not remove form field dictionaries or
+widget annotations. See the manual for more detail.
+)");
 ap.addOptionHelp("--remove-info", "modification", "remove file information", R"(Exclude file information (except modification date) from the output file.
 )");
 ap.addOptionHelp("--remove-metadata", "modification", "remove metadata", R"(Exclude metadata from the output file.
@@ -642,6 +647,9 @@ ap.addOptionHelp("--cleartext-metadata", "encryption", "don't encrypt metadata",
 encrypting the rest of the document. This option is not
 available with 40-bit encryption.
 )");
+}
+static void add_help_6(QPDFArgParser& ap)
+{
 ap.addOptionHelp("--use-aes", "encryption", "use AES with 128-bit encryption", R"(--use-aes=[y|n]
 
 Enables/disables use of the more secure AES encryption with
@@ -650,9 +658,6 @@ version to be at least 1.6. This option is only available with
 128-bit encryption. The default is "n" for compatibility
 reasons. Use 256-bit encryption instead.
 )");
-}
-static void add_help_6(QPDFArgParser& ap)
-{
 ap.addOptionHelp("--allow-insecure", "encryption", "allow empty owner passwords", R"(Allow creation of PDF files with empty owner passwords and
 non-empty user passwords when using 256-bit encryption.
 )");
@@ -828,14 +833,14 @@ Specify the attachment's modification date in PDF format;
 defaults to the current time. Run qpdf --help=pdf-dates for
 information about the date format.
 )");
+}
+static void add_help_7(QPDFArgParser& ap)
+{
 ap.addOptionHelp("--mimetype", "add-attachment", "attachment mime type, e.g. application/pdf", R"(--mimetype=type/subtype
 
 Specify the mime type for the attachment, such as text/plain,
 application/pdf, image/png, etc.
 )");
-}
-static void add_help_7(QPDFArgParser& ap)
-{
 ap.addOptionHelp("--description", "add-attachment", "set attachment's description", R"(--description="text"
 
 Supply descriptive text for the attachment, displayed by some
@@ -924,12 +929,12 @@ Useful for scripts.
 ap.addOptionHelp("--show-pages", "inspection", "display page dictionary information", R"(Show the object and generation number for each page dictionary
 object and for each content stream associated with the page.
 )");
-ap.addOptionHelp("--with-images", "inspection", "include image details with --show-pages", R"(When used with --show-pages, also shows the object and
-generation numbers for the image objects on each page.
-)");
 }
 static void add_help_8(QPDFArgParser& ap)
 {
+ap.addOptionHelp("--with-images", "inspection", "include image details with --show-pages", R"(When used with --show-pages, also shows the object and
+generation numbers for the image objects on each page.
+)");
 ap.addOptionHelp("--list-attachments", "inspection", "list embedded files", R"(Show the key and stream number for each embedded file. Combine
 with --verbose for more detailed information.
 )");
@@ -1004,6 +1009,53 @@ Update a PDF file from a JSON file. Please see the "qpdf JSON"
 chapter of the manual for information about how to use this
 option.
 )");
+ap.addHelpTopic("global", "options for changing the behaviour of qpdf", R"(The options below modify the overall behaviour of qpdf. This includes modifying
+implementation limits and changing modes of operation.
+)");
+ap.addOptionHelp("--global", "global", "begin setting global options and limits", R"(--global [options] --
+
+Begin setting global options and limits.
+)");
+ap.addOptionHelp("--no-default-limits", "global", "disable optional default limits", R"(Disables all optional default limits. Explicitly set limits are unaffected. Some
+limits, especially limits designed to prevent stack overflow, cannot be removed
+with this option but can be modified. Where this is the case it is mentioned
+in the entry for the relevant option.
+)");
+ap.addOptionHelp("--parser-max-nesting", "global", "set the maximum nesting level while parsing objects", R"(--parser-max-nesting=n
+
+Set the maximum nesting level while parsing objects. The maximum nesting level
+is not disabled by --no-default-limits. Defaults to 499.
+)");
+ap.addOptionHelp("--parser-max-errors", "global", "set the maximum number of errors while parsing", R"(--parser-max-errors=n
+
+Set the maximum number of errors allowed while parsing an indirect object.
+A value of 0 means that no maximum is imposed. Defaults to 15.
+)");
+ap.addOptionHelp("--parser-max-container-size", "global", "set the maximum container size while parsing", R"(--parser-max-container-size=n
+
+Set the maximum number of top-level objects allowed in a container while
+parsing. The limit applies when the PDF document's xref table is undamaged
+and the object itself can be parsed without errors. The default limit
+is 4,294,967,295. See also --parser-max-container-size-damaged.
+)");
+}
+static void add_help_9(QPDFArgParser& ap)
+{
+ap.addOptionHelp("--parser-max-container-size-damaged", "global", "set the maximum container size while parsing damaged files", R"(--parser-max-container-size-damaged=n
+
+Set the maximum number of top-level objects allowed in a container while
+parsing. The limit applies when the PDF document's xref table is damaged
+or the object itself is damaged. The limit also applies when parsing
+xref streams. The default limit is 5,000.
+See also --parser-max-container-size.
+)");
+ap.addOptionHelp("--max-stream-filters", "global", "set the maximum number of filters allowed when filtering streams", R"(--max-stream-filters=n
+
+An excessive number of stream filters is usually a sign that a file
+is damaged or specially constructed. If the maximum is exceeded for
+a stream the stream is treated as unfilterable.
+The default limit is 25.
+)");
 ap.addHelpTopic("testing", "options for testing or debugging", R"(The options below are useful when writing automated test code that
 includes files created by qpdf or when testing qpdf itself.
 )");
@@ -1039,6 +1091,7 @@ static void add_help(QPDFArgParser& ap)
     add_help_6(ap);
     add_help_7(ap);
     add_help_8(ap);
+    add_help_9(ap);
 ap.addHelpFooter("For detailed help, visit the qpdf manual: https://qpdf.readthedocs.io\n");
 }
 

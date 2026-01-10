@@ -1,5 +1,5 @@
 // Copyright (c) 2005-2021 Jay Berkenbilt
-// Copyright (c) 2022-2025 Jay Berkenbilt and Manfred Holger
+// Copyright (c) 2022-2026 Jay Berkenbilt and Manfred Holger
 //
 // This file is part of qpdf.
 //
@@ -110,7 +110,7 @@ class QPDFObjGen
         add(QPDFObjGen og)
         {
             if (og.isIndirect()) {
-                if (count(og) > 0) {
+                if (count(og)) {
                     return false;
                 }
                 emplace(og);

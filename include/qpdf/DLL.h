@@ -1,5 +1,5 @@
 /* Copyright (c) 2005-2021 Jay Berkenbilt
- * Copyright (c) 2022-2025 Jay Berkenbilt and Manfred Holger
+ * Copyright (c) 2022-2026 Jay Berkenbilt and Manfred Holger
  *
  * This file is part of qpdf.
  *
@@ -26,13 +26,13 @@
 
 /* The first version of qpdf to include the version constants is 10.6.0. */
 #define QPDF_MAJOR_VERSION 12
-#define QPDF_MINOR_VERSION 2
+#define QPDF_MINOR_VERSION 3
 #define QPDF_PATCH_VERSION 0
 
 #ifdef QPDF_FUTURE
-# define QPDF_VERSION "12.2.0+future"
+# define QPDF_VERSION "12.3.0+future"
 #else
-# define QPDF_VERSION "12.2.0"
+# define QPDF_VERSION "12.3.0"
 #endif
 
 /*
