@@ -607,6 +607,12 @@ When done, the following should happen:
 
 ## CREATING A RELEASE
 
+* Until qpdf 13: see also README-maintainer.md from v12.2.0 for
+  additional gpg signing steps. This includes signing the releases
+  with gpg. Do this before running cosign. Also use `git tag -s`
+  instead of `git tag -a`. When we deprecate gpg signing, this can be
+  removed.
+
 * Releases are signed using
   [cosign](https://docs.sigstore.dev/quickstart/quickstart-cosign/)
   using your GitHub identity. If you are creating a release, please
@@ -649,7 +655,7 @@ chmod 555 *.AppImage
 
 ```sh
 git rev-parse qpdf/main @
-git tag -s v$version @ -m"qpdf $version"
+git tag -a v$version @ -m"qpdf $version"
 git push qpdf v$version
 ```
 
@@ -673,7 +679,7 @@ git push qpdf @:stable
 GITHUB_TOKEN=$(qdata-show cred github-token)
 function gcurl() { curl -H "Authorization: token $GITHUB_TOKEN" ${1+"$@"}; }
 
-url=$(gcurl -s -XPOST https://api.github.com/repos/qpdf/qpdf/releases -d'{"tag_name": "v'$version'", "name": "qpdf '$ver
+url=$(gcurl -s -XPOST https://api.github.com/repos/qpdf/qpdf/releases -d'{"tag_name": "v'$version'", "name": "qpdf '$version'", "draft": true}' | jq -r '.url')
 
 # Get upload url
 upload_url=$(gcurl -s $url | jq -r '.upload_url' | sed -E -e 's/\{.*\}//')
@@ -700,6 +706,8 @@ since there is no relative link target from the news area.
 This is qpdf version x.y.z. (Brief description, summary of highlights)
 
 For a full list of changes from previous releases, please see the [release notes](https://qpdf.readthedocs.io/en/stable/release-notes.html). See also [README-what-to-download](./README-what-to-download.md) for details about the available source and binary distributions.
+
+This release was signed by enter-email@address.here.
 ```
 
 * Publish release. This can be done most easily directly from the
@@ -725,7 +733,7 @@ rsync -vrlcO ./ sourceforge_login,qpdf@frs.sourceforge.net:/home/frs/project/q/q
 
 * Upload the debian package and Ubuntu ppa backports.
 
-* Email the qpdf-announce list.
+* Email the qpdf-announce list. Mention the email address of the release signer.
 
 ## RUNNING pikepdf's TEST SUITE
 
