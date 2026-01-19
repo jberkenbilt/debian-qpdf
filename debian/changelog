@@ -1,3 +1,11 @@
+qpdf (12.3.1-1) unstable; urgency=medium
+
+  * New upstream release.
+  * Includes upstream fix to failures of some static QPDFJob methods when used with a copy of a
+    destroyed QPDFJob object. (Closes: #1125716)
+
+ -- Jay Berkenbilt <qjb@debian.org>  Mon, 19 Jan 2026 11:20:15 -0500
+
 qpdf (12.3.0-1) unstable; urgency=medium
 
   * New upstream release.
