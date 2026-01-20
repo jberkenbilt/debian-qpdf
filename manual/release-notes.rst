@@ -13,6 +13,14 @@ more detail.
 
 .. x.y.z: not yet released
 
+
+12.3.1: January 19, 2026
+  - Bug fixes
+
+    - Fix failure of ``QPDFJob::run`` and ``QPDFJob::createQPDF`` when
+      called with a copy of a destroyed ``QPDFJob`` object. This affects
+      using the job interface from pikepdf.
+
 12.3.0: January 10, 2026
   - Release changes
 
