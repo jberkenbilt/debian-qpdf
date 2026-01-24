@@ -1,3 +1,16 @@
+qpdf (12.3.2-1~bpo22.04.1~ppa1) jammy; urgency=medium
+
+  * Backport to jammy without time_64 abi. The PPA is not built for
+    32-bit architectures, so this doesn't matter.
+
+ -- Jay Berkenbilt <qjb@debian.org>  Sat, 24 Jan 2026 15:52:26 -0500
+
+qpdf (12.3.2-1) unstable; urgency=medium
+
+  * New upstream release.
+
+ -- Jay Berkenbilt <qjb@debian.org>  Sat, 24 Jan 2026 15:45:16 -0500
+
 qpdf (12.3.1-1~bpo22.04.1~ppa1) jammy; urgency=medium
 
   * Backport to jammy without time_64 abi. The PPA is not built for
@@ -19,14 +32,6 @@ qpdf (12.3.0-1~bpo22.04.1~ppa1) jammy; urgency=medium
     32-bit architectures, so this doesn't matter.
 
  -- Jay Berkenbilt <qjb@debian.org>  Sat, 10 Jan 2026 15:23:45 -0500
-
-qpdf (12.3.1-1) unstable; urgency=medium
-
-  * New upstream release.
-  * Includes upstream fix to failures of some static QPDFJob methods when used with a copy of a
-    destroyed QPDFJob object. (Closes: #1125716)
-
- -- Jay Berkenbilt <qjb@debian.org>  Mon, 19 Jan 2026 11:20:15 -0500
 
 qpdf (12.3.0-1) unstable; urgency=medium
 
