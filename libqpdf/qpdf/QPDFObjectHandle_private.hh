@@ -6,6 +6,7 @@
 #include <qpdf/QPDFObject_private.hh>
 #include <qpdf/QPDF_private.hh>
 #include <qpdf/QUtil.hh>
+#include <qpdf/Util.hh>
 
 #include <concepts>
 #include <utility>
@@ -553,6 +554,54 @@ namespace qpdf
         {
             return {stream()->stream_dict};
         }
+
+        /// @brief Returns the stream dictionary's `/Length` entry.
+        ///
+        /// @return A typed Integer handle for `/Length`, or an invalid Integer if not present.
+        Integer
+        Length() const
+        {
+            return {getDict()["/Length"]};
+        }
+
+        /// @brief Sets the stream dictionary's `/Length` entry.
+        ///
+        /// @param val The typed Integer handle to store as `/Length`.
+        void
+        Length(Integer val)
+        {
+            qpdf_expect(val);
+            getDict().replace("/Length", val);
+        }
+
+        /// @brief Sets the stream dictionary's `/Length` entry.
+        ///
+        /// @param val The value to store as `/Length`.
+        void
+        Length(std::integral auto val)
+        {
+            qpdf_expect(val >= 0);
+            getDict().replace("/Length", Integer(val));
+        }
+
+        /// @brief Returns the stream dictionary's `/Subtype` entry.
+        ///
+        /// @return A typed Name handle for `/Subtype`, or an invalid Name if not present.
+        Name
+        Subtype() const
+        {
+            return {getDict()["/Subtype"]};
+        }
+
+        /// @brief Returns the stream dictionary's `/Type` entry.
+        ///
+        /// @return A typed Name handle for `/Type`, or an invalid Name if not present.
+        Name
+        Type() const
+        {
+            return {getDict()["/Type"]};
+        }
+
         bool
         isDataModified() const
         {
@@ -755,6 +804,33 @@ namespace qpdf
     BaseHandle::oh() const
     {
         return {obj};
+    }
+
+    /// @brief Retrieve the QPDFObjectHandle for the object referenced by a reference object.
+    ///
+    /// Look up and return the object from the document's object table using QPDF::getObject(). The
+    /// returned value is a QPDFObjectHandle that wraps the shared pointer to the underlying
+    /// QPDFObject held in the document's cache.
+    ///
+    /// @note We must perform the lookup because qpdf represents certain replacements using
+    ///       QPDF_Reference. In particular, `QPDF::makeIndirectObject` used to make the input
+    ///       object indirect and then return the original input object. To replicate that
+    ///       existing behavior the implementation now makes the input object indirect and
+    ///       returns it, while modifying the input object to become a reference to the
+    ///       newly-created indirect object. Looking up the resulting indirect object in the
+    ///       document's object table via `QPDF::getObject()` ensures callers receive the
+    ///       cached object and avoids surprises if the indirect object is subsequently
+    ///       replaced.
+    ///
+    /// @return The QPDFObjectHandle for the object referenced by a reference object.
+    ///
+    /// @since 12.3.3
+    inline QPDFObjectHandle
+    BaseHandle::referenced_object() const
+    {
+        qpdf_expect(resolved_type_code() == ::ot_reserved);
+        qpdf_expect(obj->qpdf);
+        return obj->qpdf->getObject(obj->og);
     }
 
     inline void

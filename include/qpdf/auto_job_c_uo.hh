@@ -5,8 +5,8 @@
 //
 // clang-format off
 //
-QPDF_DLL UOConfig* file(std::string const& parameter);
 QPDF_DLL UOConfig* to(std::string const& parameter);
 QPDF_DLL UOConfig* from(std::string const& parameter);
 QPDF_DLL UOConfig* repeat(std::string const& parameter);
 QPDF_DLL UOConfig* password(std::string const& parameter);
+QPDF_DLL UOConfig* file(std::string const& parameter);

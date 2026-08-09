@@ -24,8 +24,6 @@ Always
 
 * Evaluate issues tagged with `next` and `bug`. Remember to check discussions and pull requests in
   addition to regular issues.
-* When close to release, make sure external-libs is building and follow instructions in
-  ../external-libs/README
 
 In Progress
 ===========
@@ -201,53 +199,6 @@ Fuzz Errors
 * https://bugs.chromium.org/p/oss-fuzz/issues/detail?id=<N>
 
 * See also [discussion](https://github.com/qpdf/qpdf-dev/discussions/6).
-
-External Libraries
-==================
-
-Current state (10.0.2):
-
-* qpdf/external-libs repository builds external-libs on a schedule. It detects and downloads the
-  latest versions of zlib, jpeg, and openssl and creates source and binary distribution zip files in
-  an artifact called "distribution".
-
-* Releases in qpdf/external-libs are made manually. They contain qpdf-external-libs-{bin,src}.zip.
-
-* The qpdf build finds the latest non-prerelease release and downloads the qpdf-external-libs-*.zip
-  files from the releases in the setup stage.
-
-* To upgrade to a new version of external-libs, create a new release of qpdf/external-libs (see
-  README-maintainer in external-libs) from the distribution artifact of the most recent successful
-  build after ensuring that it works.
-
-Desired state:
-
-* The qpdf/external-libs repository should create release candidates. Ideally, every scheduled run
-  would make its zip files available. A personal access token with actions:read scope for the
-  qpdf/external-libs repository is required to download the artifact from an action run, and
-  qpdf/qpdf's secrets.GITHUB_TOKEN doesn't have this access. We could create a service account for
-  this purpose. As an alternative, we could have a draft release in qpdf/external-libs that the
-  qpdf/external-libs build could update with each candidate. It may also be possible to solve this
-  by developing a simple GitHub app.
-
-* Scheduled runs of the qpdf build in the qpdf/qpdf repository (not a fork or pull request) could
-  download external-libs from the release candidate area instead of the latest stable release.
-  Pushes to the build branch should still use the latest release so it always matches the main
-  branch.
-
-* Periodically, we would create a release of external-libs from the release candidate zip files.
-  This could be done safely because we know the latest qpdf works with it. This could be done at
-  least before every release of qpdf, but potentially it could be done at other times, such as when
-  a new dependency version is available or after some period of time.
-
-Other notes:
-
-* The external-libs branch in qpdf/qpdf was never documented. We might be able to get away with
-  deleting it.
-
-* See README-maintainer in qpdf/external-libs for information on creating a release. This could be
-  at least partially scripted in a way that works for the qpdf/qpdf repository as well since they
-  are very similar.
 
 ABI Changes
 ===========

@@ -1,0 +1,36 @@
+#!/bin/bash
+
+set -ex
+cd $(dirname $0)/..
+
+triplet=$1
+if [[ $triplet =~ x86-.* ]]; then
+    wordsize=32
+else
+    wordsize=64
+fi
+
+if [[ $triplet =~ .*-mingw-.* ]]; then
+    pacman -Sy --noconfirm make base-devel tar zip unzip
+    if [ ! -x /c/msys64/mingw$wordsize/bin/g++.exe ]; then
+        if [[ $wordsize == 64 ]]; then
+            pacman -Sy --noconfirm mingw-w64-x86_64-toolchain
+        else
+            pacman -Sy --noconfirm mingw-w64-i686-toolchain
+        fi
+    fi
+    g++ -v
+else
+    cl
+fi
+PATH=/c/msys64/mingw$wordsize/bin:$PATH
+
+cwd=`pwd`
+
+# Don't use the vcpkg that ships with msvc or that is otherwise installed on the system.
+unset VCPKG_ROOT
+git clone --depth 1 https://github.com/microsoft/vcpkg
+./vcpkg/bootstrap-vcpkg.sh
+./vcpkg/vcpkg install zlib openssl libjpeg-turbo --triplet $triplet
+./vcpkg/vcpkg list
+./vcpkg/vcpkg list > ./vcpkg/installed/$triplet/vcpkg-list

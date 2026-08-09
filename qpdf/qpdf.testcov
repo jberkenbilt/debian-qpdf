@@ -35,7 +35,6 @@ QPDFTokenizer null in name 0
 QPDFTokenizer bad name 1 0
 QPDFTokenizer bad name 2 0
 QPDF UseOutlines but no Outlines 0
-QPDFObjectHandle makeDirect loop 0
 QPDFObjectHandle copy stream 1
 QPDF ignoring XRefStm in trailer 0
 SF_FlateLzwDecode PNG filter 0
@@ -92,7 +91,6 @@ qpdf-c called qpdf_set_static_aes_IV 0
 qpdf-c called qpdf_has_error 0
 qpdf-c called qpdf_get_qpdf_version 0
 QPDF_Stream pipe replaced stream data 0
-QPDF_Stream provider length mismatch 0
 QPDFObjectHandle newStream 0
 QPDFObjectHandle newStream with data 0
 QPDFObjectHandle prepend page contents 0
@@ -114,8 +112,6 @@ QPDF insert page 2
 QPDF insert indirect page 0
 QPDF_Stream ERR shallow copy stream 0
 QPDFObjectHandle newStream with string 0
-QPDF_Stream provider length not provided 0
-QPDF_Stream unknown stream length 0
 QPDF replaceReserved 0
 QPDFWriter copy use_aes 1
 QPDFObjectHandle trailing data in parse 0
@@ -159,9 +155,6 @@ QPDFObjectHandle coalesce called on stream 0
 QPDFObjectHandle coalesce provide stream data 0
 QPDF_Stream bad token at end during normalize 0
 QPDFObjectHandle boolean returning false 0
-QPDFObjectHandle real returning 0.0 0
-QPDFObjectHandle operator returning fake value 0
-QPDFObjectHandle inlineimage returning empty data 0
 QPDFObjectHandle array treating as empty vector 0
 QPDFObjectHandle array ignoring replace items 0
 QPDFObjectHandle array ignoring insert item 0

@@ -4,13 +4,14 @@ Quick Start with JetBrains CLion
 The following *should* work but has not been tested on a completely clean system with CLion. It may
 work with other "batteries-included" IDEs as well.
 
-* Install `external-libs` from [prebuilt static external libraries from the qpdf/external-libs
-  github repository](https://github.com/qpdf/external-libs/releases) by unzipping the binary
-  distribution into an otherwise clean source tree.
+* Download the most recent vcpkg zip file from [the qpdf vcpkg
+  cache](https://github.com/qpdf/qpdf/releases/tag/vcpkg-cache-v1), and unzip it into an otherwise
+  clean source tree.
 * Using the default toolchain, you can create a cmake build of type *other than Debug*. A `Debug`
   build will not work with the external libraries since debug versions are not redistributable. If
-  you want a Debug build, you'll have to build the external libraries yourself. The external-libs
-  repo above can be a hint, or you can get them from other sources.
+  you want a Debug build, you'll have to build the external libraries yourself, which you can do
+  with vcpkg. See `vcpkg-setup-win` as a hint. It's possible that you can just use vcpkg in its
+  usual way, though this is not regularly tested and may not work correctly when building from msys.
 * If you have MSVC, you can enable one of the `msvc` presets that you should see when you edit CMake
   configurations.
 
@@ -60,13 +61,15 @@ Image comparison tests are disabled by default, but it is possible to run them o
 * [LibTiff](http://gnuwin32.sourceforge.net/packages/tiff.htm): This archive provides some needed binaries and DLLs if you want to use the image comparison tests. It depends on some DLLs from LibJpeg.
 * [GhostScript](http://www.ghostscript.com/download/gsdnld.html): GhostScript is needed for image comparison tests. It's important that the binary is available as `gs`, while its default name is `gswin32[c].exe`. You can either copy one of the original files, use `mklink` to create a hard/softlink, or provide a custom `gs.cmd` wrapper that forwards all arguments to one of the original binaries. Using `mklink` with `gswin32c.exe` is probably the best choice.
 
-# External Libraries
+# External Libraries/vcpkg
 
-In order to build qpdf, you must have a copy of `zlib` and the `jpeg` library. You can download [prebuilt static external libraries from the qpdf/external-libs github repository](https://github.com/qpdf/external-libs/releases). These include `zlib`, `jpeg`, and `openssl` libraries. For MSVC, you must use a non-debugging build configuration. There are files called `external-libs-bin.zip` and `external-libs-src.zip`. If you are building with a recent MSVC or MINGW with MSYS2, you can just extract the `qpdf-external-libs-bin.zip` zip file into the top-level qpdf source tree. The qpdf build detects the presence of the `external-libs` directory automatically. You don't need to set any cmake options.
+In order to build qpdf, you must have a copy of `zlib` and the `jpeg` library. You can download [prebuilt static external libraries from the qpdf vcpkg cache](https://github.com/qpdf/qpdf/releases/tag/vcpkg-cache-v1). Download the most recent available artifact and unzip it. This includes `zlib`, `jpeg`, and `openssl` libraries. For MSVC, you must use a non-debugging build configuration. If you are building with a recent MSVC or MINGW with MSYS2, you can just unzip the zip file into the top-level qpdf source tree. The qpdf build detects the presence of the `vcpkg/installed` directory automatically. You don't need to set any cmake options.
 
-You can also obtain `zlib` and `jpeg` directly on your own and install them. Just make sure cmake can find them.
+If you prefer to use qpdf's automatic integration with vcpkg but download and build the libraries yourself, you can use the `./vcpkg-setup-win` script, which takes `msvc` or `mingw` as a parameter just like `cmake-win` does.
 
-External libraries are built using GitHub Actions from the [qpdf/external-libs](https://github.com/qpdf/external-libs) repository.
+You can also obtain `zlib` and `jpeg` directly on your own and install them. Just make sure cmake can find them. It's possible that a system version of `vcpkg` may work, though this is not regularly tested and was known to break msys-based builds.
+
+External libraries are built using GitHub Actions using the vcpkg.yml workflow. In addition to the special `vcpkg-cache-v1` release, you can download the specific `vcpkg.zip` that was used for any given build as the `distribution-vcpkg` artifact from the action's status page.
 
 # Running tools from the build area
 

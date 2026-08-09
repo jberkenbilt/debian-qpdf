@@ -27,7 +27,7 @@ fi
 
 mkdir build distribution
 unzip doc.zip
-unzip qpdf-external-libs-bin.zip
+unzip vcpkg.zip
 
 cd build
 ../cmake-win $tool ci $config

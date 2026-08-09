@@ -9,6 +9,8 @@ appimage/build
 Doxyfile
 /CMakeUserPresets.json
 /compile_commands.json
+/vcpkg
+/vcpkg.zip
 
 # ./Testing is created if you run ctest from the wrong place.
 /Testing
