@@ -252,6 +252,7 @@ QPDF::setPasswordIsHexKey(bool val)
 void
 QPDF::emptyPDF()
 {
+    (void)m->cf.max_warnings(0);
     processMemoryFile("empty PDF", EMPTY_PDF, strlen(EMPTY_PDF));
 }
 

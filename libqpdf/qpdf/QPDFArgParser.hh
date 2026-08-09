@@ -13,19 +13,20 @@
 // command-line syntax is very complex because of its long history, and it doesn't really follow any
 // kind of normal standard for arguments, but it's important for backward compatibility to ensure we
 // don't break what constitutes a valid command. This class handles the quirks of qpdf's argument
-// parsing, bash/zsh completion, and support for @argfile to read arguments from a file. For the
-// qpdf CLI, setup of QPDFArgParser is done mostly by automatically-generated code (one-off code for
-// qpdf), though the handlers themselves are hand-coded. See generate_auto_job at the top of the
-// source tree for details.
+// parsing and support for @argfile to read arguments from a file. For the qpdf CLI, setup of
+// QPDFArgParser is done mostly by automatically-generated code (one-off code for qpdf), though the
+// handlers themselves are hand-coded. See generate_auto_job at the top of the source tree for
+// details.
 class QPDFArgParser
 {
   public:
-    // progname_env is used to override argv[0] when figuring out the name of the executable for
-    // setting up completion. This may be needed if the program is invoked by a wrapper.
+    [[deprecated("progname_env is no longer used")]]
     QPDFArgParser(int argc, char const* const argv[], char const* progname_env);
 
-    // Calls exit(0) if a help option is given or if in completion mode. If there are argument
-    // parsing errors, QPDFUsage is thrown.
+    QPDFArgParser(int argc, char const* const argv[]);
+
+    // Calls exit(0) if a help option is given. If there are argument parsing errors, throws
+    // QPDFUsage.
     void parseArgs();
 
     // Return the program name as the last path element of the program executable.
@@ -131,15 +132,7 @@ class QPDFArgParser
     // being called.
     int argsLeft() const;
 
-    // Indicate whether we are in completion mode.
-    bool isCompleting() const;
-
-    // Insert a completion during argument parsing; useful for customizing completion in the
-    // position argument handler. Should only be used in completion mode.
-    void insertCompletion(std::string const&);
-
-    // Throw a Usage exception with the given message. In completion mode, this just exits to
-    // prevent errors from partial commands or other error messages from messing up completion.
+    // Throw a Usage exception with the given message.
     void usage(std::string const& message);
 
   private:
@@ -170,22 +163,14 @@ class QPDFArgParser
 
     OptionEntry& registerArg(std::string const& arg);
 
-    void completionCommon(bool zsh);
-
     void argCompletionBash();
     void argCompletionZsh();
     void argHelp(std::string const&);
     void invalidHelpArg(std::string const&);
 
-    void checkCompletion();
     void handleArgFileArguments();
-    void handleBashArguments();
     void readArgsFromFile(std::string const& filename);
     void doFinalChecks();
-    void addOptionsToCompletions(option_table_t&);
-    void addChoicesToCompletions(option_table_t&, std::string const&, std::string const&);
-    void insertCompletions(option_table_t&, std::string const&, std::string const&);
-    void handleCompletion();
 
     void getTopHelp(std::ostringstream&);
     void getAllHelp(std::ostringstream&);
@@ -199,20 +184,13 @@ class QPDFArgParser
         ~Members() = default;
 
       private:
-        Members(int argc, char const* const argv[], char const* progname_env);
+        Members(int argc, char const* const argv[]);
         Members(Members const&) = delete;
 
         int argc;
         char const* const* argv;
         std::string whoami;
-        std::string progname_env;
         int cur_arg{0};
-        bool bash_completion{false};
-        bool zsh_completion{false};
-        std::string bash_prev;
-        std::string bash_cur;
-        std::string bash_line;
-        std::set<std::string> completions;
         std::map<std::string, option_table_t> option_tables;
         option_table_t main_option_table;
         option_table_t help_option_table;
@@ -220,9 +198,7 @@ class QPDFArgParser
         std::string option_table_name;
         bare_arg_handler_t final_check_handler{nullptr};
         std::vector<std::string> new_argv;
-        std::vector<std::string> bash_argv;
         std::vector<char const*> argv_ph;
-        std::vector<char const*> bash_argv_ph;
         std::map<std::string, HelpTopic> help_topics;
         std::map<std::string, HelpTopic> option_help;
         std::string help_footer;

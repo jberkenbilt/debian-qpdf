@@ -3,6 +3,7 @@ set(MAIN_CXX_PROGRAMS
   fix-qdf
   pdf_from_scratch
   test_char_sign
+  test_completion
   test_driver
   test_large_file
   test_many_nulls
@@ -54,6 +55,8 @@ add_test(
   --bin $<TARGET_FILE_DIR:qpdf>
   --bin $<TARGET_FILE_DIR:libqpdf>  # for Windows to find DLL
   --bin $<TARGET_FILE_DIR:qpdf-test-compare>
+  --env CMAKE_BINARY_DIR=${CMAKE_BINARY_DIR}
+  ${REQUIRE_SHELLS_ENV}
   --code ${qpdf_SOURCE_DIR}/qpdf
   --color ${QTEST_COLOR}
   --show-on-failure ${SHOW_FAILED_TEST_OUTPUT}

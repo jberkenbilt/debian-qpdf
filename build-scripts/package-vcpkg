@@ -1,0 +1,47 @@
+#!/bin/bash
+
+set -ex
+cd $(dirname $0)/..
+
+overall_version=
+for pkg in libjpeg-turbo openssl zlib; do
+    version=$(awk "/${pkg}:/ {print \$2}" < vcpkg/installed/x64-windows-static/vcpkg-list)
+    if [ "$overall_version" != "" ]; then
+        overall_version="${overall_version},"
+    fi
+    overall_version="${overall_version}${pkg}-${version}"
+done
+
+echo "version=${overall_version}" > vcpkg/qpdf-dep-versions
+
+now=$(TZ=UTC date -Iseconds)
+zip_file=vcpkg-$now.zip
+zip -r $zip_file vcpkg
+mkdir dist
+mv vcpkg dist
+
+set +x
+echo ""
+echo "**********************************************************************"
+echo "OVERALL VERSION: $overall_version"
+echo "**********************************************************************"
+
+if [ "$GITHUB_STEP_SUMMARY" != "" ]; then
+    cat >> $GITHUB_STEP_SUMMARY <<EOF
+vcpkg dependency versions: **$overall_version**
+EOF
+fi
+
+if [[ "$GITHUB_EVENT_NAME" == "workflow_dispatch" || "$GITHUB_EVENT_NAME" == "schedule" ]] && \
+       [[ "$GITHUB_REF" == "refs/heads/main" ]]; then
+    tag=vcpkg-cache-v1
+    gh release upload $tag $zip_file
+    declare -a old
+    old=($(gh release view $tag \
+              --json assets --jq '.assets[]|(.updatedAt + " " + .name)' | \
+               sort -r | tail -n +4  | awk '{print $NF}'))
+    for i in "${old[@]}"; do
+        echo "delete: $i"
+        gh release delete-asset -y $tag "$i"
+    done
+fi

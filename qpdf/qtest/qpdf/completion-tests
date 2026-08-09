@@ -1,0 +1,183 @@
+# WARNING: Do not strip trailing whitespace from this file.
+
+# For details on the syntax of this file, see comments at the top of qpdf/test_completion.cc
+
+name: top-arg
+cmd: qpdf --
+end: @
+out:
+ --completion-bash
+ --completion-zsh
+ --copyright
+ --help
+ --qdf
+ --verbose
+ --version
+ !--bits
+ !--range
+out-bash:
+ --compress-streams=
+ --decode-level=
+out-zsh:
+ --compress-streams
+ --decode-level
+
+name: enc
+cmd: qpdf --enc
+out:
+ --encrypt
+out-bash:
+ --encryption-file-password=
+out-zsh:
+ --encryption-file-password
+end: @rypt
+
+name: encrypt
+cmd: qpdf --encrypt --
+end: @
+out:
+ !--bits=128
+ !--bits=256
+ !--bits=40
+ !--print
+out-bash:
+ --bits=
+ --owner-password=
+ --user-password=
+out-zsh:
+ --bits
+ --owner-password
+ --user-password
+
+name: encrypt-256
+cmd: qpdf --encrypt --bits=256 --
+end: @
+out:
+ --force-R5
+ !--force-V4
+
+name: encrypt-128
+cmd: qpdf --encrypt --bits=128 --
+end: @
+out:
+ --force-V4
+ !--force-R5
+
+name: encrypt-40
+cmd: qpdf --encrypt --bits=40 --
+end: @
+out:
+ !--force-R5
+ !--force-V4
+out-bash:
+ --annotate=
+out-zsh:
+ --annotate
+
+name: split-pag
+cmd: qpdf --split-pag
+end-bash: @es
+out-bash:
+ --split-pages
+ --split-pages=
+end-zsh: es
+
+name: decode-l
+cmd: qpdf --decode-l
+end: evel=
+
+name: decode-level=
+cmd: qpdf --decode-level=
+end: @
+out:
+ all
+ generalized
+ none
+ !--decode-level=all
+ !--decode-level=generalized
+ !--decode-level=none
+ !--help
+
+name: decode-level=g
+cmd: qpdf --decode-level=g
+end: eneralized 
+
+name: later-arg
+cmd: qpdf --check --
+end: @
+out:
+ --check
+ --encrypt
+ !--completion-bash
+ !--copyright
+ !--help
+ !--version
+out-zsh:
+ --decode-level
+out-bash:
+ --decode-level=
+
+name: single-option
+cmd: qpdf --q
+end: df 
+
+name: quoting1
+cmd: qpdf 'input " file' --q
+end: df 
+
+name: quoting2
+cmd: qpdf 'input file' --q
+end: df 
+
+name: quoting3
+cmd: qpdf "input file" --q
+end: df 
+
+name: quoting4
+cmd: qpdf "input fi\'le" --q
+end: df 
+
+name: quoting5
+cmd: qpdf input\ file --q
+end: df 
+
+name: help
+cmd: qpdf --help=
+end: @
+out:
+ --bits
+ --completion-zsh
+ --help
+ --qdf
+ --split-pages
+ all
+ attachments
+
+name: co
+cmd: qpdf --co
+out:
+ --completion-zsh
+ --completion-bash
+ --copyright
+ !--version
+out-bash:
+ --compression-level=
+out-zsh:
+ --compression-level
+end: @
+
+name: main file
+cmd: qpdf --copy-encryption=go
+end: @od
+out:
+ good12.pdf
+ good12.qdf
+ !minimal.pdf
+
+name: pages file
+cmd: qpdf --pages --file=go
+end: @od
+out:
+ good12.pdf
+ good12.qdf
+ !minimal.pdf

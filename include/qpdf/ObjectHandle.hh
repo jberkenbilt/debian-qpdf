@@ -68,6 +68,9 @@ namespace qpdf
             return obj == other.obj;
         }
 
+        // Structural equivalence check per PDF Annex J rules.
+        bool equivalent_to(BaseHandle const& other, int depth = 10) const;
+
         // For arrays, return the number of items in the array.
         // For null-like objects, return 0.
         // For all other objects, return 1.
@@ -132,11 +135,9 @@ namespace qpdf
 
         inline void assign(qpdf_object_type_e required, BaseHandle const& other);
         inline void assign(qpdf_object_type_e required, BaseHandle&& other);
-
         inline void nullify();
 
         std::string description() const;
-
         inline QPDFObjectHandle const& get(std::string const& key) const;
 
         void no_ci_warn_if(bool condition, std::string const& warning) const;
@@ -148,6 +149,9 @@ namespace qpdf
         char const* type_name() const;
 
         std::shared_ptr<QPDFObject> obj;
+
+      private:
+        inline QPDFObjectHandle referenced_object() const;
     };
 
 } // namespace qpdf
