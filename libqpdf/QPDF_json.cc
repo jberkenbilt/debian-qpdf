@@ -773,8 +773,12 @@ QPDF::createFromJSON(std::string const& json_file)
 void
 QPDF::createFromJSON(std::shared_ptr<InputSource> is)
 {
+    auto mw = m->cf.max_warnings();
+    (void)m->cf.max_warnings(0);
     processMemoryFile(is->getName().c_str(), JSON_PDF, strlen(JSON_PDF));
+    (void)m->cf.max_warnings(mw);
     importJSON(is, true);
+    (void)m->cf.max_warnings(0);
 }
 
 void

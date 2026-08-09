@@ -281,6 +281,12 @@ Objects::parse(char const* password)
         // QPDFs created from JSON have an empty xref table and no root object yet.
         throw damagedPDF("", -1, "unable to find page tree");
     }
+    if (m->cf.max_warnings()) {
+        if (m->pages.empty()) {
+            throw damagedPDF("", -1, "no pages found");
+        }
+        (void)m->cf.max_warnings(0);
+    }
 }
 
 void

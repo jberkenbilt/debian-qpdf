@@ -65,12 +65,13 @@ class QPDF
     // Associate a file with a QPDF object and do initial parsing of the file.  PDF objects are not
     // read until they are needed.  A QPDF object may be associated with only one file in its
     // lifetime.  This method must be called before any methods that potentially ask for information
-    // about the PDF file are called. Prior to calling this, the only methods that are allowed are
-    // those that set parameters.  If the input file is not encrypted, either a null password or an
-    // empty password can be used.  If the file is encrypted, either the user password or the owner
-    // password may be supplied. The method setPasswordIsHexKey may be called prior to calling this
-    // method or any of the other process methods to force the password to be interpreted as a raw
-    // encryption key. See comments on setPasswordIsHexKey for more information.
+    // about the PDF file are called. Prior to successfully calling this, the only methods that are
+    // allowed are those that set parameters.  If the input file is not encrypted, either a null
+    // password or an empty password can be used.  If the file is encrypted, either the user
+    // password or the owner password may be supplied. The method setPasswordIsHexKey may be called
+    // prior to calling this method or any of the other process methods to force the password to be
+    // interpreted as a raw encryption key. See comments on setPasswordIsHexKey for more
+    // information.
     QPDF_DLL
     void processFile(char const* filename, char const* password = nullptr);
 
@@ -226,7 +227,14 @@ class QPDF
     QPDF_DLL
     void setSuppressWarnings(bool);
 
-    // Set the maximum number of warnings. A QPDFExc is thrown if the limit is exceeded.
+    // Set the maximum number of warnings. A QPDFExc is thrown if the limit is exceeded, in which
+    // case further use of the QPDF object is not permitted. This limit only applies during the
+    // initial processing of an input file and is intended to limit the resources used to process
+    // (possibly intentionally) severely damaged files that have little chance of being successfully
+    // repaired.
+    //
+    // This option must only be called before calling `processFile` or any of the other process
+    // methods. Once `processFile` successfully completes the limit is automatically canceled.
     QPDF_DLL
     void setMaxWarnings(size_t);
 

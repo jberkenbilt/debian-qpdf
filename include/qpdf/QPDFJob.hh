@@ -60,19 +60,16 @@ class QPDFJob
     // SETUP FUNCTIONS
 
     // Initialize a QPDFJob object from argv, which must be a null-terminated array of
-    // null-terminated UTF-8-encoded C strings. The progname_env argument is the name of an
-    // environment variable which, if set, overrides the name of the executable for purposes of
-    // generating the --completion options. See QPDFArgParser for details. If a null pointer is
-    // passed in, the default value of "QPDF_EXECUTABLE" is used. This is used by the QPDF cli,
-    // which just initializes a QPDFJob from argv, calls run(), and handles errors and exit status
-    // issues. You can perform much of the cli functionality programmatically in this way rather
-    // than using the regular API. This is exposed in the C API, which makes it easier to get
-    // certain high-level qpdf functionality from other languages. If there are any command-line
-    // errors, this method will throw QPDFUsage which is derived from std::runtime_error. Other
-    // exceptions may be thrown in some cases. Note that argc, and argv should be UTF-8 encoded. If
-    // you are calling this from a Windows Unicode-aware main (wmain), see
-    // QUtil::call_main_from_wmain for information about converting arguments to UTF-8. This method
-    // will mutate arguments that are passed to it.
+    // null-terminated UTF-8-encoded C strings. This is used by the QPDF cli, which just initializes
+    // a QPDFJob from argv, calls run(), and handles errors and exit status issues. You can perform
+    // much of the cli functionality programmatically in this way rather than using the regular API.
+    // This is exposed in the C API, which makes it easier to get certain high-level qpdf
+    // functionality from other languages. If there are any command-line errors, this method will
+    // throw QPDFUsage which is derived from std::runtime_error. Other exceptions may be thrown in
+    // some cases. Note that argc, and argv should be UTF-8 encoded. If you are calling this from a
+    // Windows Unicode-aware main (wmain), see QUtil::call_main_from_wmain for information about
+    // converting arguments to UTF-8. This method will mutate arguments that are passed to it. ABI:
+    // remove progname_env
     QPDF_DLL
     void initializeFromArgv(char const* const argv[], char const* progname_env = nullptr);
 
@@ -180,7 +177,7 @@ class QPDFJob
     //   needed, which you can't do with references. Returning pointers instead of references makes
     //   for a more uniform interface.
 
-    // Maintainer documentation: see the section in README-maintainer called "HOW TO ADD A
+    // Maintainer documentation: see the section in README-developer called "HOW TO ADD A
     // COMMAND-LINE ARGUMENT", which contains references to additional places in the documentation.
 
     class Config;

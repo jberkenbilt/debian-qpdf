@@ -23,9 +23,9 @@ $td->runtest("dictionary checks",
              {$td->STRING => "test 1 done\n", $td->EXIT_STATUS => 0},
              $td->NORMALIZE_NEWLINES);
 
-$td->runtest("global limits",
-             {$td->COMMAND => "objects 2 -"},
-             {$td->FILE => "test2.out", $td->EXIT_STATUS => 0},
+$td->runtest("equivalent_to structural comparisons",
+             {$td->COMMAND => "objects 3 -"},
+             {$td->STRING => "test 3 done\n", $td->EXIT_STATUS => 0},
              $td->NORMALIZE_NEWLINES);
 
 $td->report($n_tests);

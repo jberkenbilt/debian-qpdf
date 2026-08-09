@@ -7,7 +7,7 @@ cmake_minimum_required(VERSION 3.16)
 # also find the version number here. generate_auto_job also reads the
 # version from here.
 project(qpdf
-  VERSION 12.3.2
+  VERSION 12.4.0
   LANGUAGES C CXX)
 
 # Honor CMAKE_REQUIRED_LIBRARIES when checking for include files. This
@@ -42,6 +42,9 @@ CMAKE_DEPENDENT_OPTION(
   "NOT MAINTAINER_MODE" ON)
 CMAKE_DEPENDENT_OPTION(
   ENABLE_QTC "Enable QTC test coverage" OFF
+  "NOT MAINTAINER_MODE" ON)
+CMAKE_DEPENDENT_OPTION(
+  REQUIRE_SHELLS "Require shells for completion testing" OFF
   "NOT MAINTAINER_MODE" ON)
 CMAKE_DEPENDENT_OPTION(
   SHOW_FAILED_TEST_OUTPUT "Show qtest output on failure" OFF
@@ -122,6 +125,12 @@ if(ENABLE_QTC)
 else()
   add_compile_definitions(QPDF_DISABLE_QTC=1)
   set(ENABLE_QTC_ARG --disable-tc)
+endif()
+
+if(REQUIRE_SHELLS)
+  set(REQUIRE_SHELLS_ENV --env REQUIRE_SHELLS=1)
+else()
+  set(REQUIRE_SHELLS_ENV)
 endif()
 
 if(FUTURE)
@@ -292,8 +301,10 @@ set(JPEG_INCLUDE)
 
 if(${CMAKE_SIZEOF_VOID_P} EQUAL 8)
   set(WORDSIZE 64)
+  set(VCPKG_TRIPLE_PREFIX x64)
 else()
   set(WORDSIZE 32)
+  set(VCPKG_TRIPLE_PREFIX x86)
 endif()
 if(MSVC)
   set(CPACK_SYSTEM_NAME "msvc${WORDSIZE}")
@@ -341,6 +352,10 @@ set(auto_job_outputs
   libqpdf/qpdf/auto_job_schema.hh
   libqpdf/qpdf/auto_job_json_decl.hh
   libqpdf/qpdf/auto_job_json_init.hh
+  libqpdf/qpdf/auto_job_completion_zsh.hh
+  libqpdf/qpdf/auto_job_completion_bash.hh
+  completions/bash/qpdf
+  completions/zsh/_qpdf
   manual/qpdf.1
 )
 

@@ -1,3 +1,14 @@
+qpdf (12.4.0-1) unstable; urgency=medium
+
+  * New upstream release.
+  * This version includes completely rewritten bash and zsh completion
+    files that no longer invoke the qpdf executable. (Closes: #1127788)
+  * Update the manual page to reference the qpdf-doc package.
+    (Closes: #1111421)
+  * Standards version updated to 4.7.4; no changes needed.
+
+ -- Jay Berkenbilt <qjb@debian.org>  Sun, 09 Aug 2026 16:49:00 -0400
+
 qpdf (12.3.2-1~bpo22.04.1~ppa1) jammy; urgency=medium
 
   * Backport to jammy without time_64 abi. The PPA is not built for
@@ -21,8 +32,9 @@ qpdf (12.3.1-1~bpo22.04.1~ppa1) jammy; urgency=medium
 qpdf (12.3.1-1) unstable; urgency=medium
 
   * New upstream release.
-  * Includes upstream fix to failures of some static QPDFJob methods when used with a copy of a
-    destroyed QPDFJob object. (Closes: #1125716)
+  * Includes upstream fix to failures of some static QPDFJob methods
+    when used with a copy of a destroyed QPDFJob object. (Closes:
+    #1125716)
 
  -- Jay Berkenbilt <qjb@debian.org>  Mon, 19 Jan 2026 11:20:15 -0500
 

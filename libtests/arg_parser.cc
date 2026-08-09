@@ -2,6 +2,8 @@
 
 #include <qpdf/QPDFArgParser.hh>
 #include <qpdf/QPDFUsage.hh>
+
+#include <cstdlib>
 #include <cstring>
 #include <iostream>
 
@@ -18,7 +20,6 @@ class ArgParser
     void handleSalad(std::string const& p);
     void handleMoo(std::string const& p);
     void handleOink(std::string const& p);
-    void handleQuack(std::string const& p);
     void startQuack();
     void getQuack(std::string const& p);
     void endQuack();
@@ -32,7 +33,7 @@ class ArgParser
 };
 
 ArgParser::ArgParser(int argc, char* argv[]) :
-    ap(QPDFArgParser(argc, argv, "TEST_ARG_PARSER"))
+    ap(QPDFArgParser(argc, argv))
 {
     initOptions();
 }
@@ -81,9 +82,7 @@ ArgParser::initOptions()
 void
 ArgParser::output(std::string const& msg)
 {
-    if (!this->ap.isCompleting()) {
-        std::cout << msg << '\n';
-    }
+    std::cout << msg << '\n';
 }
 
 void
@@ -120,23 +119,12 @@ void
 ArgParser::startQuack()
 {
     this->ap.selectOptionTable("quack");
-    if (this->ap.isCompleting()) {
-        if (this->ap.isCompleting() && (this->ap.argsLeft() == 0)) {
-            this->ap.insertCompletion("something");
-            this->ap.insertCompletion("anything");
-        }
-        return;
-    }
 }
 
 void
 ArgParser::getQuack(std::string const& p)
 {
     ++this->quacks;
-    if (this->ap.isCompleting() && (this->ap.argsLeft() == 0)) {
-        this->ap.insertCompletion(std::string("thing-") + std::to_string(this->quacks));
-        return;
-    }
     output(std::string("got quack: ") + p);
 }
 
@@ -189,7 +177,7 @@ int
 main(int argc, char* argv[])
 {
     ArgParser ap(argc, argv);
-    if ((argc == 2) && (strcmp(argv[1], "exceptions") == 0)) {
+    if ((argc == 2) && (std::strcmp(argv[1], "exceptions") == 0)) {
         ap.test_exceptions();
         return 0;
     }

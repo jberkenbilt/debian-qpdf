@@ -5,58 +5,10 @@ use strict;
 
 chdir("arg_parser") or die "chdir testdir failed: $!\n";
 unshift(@INC, '.');
-require completion_helpers;
 
 require TestDriver;
 
 my $td = new TestDriver('arg_parser');
-
-my @completion_tests = (
-    ['', 0, 'bad-input-1'],
-    ['', 1, 'bad-input-2'],
-    ['', 2, 'bad-input-3'],
-    ['arg_parser', 2, 'bad-input-4'],
-    ['arg_parser ', undef, 'top'],
-    ['arg_parser -', undef, 'top-arg'],
-    ['arg_parser --po', undef, 'po'],
-    ['arg_parser --potato ', undef, 'potato'],
-    ['arg_parser --quack ', undef, 'quack'],
-    ['arg_parser --quack -', undef, 'quack-'],
-    ['arg_parser --quack x ', undef, 'quack-x'],
-    ['arg_parser --quack x x ', undef, 'quack-x-x'],
-    ['arg_parser --baaa -', undef, 'baaa'],
-    ['arg_parser --baaa -- --', undef, 'second'],
-    ['arg_parser @quack-xyz ', undef, 'quack-x-y-z'],
-    ['arg_parser --quack \'user " password\' ', undef, 'quack-x'],
-    ['arg_parser --quack \'user password\' ', undef, 'quack-x'],
-    ['arg_parser --quack "user password" ', undef, 'quack-x'],
-    ['arg_parser --quack "user pass\'word" ', undef, 'quack-x'],
-    ['arg_parser --quack user\ password ', undef, 'quack-x'],
-    ['arg_parser --sheep --', undef, 'sheep'],
-    );
-
-foreach my $c (@completion_tests)
-{
-    my ($cmd, $point, $description) = @$c;
-    my $out = "completion-$description.out";
-    my $zout = "completion-$description-zsh.out";
-    if (! -f $zout)
-    {
-        $zout = $out;
-    }
-    $td->runtest("bash completion: $description",
-                 {$td->COMMAND =>
-                      [@{bash_completion("arg_parser", $cmd, $point)}],
-                      $td->FILTER => "perl filter-completion.pl $out"},
-                 {$td->FILE => "$out", $td->EXIT_STATUS => 0},
-                 $td->NORMALIZE_NEWLINES);
-    $td->runtest("zsh completion: $description",
-                 {$td->COMMAND =>
-                      [@{zsh_completion("arg_parser", $cmd, $point)}],
-                      $td->FILTER => "perl filter-completion.pl $zout"},
-                 {$td->FILE => "$zout", $td->EXIT_STATUS => 0},
-                 $td->NORMALIZE_NEWLINES);
-}
 
 my @arg_tests = (
     ['--potato', 0],            # 0
@@ -125,5 +77,4 @@ $td->runtest("bad help option",
              {$td->FILE => "help-bad.out", $td->EXIT_STATUS => 2},
              $td->NORMALIZE_NEWLINES);
 
-$td->report(3 + (2 * scalar(@completion_tests)) +
-            scalar(@arg_tests) + scalar(@help_tests));
+$td->report(3 + scalar(@arg_tests) + scalar(@help_tests));

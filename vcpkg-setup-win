@@ -1,0 +1,39 @@
+#!/bin/bash
+set -e
+
+# This script is specifically to support a loosely integrated vcpkg for local builds on Windows
+# only. See README-windows.md for details.
+
+cd $(dirname $0)
+whoami=$(basename $0)
+tool=$1
+
+case $tool in
+    msvc)
+        if cl 2>&1 | grep -q 'for x86'; then
+            triplet=x86-windows-static
+        else
+            triplet=x64-windows-static
+        fi
+        ;;
+    mingw)
+        if gcc -v 2>&1 | grep Target: | grep -q i686 >/dev/null 2>&1; then
+            triplet=x86-mingw-static
+        else
+            triplet=x64-mingw-static
+        fi
+        ;;
+    *)
+        echo 1>&2 "Usage: $whoami {msvc|mingw}"
+        exit 2
+        ;;
+esac
+
+unset VCPKG_ROOT
+if [ ! -d vcpkg ]; then
+    git clone --depth 1 https://github.com/microsoft/vcpkg
+fi
+if [ ! -x vcpkg/vcpkg.exe ]; then
+    ./vcpkg/bootstrap-vcpkg.sh
+fi
+./vcpkg/vcpkg install zlib openssl libjpeg-turbo --triplet $triplet

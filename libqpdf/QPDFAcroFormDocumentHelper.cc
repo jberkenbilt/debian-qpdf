@@ -58,6 +58,7 @@ AcroForm::invalidateCache()
     fields_.clear();
     annotation_to_field_.clear();
     bad_fields_.clear();
+    unnamed_fields_.clear();
     name_to_fields_.clear();
 }
 
@@ -401,6 +402,9 @@ AcroForm::traverseField(QPDFObjectHandle field, QPDFObjectHandle const& parent, 
         return false;
     }
     QPDFObjGen og(field.getObjGen());
+    if (unnamed_fields_.contains(og)) {
+        bad_fields_.insert(og);
+    }
     if (fields_.contains(og) || annotation_to_field_.contains(og) || bad_fields_.contains(og)) {
         field.warn("loop detected while traversing /AcroForm");
         return false;
@@ -462,6 +466,8 @@ AcroForm::traverseField(QPDFObjectHandle field, QPDFObjectHandle const& parent, 
         std::string name = node.fully_qualified_name();
         fields_[og].name = name;
         name_to_fields_[name].insert(og);
+    } else if (!is_annotation) {
+        unnamed_fields_.insert(og);
     }
 
     for (auto const& kid: node.Kids()) {
@@ -1085,8 +1091,8 @@ AcroForm::transformAnnotations(
 
     QPDFObjGen::set added_new_fields;
     for (auto annot: old_annots) {
-        if (annot.isStream()) {
-            annot.warn("ignoring annotation that's a stream");
+        if (!annot.isDictionary()) {
+            annot.warn("ignoring annotation that is not a dictionary");
             continue;
         }
         auto [top_field, have_field, have_parent] = transform_annotation(annot);
@@ -1180,8 +1186,17 @@ AcroForm::fixCopiedAnnotations(
     AcroForm& from_afdh,
     std::set<QPDFObjGen>* added_fields)
 {
-    auto const& old_annots = from_page.getKey("/Annots");
-    if (old_annots.empty() || !old_annots.isArray()) {
+    auto const& old_annots = from_page["/Annots"];
+    if (!old_annots) {
+        return;
+    }
+    if (!old_annots.isArray()) {
+        from_page.warn("removing non-array /Annots");
+        from_page.erase("/Annots");
+        return;
+    }
+    if (old_annots.empty()) {
+        from_page.erase("/Annots");
         return;
     }
 
@@ -1198,7 +1213,7 @@ AcroForm::fixCopiedAnnotations(
         &from_afdh,
         &to_page);
 
-    to_page.replaceKey("/Annots", QPDFObjectHandle::newArray(new_annots));
+    to_page.replace("/Annots", Array(std::move(new_annots)));
     addAndRenameFormFields(new_fields);
     if (added_fields) {
         for (auto const& f: new_fields) {

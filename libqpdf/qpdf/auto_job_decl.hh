@@ -8,13 +8,13 @@
 static constexpr char const* O_GLOBAL = "global";
 static constexpr char const* O_PAGES = "pages";
 static constexpr char const* O_ENCRYPTION = "encryption";
-static constexpr char const* O_40_BIT_ENCRYPTION = "40-bit encryption";
-static constexpr char const* O_128_BIT_ENCRYPTION = "128-bit encryption";
-static constexpr char const* O_256_BIT_ENCRYPTION = "256-bit encryption";
+static constexpr char const* O_40_BIT_ENCRYPTION = "40-bit-encryption";
+static constexpr char const* O_128_BIT_ENCRYPTION = "128-bit-encryption";
+static constexpr char const* O_256_BIT_ENCRYPTION = "256-bit-encryption";
 static constexpr char const* O_UNDERLAY_OVERLAY = "underlay/overlay";
 static constexpr char const* O_ATTACHMENT = "attachment";
-static constexpr char const* O_COPY_ATTACHMENT = "copy attachment";
-static constexpr char const* O_SET_PAGE_LABELS = "set page labels";
+static constexpr char const* O_COPY_ATTACHMENT = "copy-attachment";
+static constexpr char const* O_SET_PAGE_LABELS = "set-page-labels";
 
 void argVersion();
 void argCopyright();

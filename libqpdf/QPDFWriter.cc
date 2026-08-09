@@ -2045,12 +2045,10 @@ impl::Writer::writeObject(QPDFObjectHandle object, int object_stream_index)
 std::string
 impl::Writer::getOriginalID1()
 {
-    QPDFObjectHandle trailer = qpdf.getTrailer();
-    if (trailer.hasKey("/ID")) {
-        return trailer.getKey("/ID").getArrayItem(0).getStringValue();
-    } else {
-        return "";
+    if (String id0 = qpdf.getTrailer()["/ID"][0]) {
+        return id0;
     }
+    return "";
 }
 
 void

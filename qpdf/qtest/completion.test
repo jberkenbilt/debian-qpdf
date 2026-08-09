@@ -5,8 +5,6 @@ use strict;
 
 unshift(@INC, '.');
 require qpdf_test_helpers;
-unshift(@INC, '../../libtests/qtest/arg_parser');
-require completion_helpers;
 
 chdir("qpdf") or die "chdir testdir failed: $!\n";
 
@@ -16,54 +14,57 @@ cleanup();
 
 my $td = new TestDriver('completion');
 
-# Tests to exercise QPDFArgParser belong in arg_parser.test in
-# libtests. These tests are supposed to be specific to the qpdf cli.
-# Since they were written prior to moving QPDFArgParser into the
-# library, there are several tests here that also exercise
-# QPDFArgParser logic.
-my @completion_tests = (
-    ['', 0, 'bad-input-1'],
-    ['', 1, 'bad-input-2'],
-    ['', 2, 'bad-input-3'],
-    ['qpdf', 2, 'bad-input-4'],
-    ['qpdf ', undef, 'top'],
-    ['qpdf -', undef, 'top-arg'],
-    ['qpdf --enc', undef, 'enc'],
-    ['qpdf --encrypt -', undef, 'encrypt'],
-    ['qpdf --split-pag', undef, 'split'],
-    ['qpdf --decode-l', undef, 'decode-l'],
-    ['qpdf --decode-lzzz', 15, 'decode-l'],
-    ['qpdf --decode-level=', undef, 'decode-level'],
-    ['qpdf --decode-level=g', undef, 'decode-level-g'],
-    ['qpdf --check -', undef, 'later-arg'],
-    ['qpdf infile outfile oops --ch', undef, 'usage-empty'],
-    ['qpdf \'input " file\' --q', undef, 'quoting'],
-    ['qpdf \'input file\' --q', undef, 'quoting'],
-    ['qpdf "input file" --q', undef, 'quoting'],
-    ['qpdf "input fi\'le" --q', undef, 'quoting'],
-    ['qpdf input\ file --q', undef, 'quoting'],
-    );
-my $n_tests = 2 * scalar(@completion_tests);
-my $completion_filter =
-    "perl ../../../libtests/qtest/arg_parser/filter-completion.pl";
-foreach my $c (@completion_tests)
-{
-    my ($cmd, $point, $description) = @$c;
-    my $out = "completion-$description.out";
-    my $zout = "completion-$description-zsh.out";
-    if (! -f $zout)
-    {
-        $zout = $out;
-    }
-    $td->runtest("bash completion: $description",
-                 {$td->COMMAND => [@{bash_completion("qpdf", $cmd, $point)}],
-                      $td->FILTER => "$completion_filter $out"},
-                 {$td->FILE => "$out", $td->EXIT_STATUS => 0},
+my $n_tests = 2;
+$td->runtest("check generated bash completion",
+             {$td->COMMAND => "qpdf --completion-bash"},
+             {$td->FILE => "../../../completions/bash/qpdf", $td->EXIT_STATUS => 0},
+             $td->NORMALIZE_NEWLINES);
+$td->runtest("check generated zsh completion",
+             {$td->COMMAND => "qpdf --completion-zsh"},
+             {$td->FILE => "../../../completions/zsh/_qpdf", $td->EXIT_STATUS => 0},
+             $td->NORMALIZE_NEWLINES);
+
+
+if (system("test_completion >/dev/null 2>&1") == 768) {
+    $td->emphasize("completion tests are not supported on this platform");
+    $td->report($n_tests);
+    exit(0);
+}
+
+# installation.rst knows the version numbers checked here
+$n_tests += 2;
+my $bash_ok = system(
+    "bash -c '[ \"\${BASH_VERSINFO[0]}\" -gt 4 ] ||" .
+    " { [ \"\${BASH_VERSINFO[0]}\" -eq 4 ] && [ \"\${BASH_VERSINFO[1]}\" -ge 2 ]; }'") == 0;
+my $zsh_ok = system("zsh  -c '[[ \${ZSH_VERSION%%.*} -ge 5 ]]'") == 0;
+
+my $action_if_missing = "skip\n";
+if (exists $ENV{'REQUIRE_SHELLS'}) {
+    $action_if_missing = "fail\n";
+}
+
+if ($bash_ok) {
+    $td->runtest("bash completion",
+                 {$td->COMMAND => "test_completion --shell bash --tests completion-tests"},
+                 {$td->STRING => "All tests passed.\n", $td->EXIT_STATUS => 0},
                  $td->NORMALIZE_NEWLINES);
-    $td->runtest("zsh completion: $description",
-                 {$td->COMMAND => [@{zsh_completion("qpdf", $cmd, $point)}],
-                      $td->FILTER => "$completion_filter $zout"},
-                 {$td->FILE => "$zout", $td->EXIT_STATUS => 0},
+} else {
+    $td->emphasize("a new enough bash is not present; skipping bash");
+    $td->runtest("skipping bash completion",
+                 {$td->STRING => "skip\n"},
+                 {$td->STRING => $action_if_missing},
+                 $td->NORMALIZE_NEWLINES);
+}
+if ($zsh_ok) {
+    $td->runtest("zsh completion",
+                 {$td->COMMAND => "test_completion --shell zsh --tests completion-tests"},
+                 {$td->STRING => "All tests passed.\n", $td->EXIT_STATUS => 0},
+                 $td->NORMALIZE_NEWLINES);
+} else {
+    $td->emphasize("a new enough zsh is not present; skipping zsh");
+    $td->runtest("skipping zsh completion",
+                 {$td->STRING => "skip\n"},
+                 {$td->STRING => $action_if_missing},
                  $td->NORMALIZE_NEWLINES);
 }
 

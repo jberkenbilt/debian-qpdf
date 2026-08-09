@@ -14,6 +14,7 @@
 #include <qpdf/QPDFTokenizer_private.hh>
 #include <qpdf/global_private.hh>
 
+#include <cinttypes>
 #include <exception>
 
 using namespace qpdf;
@@ -149,9 +150,7 @@ namespace qpdf
 
           private:
             std::shared_ptr<QPDFLogger> log_;
-
-            size_t max_warnings_{0};
-
+            size_t max_warnings_{global::Limits::doc_max_warnings()};
             bool password_is_hex_key_{false};
             bool ignore_xref_streams_{false};
             bool suppress_warnings_{false};
@@ -1206,6 +1205,7 @@ class QPDF::Doc::Pages: Common
     std::vector<QPDFObjectHandle> const& cache();
     void getAllPagesInternal(
         QPDFObjectHandle cur_pages,
+        uint32_t level,
         QPDFObjGen::set& visited,
         QPDFObjGen::set& seen,
         bool media_box,

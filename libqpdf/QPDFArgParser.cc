@@ -6,26 +6,29 @@
 #include <qpdf/QTC.hh>
 #include <qpdf/QUtil.hh>
 #include <qpdf/Util.hh>
+#include <qpdf/auto_job_completion_bash.hh>
+#include <qpdf/auto_job_completion_zsh.hh>
 
-#include <cstdlib>
-#include <cstring>
 #include <iostream>
 
 using namespace qpdf;
 using namespace std::literals;
 
-QPDFArgParser::Members::Members(int argc, char const* const argv[], char const* progname_env) :
-
+QPDFArgParser::Members::Members(int argc, char const* const argv[]) :
     argc(argc),
-    argv(argv),
-    progname_env(progname_env)
+    argv(argv)
 {
     auto tmp = QUtil::make_unique_cstr(argv[0]);
     whoami = QUtil::getWhoami(tmp.get());
 }
 
-QPDFArgParser::QPDFArgParser(int argc, char const* const argv[], char const* progname_env) :
-    m(new Members(argc, argv, progname_env))
+QPDFArgParser::QPDFArgParser(int argc, char const* const argv[], char const*) :
+    QPDFArgParser(argc, argv)
+{
+}
+
+QPDFArgParser::QPDFArgParser(int argc, char const* const argv[]) :
+    m(new Members(argc, argv))
 {
     selectHelpOptionTable();
     char const* help_choices[] = {"all", nullptr};
@@ -148,12 +151,6 @@ QPDFArgParser::addFinalCheck(bare_arg_handler_t handler)
     m->final_check_handler = handler;
 }
 
-bool
-QPDFArgParser::isCompleting() const
-{
-    return m->bash_completion;
-}
-
 int
 QPDFArgParser::argsLeft() const
 {
@@ -161,67 +158,19 @@ QPDFArgParser::argsLeft() const
 }
 
 void
-QPDFArgParser::insertCompletion(std::string const& arg)
-{
-    m->completions.insert(arg);
-}
-
-void
-QPDFArgParser::completionCommon(bool zsh)
-{
-    std::string progname = m->argv[0];
-    std::string executable;
-    std::string appdir;
-    std::string appimage;
-    if (QUtil::get_env(m->progname_env.c_str(), &executable)) {
-        progname = executable;
-    } else if (QUtil::get_env("APPDIR", &appdir) && QUtil::get_env("APPIMAGE", &appimage)) {
-        // Detect if we're in an AppImage and adjust
-        if ((appdir.length() < strlen(m->argv[0])) &&
-            (strncmp(appdir.c_str(), m->argv[0], appdir.length()) == 0)) {
-            progname = appimage;
-        }
-    }
-    if (zsh) {
-        // FIXME: we assume progname doesn't contain single quote
-        // characters. 's in progname like in "/opt/joe's software/qpdf"
-        // should ideally be escaped as '\''. Unlikely to be a problem
-        // in practice. '...' is preferable over "..." as inside the
-        // latter more characters ("$`\) are a problem and it's
-        // virtually impossible to escape those in a locale-independent
-        // way.
-        std::cout << "complete -o bashdefault -o default -C '" << progname << "' " << m->whoami
-                  << "\n";
-    } else {
-        // we need a function wrapper that discards arguments to avoid
-        // leaking sensitive information in the process argument list
-        // which is public on most systems. Here putting the code on one
-        // line as old versions of the documentation were instructing
-        // users to do eval $(qpdf --completion-bash) instead of the
-        // correct eval "$(qpdf --completion-bash)"
-        std::cout << "qpdf_completer() { '" << progname << "'; }; "
-                  << "complete -o bashdefault -o default -o nospace -F qpdf_completer " << m->whoami
-                  << "\n";
-    }
-    // Put output before error so calling from zsh works properly
-    std::string path = progname;
-    size_t slash = path.find('/');
-    if ((slash != 0) && (slash != std::string::npos)) {
-        std::cerr << "WARNING: " << m->whoami << " completion enabled"
-                  << " using relative path to executable" << '\n';
-    }
-}
-
-void
 QPDFArgParser::argCompletionBash()
 {
-    completionCommon(false);
+    for (auto const& line: AUTO_COMPLETION_BASH) {
+        std::cout << line << "\n";
+    }
 }
 
 void
 QPDFArgParser::argCompletionZsh()
 {
-    completionCommon(true);
+    for (auto const& line: AUTO_COMPLETION_ZSH) {
+        std::cout << line << "\n";
+    }
 }
 
 void
@@ -271,84 +220,8 @@ QPDFArgParser::handleArgFileArguments()
 }
 
 void
-QPDFArgParser::handleBashArguments()
-{
-    // Do a minimal job of parsing bash_line into arguments. This doesn't do everything the shell
-    // does (e.g. $(...), variable expansion, arithmetic, globs, etc.), but it should be good enough
-    // for purposes of handling completion. As we build up the new argv, we can't use m->new_argv
-    // because this code has to interoperate with @file arguments, so memory for both ways of
-    // fabricating argv has to be protected.
-
-    bool last_was_backslash = false;
-    enum { st_top, st_squote, st_dquote } state = st_top;
-    std::string arg;
-    for (char ch: m->bash_line) {
-        if (last_was_backslash) {
-            arg.append(1, ch);
-            last_was_backslash = false;
-        } else if (ch == '\\') {
-            last_was_backslash = true;
-        } else {
-            bool append = false;
-            switch (state) {
-            case st_top:
-                if (util::is_space(ch)) {
-                    if (!arg.empty()) {
-                        m->bash_argv.emplace_back(arg);
-                        arg.clear();
-                    }
-                } else if (ch == '"') {
-                    state = st_dquote;
-                } else if (ch == '\'') {
-                    state = st_squote;
-                } else {
-                    append = true;
-                }
-                break;
-
-            case st_squote:
-                if (ch == '\'') {
-                    state = st_top;
-                } else {
-                    append = true;
-                }
-                break;
-
-            case st_dquote:
-                if (ch == '"') {
-                    state = st_top;
-                } else {
-                    append = true;
-                }
-                break;
-            }
-            if (append) {
-                arg.append(1, ch);
-            }
-        }
-    }
-    if (m->bash_argv.empty()) {
-        // This can't happen if properly invoked by bash, but ensure we have a valid argv[0]
-        // regardless.
-        m->bash_argv.emplace_back(m->argv[0]);
-    }
-    // Explicitly discard any non-space-terminated word. The "current word" is handled specially.
-    m->bash_argv_ph.reserve(1 + m->bash_argv.size());
-    for (auto const& a: m->bash_argv) {
-        m->bash_argv_ph.push_back(a.data());
-    }
-    m->argc = QIntC::to_int(m->bash_argv.size());
-    m->bash_argv_ph.push_back(nullptr);
-    m->argv = m->bash_argv_ph.data();
-}
-
-void
 QPDFArgParser::usage(std::string const& message)
 {
-    if (m->bash_completion) {
-        // This will cause bash to fall back to regular file completion.
-        exit(0);
-    }
     throw QPDFUsage(message);
 }
 
@@ -369,90 +242,9 @@ QPDFArgParser::readArgsFromFile(std::string const& filename)
 }
 
 void
-QPDFArgParser::checkCompletion()
-{
-    // See if we're being invoked from bash completion.
-    std::string bash_point_env;
-    // On Windows with mingw, there have been times when there appears to be no way to distinguish
-    // between an empty environment variable and an unset variable. There are also conditions under
-    // which bash doesn't set COMP_LINE. Therefore, enter this logic if either COMP_LINE or
-    // COMP_POINT are set. They will both be set together under ordinary circumstances.
-    bool got_line = QUtil::get_env("COMP_LINE", &m->bash_line);
-    bool got_point = QUtil::get_env("COMP_POINT", &bash_point_env);
-    if (got_line || got_point) {
-        size_t p = QUtil::string_to_uint(bash_point_env.c_str());
-        if (p < m->bash_line.length()) {
-            // Truncate the line. We ignore everything at or after the
-            // cursor for completion purposes.
-            m->bash_line = m->bash_line.substr(0, p);
-        }
-        if (p > m->bash_line.length()) {
-            p = m->bash_line.length();
-        }
-        // Set bash_cur and bash_prev based on bash_line rather than relying on
-        // argv. Using argv is unsafe as process argument lists are public on
-        // most systems. zsh doesn't pass information there, and we actively
-        // discard them for bash with our qpdf_completer to avoid that
-        // information disclosure vulnerability. Both bash and zsh set
-        // COMP_LINE and COMP_POINT which we can rely on instead.
-        //
-        // FIXME. For both bash and zsh, COMP_POINT is an offset in terms of
-        // *characters*, with characters decoded as per the shell's own locale.
-        // Here we interpret it as a *byte* offset which means it won't work
-        // properly if there are multibyte characters to the left of the
-        // cursor, but saves us having to decode the command line (which is hard
-        // to do in the same way the shell does in all cases).
-
-        // p is equal to length of the string. Walk backwards looking for the first separator.
-        // bash_cur is everything after the last separator, possibly empty.
-        char sep(0);
-        while (p > 0) {
-            --p;
-            char ch = m->bash_line.at(p);
-            if ((ch == ' ') || (ch == '=') || (ch == ':')) {
-                sep = ch;
-                break;
-            }
-        }
-        if (1 + p <= m->bash_line.length()) {
-            m->bash_cur = m->bash_line.substr(1 + p, std::string::npos);
-        }
-        if ((sep == ':') || (sep == '=')) {
-            // Bash sets prev to the non-space separator if any. Actually, if there are multiple
-            // separators in a row, they are all included in prev, but that detail is not important
-            // to us and not worth coding.
-            m->bash_prev = m->bash_line.substr(p, 1);
-        } else {
-            // Go back to the last separator and set prev based on
-            // that.
-            size_t p1 = p;
-            while (p1 > 0) {
-                --p1;
-                char ch = m->bash_line.at(p1);
-                if ((ch == ' ') || (ch == ':') || (ch == '=')) {
-                    m->bash_prev = m->bash_line.substr(p1 + 1, p - p1 - 1);
-                    break;
-                }
-            }
-        }
-        if (m->bash_prev.empty()) {
-            m->bash_prev = m->bash_line.substr(0, p);
-        }
-        if (m->argc == 1) {
-            // This is probably zsh using bashcompinit. There are a few differences in the expected
-            // output.
-            m->zsh_completion = true;
-        }
-        handleBashArguments();
-        m->bash_completion = true;
-    }
-}
-
-void
 QPDFArgParser::parseArgs()
 {
     selectMainOptionTable();
-    checkCompletion();
     handleArgFileArguments();
     for (m->cur_arg = 1; m->cur_arg < m->argc; ++m->cur_arg) {
         bool help_option = false;
@@ -492,8 +284,7 @@ QPDFArgParser::parseArgs()
                 arg_s = arg_s.substr(0, equal_pos);
             }
 
-            if ((!m->bash_completion) && (m->argc == 2) && (m->cur_arg == 1) &&
-                m->help_option_table.contains(arg_s)) {
+            if ((m->argc == 2) && (m->cur_arg == 1) && m->help_option_table.contains(arg_s)) {
                 // Handle help option, which is only valid as the sole option.
                 QTC::TC("libtests", "QPDFArgParser help option");
                 oep = m->help_option_table.find(arg_s);
@@ -567,11 +358,7 @@ QPDFArgParser::parseArgs()
             selectMainOptionTable();
         }
     }
-    if (m->bash_completion) {
-        handleCompletion();
-    } else {
-        doFinalChecks();
-    }
+    doFinalChecks();
 }
 
 std::string
@@ -590,98 +377,6 @@ QPDFArgParser::doFinalChecks()
     if (m->final_check_handler != nullptr) {
         m->final_check_handler();
     }
-}
-
-void
-QPDFArgParser::addChoicesToCompletions(
-    option_table_t& option_table, std::string const& option, std::string const& extra_prefix)
-{
-    if (option_table.contains(option)) {
-        OptionEntry& oe = option_table[option];
-        for (auto const& choice: oe.choices) {
-            QTC::TC("libtests", "QPDFArgParser complete choices");
-            m->completions.insert(extra_prefix + choice);
-        }
-    }
-}
-
-void
-QPDFArgParser::addOptionsToCompletions(option_table_t& option_table)
-{
-    for (auto& iter: option_table) {
-        std::string const& arg = iter.first;
-        if (arg == "--") {
-            continue;
-        }
-        OptionEntry& oe = iter.second;
-        std::string base = "--" + arg;
-        if (oe.param_arg_handler) {
-            if (m->zsh_completion) {
-                // zsh doesn't treat = as a word separator, so add all the options so we don't get a
-                // space after the =.
-                addChoicesToCompletions(option_table, arg, base + "=");
-            }
-            m->completions.insert(base + "=");
-        }
-        if (!oe.parameter_needed) {
-            m->completions.insert(base);
-        }
-    }
-}
-
-void
-QPDFArgParser::insertCompletions(
-    option_table_t& option_table, std::string const& choice_option, std::string const& extra_prefix)
-{
-    if (!choice_option.empty()) {
-        addChoicesToCompletions(option_table, choice_option, extra_prefix);
-    } else if ((!m->bash_cur.empty()) && (m->bash_cur.at(0) == '-')) {
-        addOptionsToCompletions(option_table);
-    }
-}
-
-void
-QPDFArgParser::handleCompletion()
-{
-    std::string extra_prefix;
-    if (m->completions.empty()) {
-        // Detect --option=... Bash treats the = as a word separator.
-        std::string choice_option;
-        if (m->bash_cur.empty() && (m->bash_prev.length() > 2) && (m->bash_prev.at(0) == '-') &&
-            (m->bash_prev.at(1) == '-') && (m->bash_line.at(m->bash_line.length() - 1) == '=')) {
-            choice_option = m->bash_prev.substr(2, std::string::npos);
-        } else if ((m->bash_prev == "=") && (m->bash_line.length() > (m->bash_cur.length() + 1))) {
-            // We're sitting at --option=x. Find previous option.
-            size_t end_mark = m->bash_line.length() - m->bash_cur.length() - 1;
-            char before_cur = m->bash_line.at(end_mark);
-            if (before_cur == '=') {
-                size_t space = m->bash_line.find_last_of(' ', end_mark);
-                if (space != std::string::npos) {
-                    std::string candidate = m->bash_line.substr(space + 1, end_mark - space - 1);
-                    if ((candidate.length() > 2) && (candidate.at(0) == '-') &&
-                        (candidate.at(1) == '-')) {
-                        choice_option = candidate.substr(2, std::string::npos);
-                    }
-                }
-            }
-        }
-        if (m->zsh_completion && (!choice_option.empty())) {
-            // zsh wants --option=choice rather than just choice
-            extra_prefix = "--" + choice_option + "=";
-        }
-        insertCompletions(*m->option_table, choice_option, extra_prefix);
-        if (m->argc == 1) {
-            // Help options are valid only by themselves.
-            insertCompletions(m->help_option_table, choice_option, extra_prefix);
-        }
-    }
-    std::string prefix = extra_prefix + m->bash_cur;
-    for (auto const& iter: m->completions) {
-        if (prefix.empty() || (iter.substr(0, prefix.length()) == prefix)) {
-            std::cout << iter << '\n';
-        }
-    }
-    exit(0);
 }
 
 void
