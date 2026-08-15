@@ -1,2 +1,0 @@
-#!/bin/sh
-exec ./pkg-test/test-cli $AUTOPKGTEST_TMP
